@@ -483,12 +483,25 @@ def main():
     ap.add_argument("--host", default="127.0.0.1",
                     help="127.0.0.1 = solo esta máquina; 0.0.0.0 = toda la red interna")
     ap.add_argument("--puerto", type=int, default=8000)
+    ap.add_argument("--sin-navegador", action="store_true",
+                    help="No abrir el navegador. Usalo cuando corre como servicio.")
     a = ap.parse_args()
 
     if not os.path.exists(DB):
         raise SystemExit(f"Falta {DB}. Corré primero: python3 ingesta.py")
+    # La clave puede venir del entorno o de chat/clave.txt. El archivo existe
+    # para poder arrancar con doble clic, donde no hay variables de entorno.
     if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        raise SystemExit("Falta la variable ANTHROPIC_API_KEY.")
+        archivo_clave = os.path.join(AQUI, "clave.txt")
+        if os.path.exists(archivo_clave):
+            clave = open(archivo_clave, encoding="utf-8").read().strip()
+            if clave:
+                os.environ["ANTHROPIC_API_KEY"] = clave
+    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+        raise SystemExit(
+            "Falta la clave de la API.\n"
+            "  Opcion 1: export ANTHROPIC_API_KEY=sk-ant-...\n"
+            f"  Opcion 2: guardala en {os.path.join(AQUI, 'clave.txt')}")
 
     d = json.loads(resumen_general())
     print(f"Base: {d['movimientos']:,} movimientos · {d['clientes_en_maestro']:,} clientes "
@@ -496,7 +509,17 @@ def main():
     print(f"Chat en http://{a.host}:{a.puerto}")
     if a.host == "0.0.0.0":
         print("  OJO: escuchando en toda la red. No lo expongas a internet sin login.")
-    ThreadingHTTPServer((a.host, a.puerto), Handler).serve_forever()
+    print("  Para cortarlo: Ctrl+C")
+
+    servidor = ThreadingHTTPServer((a.host, a.puerto), Handler)
+    if not a.sin_navegador:
+        import threading, webbrowser
+        destino = f"http://{'127.0.0.1' if a.host == '0.0.0.0' else a.host}:{a.puerto}"
+        threading.Timer(1.0, lambda: webbrowser.open(destino)).start()
+    try:
+        servidor.serve_forever()
+    except KeyboardInterrupt:
+        print("\nChat cerrado.")
 
 
 if __name__ == "__main__":

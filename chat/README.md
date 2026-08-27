@@ -30,24 +30,43 @@ página web no puede leer `bi.sistemaexpreso.com.ar` directamente: el navegador
 lo bloquea por CORS y por mezclar http con https. Un proceso del servidor sí
 puede, y de paso los datos nunca pasan por la máquina del usuario.
 
-## Probarlo
+## Cómo se entra
+
+El chat es una página web, pero no se abre con doble clic al `.html`: la clave de
+la API tiene que quedar del lado del servidor, así que primero arranca
+`servidor.py` y después se entra por el navegador. El servidor abre la pantalla
+solo al arrancar.
+
+### Preparar (una sola vez)
 
 ```bash
 pip install -r chat/requisitos.txt
 
-# 1. Armar la base a partir de los reportes
+# Armar la base a partir de los reportes
 python3 chat/ingesta.py --clientes ruta/reporte_clientes.xlsx \
                         --cuenta-corriente ruta/reporte_cuenta_corriente.xlsx
+```
 
-# 2. Levantar el chat
-export ANTHROPIC_API_KEY=sk-ant-...        # en Windows: set ANTHROPIC_API_KEY=...
+Guardá la clave de la API en `chat/clave.txt` (una línea, nada más que la clave).
+El archivo está en el `.gitignore`, no se sube. Si preferís variable de entorno,
+`export ANTHROPIC_API_KEY=sk-ant-...` también sirve y tiene prioridad.
+
+Con `config.json` (copiá `config.json.ejemplo`) alcanza con `python3 chat/ingesta.py`
+y baja los reportes solo de las URLs del BI.
+
+### Usarlo todos los días
+
+Doble clic en **`chat/iniciar.command`** (Mac) o **`chat/iniciar.bat`** (Windows).
+Levanta el servidor y abre la pantalla en el navegador.
+
+Por terminal es lo mismo:
+
+```bash
 python3 chat/servidor.py
 ```
 
-Y abrir http://127.0.0.1:8000.
-
-Con `config.json` (copiá `config.json.ejemplo`) alcanza con `python3 chat/ingesta.py`
-y los baja solo de las URLs del BI.
+Se corta con Ctrl+C en la ventana que quedó abierta. Mientras esa ventana esté
+abierta, el chat también está en http://127.0.0.1:8000.
 
 ## Ponerlo en el servidor de la empresa
 
@@ -61,7 +80,7 @@ y los baja solo de las URLs del BI.
    La ingesta reescribe las tablas de cero, así que se puede correr las veces
    que haga falta. Tarda menos de un minuto con estos volúmenes.
 
-2. **El servicio.** `python3 servidor.py --host 0.0.0.0 --puerto 8000` y dejarlo
+2. **El servicio.** `python3 servidor.py --host 0.0.0.0 --sin-navegador` y dejarlo
    como servicio (systemd en Linux, NSSM en Windows) para que levante solo.
 
 3. **Detrás del servidor web interno.** Conviene que Apache/Nginx/IIS haga de
