@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel de Flota | Diemar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* ===================== TOKENS ===================== *
+     * Mismos tokens que control_flota.html: las tres pantallas
+     * comparten superficie, tinta y paleta de series validada.  */
+    :root {
+      color-scheme: dark;
+
+      --plane:        #08090b;
+      --surface-1:    #12161a;
+      --surface-2:    #171c21;
+      --surface-3:    #1d2329;
+      --hairline:     rgba(255,255,255,0.07);
+      --hairline-2:   rgba(255,255,255,0.12);
+
+      --ink:          #e9ecef;
+      --ink-2:        #a9b0b8;
+      --ink-muted:    #7b828b;
+
+      /* Marca Diemar (solo chrome: nunca dentro de un grafico) */
+      --brand:        #ff7a1a;
+      --brand-deep:   #d35400;
+      --brand-soft:   rgba(255,122,26,0.12);
+
+      /* Series categoricas (dark) - validadas all-pairs sobre #12161a */
+      --series-1:     #3987e5;  /* larga distancia */
+      --series-2:     #d95926;  /* flota completa / CO2 */
+      --series-3:     #199e70;  /* ralenti % */
+
+      /* Estados (paleta de estado reservada, nunca como "serie 4") */
+      --st-good:      #0ca30c;
+      --st-warning:   #fab219;
+      --st-serious:   #ec835a;
+      --st-critical:  #d03b3b;
+      --st-none:      #7b828b;
+
+      --grid:         #22262b;
+      --axis:         #383c42;
+
+      --radius:       14px;
+      --shadow:       0 18px 44px rgba(0,0,0,0.55);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { max-width: 100%; overflow-x: hidden; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      margin: 0; background: var(--plane); color: var(--ink);
+      font-size: 14px; line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0 0 auto 0; height: 420px;
+      background: radial-gradient(ellipse at center, rgba(255,122,26,0.11), transparent 68%);
+      pointer-events: none; z-index: 0;
+    }
+    .shell { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px 56px; }
+
+    /* ===================== HEADER ===================== */
+    .topbar {
+      display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+      padding: 22px 0 18px; border-bottom: 1px solid var(--hairline); position: relative;
+    }
+    .topbar::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, var(--brand), rgba(255,122,26,0) 55%);
+    }
+    .logo { height: 46px; width: auto; }
+    .brandblock { display: flex; flex-direction: column; gap: 3px; margin-right: auto; }
+    .brandblock h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
+    .brandblock .sub {
+      font-size: 11px; letter-spacing: 2.4px; text-transform: uppercase;
+      color: var(--ink-muted); font-weight: 500;
+    }
+    .meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
+      color: var(--ink-2); background: var(--surface-2);
+      border: 1px solid var(--hairline); border-radius: 999px;
+      padding: 6px 12px; font-weight: 500; white-space: nowrap;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none; }
+    .dot.warn { background: var(--st-warning); }
+    .dot.off  { background: var(--st-none); }
+    .dot.live { animation: pulse 2.4s ease-in-out infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.32; } }
+    @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
+
+    .btn-refresh {
+      font: inherit; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
+      font-weight: 600; color: var(--brand); background: var(--brand-soft);
+      border: 1px solid rgba(255,122,26,0.32); border-radius: 999px;
+      padding: 6px 14px; cursor: pointer; transition: background .18s;
+    }
+    .btn-refresh:hover { background: rgba(255,122,26,0.2); }
+    .btn-refresh[disabled] { opacity: .5; cursor: default; }
+
+    /* ===================== ACCESOS ===================== */
+    .accesos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 22px; }
+    .acceso {
+      display: flex; align-items: center; gap: 16px; text-decoration: none; color: inherit;
+      background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
+      border: 1px solid var(--hairline); border-radius: var(--radius);
+      padding: 18px 20px; position: relative; overflow: hidden;
+      transition: border-color .18s, transform .18s, box-shadow .18s;
+    }
+    .acceso::before {
+      content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: var(--brand);
+    }
+    .acceso:hover {
+      border-color: rgba(255,122,26,0.45); transform: translateY(-2px);
+      box-shadow: 0 14px 32px rgba(0,0,0,0.45);
+    }
+    .acceso:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
+    .acceso .ico {
+      width: 44px; height: 44px; flex: none; border-radius: 11px;
+      background: var(--brand-soft); border: 1px solid rgba(255,122,26,0.28);
+      display: grid; place-items: center; color: var(--brand);
+    }
+    .acceso .ico svg { width: 22px; height: 22px; }
+    .acceso .txt { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+    .acceso .txt strong { font-size: 15.5px; font-weight: 600; letter-spacing: -0.01em; }
+    .acceso .txt span { font-size: 12px; color: var(--ink-muted); }
+    .acceso .go { margin-left: auto; color: var(--ink-muted); font-size: 20px; flex: none; }
+    .acceso .badge {
+      margin-left: auto; flex: none; font-size: 11px; font-weight: 700; letter-spacing: .4px;
+      border-radius: 999px; padding: 4px 11px; border: 1px solid currentColor; white-space: nowrap;
+    }
+
+    /* ===================== SECCIONES / CARDS ===================== */
+    .section-label {
+      display: flex; align-items: center; gap: 12px;
+      font-size: 11.5px; font-weight: 600; letter-spacing: 2.2px;
+      text-transform: uppercase; color: var(--ink-muted); margin: 32px 0 12px;
+    }
+    .section-label::before { content: ""; width: 3px; height: 14px; background: var(--brand); border-radius: 2px; }
+    .section-label::after { content: ""; flex: 1; height: 1px; background: var(--hairline); }
+
+    .card {
+      background: var(--surface-1); border: 1px solid var(--hairline);
+      border-radius: var(--radius); box-shadow: var(--shadow);
+      position: relative; overflow: hidden;
+    }
+    .card-head {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      padding: 15px 18px; border-bottom: 1px solid var(--hairline);
+    }
+    .card-head h2 {
+      margin: 0; font-size: 12px; font-weight: 600;
+      letter-spacing: 1.6px; text-transform: uppercase; color: var(--ink-2);
+    }
+    .card-head .spacer { margin-left: auto; }
+    .card-head .hint { font-size: 11.5px; color: var(--ink-muted); letter-spacing: 0; text-transform: none; }
+    .card-body { padding: 18px; }
+
+    /* ===================== KPI TILES ===================== */
+    /* Ocho tiles: se reparten parejo en vez de dejar una sola colgada al final. */
+    .kpi-row { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+    @media (min-width: 700px)  { .kpi-row { grid-template-columns: repeat(3, 1fr); } }
+    @media (min-width: 1080px) { .kpi-row { grid-template-columns: repeat(4, 1fr); } }
+    .kpi {
+      background: var(--surface-1); border: 1px solid var(--hairline);
+      border-radius: 12px; padding: 16px 16px 15px; position: relative; overflow: hidden;
+    }
+    .kpi::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--kpi-accent, var(--brand));
+    }
+    .kpi .k-label {
+      font-size: 10.5px; letter-spacing: 1.4px; text-transform: uppercase;
+      color: var(--ink-muted); font-weight: 600;
+    }
+    .kpi .k-value {
+      font-size: 32px; font-weight: 600; line-height: 1.1; margin-top: 9px;
+      letter-spacing: -0.02em; white-space: nowrap; font-variant-numeric: tabular-nums;
+    }
+    .kpi .k-value .u { font-size: 15px; color: var(--ink-muted); font-weight: 500; }
+    .kpi .k-foot { font-size: 11.5px; color: var(--ink-muted); margin-top: 5px; }
+
+    /* ===================== PILLS DE ESTADO ===================== */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 3px 10px 3px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+      border: 1px solid currentColor; white-space: nowrap;
+    }
+    .pill .ic {
+      width: 14px; height: 14px; border-radius: 4px; flex: none;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 800; background: currentColor;
+    }
+    .pill .ic span { color: #0b0e11; }
+    .st-vencido  { color: var(--st-critical); background: rgba(208,59,59,0.10); }
+    .st-urgente  { color: var(--st-serious);  background: rgba(236,131,90,0.10); }
+    .st-proximo  { color: var(--st-warning);  background: rgba(250,178,25,0.10); }
+    .st-ok       { color: var(--st-good);     background: rgba(12,163,12,0.10); }
+    .st-sindato  { color: var(--st-none);     background: rgba(123,130,139,0.10); }
+
+    /* ===================== TABLA ===================== */
+    .table-wrap { overflow-x: auto; }
+    table.data { width: 100%; border-collapse: collapse; min-width: 640px; font-variant-numeric: tabular-nums; }
+    table.data thead th {
+      background: #0d1114; color: var(--ink-muted);
+      font-size: 10.5px; font-weight: 600; letter-spacing: 1.3px; text-transform: uppercase;
+      padding: 12px 9px; text-align: left; white-space: nowrap;
+      border-bottom: 1px solid var(--hairline);
+    }
+    table.data th.num, table.data td.num { text-align: right; }
+    table.data td {
+      padding: 11px 9px; font-size: 12.5px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      white-space: nowrap;
+    }
+    table.data tbody tr:last-child td { border-bottom: none; }
+    table.data tbody tr:hover { background: rgba(255,122,26,0.045); }
+    .pat { font-weight: 700; color: var(--brand); letter-spacing: 0.4px; }
+
+    /* ===================== GRAFICOS ===================== */
+    .grid-2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+    .chart-holder { width: 100%; overflow-x: auto; }
+    .chart-holder svg { display: block; max-width: 100%; height: auto; }
+    .chart-note { font-size: 11.5px; color: var(--ink-muted); margin-top: 10px; }
+    .empty { padding: 34px; text-align: center; color: var(--ink-muted); font-size: 13px; }
+
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+    .legend .item { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--ink-2); }
+    .legend .swatch { width: 11px; height: 3px; border-radius: 2px; flex: none; }
+
+    /* ===================== TOOLTIP ===================== */
+    #tip {
+      position: fixed; z-index: 60; pointer-events: none; opacity: 0;
+      background: var(--surface-3); border: 1px solid var(--hairline-2);
+      border-radius: 9px; padding: 9px 11px; font-size: 12px; color: var(--ink);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.6); transition: opacity .12s; max-width: 260px;
+    }
+    #tip .t-title {
+      font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase;
+      color: var(--ink-muted); font-weight: 600; margin-bottom: 5px;
+    }
+    #tip .t-row { display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+    #tip .t-row .sw { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+    .foot {
+      margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--hairline);
+      font-size: 11.5px; color: var(--ink-muted);
+      display: flex; gap: 16px; flex-wrap: wrap; align-items: center;
+    }
+    .foot a { color: var(--ink-2); }
+
+    @media (max-width: 640px) {
+      .shell { padding: 0 14px 40px; }
+      .logo { height: 34px; }
+      .brandblock h1 { font-size: 16px; }
+      .kpi { padding: 13px 13px 12px; }
+      .kpi .k-value { font-size: 23px; }
+      .kpi .k-label { font-size: 9.5px; letter-spacing: 1.1px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============ HEADER ============ -->
+  <div class="topbar">
+    <img src="Imagenes/logo_diemar4.png" alt="Diemar" class="logo">
+    <div class="brandblock">
+      <div class="sub">Expreso Diemar</div>
+      <h1>Panel general de flota</h1>
+    </div>
+    <div class="meta">
+      <span class="chip" id="chip-fuente" title="Origen de los datos"><span class="dot off"></span><span id="fuente-txt">Sincronizando</span></span>
+      <span class="chip" id="chip-update"><span id="update-txt">--:--</span></span>
+      <button class="btn-refresh" id="btn-refresh" type="button">Actualizar</button>
+    </div>
+  </div>
+
+  <!-- ============ ACCESOS A LAS PANTALLAS ============ -->
+  <nav class="accesos" aria-label="Pantallas del taller">
+    <a class="acceso" href="control_flota.html">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/>
+          <circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Control de Flota</strong>
+        <span>Services, prefiltros y telemetría por unidad</span>
+      </span>
+      <span class="badge st-sindato" id="badge-flota">—</span>
+    </a>
+
+    <a class="acceso" href="stock_repuestos.html">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Stock de Repuestos</strong>
+        <span>Artículos, movimientos y carga de remitos</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+  </nav>
+
+  <!-- ============ KPIs ============ -->
+  <div class="section-label">Estado general</div>
+  <div class="kpi-row" id="kpis"></div>
+
+  <!-- ============ MANTENIMIENTO ============ -->
+  <div class="section-label">Mantenimiento</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h2>Services por estado</h2>
+        <span class="spacer"></span>
+        <span class="hint">margen hasta el próximo service</span>
+      </div>
+      <div class="card-body"><div class="chart-holder" id="ch-estados"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Unidades por sucursal</h2>
+        <span class="spacer"></span>
+        <span class="hint" id="hint-suc"></span>
+      </div>
+      <div class="card-body"><div class="chart-holder" id="ch-sucursal"></div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-head">
+      <h2>Unidades que necesitan atención</h2>
+      <span class="spacer"></span>
+      <a class="hint" href="control_flota.html" style="color:var(--brand);text-decoration:none">Ver todas en Control de Flota ›</a>
+    </div>
+    <div class="table-wrap" id="tabla-criticas"></div>
+  </div>
+
+  <!-- ============ CONSUMO Y EMISIONES ============ -->
+  <div class="section-label">Consumo y emisiones</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-head">
+        <h2>Consumo mensual</h2>
+        <span class="spacer"></span>
+        <span class="legend">
+          <span class="item"><span class="swatch" style="background:var(--series-1)"></span>Larga distancia</span>
+          <span class="item"><span class="swatch" style="background:var(--series-2)"></span>Flota completa</span>
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="chart-holder" id="ch-consumo"></div>
+        <p class="chart-note">Litros consumidos sobre kilómetros recorridos del mes, en litros cada 100&nbsp;km.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h2>Emisiones mensuales</h2>
+        <span class="spacer"></span>
+        <span class="hint">kilos de CO2</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-holder" id="ch-co2"></div>
+        <p class="chart-note">Suma de la flota con telemetría de emisiones.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-head">
+      <h2>Ralentí promedio</h2>
+      <span class="spacer"></span>
+      <span class="hint">porcentaje del tiempo de motor en marcha detenida</span>
+    </div>
+    <div class="card-body">
+      <div class="chart-holder" id="ch-ralenti"></div>
+      <p class="chart-note">Cuanto más bajo, menos combustible se quema sin avanzar.</p>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span id="foot-fuentes">Datos de las planillas de Google de services y combustible.</span>
+    <span class="spacer" style="flex:1"></span>
+    <a href="control_flota.html">Control de Flota</a>
+    <a href="stock_repuestos.html">Stock de Repuestos</a>
+  </div>
+
+</div>
+
+<div id="tip" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* =====================================================================
+   CONFIGURACION DE FUENTES
+   ---------------------------------------------------------------------
+   Las mismas dos planillas que usa control_flota.html. Para que el
+   tablero pueda leerlas sin pedir login, cada una tiene que estar
+   compartida como "cualquier persona con el enlace puede ver".
+   ===================================================================== */
+const CFG = {
+  idServices : "10xcMyBI6T4fxLidVu0strLV_tqrKrHJsdPi0y2SP0cU",
+  idCombust  : "1u7cckay0IJ60bfoKk2OZo-TjCvTbH9O1wKxNFdSKDCQ",
+
+  // Respaldo: la planilla SERVICES tambien esta publicada en la web como CSV.
+  pubServices: "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-BcGUJLdB2MCZXH1VRCOXSZQwktrKeEYO4DrEswu1Dso8nr9291YZWcWB4Sp8POdJM4plo0VEfn8f/pub?output=csv",
+
+  gid: {
+    flota     : "743729287",    // maestro de unidades
+    lad       : "0",            // services larga distancia
+    conjunto  : "1026354276",   // services de toda la flota
+    prefiltro : "1669414303",   // prefiltros
+    telemetria: "0",            // consumo mensual larga distancia
+    telemDist : "1044040871",   // consumo mensual de toda la flota
+    emisiones : "882343299"     // % ralenti y kg CO2
+  },
+  refreshMs: 300000
+};
+
+const gviz = (id, gid) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
+const pub  = (gid)     => `${CFG.pubServices}&gid=${gid}`;
+
+/* Paleta leida del CSS para no duplicar valores. */
+const CSSV = getComputedStyle(document.documentElement);
+const C = {
+  s1: CSSV.getPropertyValue('--series-1').trim(),
+  s2: CSSV.getPropertyValue('--series-2').trim(),
+  s3: CSSV.getPropertyValue('--series-3').trim(),
+  grid: CSSV.getPropertyValue('--grid').trim(),
+  axis: CSSV.getPropertyValue('--axis').trim(),
+  muted: CSSV.getPropertyValue('--ink-muted').trim(),
+  ink2: CSSV.getPropertyValue('--ink-2').trim(),
+  surface: CSSV.getPropertyValue('--surface-1').trim()
+};
+
+const UMBRAL_URGENTE = 5000;
+const UMBRAL_PROXIMO = 15000;
+
+const ESTADOS = {
+  vencido : { label:'Vencido',   icon:'!', cls:'st-vencido', color: CSSV.getPropertyValue('--st-critical').trim(), orden:0 },
+  urgente : { label:'Urgente',   icon:'▲', cls:'st-urgente', color: CSSV.getPropertyValue('--st-serious').trim(),  orden:1 },
+  proximo : { label:'Próximo',   icon:'◆', cls:'st-proximo', color: CSSV.getPropertyValue('--st-warning').trim(),  orden:2 },
+  ok      : { label:'Al día',    icon:'✓', cls:'st-ok',      color: CSSV.getPropertyValue('--st-good').trim(),     orden:3 },
+  sindato : { label:'Sin datos', icon:'?', cls:'st-sindato', color: CSSV.getPropertyValue('--st-none').trim(),     orden:4 }
+};
+
+function estadoDe(falta) {
+  if (falta === null || !isFinite(falta)) return 'sindato';
+  if (falta < 0) return 'vencido';
+  if (falta < UMBRAL_URGENTE) return 'urgente';
+  if (falta < UMBRAL_PROXIMO) return 'proximo';
+  return 'ok';
+}
+
+/* =====================================================================
+   UTILIDADES
+   ===================================================================== */
+const $ = (s, r) => (r || document).querySelector(s);
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+}
+
+/** "AD 247 MQ" y "AD247MQ" son la misma unidad. */
+function normPat(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+
+/** Patente real: AA123BB o ABC123. Descarta encabezados y totales. */
+function esPatente(s) {
+  const n = normPat(s);
+  return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(n) || /^[A-Z]{3}\d{3}$/.test(n);
+}
+
+function fmtPat(s) {
+  const n = normPat(s);
+  const m = n.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = n.match(/^([A-Z]{3})(\d{3})$/);
+  if (o) return `${o[1]} ${o[2]}`;
+  return String(s || '').trim();
+}
+
+/** Numeros en formato es-AR y en el formato crudo de gviz. */
+function num(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  let s = String(v == null ? '' : v).replace(/[\s $%]/g, '').replace(/(kg|km|lts?)/gi, '').trim();
+  if (!s || s === '-' || s === '—') return null;
+  let neg = false;
+  if (/^\(.*\)$/.test(s)) { neg = true; s = s.slice(1, -1); }
+  if (s[0] === '-') { neg = true; s = s.slice(1); }
+  if (!/^[\d.,]+$/.test(s)) return null;
+  const lc = s.lastIndexOf(','), ld = s.lastIndexOf('.');
+  if (lc >= 0 && ld >= 0) {
+    const dec = lc > ld ? ',' : '.';
+    s = s.replace(dec === ',' ? /\./g : /,/g, '').replace(dec, '.');
+  } else if (lc >= 0) {
+    s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (ld >= 0) {
+    if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  }
+  const n = parseFloat(s);
+  if (!isFinite(n)) return null;
+  return neg ? -n : n;
+}
+
+const nf0 = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmt0 = n => (n === null || !isFinite(n)) ? '—' : nf0.format(Math.round(n));
+const fmt1 = n => (n === null || !isFinite(n)) ? '—' : nf1.format(n);
+
+const MESES_AR = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+function mesLabel(m) {                       // "2026-07" -> "jul 26"
+  const p = String(m).split('-');
+  return p.length === 2 ? `${MESES_AR[parseInt(p[1], 10) - 1]} ${p[0].slice(2)}` : m;
+}
+function mesFromFecha(s) {                   // "31/07/2026" -> "2026-07"
+  const m = String(s || '').trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (!m) return null;
+  let y = m[3]; if (y.length === 2) y = '20' + y;
+  return `${y}-${String(parseInt(m[2], 10)).padStart(2, '0')}`;
+}
+
+/* =====================================================================
+   LECTURA DE LAS PLANILLAS
+   ===================================================================== */
+function parseCSV(text) {
+  const rows = []; let row = [], cell = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) {
+      if (ch === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+      else cell += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === ',') { row.push(cell.trim()); cell = ''; }
+    else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
+    else if (ch !== '\r') cell += ch;
+  }
+  if (cell !== '' || row.length) { row.push(cell.trim()); rows.push(row); }
+  return rows.filter(r => r.some(c => c !== ''));
+}
+
+/** Prueba varias URLs y devuelve el primer CSV valido. */
+async function fetchCSV(urls) {
+  for (const u of urls) {
+    try {
+      const sep = u.includes('?') ? '&' : '?';
+      const r = await fetch(u + sep + '_=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) continue;
+      const t = await r.text();
+      if (!t || t.trimStart().startsWith('<')) continue;   // login de Google / HTML
+      const rows = parseCSV(t);
+      if (rows.length > 1) return rows;
+    } catch (e) { /* CORS, red o permisos: probamos la siguiente */ }
+  }
+  return null;
+}
+
+const APP = { unidades: [], meses: [], prefiltros: [], fuentes: { flota:null, servicios:null, telemetria:null } };
+
+/** Maestro: modelo(0) marca(2) chofer(3) patente(4) interno(5) semi(6) sucursal(7) uso(8) */
+async function cargarFlota() {
+  const rows = await fetchCSV([pub(CFG.gid.flota), gviz(CFG.idServices, CFG.gid.flota)]);
+  if (!rows) return [];
+  const head = rows.findIndex(r => (r[4] || '').toUpperCase().includes('PATENTE'));
+  const out = rows.slice(head >= 0 ? head + 1 : 1)
+    .filter(r => esPatente(r[4]))
+    .map(r => ({ modelo:r[0]||'', marca:r[2]||'', chofer:r[3]||'', patente:normPat(r[4]),
+                 display:fmtPat(r[4]), interno:r[5]||'', semi:r[6]||'',
+                 sucursal:(r[7]||'').trim().toUpperCase(), uso:r[8]||'' }));
+  if (out.length) APP.fuentes.flota = 'vivo';
+  return out;
+}
+
+/** Services: patente(0) marca(1) chofer(2) residencia(3) fecha(4) kmUlt(5) kmProx(6) kmAct(7) falta(8) */
+function parseServicios(rows) {
+  const out = [];
+  for (const r of (rows || [])) {
+    if (!esPatente(r[0])) continue;
+    out.push({
+      patente: normPat(r[0]), marca: r[1] || '', chofer: r[2] || '',
+      residencia: (r[3] || '').trim().toUpperCase(), fechaUlt: r[4] || '',
+      kmUlt: num(r[5]), kmProx: num(r[6]), kmAct: num(r[7]), falta: num(r[8])
+    });
+  }
+  return out;
+}
+
+async function cargarServicios() {
+  const [lad, conj, pref] = await Promise.all([
+    fetchCSV([pub(CFG.gid.lad),       gviz(CFG.idServices, CFG.gid.lad)]),
+    fetchCSV([pub(CFG.gid.conjunto),  gviz(CFG.idServices, CFG.gid.conjunto)]),
+    fetchCSV([pub(CFG.gid.prefiltro), gviz(CFG.idServices, CFG.gid.prefiltro)])
+  ]);
+  if (lad || conj) APP.fuentes.servicios = 'vivo';
+
+  APP.prefiltros = (pref || [])
+    .filter(r => esPatente(r[0]))
+    .map(r => ({ patente: normPat(r[0]), kmUlt: num(r[1]), kmProx: num(r[2]), falta: num(r[3]) }));
+
+  return {
+    servicios: parseServicios(conj && conj.length ? conj : lad),
+    setLAD: new Set(parseServicios(lad).map(x => x.patente))
+  };
+}
+
+/* Las hojas de consumo no comparten el orden de columnas: se buscan por nombre. */
+function mapaColumnas(rows, alias, obligatorias) {
+  for (let i = 0; i < Math.min(rows.length, 12); i++) {
+    const fila = rows[i].map(c => String(c || '').toUpperCase());
+    const idx = {};
+    for (const k in alias) {
+      const j = fila.findIndex(c => alias[k].some(a => c.includes(a)));
+      if (j >= 0) idx[k] = j;
+    }
+    if (obligatorias.every(k => idx[k] !== undefined)) return { idx, desde: i + 1 };
+  }
+  return null;
+}
+
+const ALIAS_CONSUMO = {
+  fecha  : ['FECHA'],
+  patente: ['DOMINIO', 'PATENTE'],
+  tag    : ['TAG'],
+  km     : ['DISTANCIA', 'KILOMETRAJE'],
+  lts    : ['LITROS'],
+  c100   : ['CONSUMO C/', 'L/100', 'L /100']
+};
+
+function leerConsumo(rows) {
+  const map = rows && mapaColumnas(rows, ALIAS_CONSUMO, ['fecha', 'patente']);
+  if (!map) return [];
+  const { idx, desde } = map;
+  const out = [];
+  for (const r of rows.slice(desde)) {
+    const m = mesFromFecha(r[idx.fecha]);
+    if (!m || !esPatente(r[idx.patente])) continue;
+    const km  = idx.km   === undefined ? null : num(r[idx.km]);
+    const lts = idx.lts  === undefined ? null : num(r[idx.lts]);
+    let c100  = idx.c100 === undefined ? null : num(r[idx.c100]);
+    if (c100 === null && km > 0 && lts !== null) c100 = (lts / km) * 100;
+    out.push({ patente: normPat(r[idx.patente]), mes: m, km, lts, c100,
+               tag: idx.tag === undefined ? '' : (r[idx.tag] || '') });
+  }
+  return out;
+}
+
+/** Telemetria mensual: consumo LAD, consumo de toda la flota y emisiones. */
+async function cargarTelemetria() {
+  const [tel, dist, emi] = await Promise.all([
+    fetchCSV([gviz(CFG.idCombust, CFG.gid.telemetria)]),
+    fetchCSV([gviz(CFG.idCombust, CFG.gid.telemDist)]),
+    fetchCSV([gviz(CFG.idCombust, CFG.gid.emisiones)])
+  ]);
+  if (tel || dist || emi) APP.fuentes.telemetria = 'vivo';
+
+  // Un acumulador por mes: km y litros se suman y recien al final se divide,
+  // que es el consumo real del mes y no el promedio de los promedios.
+  const meses = new Map();
+  const slot = m => {
+    if (!meses.has(m)) meses.set(m, { mes:m, ladKm:0, ladLts:0, totKm:0, totLts:0,
+                                      co2:0, ralentiSum:0, ralentiN:0, unidades:new Set() });
+    return meses.get(m);
+  };
+
+  for (const f of leerConsumo(tel)) {
+    const s = slot(f.mes);
+    if (f.km > 0 && f.lts !== null) { s.ladKm += f.km; s.ladLts += f.lts; }
+    s.unidades.add(f.patente);
+  }
+  for (const f of leerConsumo(dist)) {
+    const s = slot(f.mes);
+    if (f.km > 0 && f.lts !== null) { s.totKm += f.km; s.totLts += f.lts; }
+    s.unidades.add(f.patente);
+  }
+  // FECHA(0) DOMINIO(1) HORAS MOTOR(2) RALENTI %(3) EMISIONES KG CO2(4)
+  for (const r of (emi || [])) {
+    const m = mesFromFecha(r[0]);
+    if (!m || !esPatente(r[1])) continue;
+    const s = slot(m);
+    const co2 = num(r[4]), ral = num(r[3]);
+    if (co2 !== null) s.co2 += co2;
+    if (ral !== null) { s.ralentiSum += ral; s.ralentiN++; }
+  }
+
+  return Array.from(meses.values())
+    .map(s => ({
+      mes: s.mes,
+      // La hoja de toda la flota ya incluye a larga distancia; si no llegara,
+      // se usa la de LAD para no dejar el mes en blanco.
+      consumoLAD  : s.ladKm > 0 ? (s.ladLts / s.ladKm) * 100 : null,
+      consumoTotal: s.totKm > 0 ? (s.totLts / s.totKm) * 100 : null,
+      litros      : (s.totLts || s.ladLts) || null,
+      km          : (s.totKm  || s.ladKm)  || null,
+      co2         : s.co2 || null,
+      ralenti     : s.ralentiN ? s.ralentiSum / s.ralentiN : null,
+      unidades    : s.unidades.size
+    }))
+    .sort((a, b) => a.mes.localeCompare(b.mes));
+}
+
+/* =====================================================================
+   GRAFICOS (SVG, sin librerias)
+   ===================================================================== */
+const TIP = $('#tip');
+function tipShow(html, ev) {
+  TIP.innerHTML = html;
+  TIP.style.opacity = '1';
+  const r = TIP.getBoundingClientRect();
+  let x = ev.clientX + 14, y = ev.clientY - 12;
+  if (x + r.width > window.innerWidth - 8)  x = ev.clientX - r.width - 14;
+  if (y + r.height > window.innerHeight - 8) y = window.innerHeight - r.height - 8;
+  if (y < 8) y = 8;
+  TIP.style.left = x + 'px';
+  TIP.style.top  = y + 'px';
+}
+function tipHide() { TIP.style.opacity = '0'; }
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+}
+
+/** Escalones "lindos" para el eje. */
+function ticks(max, count) {
+  if (!(max > 0)) return [0, 1];
+  const raw = max / count;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].find(m => m * mag >= raw) * mag;
+  const out = [];
+  // Se agregan escalones hasta pasar el maximo: si el ultimo quedara por debajo,
+  // los valores mas altos se dibujarian fuera del area del grafico.
+  for (let v = 0; ; v += step) {
+    out.push(v);
+    if (v >= max - step * 1e-9) break;
+  }
+  return out;
+}
+
+/** Barra con la punta redondeada del lado del dato. */
+function barraArriba(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h);
+  return `M${x},${y + h}V${y + r}a${r},${r} 0 0 1 ${r},${-r}h${w - 2 * r}a${r},${r} 0 0 1 ${r},${r}V${y + h}Z`;
+}
+function barraDerecha(x, y, w, h, r) {
+  r = Math.min(r, h / 2, w);
+  return `M${x},${y}h${w - r}a${r},${r} 0 0 1 ${r},${r}v${h - 2 * r}a${r},${r} 0 0 1 ${-r},${r}H${x}Z`;
+}
+
+function vacio(host, msg) { host.innerHTML = `<div class="empty">${esc(msg)}</div>`; }
+
+/**
+ * Series temporales. series: [{ name, color, points:[{x:'2026-07', y:34.2}] }]
+ * Con dos series la leyenda vive en el encabezado de la tarjeta y ademas se
+ * etiqueta el ultimo punto de cada una: la identidad nunca depende del color.
+ */
+function lineChart(host, series, opt) {
+  opt = opt || {};
+  host.innerHTML = '';
+  // Con un solo mes cargado no hay linea que trazar, pero el punto se dibuja
+  // igual: es preferible mostrar el dato que dejar la tarjeta vacia.
+  const activas = series.filter(s => s.points.some(p => p.y !== null && isFinite(p.y)));
+  if (!activas.length) { vacio(host, 'Todavía no hay datos cargados para este período.'); return; }
+
+  const ejeX = opt.meses;
+  const W = Math.max(340, Math.min(host.clientWidth || 640, 1180));
+  const H = opt.height || 250;
+  const M = { t: 18, r: 58, b: 30, l: 54 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const fmt = opt.fmt || fmt1;
+
+  let maxY = 0;
+  activas.forEach(s => s.points.forEach(p => { if (p.y !== null && isFinite(p.y) && p.y > maxY) maxY = p.y; }));
+  const tk = ticks(maxY, 4), top = tk[tk.length - 1];
+  const X = i => M.l + (ejeX.length === 1 ? iw / 2 : (i * iw) / (ejeX.length - 1));
+  const Y = v => M.t + ih - (v / top) * ih;
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img',
+                          'aria-label': opt.aria || 'Evolución mensual' }, host);
+
+  tk.forEach(v => {
+    el('line', { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: C.grid, 'stroke-width': 1 }, svg);
+    const t = el('text', { x: M.l - 9, y: Y(v) + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5 }, svg);
+    t.textContent = fmt(v);
+    t.style.fontVariantNumeric = 'tabular-nums';
+  });
+  el('line', { x1: M.l, x2: W - M.r, y1: M.t + ih, y2: M.t + ih, stroke: C.axis, 'stroke-width': 1 }, svg);
+
+  const paso = Math.max(1, Math.ceil(ejeX.length / Math.max(1, Math.floor(iw / 54))));
+  for (let i = ejeX.length - 1; i >= 0; i -= paso) {
+    const t = el('text', { x: X(i), y: H - 9, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5 }, svg);
+    t.textContent = mesLabel(ejeX[i]);
+  }
+
+  activas.forEach(s => {
+    // Los tramos sin dato cortan la linea en lugar de inventar una recta.
+    let d = '', abierto = false;
+    s.points.forEach((p, i) => {
+      if (p.y === null || !isFinite(p.y)) { abierto = false; return; }
+      d += `${abierto ? 'L' : 'M'}${X(i)},${Y(p.y)}`;
+      abierto = true;
+    });
+    el('path', { d, fill: 'none', stroke: s.color, 'stroke-width': 2,
+                 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, svg);
+
+    // Etiqueta directa del ultimo punto con dato
+    let last = -1;
+    s.points.forEach((p, i) => { if (p.y !== null && isFinite(p.y)) last = i; });
+    if (last >= 0) {
+      el('circle', { cx: X(last), cy: Y(s.points[last].y), r: 4.5, fill: s.color,
+                     stroke: C.surface, 'stroke-width': 2 }, svg);
+      if (opt.etiquetaFinal !== false) {
+        const t = el('text', { x: Math.min(X(last) + 9, W - 4), y: Y(s.points[last].y) + 4,
+                               fill: C.ink2, 'font-size': 11, 'font-weight': 600 }, svg);
+        t.textContent = fmt(s.points[last].y) + (opt.unit || '');
+        t.style.fontVariantNumeric = 'tabular-nums';
+      }
+    }
+  });
+
+  // Capa de hover: una banda por mes con todas las series juntas
+  const cross = el('line', { x1: 0, x2: 0, y1: M.t, y2: M.t + ih, stroke: C.axis, 'stroke-width': 1, opacity: 0 }, svg);
+  const focos = activas.map(s => el('circle', { r: 5.5, fill: s.color, stroke: C.surface, 'stroke-width': 2, opacity: 0 }, svg));
+  ejeX.forEach((mes, i) => {
+    const bw = Math.max(24, iw / Math.max(1, ejeX.length));
+    const hit = el('rect', { x: X(i) - bw / 2, y: M.t, width: bw, height: ih,
+                             fill: 'transparent', style: 'cursor:crosshair' }, svg);
+    hit.addEventListener('mousemove', ev => {
+      cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i)); cross.setAttribute('opacity', 1);
+      let filas = '';
+      activas.forEach((s, k) => {
+        const p = s.points[i];
+        if (p && p.y !== null && isFinite(p.y)) {
+          focos[k].setAttribute('cx', X(i)); focos[k].setAttribute('cy', Y(p.y)); focos[k].setAttribute('opacity', 1);
+          filas += `<div class="t-row"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}: <b>${fmt(p.y)}${esc(opt.unit || '')}</b></div>`;
+        } else {
+          focos[k].setAttribute('opacity', 0);
+          filas += `<div class="t-row"><span class="sw" style="background:${s.color}"></span>${esc(s.name)}: <b>—</b></div>`;
+        }
+      });
+      tipShow(`<div class="t-title">${esc(mesLabel(mes))}</div>${filas}`, ev);
+    });
+    hit.addEventListener('mouseleave', () => {
+      cross.setAttribute('opacity', 0);
+      focos.forEach(f => f.setAttribute('opacity', 0));
+      tipHide();
+    });
+  });
+}
+
+/** Barras verticales por mes (una serie). */
+function barChart(host, points, opt) {
+  opt = opt || {};
+  host.innerHTML = '';
+  const conDato = points.filter(p => p.y !== null && isFinite(p.y));
+  if (!conDato.length) { vacio(host, 'Sin datos cargados para este período.'); return; }
+
+  const W = Math.max(340, Math.min(host.clientWidth || 640, 1180));
+  const H = opt.height || 250;
+  const M = { t: 18, r: 16, b: 30, l: 62 };
+  const iw = W - M.l - M.r, ih = H - M.t - M.b;
+  const color = opt.color || C.s2;
+  const fmt = opt.fmt || fmt0;
+
+  const maxY = Math.max.apply(null, conDato.map(p => p.y));
+  const tk = ticks(maxY, 4), top = tk[tk.length - 1];
+  const paso = iw / points.length;
+  const bw = Math.max(6, Math.min(46, paso - 6));   // 2px+ de aire entre barras
+  const Y = v => M.t + ih - (v / top) * ih;
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img',
+                          'aria-label': opt.aria || 'Totales mensuales' }, host);
+
+  tk.forEach(v => {
+    el('line', { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: C.grid, 'stroke-width': 1 }, svg);
+    const t = el('text', { x: M.l - 9, y: Y(v) + 4, 'text-anchor': 'end', fill: C.muted, 'font-size': 10.5 }, svg);
+    t.textContent = fmt(v);
+    t.style.fontVariantNumeric = 'tabular-nums';
+  });
+  el('line', { x1: M.l, x2: W - M.r, y1: M.t + ih, y2: M.t + ih, stroke: C.axis, 'stroke-width': 1 }, svg);
+
+  const cada = Math.max(1, Math.ceil(points.length / Math.max(1, Math.floor(iw / 54))));
+  points.forEach((p, i) => {
+    const cx = M.l + paso * i + paso / 2;
+    if ((points.length - 1 - i) % cada === 0) {
+      const t = el('text', { x: cx, y: H - 9, 'text-anchor': 'middle', fill: C.muted, 'font-size': 10.5 }, svg);
+      t.textContent = mesLabel(p.x);
+    }
+    if (p.y === null || !isFinite(p.y)) return;
+    const h = Math.max(2, (p.y / top) * ih);
+    el('path', { d: barraArriba(cx - bw / 2, M.t + ih - h, bw, h, 4), fill: color }, svg);
+
+    const hit = el('rect', { x: cx - paso / 2, y: M.t, width: paso, height: ih, fill: 'transparent' }, svg);
+    hit.addEventListener('mousemove', ev => tipShow(
+      `<div class="t-title">${esc(mesLabel(p.x))}</div>
+       <div class="t-row"><span class="sw" style="background:${color}"></span>${esc(opt.serieName || 'Total')}: <b>${fmt(p.y)}${esc(opt.unit || '')}</b></div>
+       ${p.extra ? `<div class="t-row">${p.extra}</div>` : ''}`, ev));
+    hit.addEventListener('mouseleave', tipHide);
+  });
+}
+
+/** Barras horizontales: ranking o reparto por categoria. */
+function hbarChart(host, items, opt) {
+  opt = opt || {};
+  host.innerHTML = '';
+  const datos = items.filter(d => isFinite(d.value));
+  if (!datos.length) { vacio(host, 'Sin datos para mostrar.'); return; }
+
+  const W = Math.max(320, Math.min(host.clientWidth || 620, 1180));
+  const filaH = opt.filaH || 30;
+  const M = { t: 6, r: 54, b: 6, l: opt.labelW || 116 };
+  const H = M.t + M.b + filaH * datos.length;
+  const iw = W - M.l - M.r;
+  const fmt = opt.fmt || fmt0;
+  const max = Math.max.apply(null, datos.map(d => d.value)) || 1;
+
+  const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: W, height: H, role: 'img',
+                          'aria-label': opt.aria || 'Comparación por categoría' }, host);
+
+  datos.forEach((d, i) => {
+    const y = M.t + i * filaH;
+    const bh = filaH - 12;                       // deja 12px de aire entre barras
+    const color = d.color || C.s1;
+    const w = Math.max(3, (d.value / max) * iw);
+
+    const lb = el('text', { x: M.l - 10, y: y + bh / 2 + 4, 'text-anchor': 'end',
+                            fill: C.ink2, 'font-size': 11.5 }, svg);
+    lb.textContent = d.label;
+
+    el('rect', { x: M.l, y, width: iw, height: bh, rx: 4, fill: 'rgba(255,255,255,0.03)' }, svg);
+    el('path', { d: barraDerecha(M.l, y, w, bh, 4), fill: color }, svg);
+
+    const vt = el('text', { x: M.l + w + 9, y: y + bh / 2 + 4, fill: C.ink2,
+                            'font-size': 11.5, 'font-weight': 600 }, svg);
+    vt.textContent = fmt(d.value) + (opt.unit || '');
+    vt.style.fontVariantNumeric = 'tabular-nums';
+
+    const hit = el('rect', { x: 0, y, width: W, height: filaH, fill: 'transparent' }, svg);
+    hit.addEventListener('mousemove', ev => tipShow(
+      `<div class="t-title">${esc(d.label)}</div>
+       <div class="t-row"><span class="sw" style="background:${color}"></span>${esc(opt.serieName || 'Unidades')}: <b>${fmt(d.value)}${esc(opt.unit || '')}</b></div>
+       ${d.extra ? `<div class="t-row">${esc(d.extra)}</div>` : ''}`, ev));
+    hit.addEventListener('mouseleave', tipHide);
+  });
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function kpiHTML(label, value, foot, accent, unidad) {
+  return `<div class="kpi" style="--kpi-accent:${accent || 'var(--brand)'}">
+    <div class="k-label">${esc(label)}</div>
+    <div class="k-value">${value}${unidad ? `<span class="u"> ${esc(unidad)}</span>` : ''}</div>
+    <div class="k-foot">${foot || ''}</div>
+  </div>`;
+}
+
+function pillHTML(estado) {
+  const e = ESTADOS[estado];
+  return `<span class="pill ${e.cls}"><span class="ic"><span>${e.icon}</span></span>${e.label}</span>`;
+}
+
+function ultimoConDato(campo) {
+  for (let i = APP.meses.length - 1; i >= 0; i--) {
+    const m = APP.meses[i];
+    if (m[campo] !== null && isFinite(m[campo])) return m;
+  }
+  return null;
+}
+
+function renderKPIs() {
+  const u = APP.unidades;
+  const cuenta = { vencido:0, urgente:0, proximo:0, ok:0, sindato:0 };
+  u.forEach(x => cuenta[x.estado]++);
+
+  const prefVencidos = APP.prefiltros.filter(p => p.falta !== null && p.falta < 0).length;
+  const mesCO2  = ultimoConDato('co2');
+  const mesRal  = ultimoConDato('ralenti');
+
+  // El mes de referencia es el ultimo con algun consumo cargado. Las dos hojas
+  // no siempre llegan hasta el mismo mes, asi que ademas se aclara el alcance.
+  const mesCons = ultimoConDato('consumoTotal') && ultimoConDato('consumoLAD')
+    ? [ultimoConDato('consumoTotal'), ultimoConDato('consumoLAD')].sort((a, b) => b.mes.localeCompare(a.mes))[0]
+    : (ultimoConDato('consumoTotal') || ultimoConDato('consumoLAD'));
+  const totalVigente = mesCons && mesCons.consumoTotal !== null && isFinite(mesCons.consumoTotal);
+  const consumo = !mesCons ? null : (totalVigente ? mesCons.consumoTotal : mesCons.consumoLAD);
+  const alcance = totalVigente ? 'toda la flota' : 'larga distancia';
+
+  $('#kpis').innerHTML =
+    kpiHTML('Unidades en flota', fmt0(u.length),
+            `${u.filter(x => x.lad).length} de larga distancia`, C.s1) +
+    kpiHTML('Service vencido', fmt0(cuenta.vencido),
+            cuenta.vencido ? 'pasaron el km de service' : 'ninguna unidad pasada',
+            cuenta.vencido ? ESTADOS.vencido.color : ESTADOS.ok.color) +
+    kpiHTML('Service urgente', fmt0(cuenta.urgente),
+            `a menos de ${fmt0(UMBRAL_URGENTE)} km`, ESTADOS.urgente.color) +
+    kpiHTML('Prefiltros a cambiar', fmt0(prefVencidos),
+            `${APP.prefiltros.length} unidades con prefiltro`,
+            prefVencidos ? ESTADOS.urgente.color : ESTADOS.ok.color) +
+    kpiHTML('Consumo del mes', consumo === null ? '—' : fmt1(consumo),
+            mesCons ? `${mesLabel(mesCons.mes)} · ${esc(alcance)}` : 'sin telemetría cargada',
+            C.s2, 'L/100km') +
+    kpiHTML('Litros del mes', mesCons ? fmt0(mesCons.litros) : '—',
+            mesCons ? `${fmt0(mesCons.km)} km · ${mesCons.unidades} unidades` : '—', C.s2) +
+    kpiHTML('Ralentí promedio', mesRal ? fmt1(mesRal.ralenti) : '—',
+            mesRal ? mesLabel(mesRal.mes) : 'sin datos de emisiones', C.s3, '%') +
+    kpiHTML('CO2 del mes', mesCO2 ? fmt0(mesCO2.co2) : '—',
+            mesCO2 ? `${mesLabel(mesCO2.mes)} · kilos emitidos` : 'sin datos de emisiones', C.s3);
+
+  // El acceso a Control de Flota lleva el pendiente mas urgente a la vista.
+  const badge = $('#badge-flota');
+  const criticas = cuenta.vencido + cuenta.urgente;
+  if (!u.length) { badge.className = 'badge st-sindato'; badge.textContent = '—'; }
+  else if (criticas) {
+    badge.className = 'badge ' + (cuenta.vencido ? 'st-vencido' : 'st-urgente');
+    badge.textContent = `${criticas} a revisar`;
+  } else { badge.className = 'badge st-ok'; badge.textContent = 'Al día'; }
+}
+
+function renderEstados() {
+  const cuenta = { vencido:0, urgente:0, proximo:0, ok:0, sindato:0 };
+  APP.unidades.forEach(x => cuenta[x.estado]++);
+  const items = Object.keys(ESTADOS)
+    .sort((a, b) => ESTADOS[a].orden - ESTADOS[b].orden)
+    .map(k => ({ label: `${ESTADOS[k].icon}  ${ESTADOS[k].label}`, value: cuenta[k], color: ESTADOS[k].color }));
+  hbarChart($('#ch-estados'), items, { serieName: 'Unidades', labelW: 104, filaH: 34, aria: 'Unidades por estado de service' });
+}
+
+function renderSucursal() {
+  const acc = new Map();
+  APP.unidades.forEach(u => {
+    const s = u.sucursal || 'SIN ASIGNAR';
+    acc.set(s, (acc.get(s) || 0) + 1);
+  });
+  const items = Array.from(acc, ([label, value]) => ({ label, value, color: C.s1 }))
+    .sort((a, b) => b.value - a.value);
+  $('#hint-suc').textContent = `${items.length} sucursales`;
+  hbarChart($('#ch-sucursal'), items, { serieName: 'Unidades', labelW: 116, aria: 'Unidades por sucursal' });
+}
+
+function renderCriticas() {
+  const orden = { vencido:0, urgente:1, proximo:2, ok:3, sindato:4 };
+  const filas = APP.unidades
+    .filter(u => u.estado === 'vencido' || u.estado === 'urgente')
+    .sort((a, b) => (orden[a.estado] - orden[b.estado]) || ((a.falta ?? 0) - (b.falta ?? 0)))
+    .slice(0, 10);
+
+  const host = $('#tabla-criticas');
+  if (!filas.length) {
+    host.innerHTML = `<div class="empty">Ninguna unidad con el service vencido ni a menos de ${fmt0(UMBRAL_URGENTE)} km.</div>`;
+    return;
+  }
+  host.innerHTML =
+    `<table class="data">
+      <thead><tr>
+        <th>Patente</th><th>Marca</th><th>Sucursal</th><th>Chofer</th>
+        <th class="num">Km actual</th><th class="num">Próximo service</th>
+        <th class="num">Falta</th><th>Estado</th>
+      </tr></thead>
+      <tbody>${filas.map(u => `<tr>
+        <td class="pat">${esc(u.display)}</td>
+        <td>${esc(u.marca)}</td>
+        <td>${esc(u.sucursal || '—')}</td>
+        <td>${esc(u.chofer || '—')}</td>
+        <td class="num">${fmt0(u.kmAct)}</td>
+        <td class="num">${fmt0(u.kmProx)}</td>
+        <td class="num">${fmt0(u.falta)}</td>
+        <td>${pillHTML(u.estado)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+}
+
+function renderConsumo() {
+  const meses = APP.meses.map(m => m.mes);
+  lineChart($('#ch-consumo'), [
+    { name: 'Larga distancia', color: C.s1, points: APP.meses.map(m => ({ x: m.mes, y: m.consumoLAD })) },
+    { name: 'Flota completa',  color: C.s2, points: APP.meses.map(m => ({ x: m.mes, y: m.consumoTotal })) }
+  ], { meses, unit: '', fmt: fmt1, aria: 'Consumo mensual en litros cada 100 km' });
+}
+
+function renderCO2() {
+  barChart($('#ch-co2'), APP.meses.map(m => ({
+    x: m.mes, y: m.co2,
+    extra: m.km ? `${fmt0(m.km)} km recorridos` : ''
+  })), { serieName: 'CO2', unit: ' kg', color: C.s2, aria: 'Kilos de CO2 por mes' });
+}
+
+function renderRalenti() {
+  const meses = APP.meses.map(m => m.mes);
+  lineChart($('#ch-ralenti'), [
+    { name: 'Ralentí', color: C.s3, points: APP.meses.map(m => ({ x: m.mes, y: m.ralenti })) }
+  ], { meses, unit: '%', fmt: fmt1, height: 220, aria: 'Porcentaje de ralentí por mes' });
+}
+
+/* =====================================================================
+   ESTADO DE LAS FUENTES
+   ===================================================================== */
+function marcarFuente() {
+  const f = APP.fuentes;
+  const vivas = ['flota', 'servicios', 'telemetria'].filter(k => f[k] === 'vivo');
+  const chip = $('#chip-fuente'), dot = chip.querySelector('.dot');
+  const total = 3;
+
+  if (vivas.length === total) {
+    dot.className = 'dot live';
+    $('#fuente-txt').textContent = 'Datos en vivo';
+  } else if (vivas.length === 0) {
+    dot.className = 'dot off';
+    $('#fuente-txt').textContent = 'Sin acceso a las planillas';
+  } else {
+    dot.className = 'dot warn';
+    $('#fuente-txt').textContent = `Datos parciales (${vivas.length}/${total})`;
+  }
+  chip.title = `Flota: ${f.flota || 'sin datos'} · Services: ${f.servicios || 'sin datos'} · Telemetría: ${f.telemetria || 'sin datos'}`;
+
+  $('#foot-fuentes').textContent = vivas.length === total
+    ? 'Services y combustible se leen en vivo de las planillas de Google.'
+    : 'Si alguna planilla no carga, revisá que esté compartida como "cualquier persona con el enlace puede ver".';
+}
+
+/* =====================================================================
+   CARGA
+   ===================================================================== */
+function construirUnidades(flota, srv) {
+  const porPatente = new Map();
+  flota.forEach(f => porPatente.set(f.patente, {
+    patente: f.patente, display: f.display, marca: f.marca, chofer: f.chofer,
+    sucursal: f.sucursal, uso: f.uso, modelo: f.modelo,
+    lad: /LARGA/i.test(f.uso) || f.sucursal === 'LAD',
+    kmAct: null, kmProx: null, falta: null, estado: 'sindato'
+  }));
+
+  // Las unidades que solo aparecen en la hoja de services igual cuentan.
+  srv.servicios.forEach(s => {
+    let u = porPatente.get(s.patente);
+    if (!u) {
+      u = { patente: s.patente, display: fmtPat(s.patente), marca: s.marca, chofer: s.chofer,
+            sucursal: s.residencia, uso: '', modelo: '', lad: false,
+            kmAct: null, kmProx: null, falta: null, estado: 'sindato' };
+      porPatente.set(s.patente, u);
+    }
+    u.kmAct = s.kmAct; u.kmProx = s.kmProx; u.falta = s.falta;
+    if (!u.marca) u.marca = s.marca;
+    if (!u.chofer) u.chofer = s.chofer;
+    if (!u.sucursal) u.sucursal = s.residencia;
+    if (srv.setLAD.has(s.patente)) u.lad = true;
+  });
+
+  porPatente.forEach(u => { u.estado = estadoDe(u.falta); });
+  return Array.from(porPatente.values());
+}
+
+let cargando = false;
+async function cargarTodo(manual) {
+  if (cargando) return;
+  cargando = true;
+  const btn = $('#btn-refresh');
+  btn.disabled = true;
+  btn.textContent = 'Actualizando…';
+
+  try {
+    const [flota, srv, meses] = await Promise.all([cargarFlota(), cargarServicios(), cargarTelemetria()]);
+    APP.unidades = construirUnidades(flota, srv);
+    APP.meses = meses;
+
+    renderKPIs();
+    renderEstados();
+    renderSucursal();
+    renderCriticas();
+    renderConsumo();
+    renderCO2();
+    renderRalenti();
+
+    marcarFuente();
+    $('#update-txt').textContent = 'Actualizado ' +
+      new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  } catch (err) {
+    console.error('Error de carga:', err);
+    $('#fuente-txt').textContent = 'Error al cargar los datos';
+    $('#chip-fuente').querySelector('.dot').className = 'dot off';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Actualizar';
+    cargando = false;
+  }
+}
+
+$('#btn-refresh').addEventListener('click', () => cargarTodo(true));
+
+// Los graficos se dibujan al ancho real de su tarjeta: al cambiar el tamano
+// de la ventana hay que volver a trazarlos.
+let redibujo;
+window.addEventListener('resize', () => {
+  clearTimeout(redibujo);
+  redibujo = setTimeout(() => {
+    if (!APP.unidades.length) return;
+    renderEstados(); renderSucursal(); renderConsumo(); renderCO2(); renderRalenti();
+  }, 200);
+});
+
+cargarTodo(false);
+setInterval(() => cargarTodo(false), CFG.refreshMs);
+</script>
+</body>
+</html>
