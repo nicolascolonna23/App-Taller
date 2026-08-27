@@ -127,6 +127,17 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.32; } }
     @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
 
+    /* Vuelta al panel general y salto a stock: las tres pantallas se navegan
+       entre si sin volver al historial del navegador. */
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+      font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; font-weight: 600;
+      color: var(--ink-2); background: var(--surface-2);
+      border: 1px solid var(--hairline); border-radius: 999px;
+      padding: 6px 12px; white-space: nowrap; transition: color .18s, border-color .18s;
+    }
+    .nav-link:hover { color: var(--brand); border-color: rgba(255,122,26,0.4); }
+
     .btn-refresh {
       font: inherit; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
       font-weight: 600; color: var(--brand); background: var(--brand-soft);
@@ -458,12 +469,14 @@
 
   <!-- ============ HEADER ============ -->
   <div class="topbar">
-    <img src="Imagenes/logo_diemar4.png" alt="Diemar" class="logo">
+    <img src="logo_diemar4.png" alt="Diemar" class="logo">
     <div class="brandblock">
       <div class="sub">Expreso Diemar</div>
       <h1>Control de Flota &amp; Mantenimiento</h1>
     </div>
     <div class="meta">
+      <a class="nav-link" href="index.html">‹ Panel general</a>
+      <a class="nav-link" href="stock_repuestos.html">Stock de repuestos</a>
       <span class="chip" id="chip-fuente" title="Origen de los datos"><span class="dot off"></span><span id="fuente-txt">Sincronizando</span></span>
       <span class="chip" id="chip-update"><span id="update-txt">--:--</span></span>
       <button class="btn-refresh" id="btn-service" type="button" hidden>Registrar service</button>
@@ -871,8 +884,11 @@ async function cargarFlota() {
   if (rows) {
     const head = rows.findIndex(r => (r[4] || '').toUpperCase().includes('PATENTE'));
     const body = rows.slice(head >= 0 ? head + 1 : 1);
+    // Solo filas con patente real. El maestro tambien lista equipos con codigo
+    // interno (AUTCAT01, HELROD01, ...) que no tienen service ni telemetria y
+    // entraban al tablero como unidades sin datos.
     const out = body
-      .filter(r => normPat(r[4]).length >= 6)
+      .filter(r => esPatente(r[4]))
       .map(r => ({ modelo:r[0]||'', marca:r[2]||'', chofer:r[3]||'', patente:r[4]||'',
                    interno:r[5]||'', semi:r[6]||'', sucursal:r[7]||'', uso:r[8]||'' }));
     if (out.length > 5) { APP.fuentes.flota = 'vivo'; return out; }
@@ -1133,7 +1149,12 @@ function ticks(max, count) {
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const step = [1, 2, 2.5, 5, 10].find(m => m * mag >= raw) * mag;
   const out = [];
-  for (let v = 0; v <= max + step * 0.001; v += step) out.push(v);
+  // Se agregan escalones hasta pasar el maximo: si el ultimo quedara por debajo,
+  // los valores mas altos se dibujarian fuera del area del grafico.
+  for (let v = 0; ; v += step) {
+    out.push(v);
+    if (v >= max - step * 1e-9) break;
+  }
   return out;
 }
 

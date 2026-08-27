@@ -1,0 +1,5 @@
+# Los datos NO se versionan: son 30.000 clientes con mail, teléfono y CUIT.
+datos.db
+config.json
+*.xlsx
+*.xls
