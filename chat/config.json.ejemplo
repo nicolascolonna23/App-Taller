@@ -1,0 +1,5 @@
+{
+  "_comentario": "Copiá este archivo como config.json y ajustá las rutas. Puede ser una URL o un archivo local.",
+  "origen_clientes": "http://bi.sistemaexpreso.com.ar/reporte_clientes.xlsx",
+  "origen_cuenta_corriente": "http://bi.sistemaexpreso.com.ar/reporte_deuda.xlsx"
+}
