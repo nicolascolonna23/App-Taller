@@ -68,6 +68,43 @@ python3 chat/servidor.py
 Se corta con Ctrl+C en la ventana que quedó abierta. Mientras esa ventana esté
 abierta, el chat también está en http://127.0.0.1:8000.
 
+## Que lo use toda la oficina
+
+No hace falta instalarlo en cada computadora. Se instala en **una sola** —la que
+tenga los reportes y la clave— y las demás entran por el navegador, sin instalar
+nada.
+
+En la máquina que hace de servidor, doble clic en **`chat/iniciar-en-red.command`**
+(Mac) o **`chat/iniciar-en-red.bat`** (Windows). Al arrancar imprime la dirección
+que hay que pasarle al resto:
+
+```
+  Desde esta computadora:  http://127.0.0.1:8000
+  Desde las demas:         http://192.168.1.45:8000   <- esta es la que hay que pasar
+```
+
+Esa segunda dirección se abre desde cualquier compu de la red, y desde el celular
+si está en el mismo wifi. Tres cosas a tener en cuenta:
+
+- **La máquina servidor tiene que quedar prendida** y con esa ventana abierta.
+  Si se apaga o se cierra la ventana, el chat deja de responder para todos.
+- **El firewall puede bloquear el puerto.** En Windows, la primera vez salta el
+  aviso del Firewall: hay que permitir el acceso en redes privadas. En Mac,
+  Configuración del Sistema → Red → Firewall.
+- **La IP puede cambiar** si el router la asigna por DHCP. Si un día deja de
+  andar, volvé a mirar la dirección que imprime al arrancar. Para que no cambie,
+  pedile a quien maneje la red una IP fija para esa máquina.
+
+Instalarlo en cada computadora también funciona, pero no conviene: habría que
+copiar la clave de la API y la base con los datos de todos los clientes a cada
+máquina, y correr la ingesta en todas cada vez que se actualizan los reportes.
+
+**Sobre el acceso:** el chat no pide usuario ni contraseña; asume que quien llega
+a la dirección está autorizado. En una red de oficina cerrada alcanza, pero
+cualquiera conectado a ese wifi —incluidas visitas— puede abrirlo y ver la deuda
+y los datos de contacto de todos los clientes. Si eso preocupa, se pone una clave
+adelante con el proxy del servidor web interno.
+
 ## Ponerlo en el servidor de la empresa
 
 1. **Ingesta programada.** Que `ingesta.py` corra solo cuando se actualizan los

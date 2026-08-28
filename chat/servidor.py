@@ -478,6 +478,24 @@ class Handler(BaseHTTPRequestHandler):
         emitir("fin", "")
 
 
+def ip_en_la_red():
+    """IP de esta maquina en la red interna, para armar la URL que usan los demas.
+
+    Se abre un socket UDP hacia afuera (no manda nada) solo para que el sistema
+    operativo diga que placa de red usaria; es mas confiable que resolver el
+    nombre del equipo, que suele devolver 127.0.0.1.
+    """
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("192.0.2.1", 80))       # direccion reservada: no genera trafico
+        return s.getsockname()[0]
+    except OSError:
+        return None
+    finally:
+        s.close()
+
+
 def main():
     ap = argparse.ArgumentParser(description="Chat interno sobre clientes y cuenta corriente")
     ap.add_argument("--host", default="127.0.0.1",
@@ -506,9 +524,20 @@ def main():
     d = json.loads(resumen_general())
     print(f"Base: {d['movimientos']:,} movimientos · {d['clientes_en_maestro']:,} clientes "
           f"· datos hasta {d['hasta']}")
-    print(f"Chat en http://{a.host}:{a.puerto}")
     if a.host == "0.0.0.0":
-        print("  OJO: escuchando en toda la red. No lo expongas a internet sin login.")
+        ip = ip_en_la_red()
+        print()
+        print("  El chat esta abierto para toda la red interna.")
+        print(f"  Desde esta computadora:  http://127.0.0.1:{a.puerto}")
+        if ip:
+            print(f"  Desde las demas:         http://{ip}:{a.puerto}   <- esta es la que hay que pasar")
+        else:
+            print("  No pude averiguar la IP de esta maquina. Miralas en la configuracion de red.")
+        print()
+        print("  Mientras esta ventana este abierta, el chat funciona. Si se cierra, se corta.")
+        print("  No lo publiques a internet sin poner una clave adelante.")
+    else:
+        print(f"Chat en http://{a.host}:{a.puerto}")
     print("  Para cortarlo: Ctrl+C")
 
     servidor = ThreadingHTTPServer((a.host, a.puerto), Handler)
