@@ -405,6 +405,45 @@ def montar(cx, unidad_id, posicion_id, cubierta_id, km=None, grupo=None, **kw):
     return grupo
 
 
+def montaje_abierto(cx, unidad_id, posicion_id):
+    """La cubierta que el sistema tiene puesta en esa posición, si tiene alguna."""
+    return cx.execute("""
+        select id, cubierta_id from montajes
+        where unidad_id = %s and posicion_id = %s and hasta is null""",
+        (unidad_id, posicion_id)).fetchone()
+
+
+def donde_esta(cx, cubierta_id):
+    """Si la cubierta figura montada, en qué unidad y en qué posición."""
+    return cx.execute("""
+        select u.patente, p.codigo as posicion
+        from montajes m
+        join unidades u on u.id = m.unidad_id
+        join configuracion_posiciones p on p.id = m.posicion_id
+        where m.cubierta_id = %s and m.hasta is null""",
+        (cubierta_id,)).fetchone()
+
+
+def sacar_de_servicio(cx, cubierta_id, destino="stock", unidad_id=None,
+                      posicion_id=None, km=None, grupo=None, **kw):
+    """Asienta la salida de una cubierta que el sistema no tenía montada.
+
+    Pasa mientras los mapas se están cargando: el gomero saca cubiertas que
+    nunca se registraron puestas. Rechazar el parte entero por eso sería
+    perder el dato que importa, que es dónde queda la cubierta.
+    """
+    grupo = grupo or uuid.uuid4()
+    cx.execute("update cubiertas set estado = %s where id = %s", (destino, cubierta_id))
+    if destino == "baja":
+        cx.execute("""update cubiertas set fecha_baja = current_date, motivo_baja = %s
+                      where id = %s""", (kw.get("nota"), cubierta_id))
+    tipo = {"baja": "baja", "recapado": "recapado",
+            "reparacion": "reparacion"}.get(destino, "desmontaje")
+    _log(cx, grupo, tipo, unidad_id=unidad_id, cubierta_id=cubierta_id,
+         origen_id=posicion_id, km=km, **kw)
+    return grupo
+
+
 def desmontar(cx, unidad_id, posicion_id, km=None, destino="stock", grupo=None, **kw):
     """Saca la cubierta de una posición. destino: stock, reparacion, recapado o baja."""
     grupo = grupo or uuid.uuid4()
