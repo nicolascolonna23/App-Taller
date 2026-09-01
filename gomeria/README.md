@@ -27,8 +27,8 @@ Nunca usaste Supabase, así que va paso a paso. Es gratis para este tamaño.
    Guardala: la vas a necesitar en el paso 4 y no se puede volver a ver.
 3. Cuando el proyecto termine de crearse, andá a **SQL Editor** → **New query**.
    Pegá el contenido de `01_esquema.sql` y apretá **Run**. Después hacé lo mismo
-   con `02_vistas.sql` y con `03_usuarios.sql`, cada uno en una consulta nueva.
-   Si no dan error, la base quedó lista.
+   con `02_vistas.sql`, `03_usuarios.sql` y `04_stock.sql`, cada uno en una
+   consulta nueva. Si no dan error, la base quedó lista.
 4. Arriba de todo, al lado de donde dice `main PRODUCTION`, está el botón verde
    **Connect**. Hacé clic ahí → **Connection String** → **Session pooler**.
    Copiá esa línea, que es algo así como
@@ -125,7 +125,51 @@ python3 gomeria/servidor.py --host 0.0.0.0
 Imprime la dirección que ven los celulares. La pantalla de una unidad es
 `http://IP:8100/u/PATENTE`.
 
-## 5. Imprimir el QR
+## 5. Cargar el stock de cubiertas
+
+El stock son las cubiertas: cada una es una ficha con su código, y en todo
+momento está en un lugar (en stock, montada en tal posición de tal unidad, en
+reparación, en recapado o de baja). No hay una tabla de stock aparte.
+
+Se carga de un CSV o de un Excel:
+
+```bash
+python3 gomeria/cargar_cubiertas.py stock.xlsx --simular   # muestra qué haría
+python3 gomeria/cargar_cubiertas.py stock.xlsx             # lo hace
+```
+
+**No hace falta renombrar las columnas.** Reconoce los nombres como suelen venir
+("Nro. de Fuego", "Remanente (mm)", "Pos."), sin importar mayúsculas ni acentos.
+Las que entiende:
+
+| Columna | Para qué |
+|---|---|
+| `codigo` | **obligatoria** — número de fuego, serie, o el que usen |
+| `marca`, `modelo`, `medida` | BRIDGESTONE, R268, 295/80R22.5 |
+| `estado` | stock, montada, reparacion, recapado, baja. Por defecto stock |
+| `remanente` | milímetros de dibujo |
+| `km`, `recapados`, `costo` | |
+| `patente` + `posicion` | si ya está puesta: además de darla de alta, la monta |
+
+Esas dos últimas son la forma de hacer el **inventario inicial** de una vez:
+recorrés la flota anotando qué cubierta hay en cada posición, y el archivo queda
+cargado y montado en un solo paso.
+
+Antes de escribir nada valida todo el archivo. Si hay un código repetido, un
+estado desconocido o una patente que no existe, te lo dice y no carga nada.
+Correrlo dos veces no duplica: actualiza las que ya están.
+
+## 6. Ver el stock
+
+En la app, **Stock de Cubiertas**. Arriba, cuántas hay disponibles de cada
+medida —que es lo que se pregunta el gomero antes de salir a comprar—, y abajo
+la lista completa con dónde está cada una. Se busca por código, marca, modelo o
+patente, y se filtra por estado y medida.
+
+El dibujo se colorea solo: en rojo por debajo de 4 mm y en amarillo por debajo
+de 8.
+
+## 7. Imprimir el QR
 
 Hay dos formas, según cómo quieras trabajar.
 

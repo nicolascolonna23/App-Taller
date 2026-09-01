@@ -106,9 +106,9 @@ def main():
 
     if a.uno:
         with open(a.salida, "w", encoding="utf-8") as fh:
-            fh.write(CARTEL.format(base_url=base_url, qr=svg_qr(base_url + "/")))
+            fh.write(CARTEL.format(base_url=base_url, qr=svg_qr(base_url + "/gomeria#register")))
         print(f"Listo: {a.salida}")
-        print(f"Un cartel A4 con un solo QR, apuntando a {base_url}/")
+        print(f"Un cartel A4 con un solo QR, apuntando a {base_url}/gomeria#register")
         return
 
     if a.patentes:
@@ -124,7 +124,7 @@ def main():
 
     etiquetas = []
     for f in filas:
-        url = f"{base_url}/u/{f['patente']}"
+        url = f"{base_url}/gomeria/u/{f['patente']}"
         sub = " · ".join(x for x in [f.get("interno") and f"Interno {f['interno']}",
                                      f.get("sucursal")] if x)
         etiquetas.append(

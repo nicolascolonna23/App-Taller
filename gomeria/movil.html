@@ -1,299 +1,33 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Gomería | Diemar</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ff7a1a' stroke-width='4'/%3E%3C/svg%3E">
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gomería | Diemar</title>
 <style>
-  :root{
-    color-scheme:dark;
-    --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
-    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
-    --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
-    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.12);
-    --ok:#0ca30c; --warn:#fab219; --mal:#d03b3b;
-    --radius:14px;
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0;min-height:100%}
-  body{
-    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
-    background:var(--plane); color:var(--ink); font-size:16px; line-height:1.5;
-    -webkit-font-smoothing:antialiased;
-    padding:0 0 env(safe-area-inset-bottom);
-  }
-  .barra{
-    display:flex;align-items:center;gap:12px;padding:12px 16px;
-    background:var(--surface-1);border-bottom:1px solid var(--hairline);position:relative;
-  }
-  .barra::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-    background:linear-gradient(90deg,var(--brand),rgba(255,122,26,0) 60%)}
-  .barra img{height:26px}
-  .barra .t{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
-  .barra .quien{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
-  .barra .quien a{color:var(--ink-muted);text-decoration:none;font-size:11.5px}
-  .barra .quien a:hover{color:var(--brand)}
-  .env{max-width:640px;margin:0 auto;padding:16px}
-
-  .unidad{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
-  .unidad h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.02em}
-  .unidad .meta{font-size:13px;color:var(--ink-muted)}
-
-  /* ---------- mapa de la unidad ---------- */
-  .mapa{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);
-        padding:16px;margin:14px 0}
-  .eje{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-  .eje:last-child{margin-bottom:0}
-  .eje .num{width:20px;flex:none;font-size:11px;color:var(--ink-muted);font-weight:600}
-  .eje .barraEje{flex:1;height:2px;background:var(--hairline-2);border-radius:2px;min-width:14px}
-  .goma{
-    width:52px;flex:none;border:1px solid var(--hairline-2);border-radius:7px;
-    padding:5px 3px;text-align:center;background:var(--surface-3);cursor:default;
-  }
-  .goma.vacia{border-style:dashed;background:transparent;opacity:.55}
-  .goma .pos{font-size:9.5px;letter-spacing:.6px;color:var(--ink-muted);font-weight:700}
-  .goma .cub{font-size:11px;font-weight:600;margin-top:1px;overflow:hidden;text-overflow:ellipsis}
-  .goma .mm{font-size:9.5px;color:var(--ink-muted)}
-  .goma.baja{border-color:var(--mal)}
-  .goma.media{border-color:var(--warn)}
-  .aux{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:11px;
-       border-top:1px solid var(--hairline)}
-  .aux .et{font-size:11px;color:var(--ink-muted);font-weight:600;letter-spacing:.8px}
-
-  /* ---------- escribir ---------- */
-  label{display:block;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
-        color:var(--ink-muted);font-weight:600;margin:18px 0 7px}
-  textarea,input{
-    width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface-2);
-    border:1px solid var(--hairline-2);border-radius:12px;padding:13px 14px;outline:none;
-    resize:none;transition:border-color .18s;
-  }
-  textarea:focus,input:focus{border-color:rgba(255,122,26,.55)}
-  textarea::placeholder,input::placeholder{color:var(--ink-muted)}
-  .btn{
-    width:100%;font:inherit;font-size:16px;font-weight:600;color:#fff;
-    background:var(--brand);border:none;border-radius:12px;padding:15px;margin-top:12px;
-    cursor:pointer;transition:opacity .18s;
-  }
-  .btn:disabled{opacity:.45;cursor:default}
-  .btn.gris{background:var(--surface-3);color:var(--ink-2);border:1px solid var(--hairline-2)}
-  .fila{display:flex;gap:10px}
-  .fila .btn{margin-top:0}
-
-  /* ---------- propuesta ---------- */
-  .caja{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);
-        padding:16px;margin-top:16px}
-  .caja.confirmar{border-color:rgba(255,122,26,.45)}
-  .caja h2{margin:0 0 4px;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
-           color:var(--ink-muted);font-weight:600}
-  .resumen{font-size:17px;font-weight:600;margin:6px 0 14px;line-height:1.4}
-  .acciones{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:7px}
-  .acciones li{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink-2);
-    background:var(--surface-3);border-radius:9px;padding:9px 11px}
-  .acciones .tag{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
-    color:var(--brand);background:var(--brand-soft);border-radius:5px;padding:3px 7px;flex:none}
-  .pregunta{border-left:2px solid var(--warn);padding-left:12px;color:#f5d68a;font-size:15px}
-  .error{border-left:2px solid var(--mal);padding-left:12px;color:#f0a8a8;font-size:15px}
-  .ok{border-left:2px solid var(--ok);padding-left:12px;color:#a8e0a8;font-size:15px}
-  .trabajando{color:var(--ink-muted);font-size:15px;display:flex;align-items:center;gap:9px}
-  .bolita{width:7px;height:7px;border-radius:50%;background:var(--brand);
-    animation:latir 1.3s ease-in-out infinite}
-  @keyframes latir{0%,100%{opacity:1}50%{opacity:.25}}
-  @media (prefers-reduced-motion:reduce){.bolita{animation:none}}
-  .nota{font-size:12.5px;color:var(--ink-muted);margin-top:12px}
-  .ayuda{font-size:12.5px;color:var(--ink-muted);margin:8px 0 0}
-  .cabeza{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-  .cabeza h1{margin:0;font-size:23px;font-weight:700;letter-spacing:.02em}
-  .cabeza .meta{font-size:13px;color:var(--ink-muted)}
-</style>
-</head>
-<body>
-
-<div class="barra">
-  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
-  <span class="t">Gomería</span>
-  <span class="quien" id="quien"></span>
-</div>
-
-<div class="env">
-  <div id="cabeza"></div>
-
-  <label for="texto">¿Qué hiciste?</label>
-  <textarea id="texto" rows="4" placeholder="Ej: AD 247 MQ giré las dos de afuera del lado izquierdo"></textarea>
-  <p class="ayuda">Poné la patente y contá qué hiciste, como lo dirías. Te muestro
-     qué entendí antes de guardar nada.</p>
-
-  <button class="btn" id="mandar">Registrar</button>
-  <div id="salida"></div>
-</div>
-
+:root{color-scheme:dark;--b:#08090b;--p:#12161a;--p2:#191e23;--p3:#20262c;--l:#ffffff14;--l2:#ffffff24;--t:#edf0f2;--m:#8d959e;--o:#ff7a1a;--os:#ff7a1a20;--ok:#31bd65;--w:#f0b429;--bad:#e35d62}*{box-sizing:border-box}body{margin:0;background:var(--b);color:var(--t);font:14px Inter,system-ui,sans-serif}.top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;background:var(--p);border-bottom:1px solid var(--l);position:sticky;top:0;z-index:10}.top img{height:27px}.brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--m);font-weight:800}.who{margin-left:auto;color:var(--m);font-size:12px}.who a{color:var(--m);margin-left:10px;text-decoration:none}.tabs{display:flex;padding:8px 20px 0;background:var(--p);border-bottom:1px solid var(--l);overflow:auto}.tab{border:0;border-bottom:2px solid transparent;background:none;color:var(--m);padding:11px 15px;font:inherit;font-weight:700;white-space:nowrap;cursor:pointer}.tab.on{color:var(--t);border-color:var(--o)}main{max-width:1440px;margin:auto;padding:18px 20px}.panel{display:none}.panel.on{display:block}.grid{display:grid;grid-template-columns:315px 1fr;gap:16px}.card{background:var(--p);border:1px solid var(--l);border-radius:14px;padding:16px}.side{height:calc(100vh - 126px);position:sticky;top:114px;display:flex;flex-direction:column}h1,h2{margin:0}.sub{color:var(--m);margin:4px 0 14px}.search,input,select,textarea{width:100%;background:var(--p2);color:var(--t);border:1px solid var(--l2);border-radius:10px;padding:10px 12px;font:inherit;outline:none}.search:focus,input:focus,select:focus,textarea:focus{border-color:#ff7a1a99}label{display:block;color:var(--m);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin:12px 0 6px}.units{overflow:auto;margin-top:10px}.unit{width:100%;display:grid;grid-template-columns:8px 92px 1fr auto;align-items:center;gap:8px;border:0;border-bottom:1px solid var(--l);background:none;color:var(--t);padding:11px 5px;text-align:left;cursor:pointer}.unit:hover,.unit.on{background:var(--os)}.dot{width:7px;height:7px;border-radius:50%;background:var(--bad)}.dot.ok{background:var(--ok)}.dot.warn{background:var(--w)}.plate{font-weight:850;letter-spacing:.6px}.um{color:var(--m);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.oc{color:var(--m);font-size:11px}.hero{display:flex;justify-content:space-between;gap:10px}.hero h2{font-size:26px}.meta{color:var(--m);margin-top:4px}.pill{border:1px solid var(--l2);border-radius:99px;padding:5px 9px;color:var(--m);font-size:11px;height:max-content}.map{margin-top:16px;padding:20px;background:linear-gradient(var(--p2),var(--p));border:1px solid var(--l);border-radius:13px}.ax{display:flex;align-items:center;justify-content:center;gap:7px;max-width:770px;margin:0 auto 15px}.ax:last-child{margin-bottom:0}.axn{width:25px;color:var(--m);font-size:11px;font-weight:800}.bar{height:3px;min-width:16px;max-width:180px;flex:1;background:var(--l2)}.tire{width:70px;min-height:67px;padding:7px 4px;background:var(--p3);color:var(--t);border:1px solid var(--l2);border-radius:9px;text-align:center;cursor:pointer}.tire:hover{border-color:var(--o)}.tire.empty{border-style:dashed;background:none;color:var(--m)}.tire.low{border-color:var(--bad)}.tire.mid{border-color:var(--w)}.pos{font-size:10px;font-weight:800;color:var(--m)}.code{font-size:12px;font-weight:800;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mm{font-size:10px;color:var(--m);margin-top:2px}.spare{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:15px;border-top:1px solid var(--l)}.spare b,.section h3{font-size:11px;color:var(--m);letter-spacing:1px;text-transform:uppercase}.section{margin-top:16px}.section h3{margin:0 0 10px}.event{display:grid;grid-template-columns:130px 90px 1fr;gap:10px;padding:11px 0;border-top:1px solid var(--l)}.event:first-child{border-top:0}.date,.note{font-size:12px;color:var(--m)}.type{font-size:10px;color:var(--o);text-transform:uppercase;font-weight:850}.note{margin-top:3px}.emptymsg,.loading{text-align:center;color:var(--m);padding:32px}.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--o);margin-right:8px;animation:p 1.2s infinite}@keyframes p{50%{opacity:.2}}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}.metric{background:var(--p);border:1px solid var(--l);border-radius:12px;padding:14px}.metric b{display:block;font-size:24px}.metric span{color:var(--m);font-size:10px;text-transform:uppercase;letter-spacing:.8px}.stockbar,.actions{display:flex;gap:8px;align-items:center}.stockbar{justify-content:space-between;margin-bottom:12px}.filters{display:flex;gap:8px;flex:1}.filters input{max-width:360px}.filters select{max-width:190px}.btn{border:0;border-radius:10px;background:var(--o);color:#fff;padding:10px 14px;font:inherit;font-weight:800;cursor:pointer}.btn.alt{background:var(--p3);border:1px solid var(--l2);color:var(--t)}.btn:disabled{opacity:.45}.tablewrap{overflow:auto}table{width:100%;border-collapse:collapse}th{text-align:left;color:var(--m);font-size:10px;text-transform:uppercase;letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--l2)}td{padding:11px 8px;border-bottom:1px solid var(--l)}tr[data-id]{cursor:pointer}tr[data-id]:hover{background:var(--os)}.status{border-radius:99px;background:var(--p3);padding:4px 8px;font-size:10px;text-transform:uppercase;font-weight:850}.status.stock{color:var(--ok)}.status.montada{color:#65b6ff}.status.reparacion,.status.recapado{color:var(--w)}.status.baja{color:var(--bad)}.register{max-width:760px;margin:auto}.register textarea{min-height:120px;resize:vertical}.help{font-size:12px;color:var(--m)}.result{margin-top:14px;padding:14px;border:1px solid var(--l);border-radius:12px;background:var(--p2)}.proposal{border-color:#ff7a1a77}.error{color:#ffadb0}.success{color:#a7e8bc}.modalbg{position:fixed;inset:0;background:#000c;z-index:30;display:none;align-items:center;justify-content:center;padding:18px}.modalbg.on{display:flex}.modal{width:min(620px,100%);max-height:90vh;overflow:auto;background:var(--p);border:1px solid var(--l2);border-radius:16px;padding:19px}.modaltop{display:flex;justify-content:space-between}.close{border:0;background:none;color:var(--m);font-size:25px;cursor:pointer}.details,.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.details{margin:15px 0}.detail{background:var(--p2);border-radius:9px;padding:10px}.detail span{display:block;color:var(--m);font-size:10px;text-transform:uppercase}.detail b{display:block;margin-top:3px}.wide{grid-column:1/-1}
+@media(max-width:780px){.top{padding:0 12px}.tabs{padding-left:7px}main{padding:12px}.grid{grid-template-columns:1fr}.side{height:auto;position:static}.units{max-height:290px}.metrics{grid-template-columns:repeat(2,1fr)}.metric:last-child{grid-column:1/-1}.hero,.stockbar,.filters{flex-direction:column;align-items:stretch}.filters input,.filters select{max-width:none}.tire{width:53px;min-height:60px}.ax{gap:4px}.event{grid-template-columns:92px 70px 1fr}.details,.formgrid{grid-template-columns:1fr}.wide{grid-column:auto}th:nth-child(3),td:nth-child(3),th:nth-child(6),td:nth-child(6){display:none}}
+</style></head><body>
+<header class="top"><img src="/logo.png" alt="Diemar" onerror="this.style.display='none'"><span class="brand">Gomería</span><span class="who" id="who"></span></header>
+<nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
+<main><section class="panel on" id="fleet"><div class="grid"><aside class="card side"><h1>Unidades</h1><p class="sub" id="unitCount">Cargando…</p><input class="search" id="unitSearch" placeholder="Buscar patente, interno o sucursal"><div class="units" id="unitList"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div></div></section>
+<section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
+<section class="panel" id="register"><div class="card register"><h1>Registrar trabajo</h1><p class="sub">Revisá la propuesta antes de guardar el movimiento.</p><label>Unidad</label><select id="workUnit"><option value="">Elegir patente</option></select><label>¿Qué hiciste?</label><textarea id="workText" placeholder="Ej: giré las dos de afuera del lado izquierdo"></textarea><p class="help">Podés indicar posiciones, código de cubierta, milímetros y kilometraje.</p><button class="btn" id="interpret">Interpretar movimiento</button><div id="workResult"></div></div></section></main>
+<div class="modalbg" id="tireModal"><div class="modal"><div class="modaltop"><h2 id="tireTitle">Cubierta</h2><button class="close" data-close="tireModal">×</button></div><div id="tireBody"></div></div></div>
+<div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
 <script>
-"use strict";
-const $ = s => document.querySelector(s);
-
-/* Si el QR trae la patente (/u/AD247MQ) se usa esa; si es el QR general de la
-   gomería, la patente sale del texto que escribe el gomero. */
-const m = location.pathname.match(/^\/u\/([^\/]+)/);
-const PATENTE = m ? decodeURIComponent(m[1]).trim() : '';
-
-let PARTE = null;
-
-const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
-  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-function fmtPat(p){
-  const m = String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
-  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
-  const o = String(p||'').match(/^([A-Z]{3})(\d{3})$/);
-  return o ? `${o[1]} ${o[2]}` : p;
-}
-
-/* Dibuja el mapa: una fila por eje, las cubiertas en el orden en que se ven. */
-function dibujarMapa(mapa){
-  const ejes = new Map();
-  let aux = null;
-  for (const p of mapa){
-    if (p.es_auxilio){ aux = p; continue; }
-    if (!ejes.has(p.eje)) ejes.set(p.eje, []);
-    ejes.get(p.eje).push(p);
-  }
-  const goma = p => {
-    const mm = p.remanente_mm;
-    const clase = p.cubierta_id == null ? 'vacia'
-                : (mm != null && mm <= 4) ? 'baja'
-                : (mm != null && mm <= 8) ? 'media' : '';
-    return `<div class="goma ${clase}">
-      <div class="pos">${esc(p.posicion)}</div>
-      <div class="cub">${p.cubierta ? esc(p.cubierta) : '—'}</div>
-      <div class="mm">${mm != null ? esc(mm) + ' mm' : ''}</div>
-    </div>`;
-  };
-  let html = '';
-  for (const [n, lista] of [...ejes.entries()].sort((a,b) => a[0]-b[0])){
-    lista.sort((a,b) => a.orden - b.orden);
-    html += `<div class="eje"><span class="num">${n}</span>` +
-            lista.map((p,i) => goma(p) + (i === lista.length/2 - 1 ? '<span class="barraEje"></span>' : '')).join('') +
-            `</div>`;
-  }
-  if (aux) html += `<div class="aux"><span class="et">AUXILIO</span>${goma(aux)}</div>`;
-  return `<div class="mapa">${html}</div>`;
-}
-
-function mostrarCabeza(unidad, mapa){
-  $('#cabeza').innerHTML =
-    `<div class="cabeza">
-       <h1>${esc(fmtPat(unidad.patente))}</h1>
-       <span class="meta">${[unidad.interno && 'interno ' + unidad.interno, unidad.marca, unidad.sucursal]
-         .filter(Boolean).map(esc).join(' · ')}</span>
-     </div>` + dibujarMapa(mapa);
-}
-
-async function pedir(ruta, cuerpo){
-  const r = await fetch(ruta, {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(cuerpo)
-  });
-  const d = await r.json();
-  if (!r.ok) throw new Error(d.error || ('El servidor respondió ' + r.status));
-  return d;
-}
-
-async function mandar(){
-  const texto = $('#texto').value.trim();
-  if (!texto) return;
-  const salida = $('#salida'), boton = $('#mandar');
-  boton.disabled = true;
-  salida.innerHTML = `<div class="caja"><div class="trabajando"><span class="bolita"></span>Leyendo lo que escribiste…</div></div>`;
-
-  try{
-    const d = await pedir('api/interpretar', { patente: PATENTE, texto });
-    PARTE = d.parte_id;
-    if (d.unidad && d.mapa) mostrarCabeza(d.unidad, d.mapa);
-    mostrarPropuesta(d.propuesta);
-  }catch(e){
-    salida.innerHTML = `<div class="caja"><div class="error">${esc(e.message)}</div></div>`;
-  }finally{
-    boton.disabled = false;
-  }
-}
-
-const ETIQUETA = {
-  rotacion:'Rotación', montaje:'Monta', desmontaje:'Saca',
-  medicion:'Mide', recapado:'A recapar', reparacion:'A arreglar', baja:'Baja'
-};
-
-function mostrarPropuesta(p){
-  const salida = $('#salida');
-
-  if (!p.acciones || !p.acciones.length){
-    salida.innerHTML =
-      `<div class="caja"><h2>Necesito que me aclares</h2>
-        <div class="pregunta">${esc(p.pregunta || 'No me quedó claro qué movimiento hiciste.')}</div>
-        <p class="nota">Escribilo de nuevo con ese dato y lo registro.</p></div>`;
-    return;
-  }
-
-  const items = p.acciones.map(a => {
-    let txt = a.posicion || '';
-    if (a.tipo === 'rotacion' && a.posicion_destino) txt += ` → ${a.posicion_destino}`;
-    if (a.cubierta) txt += ` · cubierta ${a.cubierta}`;
-    if (a.remanente_mm != null) txt += ` · ${a.remanente_mm} mm`;
-    if (a.nota) txt += ` · ${a.nota}`;
-    return `<li><span class="tag">${esc(ETIQUETA[a.tipo] || a.tipo)}</span>${esc(txt)}</li>`;
-  }).join('');
-
-  salida.innerHTML =
-    `<div class="caja confirmar">
-       <h2>Esto entendí</h2>
-       <div class="resumen">${esc(p.resumen || '')}</div>
-       <ul class="acciones">${items}</ul>
-       ${p.km_unidad ? `<p class="nota">Kilometraje: ${Number(p.km_unidad).toLocaleString('es-AR')}</p>` : ''}
-       <div class="fila">
-         <button class="btn" id="ok">Confirmar</button>
-         <button class="btn gris" id="no">Descartar</button>
-       </div>
-     </div>`;
-
-  $('#ok').addEventListener('click', async () => {
-    $('#ok').disabled = $('#no').disabled = true;
-    try{
-      const d = await pedir('api/confirmar', { parte_id: PARTE });
-      salida.innerHTML = `<div class="caja"><div class="ok">Guardado.<br>${d.hecho.map(esc).join('<br>')}</div></div>`;
-      const mapa = document.querySelector('.mapa');
-      if (mapa) mapa.outerHTML = dibujarMapa(d.mapa);
-      $('#texto').value = '';
-      $('#texto').focus();
-    }catch(e){
-      salida.innerHTML = `<div class="caja"><div class="error">No se pudo guardar: ${esc(e.message)}</div></div>`;
-    }
-  });
-
-  $('#no').addEventListener('click', async () => {
-    await pedir('api/descartar', { parte_id: PARTE }).catch(() => {});
-    salida.innerHTML = '';
-    $('#texto').focus();
-  });
-}
-
-/* ---------- eventos ---------- */
-$('#mandar').addEventListener('click', mandar);
-$('#texto').focus();
-
-/* Quién está usando la pantalla: el parte se firma con eso. */
-fetch('api/yo').then(r => r.ok ? r.json() : null).then(d => {
-  if (d) $('#quien').innerHTML =
-    `${esc(d.nombre)} <a href="/salir">Salir</a>`;
-}).catch(() => {});
-
-/* Si el QR trae la unidad, se muestra su mapa de entrada. */
-if (PATENTE){
-  fetch('api/mapa?patente=' + encodeURIComponent(PATENTE))
-    .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d) { mostrarCabeza(d.unidad, d.mapa);
-                          $('#texto').placeholder = 'Ej: giré las dos de afuera del lado izquierdo'; } })
-    .catch(() => {});
-}
-</script>
-</body>
-</html>
+"use strict";const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmtPat=p=>{let m=String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(m)return`${m[1]} ${m[2]} ${m[3]}`;m=String(p||'').match(/^([A-Z]{3})(\d{3})$/);return m?`${m[1]} ${m[2]}`:p},fmtDate=v=>v?new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+let D={units:[],configs:[],tires:[],summary:{},user:null,selected:null,parte:null};async function api(url,body){let r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||`Error ${r.status}`);return d}
+function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
+/* La solapa vive en la direccion: /gomeria#register abre directo la carga de
+   texto, que es a donde apunta el QR del taller. Volver atras la respeta. */
+const SOLAPAS=['fleet','stock','register'];
+function solapaDeLaUrl(){const h=location.hash.slice(1);return SOLAPAS.includes(h)?h:null}
+addEventListener('hashchange',()=>{const h=solapaDeLaUrl();if(h)tab(h,false)});
+function renderUnits(){let q=$('#unitSearch').value.toLowerCase().trim(),a=D.units.filter(u=>[u.patente,u.interno,u.marca,u.modelo,u.sucursal].join(' ').toLowerCase().includes(q));$('#unitCount').textContent=`${D.units.length} patentes activas`;$('#unitList').innerHTML=a.length?a.map(u=>`<button class="unit ${D.selected===u.patente?'on':''}" data-pat="${esc(u.patente)}"><i class="dot ${!u.posiciones?'warn':u.montadas===u.posiciones?'ok':''}"></i><span class="plate">${esc(fmtPat(u.patente))}</span><span class="um">${esc([u.interno&&'int. '+u.interno,u.sucursal].filter(Boolean).join(' · '))}</span><span class="oc">${u.posiciones?u.montadas+'/'+u.posiciones:'Sin mapa'}</span></button>`).join(''):'<div class="emptymsg">Sin coincidencias.</div>';$$('.unit').forEach(x=>x.onclick=()=>selectUnit(x.dataset.pat))}$('#unitSearch').oninput=renderUnits;
+function tire(p){let mm=p.remanente_mm,c=!p.cubierta_id?'empty':mm!=null&&+mm<=4?'low':mm!=null&&+mm<=8?'mid':'';return`<button class="tire ${c}" data-tire="${p.cubierta_id||''}"><span class="pos">${esc(p.posicion)}</span><div class="code">${p.cubierta?esc(p.cubierta):'Vacía'}</div><div class="mm">${mm!=null?esc(mm)+' mm':''}</div></button>`}
+function mapHtml(a){let e=new Map,aux=null;a.forEach(p=>{if(p.es_auxilio){aux=p;return}if(!e.has(p.eje))e.set(p.eje,[]);e.get(p.eje).push(p)});let h='';[...e].sort((x,y)=>x[0]-y[0]).forEach(([n,p])=>{p.sort((x,y)=>x.orden-y.orden);let m=Math.ceil(p.length/2);h+=`<div class="ax"><span class="axn">E${n}</span>${p.slice(0,m).map(tire).join('')}<span class="bar"></span>${p.slice(m).map(tire).join('')}</div>`});if(aux)h+=`<div class="spare"><b>Auxilio</b>${tire(aux)}</div>`;return`<div class="map">${h||'<div class="emptymsg">Esta unidad no tiene mapa configurado.</div>'}</div>`}
+function desc(e){let a=[];if(e.desde_posicion)a.push('desde '+e.desde_posicion);if(e.hasta_posicion)a.push('a '+e.hasta_posicion);if(e.remanente_mm!=null)a.push(e.remanente_mm+' mm');if(e.km_unidad!=null)a.push(Number(e.km_unidad).toLocaleString('es-AR')+' km');return a.join(' · ')}function listaEventos(a){return a.length?a.map(e=>`<div class="event"><span class="date">${fmtDate(e.fecha)}</span><span class="type">${esc(e.tipo)}</span><div><b>${esc(e.cubierta||'Movimiento')}</b> ${esc(desc(e))}<div class="note">${esc(e.nota||e.texto_original||e.usuario||'')}</div></div></div>`).join(''):'<div class="emptymsg">Todavía no hay movimientos.</div>'}
+async function selectUnit(pat){D.selected=pat;renderUnits();$('#unitDetail').innerHTML='<div class="card loading"><span class="pulse"></span>Cargando unidad…</div>';try{let d=await api('/api/mapa?patente='+encodeURIComponent(pat)),u=d.unidad,no='';if(!d.mapa.length&&D.user?.puede_administrar)no=`<div class="card section"><h3>Asignar mapa</h3><div class="actions"><select id="mapChoice"><option value="">Elegir configuración</option>${D.configs.map(c=>`<option value="${c.id}">${esc(c.nombre)} — ${esc(c.descripcion||c.posiciones+' posiciones')}</option>`).join('')}</select><button class="btn" id="saveMap">Asignar</button></div></div>`;$('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${mapHtml(d.mapa)}</div>${no}<div class="card section"><h3>Historial de cambios de la unidad</h3>${listaEventos(d.historial||[])}</div>`;$$('.tire[data-tire]').filter(x=>x.dataset.tire).forEach(x=>x.onclick=()=>openTire(x.dataset.tire));if($('#saveMap'))$('#saveMap').onclick=async()=>{let c=+$('#mapChoice').value;if(!c)return;await api('/api/unidades',{op:'asignar_mapa',unidad_id:u.id,configuracion_id:c});await dashboard();await selectUnit(pat)}}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}
+const labs={stock:'En stock',montada:'Montadas',reparacion:'Reparación',recapado:'Recapado',baja:'De baja'};function metrics(){$('#metrics').innerHTML=Object.keys(labs).map(k=>`<div class="metric"><b>${D.summary[k]||0}</b><span>${labs[k]}</span></div>`).join('')}async function loadStock(){try{let d=await api('/api/inventario-cubiertas');D.tires=d.cubiertas;D.summary=d.resumen;metrics();renderStock()}catch(e){$('#stockRows').innerHTML=`<tr><td colspan="6" class="error">${esc(e.message)}</td></tr>`}}function renderStock(){let q=$('#stockSearch').value.toLowerCase().trim(),s=$('#stockState').value,a=D.tires.filter(t=>(!s||t.estado===s)&&[t.codigo,t.marca,t.modelo,t.medida,t.patente].join(' ').toLowerCase().includes(q));$('#stockRows').innerHTML=a.length?a.map(t=>`<tr data-id="${t.id}"><td><b>${esc(t.codigo)}</b></td><td><span class="status ${esc(t.estado)}">${esc(t.estado)}</span></td><td>${esc([t.marca,t.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(t.medida||'—')}</td><td>${t.remanente_mm!=null?esc(t.remanente_mm)+' mm':'—'}</td><td>${t.patente?esc(fmtPat(t.patente)+' · '+t.posicion):'Depósito'}</td></tr>`).join(''):'<tr><td colspan="6" class="emptymsg">No hay cubiertas.</td></tr>';$$('#stockRows tr[data-id]').forEach(x=>x.onclick=()=>openTire(x.dataset.id))}$('#stockSearch').oninput=renderStock;$('#stockState').onchange=renderStock;
+function modal(id,on=true){$('#'+id).classList.toggle('on',on)}$$('[data-close]').forEach(x=>x.onclick=()=>modal(x.dataset.close,false));$$('.modalbg').forEach(x=>x.onclick=e=>{if(e.target===x)modal(x.id,false)});async function openTire(id){modal('tireModal');$('#tireBody').innerHTML='<div class="loading"><span class="pulse"></span>Cargando…</div>';try{let d=await api('/api/cubierta?id='+id),t=d.cubierta;$('#tireTitle').textContent='Cubierta '+t.codigo;let ctl=D.user?.puede_administrar&&t.estado!=='montada'?`<div class="section"><h3>Cambiar estado</h3><div class="actions"><select id="tState"><option value="stock">Stock</option><option value="reparacion">Reparación</option><option value="recapado">Recapado</option><option value="baja">Baja</option></select><input id="tNote" placeholder="Motivo u observación"><button class="btn alt" id="saveState">Guardar</button></div></div>`:'';$('#tireBody').innerHTML=`<div class="details"><div class="detail"><span>Estado</span><b>${esc(t.estado)}</b></div><div class="detail"><span>Ubicación</span><b>${t.patente?esc(fmtPat(t.patente)+' · '+t.posicion):'Depósito'}</b></div><div class="detail"><span>Marca / modelo</span><b>${esc([t.marca,t.modelo].filter(Boolean).join(' · ')||'—')}</b></div><div class="detail"><span>Medida</span><b>${esc(t.medida||'—')}</b></div><div class="detail"><span>Remanente</span><b>${t.remanente_mm!=null?esc(t.remanente_mm)+' mm':'—'}</b></div><div class="detail"><span>Kilómetros</span><b>${Number(t.km_acumulados||0).toLocaleString('es-AR')}</b></div></div>${ctl}<div class="section"><h3>Historial de la cubierta</h3>${listaEventos(d.historial||[])}</div>`;if($('#tState')){$('#tState').value=t.estado;$('#saveState').onclick=async()=>{await api('/api/cubiertas',{op:'estado',id:t.id,estado:$('#tState').value,nota:$('#tNote').value});modal('tireModal',false);await loadStock();if(D.selected)await selectUnit(D.selected)}}}catch(e){$('#tireBody').innerHTML=`<p class="error">${esc(e.message)}</p>`}}
+$('#newTire').onclick=()=>modal('newModal');$('#saveTire').onclick=async()=>{let b=$('#saveTire');b.disabled=true;$('#newError').innerHTML='';try{await api('/api/cubiertas',{op:'alta',codigo:$('#nCode').value,medida:$('#nSize').value,marca:$('#nBrand').value,modelo:$('#nModel').value,remanente_mm:$('#nMm').value,costo_compra:$('#nCost').value,observaciones:$('#nObs').value});['nCode','nSize','nBrand','nModel','nMm','nCost','nObs'].forEach(x=>$('#'+x).value='');modal('newModal',false);await loadStock()}catch(e){$('#newError').innerHTML=`<p class="error">${esc(e.message)}</p>`}finally{b.disabled=false}};
+async function interpret(){let p=$('#workUnit').value,t=$('#workText').value.trim();if(!p||!t)return;let out=$('#workResult'),b=$('#interpret');b.disabled=true;out.innerHTML='<div class="result"><span class="pulse"></span>Interpretando…</div>';try{let d=await api('/api/interpretar',{patente:p,texto:t}),x=d.propuesta;D.parte=d.parte_id;if(!x.acciones?.length)out.innerHTML=`<div class="result error">${esc(x.pregunta||'No quedó claro el movimiento.')}</div>`;else{out.innerHTML=`<div class="result proposal"><b>${esc(x.resumen||'Movimiento interpretado')}</b><ul>${x.acciones.map(a=>`<li>${esc(a.tipo)} · ${esc(a.posicion||'')}${a.posicion_destino?' → '+esc(a.posicion_destino):''}${a.cubierta?' · '+esc(a.cubierta):''}</li>`).join('')}</ul><div class="actions"><button class="btn" id="confirm">Confirmar</button><button class="btn alt" id="discard">Descartar</button></div></div>`;$('#confirm').onclick=confirm;$('#discard').onclick=discard}}catch(e){out.innerHTML=`<div class="result error">${esc(e.message)}</div>`}finally{b.disabled=false}}async function confirm(){try{let d=await api('/api/confirmar',{parte_id:D.parte});$('#workResult').innerHTML=`<div class="result success">Guardado.<br>${d.hecho.map(esc).join('<br>')}</div>`;$('#workText').value='';await dashboard();if(D.selected)await selectUnit(D.selected);if(D.tires.length)await loadStock()}catch(e){$('#workResult').innerHTML=`<div class="result error">${esc(e.message)}</div>`}}async function discard(){await api('/api/descartar',{parte_id:D.parte}).catch(()=>{});$('#workResult').innerHTML=''}$('#interpret').onclick=interpret;
+async function dashboard(){let d=await api('/api/tablero');D.units=d.unidades;D.configs=d.configuraciones;D.summary=d.resumen_stock;renderUnits();metrics();$('#workUnit').innerHTML='<option value="">Elegir patente</option>'+D.units.map(u=>`<option value="${esc(u.patente)}">${esc(fmtPat(u.patente))}${u.interno?' · int. '+esc(u.interno):''}</option>`).join('');if(!D.selected&&D.units.length){let m=location.pathname.match(/\/u\/([^/]+)/);D.selected=m?decodeURIComponent(m[1]):D.units[0].patente}if(D.selected)await selectUnit(D.selected)}async function init(){const inicial=solapaDeLaUrl();if(inicial)tab(inicial,false);try{D.user=await api('/api/yo');$('#who').innerHTML=`${esc(D.user.nombre)} <a href="/salir">Salir</a>`;if(!D.user.puede_administrar)$('#newTire').style.display='none';await dashboard()}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}init();
+</script></body></html>
