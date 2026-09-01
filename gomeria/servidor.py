@@ -129,6 +129,14 @@ class Handler(BaseHTTPRequestHandler):
                 (unidad["id"], texto, autor)).fetchone()
             cx.commit()
 
+            if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+                cx.execute("update partes set estado='error', error=%s where id=%s",
+                           ("sin clave de la API", parte["id"]))
+                cx.commit()
+                return self._error(
+                    "Falta la clave de la API. Lo que escribiste quedó guardado; "
+                    "poné la clave en chat/clave.txt, reiniciá el servidor y volvé a mandarlo.")
+
             mapa = base.mapa_unidad(cx, unidad["id"])
             try:
                 propuesta = interpretar.interpretar(unidad, mapa, texto)
@@ -210,12 +218,17 @@ def main():
         archivo = os.path.join(AQUI, os.pardir, "chat", "clave.txt")
         if os.path.exists(archivo):
             os.environ["ANTHROPIC_API_KEY"] = open(archivo, encoding="utf-8").read().strip()
-    if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        raise SystemExit("Falta la clave de la API (ANTHROPIC_API_KEY o chat/clave.txt).")
+    # Sin clave el modulo arranca igual: ver los mapas no necesita a Claude.
+    # Recien al interpretar un parte hace falta, y ahi avisa.
+    hay_clave = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
 
     with base.conectar() as cx:
         n = cx.execute("select count(*) c from unidades").fetchone()["c"]
-    print(f"Gomería · {n} unidades cargadas")
+        c = cx.execute("select count(*) c from cubiertas").fetchone()["c"]
+    print(f"Gomería · {n} unidades · {c} cubiertas")
+    if not hay_clave:
+        print("  Sin clave de la API: se ven los mapas, pero todavía no se pueden")
+        print("  cargar partes. Poné la clave en chat/clave.txt cuando la tengas.")
 
     ip = ip_en_la_red() if a.host == "0.0.0.0" else a.host
     print(f"  Pantalla:  http://{ip}:{a.puerto}/u/PATENTE")
