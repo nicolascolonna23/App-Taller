@@ -7,7 +7,7 @@ Deja lista la conexión a Supabase.
 Pide la cadena de conexión, revisa que sea la correcta, prueba que entre y
 la guarda en gomeria/conexion.txt. No hay que crear ningún archivo a mano.
 """
-import getpass, os, re, sys
+import os, re, sys
 from urllib.parse import quote, urlsplit, urlunsplit
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -97,7 +97,7 @@ def probar(url):
             # tipo de problema que cuesta horas encontrar. Mejor avisar acá.
             d = cx.execute("""
                 select pg_get_userbyid(c.relowner) as dueno, current_user as yo,
-                       coalesce((select rolbypassrls from pg_roles
+                       coalesce((select rolsuper or rolbypassrls from pg_roles
                                  where rolname = current_user), false) as saltea
                 from pg_class c
                 join pg_namespace n on n.oid = c.relnamespace
@@ -126,6 +126,19 @@ def probar(url):
         return False, f"No pude conectarme: {detalle}{pista}"
 
 
+def salir_mal():
+    """Al fallar, dejar claro que el programa termino.
+
+    Si no se dice, lo que sigue se escribe en la terminal creyendo que el
+    programa sigue esperando, y zsh contesta 'command not found'.
+    """
+    print("\n" + "-" * 64)
+    print("  El programa terminó. Ya NO está esperando que escribas nada.")
+    print("  Para volver a intentar, corré de nuevo:")
+    print("      python3 gomeria/configurar.py")
+    print("-" * 64)
+
+
 def main():
     print("Conexión a Supabase")
     print("-" * 60)
@@ -144,26 +157,35 @@ def main():
                 return 0 if ok else 1
             print()
 
-    try:
-        url = input("1) Pegá la cadena acá y apretá Enter.\n"
-                    "   Podés dejar el [YOUR-PASSWORD] como está, la contraseña te la\n"
-                    "   pido aparte en el paso siguiente.\n> ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print("\nCancelado.")
-        return 1
+    RAYA = "=" * 64
 
+    def pedir(titulo, ayuda):
+        print(f"\n{RAYA}\n  {titulo}\n{RAYA}")
+        for linea in ayuda:
+            print(f"  {linea}")
+        try:
+            return input("\n  >>> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print("\nCancelado.")
+            sys.exit(1)
+
+    url = pedir("PASO 1 de 2 — la cadena de conexión", [
+        "Pegala acá y apretá Enter.",
+        "Dejá el [YOUR-PASSWORD] tal cual: la contraseña te la pido después.",
+    ])
     problema = revisar(url)
     if problema:
         print(f"\n{problema}")
+        salir_mal()
         return 1
 
-    try:
-        password = getpass.getpass("\n2) Contraseña de la base (no se ve al tipear): ").strip()
-    except (EOFError, KeyboardInterrupt):
-        print("\nCancelado.")
-        return 1
+    password = pedir("PASO 2 de 2 — la contraseña de la base", [
+        "Escribila y apretá Enter. Se va a ver mientras la escribís,",
+        "para que sepas que el programa la está recibiendo.",
+    ])
     if not password:
         print("\nSin contraseña no puedo conectarme.")
+        salir_mal()
         return 1
 
     url = poner_password(url, password)
@@ -172,7 +194,8 @@ def main():
     ok, msg = probar(url)
     if not ok:
         print(msg)
-        print("\nNo guardé nada. Corregí eso y volvé a correr este programa.")
+        print("\nNo guardé nada.")
+        salir_mal()
         return 1
 
     with open(DESTINO, "w", encoding="utf-8") as f:
