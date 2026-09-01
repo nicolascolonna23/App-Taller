@@ -43,14 +43,13 @@
 
   .env{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:28px 22px 60px}
   .modulos,.pie{text-align:left}
-  .portada{position:relative;display:grid;grid-template-columns:minmax(340px,.82fr) minmax(0,1.55fr);
-    min-height:340px;margin-bottom:18px;overflow:hidden;border:1px solid var(--hairline-2);
+  .portada{position:relative;display:flex;min-height:340px;margin-bottom:18px;overflow:hidden;border:1px solid var(--hairline-2);
     border-radius:20px;background:var(--surface-1);box-shadow:0 24px 55px rgba(0,0,0,.42)}
-  .portada>img{position:relative;z-index:0;grid-column:2;grid-row:1;width:100%;height:340px;
+  .portada>img{position:absolute;z-index:0;inset:0 0 0 auto;width:67%;height:100%;
     object-fit:cover;object-position:center 52%;filter:saturate(.96) contrast(1.03)}
-  .portada::after{content:"";position:absolute;z-index:1;top:0;bottom:0;left:34%;width:15%;
-    background:linear-gradient(90deg,var(--surface-1),transparent);pointer-events:none}
-  .portada-copy{position:relative;z-index:2;grid-column:1;grid-row:1;display:flex;min-height:340px;
+  .portada::after{content:"";position:absolute;z-index:1;inset:0;
+    background:linear-gradient(90deg,var(--surface-1) 0%,var(--surface-1) 32%,rgba(18,22,26,.9) 38%,rgba(18,22,26,.28) 49%,transparent 61%);pointer-events:none}
+  .portada-copy{position:relative;z-index:2;display:flex;width:42%;min-height:340px;
     padding:38px;flex-direction:column;justify-content:center}
   .eyebrow{margin:0 0 9px;color:var(--brand);font-size:10px;font-weight:700;
     letter-spacing:2.4px;text-transform:uppercase}
@@ -91,9 +90,9 @@
     .barra{padding:11px 14px}
     .env{padding:14px 12px 40px}
     .portada{display:flex;min-height:0;border-radius:16px;flex-direction:column}
-    .portada>img{order:1;width:100%;height:220px;object-position:58% center}
+    .portada>img{position:relative;inset:auto;order:1;width:100%;height:220px;object-position:58% center}
     .portada::after{display:none}
-    .portada-copy{order:2;min-height:0;padding:24px;justify-content:flex-start}
+    .portada-copy{order:2;width:100%;min-height:0;padding:24px;justify-content:flex-start}
     h1{font-size:30px}
   }
 </style>
