@@ -44,10 +44,15 @@ def main():
 
     # Primero se validan todos los mapas: es preferible frenar antes de escribir
     # que dejar media flota cargada y media no.
-    limpias = []
+    limpias, sin_mapa = [], []
     for n, f in enumerate(filas, start=2):
         f = {(k or "").strip().lower(): (v or "").strip() for k, v in f.items()}
         if not f.get("patente"):
+            continue
+        # Sin mapa no se puede cargar, pero tampoco frena al resto: se avisa
+        # al final y se cargan cuando se complete la columna.
+        if not f.get("mapa"):
+            sin_mapa.append(f["patente"])
             continue
         try:
             mapas.expandir(f["mapa"])
@@ -62,6 +67,8 @@ def main():
         cuantas = sum(1 for f in limpias if f["mapa"].upper().replace(",", "-") == spec)
         print(f"  {spec:<10} {mapas.describir(spec):<40} {cuantas} unidades")
 
+    if sin_mapa:
+        print(f"\nSin mapa, no se cargan: {', '.join(sin_mapa)}")
     if a.simular:
         print("\n(simulación: no se escribió nada)")
         return
@@ -86,6 +93,9 @@ def main():
         cx.commit()
 
     print(f"\nCargadas {nuevas} unidades.")
+    if sin_mapa:
+        print(f"Quedaron afuera {len(sin_mapa)} sin mapa: {', '.join(sin_mapa)}")
+        print("  Completales la columna 'mapa' en el CSV y volvé a correr esto.")
     print("Las cubiertas se montan después, desde la pantalla de gomería o con un CSV aparte.")
 
 

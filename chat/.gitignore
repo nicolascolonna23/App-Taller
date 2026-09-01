@@ -4,3 +4,5 @@ config.json
 *.xlsx
 *.xls
 clave.txt
+__pycache__/
+*.pyc
