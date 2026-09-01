@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Gomería | Diemar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ff7a1a' stroke-width='4'/%3E%3C/svg%3E">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
+    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
+    --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
+    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.12);
+    --ok:#0ca30c; --warn:#fab219; --mal:#d03b3b;
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    background:var(--plane); color:var(--ink); font-size:16px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 env(safe-area-inset-bottom);
+  }
+  .barra{
+    display:flex;align-items:center;gap:12px;padding:12px 16px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);position:relative;
+  }
+  .barra::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,var(--brand),rgba(255,122,26,0) 60%)}
+  .barra img{height:26px}
+  .barra .t{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
+  .env{max-width:640px;margin:0 auto;padding:16px}
+
+  .unidad{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:4px}
+  .unidad h1{margin:0;font-size:26px;font-weight:700;letter-spacing:.02em}
+  .unidad .meta{font-size:13px;color:var(--ink-muted)}
+
+  /* ---------- mapa de la unidad ---------- */
+  .mapa{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);
+        padding:16px;margin:14px 0}
+  .eje{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+  .eje:last-child{margin-bottom:0}
+  .eje .num{width:20px;flex:none;font-size:11px;color:var(--ink-muted);font-weight:600}
+  .eje .barraEje{flex:1;height:2px;background:var(--hairline-2);border-radius:2px;min-width:14px}
+  .goma{
+    width:52px;flex:none;border:1px solid var(--hairline-2);border-radius:7px;
+    padding:5px 3px;text-align:center;background:var(--surface-3);cursor:default;
+  }
+  .goma.vacia{border-style:dashed;background:transparent;opacity:.55}
+  .goma .pos{font-size:9.5px;letter-spacing:.6px;color:var(--ink-muted);font-weight:700}
+  .goma .cub{font-size:11px;font-weight:600;margin-top:1px;overflow:hidden;text-overflow:ellipsis}
+  .goma .mm{font-size:9.5px;color:var(--ink-muted)}
+  .goma.baja{border-color:var(--mal)}
+  .goma.media{border-color:var(--warn)}
+  .aux{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:11px;
+       border-top:1px solid var(--hairline)}
+  .aux .et{font-size:11px;color:var(--ink-muted);font-weight:600;letter-spacing:.8px}
+
+  /* ---------- escribir ---------- */
+  label{display:block;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
+        color:var(--ink-muted);font-weight:600;margin:18px 0 7px}
+  textarea,input{
+    width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface-2);
+    border:1px solid var(--hairline-2);border-radius:12px;padding:13px 14px;outline:none;
+    resize:none;transition:border-color .18s;
+  }
+  textarea:focus,input:focus{border-color:rgba(255,122,26,.55)}
+  textarea::placeholder,input::placeholder{color:var(--ink-muted)}
+  .btn{
+    width:100%;font:inherit;font-size:16px;font-weight:600;color:#fff;
+    background:var(--brand);border:none;border-radius:12px;padding:15px;margin-top:12px;
+    cursor:pointer;transition:opacity .18s;
+  }
+  .btn:disabled{opacity:.45;cursor:default}
+  .btn.gris{background:var(--surface-3);color:var(--ink-2);border:1px solid var(--hairline-2)}
+  .fila{display:flex;gap:10px}
+  .fila .btn{margin-top:0}
+
+  /* ---------- propuesta ---------- */
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);border-radius:var(--radius);
+        padding:16px;margin-top:16px}
+  .caja.confirmar{border-color:rgba(255,122,26,.45)}
+  .caja h2{margin:0 0 4px;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
+           color:var(--ink-muted);font-weight:600}
+  .resumen{font-size:17px;font-weight:600;margin:6px 0 14px;line-height:1.4}
+  .acciones{list-style:none;margin:0 0 16px;padding:0;display:flex;flex-direction:column;gap:7px}
+  .acciones li{display:flex;align-items:center;gap:9px;font-size:14px;color:var(--ink-2);
+    background:var(--surface-3);border-radius:9px;padding:9px 11px}
+  .acciones .tag{font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--brand);background:var(--brand-soft);border-radius:5px;padding:3px 7px;flex:none}
+  .pregunta{border-left:2px solid var(--warn);padding-left:12px;color:#f5d68a;font-size:15px}
+  .error{border-left:2px solid var(--mal);padding-left:12px;color:#f0a8a8;font-size:15px}
+  .ok{border-left:2px solid var(--ok);padding-left:12px;color:#a8e0a8;font-size:15px}
+  .trabajando{color:var(--ink-muted);font-size:15px;display:flex;align-items:center;gap:9px}
+  .bolita{width:7px;height:7px;border-radius:50%;background:var(--brand);
+    animation:latir 1.3s ease-in-out infinite}
+  @keyframes latir{0%,100%{opacity:1}50%{opacity:.25}}
+  @media (prefers-reduced-motion:reduce){.bolita{animation:none}}
+  .nota{font-size:12.5px;color:var(--ink-muted);margin-top:12px}
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <span class="t">Gomería</span>
+</div>
+
+<div class="env" id="app">
+  <div class="trabajando"><span class="bolita"></span>Buscando la unidad…</div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const app = $('#app');
+
+// La patente sale de la URL: /u/AD247MQ  (es lo que codifica el QR)
+const PATENTE = decodeURIComponent(location.pathname.replace(/^\/u\//, '')).trim();
+
+let UNIDAD = null, MAPA = [], PARTE = null;
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function fmtPat(p){
+  const m = String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = String(p||'').match(/^([A-Z]{3})(\d{3})$/);
+  return o ? `${o[1]} ${o[2]}` : p;
+}
+
+/* Dibuja el mapa: una fila por eje, las cubiertas en el orden en que se ven. */
+function dibujarMapa(mapa){
+  const ejes = new Map();
+  let aux = null;
+  for (const p of mapa){
+    if (p.es_auxilio){ aux = p; continue; }
+    if (!ejes.has(p.eje)) ejes.set(p.eje, []);
+    ejes.get(p.eje).push(p);
+  }
+  const goma = p => {
+    const mm = p.remanente_mm;
+    const clase = p.cubierta_id == null ? 'vacia'
+                : (mm != null && mm <= 4) ? 'baja'
+                : (mm != null && mm <= 8) ? 'media' : '';
+    return `<div class="goma ${clase}">
+      <div class="pos">${esc(p.posicion)}</div>
+      <div class="cub">${p.cubierta ? esc(p.cubierta) : '—'}</div>
+      <div class="mm">${mm != null ? esc(mm) + ' mm' : ''}</div>
+    </div>`;
+  };
+  let html = '';
+  for (const [n, lista] of [...ejes.entries()].sort((a,b) => a[0]-b[0])){
+    lista.sort((a,b) => a.orden - b.orden);
+    html += `<div class="eje"><span class="num">${n}</span>` +
+            lista.map((p,i) => goma(p) + (i === lista.length/2 - 1 ? '<span class="barraEje"></span>' : '')).join('') +
+            `</div>`;
+  }
+  if (aux) html += `<div class="aux"><span class="et">AUXILIO</span>${goma(aux)}</div>`;
+  return `<div class="mapa">${html}</div>`;
+}
+
+function pantalla(){
+  app.innerHTML =
+    `<div class="unidad">
+       <h1>${esc(fmtPat(UNIDAD.patente))}</h1>
+       <span class="meta">${[UNIDAD.interno && 'interno ' + UNIDAD.interno, UNIDAD.marca, UNIDAD.sucursal]
+         .filter(Boolean).map(esc).join(' · ')}</span>
+     </div>` +
+    dibujarMapa(MAPA) +
+    `<label for="texto">¿Qué hiciste?</label>
+     <textarea id="texto" rows="3" placeholder="Ej: giré las dos de atrás del lado izquierdo"></textarea>
+     <label for="autor">Tu nombre</label>
+     <input id="autor" placeholder="Quién carga el parte" value="${esc(localStorage.getItem('gomero') || '')}">
+     <button class="btn" id="mandar">Registrar</button>
+     <div id="salida"></div>
+     <p class="nota">Escribilo como lo dirías. Te muestro qué entendí antes de guardar nada.</p>`;
+
+  $('#mandar').addEventListener('click', mandar);
+  $('#texto').focus();
+}
+
+async function pedir(ruta, cuerpo){
+  const r = await fetch(ruta, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(cuerpo)
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || ('El servidor respondió ' + r.status));
+  return d;
+}
+
+async function mandar(){
+  const texto = $('#texto').value.trim();
+  if (!texto) return;
+  const autor = $('#autor').value.trim();
+  if (autor) localStorage.setItem('gomero', autor);
+
+  const salida = $('#salida'), boton = $('#mandar');
+  boton.disabled = true;
+  salida.innerHTML = `<div class="caja"><div class="trabajando"><span class="bolita"></span>Leyendo lo que escribiste…</div></div>`;
+
+  try{
+    const d = await pedir('/api/interpretar', { patente: PATENTE, texto, autor });
+    PARTE = d.parte_id;
+    mostrarPropuesta(d.propuesta, autor);
+  }catch(e){
+    salida.innerHTML = `<div class="caja"><div class="error">${esc(e.message)}</div></div>`;
+  }finally{
+    boton.disabled = false;
+  }
+}
+
+const ETIQUETA = {
+  rotacion:'Rotación', montaje:'Monta', desmontaje:'Saca',
+  medicion:'Mide', recapado:'A recapar', reparacion:'A arreglar', baja:'Baja'
+};
+
+function mostrarPropuesta(p, autor){
+  const salida = $('#salida');
+
+  // Sin acciones: Claude no entendió y necesita una aclaración.
+  if (!p.acciones || !p.acciones.length){
+    salida.innerHTML =
+      `<div class="caja"><h2>Necesito que me aclares</h2>
+        <div class="pregunta">${esc(p.pregunta || 'No me quedó claro qué movimiento hiciste.')}</div>
+        <p class="nota">Escribilo de nuevo con ese dato y lo registro.</p></div>`;
+    return;
+  }
+
+  const items = p.acciones.map(a => {
+    let txt = a.posicion || '';
+    if (a.tipo === 'rotacion' && a.posicion_destino) txt += ` → ${a.posicion_destino}`;
+    if (a.cubierta) txt += ` · cubierta ${a.cubierta}`;
+    if (a.remanente_mm != null) txt += ` · ${a.remanente_mm} mm`;
+    if (a.nota) txt += ` · ${a.nota}`;
+    return `<li><span class="tag">${esc(ETIQUETA[a.tipo] || a.tipo)}</span>${esc(txt)}</li>`;
+  }).join('');
+
+  salida.innerHTML =
+    `<div class="caja confirmar">
+       <h2>Esto entendí</h2>
+       <div class="resumen">${esc(p.resumen || '')}</div>
+       <ul class="acciones">${items}</ul>
+       ${p.km_unidad ? `<p class="nota">Kilometraje: ${Number(p.km_unidad).toLocaleString('es-AR')}</p>` : ''}
+       <div class="fila">
+         <button class="btn" id="ok">Confirmar</button>
+         <button class="btn gris" id="no">Descartar</button>
+       </div>
+     </div>`;
+
+  $('#ok').addEventListener('click', async () => {
+    $('#ok').disabled = $('#no').disabled = true;
+    try{
+      const d = await pedir('/api/confirmar', { parte_id: PARTE, autor });
+      MAPA = d.mapa;
+      salida.innerHTML = `<div class="caja"><div class="ok">Guardado.<br>${d.hecho.map(esc).join('<br>')}</div></div>`;
+      // Redibuja el mapa con el estado nuevo y deja el campo listo para otro parte.
+      document.querySelector('.mapa').outerHTML = dibujarMapa(MAPA);
+      $('#texto').value = '';
+    }catch(e){
+      salida.innerHTML = `<div class="caja"><div class="error">No se pudo guardar: ${esc(e.message)}</div></div>`;
+    }
+  });
+
+  $('#no').addEventListener('click', async () => {
+    await pedir('/api/descartar', { parte_id: PARTE }).catch(() => {});
+    salida.innerHTML = '';
+    $('#texto').focus();
+  });
+}
+
+/* ---------- arranque ---------- */
+fetch('/api/mapa?patente=' + encodeURIComponent(PATENTE))
+  .then(async r => { const d = await r.json(); if(!r.ok) throw new Error(d.error); return d; })
+  .then(d => { UNIDAD = d.unidad; MAPA = d.mapa; pantalla(); })
+  .catch(e => {
+    app.innerHTML = `<div class="caja"><div class="error">${esc(e.message)}</div>
+      <p class="nota">Escaneá de nuevo el QR de la unidad, o fijate que la patente
+      esté cargada en el sistema.</p></div>`;
+  });
+</script>
+</body>
+</html>
