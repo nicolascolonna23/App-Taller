@@ -124,6 +124,43 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error("Falta movil.html", 404)
             return self._responder(open(archivo, "rb").read(), "text/html; charset=utf-8")
 
+        if ruta == "/api/stock":
+            texto = (params.get("q") or [""])[0].strip()
+            estado = (params.get("estado") or [""])[0].strip()
+            medida = (params.get("medida") or [""])[0].strip()
+            try:
+                with base.conectar() as cx:
+                    donde, valores = ["1=1"], []
+                    if texto:
+                        # Una sola caja busca por código, marca, modelo y patente.
+                        donde.append("""(upper(codigo) like %s or upper(coalesce(marca,'')) like %s
+                                         or upper(coalesce(modelo,'')) like %s
+                                         or upper(coalesce(patente,'')) like %s)""")
+                        like = f"%{texto.upper()}%"
+                        valores += [like, like, like, like.replace(" ", "")]
+                    if estado:
+                        donde.append("estado = %s"); valores.append(estado)
+                    if medida:
+                        donde.append("coalesce(medida,'') = %s"); valores.append(medida)
+                    w = " and ".join(donde)
+
+                    total = cx.execute(f"select count(*) as n from v_cubiertas where {w}",
+                                       valores).fetchone()["n"]
+                    filas = cx.execute(f"""
+                        select * from v_cubiertas where {w}
+                        order by estado, codigo limit 300""", valores).fetchall()
+                    resumen = cx.execute("select * from v_stock_por_medida").fetchall()
+                    medidas = cx.execute("""
+                        select distinct coalesce(medida,'') as medida from cubiertas
+                        where coalesce(medida,'') <> '' order by 1""").fetchall()
+                    cx.commit()
+                return self._responder(jstr({
+                    "total": total, "mostradas": len(filas), "cubiertas": filas,
+                    "resumen": resumen, "medidas": [m["medida"] for m in medidas]}))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
         if ruta == "/api/mapa":
             patente = (params.get("patente") or [""])[0]
             try:

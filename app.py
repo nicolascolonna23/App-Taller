@@ -35,6 +35,7 @@ PANTALLAS = {
     "/flota":      ("index.html",              "text/html; charset=utf-8"),
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
+    "/cubiertas":  ("gomeria/stock.html",      "text/html; charset=utf-8"),
 }
 
 
