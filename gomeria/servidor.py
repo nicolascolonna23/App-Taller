@@ -115,7 +115,45 @@ class Handler(BaseHTTPRequestHandler):
         if ruta == "/api/yo":
             return self._responder(jstr({
                 "usuario": self.usuario["usuario"], "nombre": self.usuario["nombre"],
-                "rol": self.usuario["rol"]}))
+                "rol": self.usuario["rol"],
+                "puede_administrar": self.usuario["rol"] in ("encargado", "admin")}))
+
+        if ruta == "/api/tablero":
+            try:
+                with base.conectar() as cx:
+                    return self._responder(jstr({
+                        "unidades": base.tablero_unidades(cx),
+                        "configuraciones": base.configuraciones(cx),
+                        "resumen_stock": base.resumen_cubiertas(cx),
+                    }))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
+        if ruta == "/api/inventario-cubiertas":
+            try:
+                with base.conectar() as cx:
+                    return self._responder(jstr({
+                        "cubiertas": base.inventario_cubiertas(cx),
+                        "resumen": base.resumen_cubiertas(cx),
+                    }))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
+        if ruta == "/api/cubierta":
+            try:
+                cubierta_id = int((params.get("id") or ["0"])[0])
+                with base.conectar() as cx:
+                    ficha = base.ficha_cubierta(cx, cubierta_id)
+                    if not ficha:
+                        return self._error("No encontré esa cubierta.", 404)
+                    return self._responder(jstr(ficha))
+            except ValueError:
+                return self._error("Cubierta inválida.")
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
 
         # El QR apunta acá: /u/AD247MQ
         if ruta.startswith("/u/") or ruta in ("/", "/index.html"):
@@ -134,6 +172,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._responder(jstr({
                         "unidad": unidad,
                         "mapa": base.mapa_unidad(cx, unidad["id"]),
+                        "historial": base.historial_unidad(cx, unidad["id"]),
                     }))
             except Exception as e:
                 traceback.print_exc()
@@ -208,10 +247,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self._confirmar(datos)
             if ruta == "/api/descartar":
                 return self._descartar(datos)
+            if ruta == "/api/cubiertas":
+                return self._cubiertas(datos)
+            if ruta == "/api/unidades":
+                return self._unidades(datos)
         except anthropic.APIStatusError as e:
             return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
         except anthropic.APIConnectionError:
             return self._error("No se pudo conectar con la API de Claude.", 502)
+        except PermissionError as e:
+            return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
         except Exception as e:
@@ -219,6 +264,63 @@ class Handler(BaseHTTPRequestHandler):
             return self._error(f"Error inesperado: {e}", 500)
 
         return self._error("No existe", 404)
+
+    def _exigir_encargado(self):
+        if self.usuario["rol"] not in ("encargado", "admin"):
+            raise PermissionError("Solo un encargado o administrador puede hacer ese cambio.")
+
+    def _cubiertas(self, datos):
+        self._exigir_encargado()
+        op = (datos.get("op") or "").strip()
+        with base.conectar() as cx:
+            if op == "alta":
+                codigo = str(datos.get("codigo") or "").strip().upper()
+                if not codigo:
+                    raise ValueError("Ingresá el código o número de fuego.")
+                if base.buscar_cubierta(cx, codigo):
+                    raise ValueError("Ya existe una cubierta con ese código.")
+                remanente = datos.get("remanente_mm")
+                if remanente not in (None, ""):
+                    remanente = float(remanente)
+                    if remanente < 0:
+                        raise ValueError("El remanente no puede ser negativo.")
+                costo = datos.get("costo_compra")
+                if costo not in (None, ""):
+                    costo = float(costo)
+                    if costo < 0:
+                        raise ValueError("El costo no puede ser negativo.")
+                cubierta_id = base.alta_cubierta(
+                    cx, codigo, marca=str(datos.get("marca") or "").strip() or None,
+                    modelo=str(datos.get("modelo") or "").strip() or None,
+                    medida=str(datos.get("medida") or "").strip() or None,
+                    remanente_mm=remanente, costo_compra=costo,
+                    observaciones=str(datos.get("observaciones") or "").strip() or None,
+                    usuario=self.usuario["nombre"], nota="Alta desde el inventario")
+            elif op == "estado":
+                cubierta_id = int(datos.get("id") or 0)
+                base.cambiar_estado_cubierta(
+                    cx, cubierta_id, str(datos.get("estado") or ""),
+                    usuario=self.usuario["nombre"],
+                    nota=str(datos.get("nota") or "").strip() or None)
+            else:
+                raise ValueError("Operación de cubierta inválida.")
+            cx.commit()
+            return self._responder(jstr({
+                "ok": True, "cubierta_id": cubierta_id,
+                "cubiertas": base.inventario_cubiertas(cx),
+                "resumen": base.resumen_cubiertas(cx),
+            }))
+
+    def _unidades(self, datos):
+        self._exigir_encargado()
+        if datos.get("op") != "asignar_mapa":
+            raise ValueError("Operación de unidad inválida.")
+        unidad_id = int(datos.get("unidad_id") or 0)
+        configuracion_id = int(datos.get("configuracion_id") or 0)
+        with base.conectar() as cx:
+            patente = base.asignar_configuracion(cx, unidad_id, configuracion_id)
+            cx.commit()
+            return self._responder(jstr({"ok": True, "patente": patente}))
 
     # -----------------------------------------------------------------
     def _interpretar(self, datos):

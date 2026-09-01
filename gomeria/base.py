@@ -111,6 +111,50 @@ def mapa_unidad(cx, unidad_id):
         (unidad_id,)).fetchall()
 
 
+def tablero_unidades(cx):
+    """Todas las unidades activas con el nivel de ocupacion de su mapa."""
+    return cx.execute("""
+        select u.id, u.patente, u.interno, u.marca, u.modelo, u.sucursal,
+               u.uso, u.km_actual, u.configuracion_id,
+               c.nombre as configuracion, c.descripcion as descripcion_mapa,
+               count(p.id)::int as posiciones,
+               count(m.id)::int as montadas
+        from unidades u
+        left join configuraciones c on c.id = u.configuracion_id
+        left join configuracion_posiciones p on p.configuracion_id = u.configuracion_id
+        left join montajes m on m.unidad_id = u.id
+                            and m.posicion_id = p.id and m.hasta is null
+        where u.activa
+        group by u.id, c.id
+        order by coalesce(u.sucursal,''), u.patente
+    """).fetchall()
+
+
+def configuraciones(cx):
+    return cx.execute("""
+        select c.id, c.nombre, c.descripcion, count(p.id)::int as posiciones
+        from configuraciones c
+        left join configuracion_posiciones p on p.configuracion_id = c.id
+        group by c.id order by count(p.id), c.nombre
+    """).fetchall()
+
+
+def historial_unidad(cx, unidad_id, limite=120):
+    return cx.execute("""
+        select mv.id, mv.fecha, mv.tipo, mv.cubierta_id, c.codigo as cubierta,
+               po.codigo as desde_posicion, pd.codigo as hasta_posicion,
+               mv.km_unidad, mv.remanente_mm, mv.usuario, mv.nota,
+               pa.texto as texto_original
+        from movimientos mv
+        left join cubiertas c on c.id = mv.cubierta_id
+        left join configuracion_posiciones po on po.id = mv.posicion_origen_id
+        left join configuracion_posiciones pd on pd.id = mv.posicion_destino_id
+        left join partes pa on pa.id = mv.parte_id
+        where mv.unidad_id = %s
+        order by mv.fecha desc limit %s
+    """, (unidad_id, limite)).fetchall()
+
+
 def posicion_por_codigo(cx, unidad_id, codigo):
     return cx.execute("""
         select p.* from configuracion_posiciones p
@@ -135,6 +179,46 @@ def historial_cubierta(cx, cubierta_id, limite=40):
     return cx.execute("""
         select * from v_historial_cubierta where cubierta_id = %s limit %s""",
         (cubierta_id, limite)).fetchall()
+
+
+def inventario_cubiertas(cx):
+    """Inventario completo, incluida la ubicacion actual si esta montada."""
+    return cx.execute("""
+        select c.*, u.patente, p.codigo as posicion, m.desde as montada_desde
+        from cubiertas c
+        left join montajes m on m.cubierta_id = c.id and m.hasta is null
+        left join unidades u on u.id = m.unidad_id
+        left join configuracion_posiciones p on p.id = m.posicion_id
+        order by case c.estado
+                   when 'stock' then 1 when 'montada' then 2
+                   when 'reparacion' then 3 when 'recapado' then 4 else 5 end,
+                 c.codigo
+    """).fetchall()
+
+
+def resumen_cubiertas(cx):
+    filas = cx.execute("""
+        select estado, count(*)::int as cantidad
+        from cubiertas group by estado
+    """).fetchall()
+    resumen = {estado: 0 for estado in ('stock', 'montada', 'reparacion', 'recapado', 'baja')}
+    resumen.update({f["estado"]: f["cantidad"] for f in filas})
+    return resumen
+
+
+def ficha_cubierta(cx, cubierta_id):
+    cubierta = cx.execute("""
+        select c.*, u.patente, p.codigo as posicion, m.desde as montada_desde
+        from cubiertas c
+        left join montajes m on m.cubierta_id = c.id and m.hasta is null
+        left join unidades u on u.id = m.unidad_id
+        left join configuracion_posiciones p on p.id = m.posicion_id
+        where c.id = %s
+    """, (cubierta_id,)).fetchone()
+    if not cubierta:
+        return None
+    return {"cubierta": cubierta,
+            "historial": historial_cubierta(cx, cubierta_id, limite=120)}
 
 
 # =====================================================================
@@ -187,6 +271,48 @@ def alta_cubierta(cx, codigo, **datos):
                   values ('alta', %s, %s, %s)""",
                (fila["id"], datos.get("nota"), datos.get("usuario")))
     return fila["id"]
+
+
+def asignar_configuracion(cx, unidad_id, configuracion_id):
+    existe = cx.execute("select id from configuraciones where id = %s",
+                        (configuracion_id,)).fetchone()
+    if not existe:
+        raise ValueError("El mapa elegido no existe.")
+    abiertos = cx.execute("""
+        select count(*) as n from montajes where unidad_id = %s and hasta is null
+    """, (unidad_id,)).fetchone()["n"]
+    if abiertos:
+        raise ValueError("No se puede cambiar el mapa mientras haya cubiertas montadas.")
+    fila = cx.execute("""
+        update unidades set configuracion_id = %s where id = %s returning patente
+    """, (configuracion_id, unidad_id)).fetchone()
+    if not fila:
+        raise ValueError("La unidad no existe.")
+    return fila["patente"]
+
+
+def cambiar_estado_cubierta(cx, cubierta_id, estado, usuario=None, nota=None):
+    permitidos = {'stock', 'reparacion', 'recapado', 'baja'}
+    if estado not in permitidos:
+        raise ValueError("Estado de cubierta invalido.")
+    cubierta = cx.execute("select * from cubiertas where id = %s",
+                          (cubierta_id,)).fetchone()
+    if not cubierta:
+        raise ValueError("La cubierta no existe.")
+    montada = cx.execute("select 1 from montajes where cubierta_id = %s and hasta is null",
+                         (cubierta_id,)).fetchone()
+    if montada:
+        raise ValueError("La cubierta esta montada. Registrá primero el desmontaje.")
+    cx.execute("""
+        update cubiertas set estado = %s,
+          fecha_baja = case when %s = 'baja' then current_date else null end,
+          motivo_baja = case when %s = 'baja' then %s else null end
+        where id = %s
+    """, (estado, estado, estado, nota, cubierta_id))
+    tipo = {'reparacion': 'reparacion', 'recapado': 'recapado',
+            'baja': 'baja'}.get(estado, 'desmontaje')
+    _log(cx, uuid.uuid4(), tipo, cubierta_id=cubierta_id,
+         usuario=usuario, nota=nota)
 
 
 # =====================================================================
