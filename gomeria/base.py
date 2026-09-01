@@ -168,6 +168,42 @@ def buscar_cubierta(cx, codigo):
                       (str(codigo).strip(),)).fetchone()
 
 
+def _numero_de_fuego(codigo):
+    """079 y 79 son el mismo número de fuego escrito por dos personas."""
+    plano = "".join(ch for ch in str(codigo).upper() if ch.isalnum())
+    return plano.lstrip("0") or plano
+
+
+def buscar_cubierta_flexible(cx, codigo):
+    """Busca la cubierta como la nombró el gomero en el parte.
+
+    En el parte el número de fuego viene corto y sin ceros a la izquierda
+    ("entran 2 Michelin 079 y 327"), mientras que en la base puede estar
+    cargado con ceros, con guiones o con un prefijo. Primero se prueba el
+    código exacto y recién después el número de fuego suelto.
+
+    Si el número da con más de una cubierta no elige ninguna: avisa cuáles
+    son para que lo escriba completo.
+    """
+    exacta = buscar_cubierta(cx, codigo)
+    if exacta:
+        return exacta
+
+    buscado = _numero_de_fuego(codigo)
+    if not buscado:
+        return None
+
+    candidatas = [c for c in cx.execute("select * from cubiertas").fetchall()
+                  if _numero_de_fuego(c["codigo"]) == buscado]
+    if len(candidatas) == 1:
+        return candidatas[0]
+    if len(candidatas) > 1:
+        cuales = ", ".join(sorted(c["codigo"] for c in candidatas))
+        raise ValueError(f"El número {codigo} da con varias cubiertas ({cuales}). "
+                         f"Escribí el código completo.")
+    return None
+
+
 def stock(cx, medida=None, limite=50):
     if medida:
         return cx.execute("select * from v_stock where medida = %s order by codigo limit %s",

@@ -58,8 +58,9 @@ HERRAMIENTA = {
                         },
                         "cubierta": {
                             "type": ["string", "null"],
-                            "description": "Código de la cubierta. Solo para montaje "
-                                           "desde stock, si el texto lo dice."
+                            "description": "Número de fuego de la cubierta, tal cual lo "
+                                           "escribió el gomero (ej: 079, 327). Sin la "
+                                           "marca. Obligatorio en montaje."
                         },
                         "remanente_mm": {
                             "type": ["number", "null"],
@@ -123,11 +124,33 @@ CÓMO HABLA EL GOMERO
 - "las de atrás", "las traseras" = los ejes duales, no el direccional
 - "la de afuera" = exterior, "la de adentro" = interior
 - "girar", "rotar", "cruzar", "cambiar de lugar" = rotacion
-- "puse", "monté", "calcé" = montaje
-- "saqué", "bajé" = desmontaje
-- "la mandé a recapar" = recapado, "la mandé a arreglar" = reparacion
-- "la tiré", "no va más", "se reventó" = baja
+- "puse", "monté", "calcé", "entra", "entran" = montaje
+- "saqué", "bajé", "sale", "salen" = desmontaje
+- "la mandé a recapar", "sale para recapar" = recapado
+- "la mandé a arreglar", "sale para reparar" = reparacion
+- "la tiré", "no va más", "se reventó", "sale de baja" = baja
 - "le medí", "tiene X milímetros" = medicion
+- "3 eje", "tercer eje", "eje 3" = el eje 3 del mapa
+- "recapada", "nueva", "usada" describen a la cubierta, no son un movimiento:
+  eso va en la nota, no cambia el tipo.
+
+CÓMO VIENE ESCRITO EL PARTE
+Casi siempre llega con la patente en la primera línea y el trabajo abajo:
+
+    Patente: AD 900 UK
+    3 eje lado izquierdo entran 2 Michelin 079 y 327 recapadas nuevas..
+    salen 2 Fate 380 y 381 para recapar..
+
+Eso se lee así:
+- La patente ya está resuelta, es la unidad de arriba. No la vuelvas a mirar.
+- Los números sueltos (079, 327, 380, 381) son números de fuego de cubiertas.
+  La palabra de al lado (Michelin, Fate) es la marca: va en la nota, nunca
+  en el campo cubierta.
+- "entran" son las que se montan, "salen" las que se sacan. Las que salen
+  liberan justamente las posiciones donde entran las otras.
+- Lo que va detrás de "para" es a dónde se van las que salen: "para recapar"
+  = recapado, "para arreglar" = reparacion, "para tirar" = baja. Si no dice
+  nada, es desmontaje común (van a stock).
 
 REGLAS
 1. Usá SOLO códigos de posición que existan en el mapa de arriba.
@@ -136,8 +159,21 @@ REGLAS
    sin cubierta por una rotación.
 3. Si el texto no alcanza para saber qué posición tocó, no inventes: dejá
    acciones vacío y escribí la pregunta concreta en 'pregunta'.
-4. Si menciona un kilometraje, ponelo en km_unidad.
-5. El resumen tiene que ser entendible por el gomero que lo escribió, en una
+4. Cuando dice un eje y un lado sin aclarar si es la de adentro o la de
+   afuera, y en ese eje y lado hay dos posiciones duales, el trabajo es
+   sobre las dos: emitilas en orden exterior y después interior (3IE, 3II).
+5. Si el número de una cubierta que sale figura en el mapa de arriba, la
+   posición que toca es esa, no la que sugiera el orden del texto. Si el
+   número que sale no figura en el mapa, avisalo en la pregunta.
+6. Cuando entran y salen cubiertas en el mismo lugar, emparejalas en el
+   orden en que están escritas: la primera que sale deja libre la posición
+   donde va la primera que entra. Y poné SIEMPRE primero las acciones de
+   las que salen y después las de las que entran.
+7. La cantidad que entra tiene que coincidir con la cantidad que sale. Si
+   no coincide, o si hay más cubiertas nombradas que posiciones libres,
+   no inventes: preguntá.
+8. Si menciona un kilometraje, ponelo en km_unidad.
+9. El resumen tiene que ser entendible por el gomero que lo escribió, en una
    frase, nombrando las posiciones como las nombra él.
 
 Ante la duda, preguntá. Es mucho peor guardar un movimiento equivocado que
@@ -200,7 +236,13 @@ def aplicar(cx, unidad, propuesta, parte_id=None, usuario=None, base=None):
         hecho += [f"Rotación {a['posicion']} → {a['posicion_destino']}"
                   for a in acciones if a["tipo"] == "rotacion"]
 
-    for a in acciones:
+    # Primero las que salen y después las que entran, sin importar en qué
+    # orden las escribió el gomero: si se montara antes de desmontar, montar()
+    # mandaría a stock la cubierta que salía, en vez de a recapado. Las
+    # mediciones van al final, para poder medir una recién puesta.
+    ORDEN = {"desmontaje": 0, "recapado": 0, "reparacion": 0, "baja": 0,
+             "montaje": 1, "medicion": 2}
+    for a in sorted(acciones, key=lambda a: ORDEN.get(a["tipo"], 1)):
         tipo = a["tipo"]
         if tipo == "rotacion":
             continue
@@ -208,9 +250,10 @@ def aplicar(cx, unidad, propuesta, parte_id=None, usuario=None, base=None):
         if tipo == "montaje":
             if not a.get("cubierta"):
                 raise ValueError(f"Falta el código de cubierta para montar en {a['posicion']}.")
-            c = base.buscar_cubierta(cx, a["cubierta"])
+            c = base.buscar_cubierta_flexible(cx, a["cubierta"])
             if not c:
-                raise ValueError(f"No existe la cubierta {a['cubierta']}.")
+                raise ValueError(f"No existe la cubierta {a['cubierta']} en el stock. "
+                                 f"Dala de alta primero.")
             base.montar(cx, unidad["id"], posicion(a["posicion"]), c["id"], km=km,
                         grupo=grupo, parte_id=parte_id, usuario=usuario, nota=a.get("nota"))
             hecho.append(f"Montada {a['cubierta']} en {a['posicion']}")
