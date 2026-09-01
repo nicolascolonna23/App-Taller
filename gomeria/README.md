@@ -28,15 +28,25 @@ Nunca usaste Supabase, así que va paso a paso. Es gratis para este tamaño.
 3. Cuando el proyecto termine de crearse, andá a **SQL Editor** → **New query**.
    Pegá el contenido de `01_esquema.sql` y apretá **Run**. Después hacé lo mismo
    con `02_vistas.sql`. Si no da error, la base quedó lista.
-4. Andá a **Project Settings** → **Database** → **Connection string** →
-   pestaña **Session**. Copiá esa línea: es algo así como
-   `postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-sa-east-1.pooler.supabase.com:5432/postgres`.
-   Reemplazá `[YOUR-PASSWORD]` por la contraseña del paso 2.
-5. Pegá esa línea en un archivo `gomeria/conexion.txt`. Está en el `.gitignore`,
-   no se sube al repo.
+4. Arriba de todo, al lado de donde dice `main PRODUCTION`, está el botón verde
+   **Connect**. Hacé clic ahí → **Connection String** → **Session pooler**.
+   Copiá esa línea, que es algo así como
+   `postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-0-us-east-1.pooler.supabase.com:5432/postgres`.
+5. En la computadora, corré esto y pegá la línea cuando te la pida:
 
-> Usá la pestaña **Session**, no **Transaction**. La de transacción usa otro
-> puerto y no soporta algunas cosas que el programa necesita.
+   ```bash
+   pip3 install -r gomeria/requisitos.txt
+   python3 gomeria/configurar.py
+   ```
+
+   Revisa que la cadena sea la correcta, prueba que entre a la base y la guarda
+   en `gomeria/conexion.txt`. No hay que crear ningún archivo a mano. Si algo
+   está mal —la contraseña, el pooler equivocado, las tablas sin crear— te dice
+   qué corregir y no guarda nada.
+
+> Elegí **Session pooler**, no **Transaction pooler**. El de transacción usa el
+> puerto 6543 y no soporta algunas cosas que el programa necesita. Si ves 6543
+> en la línea, elegiste el que no va.
 
 > El plan gratis pausa el proyecto si no lo tocás por una semana. Se despausa
 > solo desde el panel, pero la primera consulta después de eso tarda unos
@@ -65,7 +75,6 @@ el uso y hay que revisarla unidad por unidad** — yo no puedo saber cuántos ej
 tiene cada camión. Cuando esté corregida:
 
 ```bash
-pip install -r gomeria/requisitos.txt
 python3 gomeria/cargar_unidades.py gomeria/unidades.csv --simular   # muestra qué haría
 python3 gomeria/cargar_unidades.py gomeria/unidades.csv             # lo hace
 ```
