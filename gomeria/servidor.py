@@ -117,9 +117,20 @@ class Handler(BaseHTTPRequestHandler):
             return self._error("Escribí qué hiciste.")
 
         with base.conectar() as cx:
-            unidad = base.buscar_unidad(cx, patente)
-            if not unidad:
-                return self._error(f"No encontré la unidad {patente}.", 404)
+            # La unidad puede venir de la URL (un QR por unidad) o salir del
+            # mismo texto (un QR solo para toda la gomería).
+            if patente:
+                unidad = base.buscar_unidad(cx, patente)
+                if not unidad:
+                    return self._error(f"No encontré la unidad {patente}.", 404)
+            else:
+                unidad, falta = base.resolver_unidad(cx, texto)
+                if not unidad:
+                    # El texto se guarda igual: es lo que escribió el gomero.
+                    cx.execute("""insert into partes (texto, autor, estado, error)
+                                  values (%s,%s,'error',%s)""", (texto, autor, falta))
+                    cx.commit()
+                    return self._error(falta, 404)
 
             # El parte se guarda apenas llega: aunque falle la interpretación o
             # el gomero se vaya sin confirmar, lo que escribió no se pierde.
@@ -149,7 +160,8 @@ class Handler(BaseHTTPRequestHandler):
             cx.execute("update partes set interpretacion = %s where id = %s",
                        (json.dumps(propuesta, ensure_ascii=False), parte["id"]))
             cx.commit()
-            return self._responder(jstr({"parte_id": parte["id"], "propuesta": propuesta}))
+            return self._responder(jstr({"parte_id": parte["id"], "propuesta": propuesta,
+                                         "unidad": unidad, "mapa": mapa}))
 
     def _confirmar(self, datos):
         parte_id = datos.get("parte_id")

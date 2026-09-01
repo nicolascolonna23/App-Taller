@@ -92,15 +92,30 @@ python3 gomeria/servidor.py --host 0.0.0.0
 Imprime la dirección que ven los celulares. La pantalla de una unidad es
 `http://IP:8100/u/PATENTE`.
 
-## 4. Imprimir los QR
+## 4. Imprimir el QR
+
+Hay dos formas, según cómo quieras trabajar.
+
+**Un solo QR para toda la gomería** (lo más simple). Se imprime un cartel, se
+pega en la pared del taller, y el gomero escribe la patente dentro del texto:
+
+```bash
+python3 gomeria/qr.py --base http://192.168.1.45:8100 --uno
+```
+
+**Una etiqueta por unidad**, pegada en cada camión. Al escanear ya sabe de qué
+unidad se trata y no hay que escribir la patente:
 
 ```bash
 python3 gomeria/qr.py --base http://192.168.1.45:8100
 ```
 
+Las dos conviven: si algún día pegás etiquetas por unidad, el cartel general
+sigue funcionando igual.
+
 Usá la IP que imprimió el servidor, no `127.0.0.1`: el QR lo escanea un celular,
 no esta computadora. Deja `etiquetas.html`; se abre en el navegador y se imprime
-con Ctrl+P. Salen en A4, tres por fila, listas para cortar y plastificar.
+con Ctrl+P.
 
 Si la IP del servidor cambia, hay que reimprimir. Por eso conviene pedir una IP
 fija antes de imprimir 53 etiquetas.

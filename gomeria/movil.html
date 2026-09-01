@@ -99,6 +99,10 @@
   @keyframes latir{0%,100%{opacity:1}50%{opacity:.25}}
   @media (prefers-reduced-motion:reduce){.bolita{animation:none}}
   .nota{font-size:12.5px;color:var(--ink-muted);margin-top:12px}
+  .ayuda{font-size:12.5px;color:var(--ink-muted);margin:8px 0 0}
+  .cabeza{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .cabeza h1{margin:0;font-size:23px;font-weight:700;letter-spacing:.02em}
+  .cabeza .meta{font-size:13px;color:var(--ink-muted)}
 </style>
 </head>
 <body>
@@ -108,19 +112,31 @@
   <span class="t">Gomería</span>
 </div>
 
-<div class="env" id="app">
-  <div class="trabajando"><span class="bolita"></span>Buscando la unidad…</div>
+<div class="env">
+  <div id="cabeza"></div>
+
+  <label for="texto">¿Qué hiciste?</label>
+  <textarea id="texto" rows="4" placeholder="Ej: AD 247 MQ giré las dos de afuera del lado izquierdo"></textarea>
+  <p class="ayuda">Poné la patente y contá qué hiciste, como lo dirías. Te muestro
+     qué entendí antes de guardar nada.</p>
+
+  <label for="autor">Tu nombre</label>
+  <input id="autor" placeholder="Quién carga el parte">
+
+  <button class="btn" id="mandar">Registrar</button>
+  <div id="salida"></div>
 </div>
 
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
-const app = $('#app');
 
-// La patente sale de la URL: /u/AD247MQ  (es lo que codifica el QR)
-const PATENTE = decodeURIComponent(location.pathname.replace(/^\/u\//, '')).trim();
+/* Si el QR trae la patente (/u/AD247MQ) se usa esa; si es el QR general de la
+   gomería, la patente sale del texto que escribe el gomero. */
+const m = location.pathname.match(/^\/u\/([^\/]+)/);
+const PATENTE = m ? decodeURIComponent(m[1]).trim() : '';
 
-let UNIDAD = null, MAPA = [], PARTE = null;
+let PARTE = null;
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -163,24 +179,13 @@ function dibujarMapa(mapa){
   return `<div class="mapa">${html}</div>`;
 }
 
-function pantalla(){
-  app.innerHTML =
-    `<div class="unidad">
-       <h1>${esc(fmtPat(UNIDAD.patente))}</h1>
-       <span class="meta">${[UNIDAD.interno && 'interno ' + UNIDAD.interno, UNIDAD.marca, UNIDAD.sucursal]
+function mostrarCabeza(unidad, mapa){
+  $('#cabeza').innerHTML =
+    `<div class="cabeza">
+       <h1>${esc(fmtPat(unidad.patente))}</h1>
+       <span class="meta">${[unidad.interno && 'interno ' + unidad.interno, unidad.marca, unidad.sucursal]
          .filter(Boolean).map(esc).join(' · ')}</span>
-     </div>` +
-    dibujarMapa(MAPA) +
-    `<label for="texto">¿Qué hiciste?</label>
-     <textarea id="texto" rows="3" placeholder="Ej: giré las dos de atrás del lado izquierdo"></textarea>
-     <label for="autor">Tu nombre</label>
-     <input id="autor" placeholder="Quién carga el parte" value="${esc(localStorage.getItem('gomero') || '')}">
-     <button class="btn" id="mandar">Registrar</button>
-     <div id="salida"></div>
-     <p class="nota">Escribilo como lo dirías. Te muestro qué entendí antes de guardar nada.</p>`;
-
-  $('#mandar').addEventListener('click', mandar);
-  $('#texto').focus();
+     </div>` + dibujarMapa(mapa);
 }
 
 async function pedir(ruta, cuerpo){
@@ -204,8 +209,9 @@ async function mandar(){
   salida.innerHTML = `<div class="caja"><div class="trabajando"><span class="bolita"></span>Leyendo lo que escribiste…</div></div>`;
 
   try{
-    const d = await pedir('/api/interpretar', { patente: PATENTE, texto, autor });
+    const d = await pedir('api/interpretar', { patente: PATENTE, texto, autor });
     PARTE = d.parte_id;
+    if (d.unidad && d.mapa) mostrarCabeza(d.unidad, d.mapa);
     mostrarPropuesta(d.propuesta, autor);
   }catch(e){
     salida.innerHTML = `<div class="caja"><div class="error">${esc(e.message)}</div></div>`;
@@ -222,7 +228,6 @@ const ETIQUETA = {
 function mostrarPropuesta(p, autor){
   const salida = $('#salida');
 
-  // Sin acciones: Claude no entendió y necesita una aclaración.
   if (!p.acciones || !p.acciones.length){
     salida.innerHTML =
       `<div class="caja"><h2>Necesito que me aclares</h2>
@@ -255,33 +260,37 @@ function mostrarPropuesta(p, autor){
   $('#ok').addEventListener('click', async () => {
     $('#ok').disabled = $('#no').disabled = true;
     try{
-      const d = await pedir('/api/confirmar', { parte_id: PARTE, autor });
-      MAPA = d.mapa;
+      const d = await pedir('api/confirmar', { parte_id: PARTE, autor });
       salida.innerHTML = `<div class="caja"><div class="ok">Guardado.<br>${d.hecho.map(esc).join('<br>')}</div></div>`;
-      // Redibuja el mapa con el estado nuevo y deja el campo listo para otro parte.
-      document.querySelector('.mapa').outerHTML = dibujarMapa(MAPA);
+      const mapa = document.querySelector('.mapa');
+      if (mapa) mapa.outerHTML = dibujarMapa(d.mapa);
       $('#texto').value = '';
+      $('#texto').focus();
     }catch(e){
       salida.innerHTML = `<div class="caja"><div class="error">No se pudo guardar: ${esc(e.message)}</div></div>`;
     }
   });
 
   $('#no').addEventListener('click', async () => {
-    await pedir('/api/descartar', { parte_id: PARTE }).catch(() => {});
+    await pedir('api/descartar', { parte_id: PARTE }).catch(() => {});
     salida.innerHTML = '';
     $('#texto').focus();
   });
 }
 
-/* ---------- arranque ---------- */
-fetch('/api/mapa?patente=' + encodeURIComponent(PATENTE))
-  .then(async r => { const d = await r.json(); if(!r.ok) throw new Error(d.error); return d; })
-  .then(d => { UNIDAD = d.unidad; MAPA = d.mapa; pantalla(); })
-  .catch(e => {
-    app.innerHTML = `<div class="caja"><div class="error">${esc(e.message)}</div>
-      <p class="nota">Escaneá de nuevo el QR de la unidad, o fijate que la patente
-      esté cargada en el sistema.</p></div>`;
-  });
+/* ---------- eventos ---------- */
+$('#mandar').addEventListener('click', mandar);
+$('#autor').value = localStorage.getItem('gomero') || '';
+$('#texto').focus();
+
+/* Si el QR trae la unidad, se muestra su mapa de entrada. */
+if (PATENTE){
+  fetch('api/mapa?patente=' + encodeURIComponent(PATENTE))
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d) { mostrarCabeza(d.unidad, d.mapa);
+                          $('#texto').placeholder = 'Ej: giré las dos de afuera del lado izquierdo'; } })
+    .catch(() => {});
+}
 </script>
 </body>
 </html>

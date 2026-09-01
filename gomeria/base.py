@@ -5,7 +5,7 @@ Todas las operaciones que cambian algo corren dentro de una transacción:
 o se aplica el movimiento entero o no se aplica nada. Una rotación de
 cuatro cubiertas nunca puede quedar por la mitad.
 """
-import os, uuid
+import os, re, uuid
 import psycopg
 from psycopg.rows import dict_row
 
@@ -42,11 +42,66 @@ def conectar():
 def buscar_unidad(cx, texto):
     """Busca por patente o número interno. La patente se compara sin espacios."""
     limpio = "".join(ch for ch in str(texto).upper() if ch.isalnum())
+    # Sin esto, un texto vacío entra por la comparación contra interno y
+    # devuelve la primera unidad que no tenga interno cargado.
+    if not limpio:
+        return None
     return cx.execute("""
         select * from unidades
         where replace(replace(upper(patente),' ',''),'-','') = %s
            or upper(coalesce(interno,'')) = %s
         limit 1""", (limpio, limpio)).fetchone()
+
+
+def fmtPat(p):
+    """AD247MQ -> AD 247 MQ, para nombrarla como la lee una persona."""
+    m = re.match(r"^([A-Z]{2})(\d{3})([A-Z]{2})$", p or "")
+    if m:
+        return f"{m[1]} {m[2]} {m[3]}"
+    o = re.match(r"^([A-Z]{3})(\d{3})$", p or "")
+    return f"{o[1]} {o[2]}" if o else (p or "")
+
+
+def resolver_unidad(cx, texto):
+    """Averigua de qué unidad habla el texto.
+
+    El gomero escribe todo junto: "AD 247 MQ giré las de atrás". La patente se
+    busca adentro del texto comparando contra las que existen, así da igual si
+    la escribió con espacios, con guiones o pegada.
+
+    Devuelve (unidad, error). Si no la encuentra, unidad es None y error dice
+    qué hay que preguntarle.
+    """
+    plano = "".join(ch for ch in str(texto).upper() if ch.isalnum())
+    if not plano:
+        return None, "Escribí qué hiciste y en qué unidad."
+
+    todas = cx.execute("select * from unidades where activa").fetchall()
+    encontradas = [u for u in todas if u["patente"] and u["patente"] in plano]
+
+    # Una patente puede estar contenida en otra: se queda la más larga, que es
+    # la que realmente escribió.
+    if len(encontradas) > 1:
+        largo = max(len(u["patente"]) for u in encontradas)
+        largas = [u for u in encontradas if len(u["patente"]) == largo]
+        if len(largas) == 1:
+            return largas[0], None
+        nombres = ", ".join(fmtPat(u["patente"]) for u in largas)
+        return None, f"Nombrás más de una unidad ({nombres}). Cargá una por vez."
+    if len(encontradas) == 1:
+        return encontradas[0], None
+
+    # Sin patente: probar con el número interno ("interno 12", "int 12").
+    m = re.search(r"\bINT(?:ERNO)?\.?\s*[:#]?\s*(\d{1,4})\b", str(texto).upper())
+    if m:
+        porinterno = [u for u in todas if (u["interno"] or "").strip() == m.group(1)]
+        if len(porinterno) == 1:
+            return porinterno[0], None
+        if len(porinterno) > 1:
+            return None, f"Hay más de una unidad con el interno {m.group(1)}. Escribí la patente."
+
+    return None, ("No encontré la unidad. Escribí la patente en el texto, "
+                  "por ejemplo: AD 247 MQ giré las de atrás.")
 
 
 def mapa_unidad(cx, unidad_id):
