@@ -19,14 +19,17 @@ Configuración, toda por variables de entorno:
 
 Local: python3 app.py
 """
-import os, sys, traceback
+import json, os, sys, traceback
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse
+
+import psycopg
+import anthropic
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base
+import auth, base, repuestos
 import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
@@ -43,6 +46,18 @@ class App(gom.Handler):
 
     def do_GET(self):
         ruta = urlparse(self.path).path
+
+        if ruta == "/api/repuestos":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    datos = repuestos.listar(cx, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(datos))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los repuestos: {e}", 500)
 
         # El módulo de gomería vive bajo /gomeria; adentro sigue siendo el de siempre.
         if ruta == "/gomeria" or ruta.startswith("/gomeria/"):
@@ -63,6 +78,37 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        if ruta == "/api/repuestos":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 15 * 1024 * 1024:
+                    return self._error("El archivo es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                if datos.get("op") == "vision":
+                    cuerpo = datos.get("body") or {}
+                    respuesta = anthropic.Anthropic().messages.create(**cuerpo)
+                    texto = "\n".join(x.text for x in respuesta.content
+                                      if getattr(x, "type", None) == "text")
+                    return self._responder(gom.jstr({"texto": texto}))
+                with base.conectar() as cx:
+                    resultado = repuestos.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except (ValueError, psycopg.errors.UniqueViolation) as e:
+                mensaje = ("Ya existe un repuesto con ese código."
+                           if isinstance(e, psycopg.errors.UniqueViolation) else str(e))
+                return self._error(mensaje)
+            except anthropic.APIStatusError as e:
+                return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
+            except anthropic.APIConnectionError:
+                return self._error("No se pudo conectar con la API de Claude.", 502)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar el cambio: {e}", 500)
         if ruta.startswith("/gomeria/api/"):
             self.path = ruta[len("/gomeria"):]
         return super().do_POST()
@@ -75,13 +121,14 @@ def preparar():
 
     with base.conectar() as cx:
         # base.conectar() devuelve diccionarios, así que la columna se nombra.
-        faltan = [t for t in ("unidades", "usuarios", "sesiones")
+        faltan = [t for t in ("unidades", "usuarios", "sesiones",
+                              "repuestos_articulos", "repuestos_movimientos")
                   if not cx.execute("select to_regclass(%s) as existe",
                                     (f"public.{t}",)).fetchone()["existe"]]
         if faltan:
             raise SystemExit(
                 "A la base le faltan tablas: " + ", ".join(faltan) +
-                "\nCorré 01_esquema.sql, 02_vistas.sql y 03_usuarios.sql en Supabase.")
+                "\nCorré los scripts 01 a 04 de gomeria en Supabase.")
 
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
         if inicial:
