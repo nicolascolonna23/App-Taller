@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>App Taller | Diemar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='12' y='7' width='8' height='18' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
+    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
+    --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
+    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.12);
+    --radius:14px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{
+    font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+    background:var(--plane); color:var(--ink); font-size:15px; line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{content:"";position:fixed;inset:0 0 auto 0;height:380px;
+    background:radial-gradient(ellipse at center,rgba(255,122,26,.11),transparent 68%);
+    pointer-events:none;z-index:0}
+
+  .barra{position:relative;z-index:1;display:flex;align-items:center;gap:14px;
+    padding:14px 22px;border-bottom:1px solid var(--hairline);background:var(--surface-1)}
+  .barra::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
+    background:linear-gradient(90deg,var(--brand),rgba(255,122,26,0) 55%)}
+  .barra img{height:28px}
+  .barra .t{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:600}
+  .barra .quien{margin-left:auto;display:flex;align-items:center;gap:12px;
+    font-size:12.5px;color:var(--ink-2)}
+  .barra .quien a{color:var(--ink-muted);text-decoration:none;font-size:11.5px}
+  .barra .quien a:hover{color:var(--brand)}
+  .rol{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;
+    color:var(--brand);background:var(--brand-soft);border-radius:5px;padding:3px 8px}
+
+  .env{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:34px 22px 60px}
+  h1{margin:0 0 6px;font-size:27px;font-weight:600;letter-spacing:-.02em}
+  .sub{margin:0 0 30px;color:var(--ink-muted);font-size:14px}
+
+  .modulos{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+  .mod{
+    display:flex;align-items:flex-start;gap:16px;text-decoration:none;color:inherit;
+    background:linear-gradient(180deg,var(--surface-2),var(--surface-1));
+    border:1px solid var(--hairline);border-radius:var(--radius);
+    padding:20px;position:relative;overflow:hidden;
+    transition:border-color .18s,transform .18s,box-shadow .18s;
+  }
+  .mod::before{content:"";position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--brand)}
+  .mod:hover{border-color:rgba(255,122,26,.45);transform:translateY(-2px);
+    box-shadow:0 14px 32px rgba(0,0,0,.45)}
+  .mod:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  .mod .ico{width:42px;height:42px;flex:none;border-radius:11px;background:var(--brand-soft);
+    border:1px solid rgba(255,122,26,.28);display:grid;place-items:center;color:var(--brand)}
+  .mod .ico svg{width:21px;height:21px}
+  .mod .txt{min-width:0}
+  .mod strong{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
+  .mod span{font-size:12.5px;color:var(--ink-muted)}
+  .mod .go{margin-left:auto;color:var(--ink-muted);font-size:20px;flex:none;align-self:center}
+
+  .pie{margin-top:38px;padding-top:16px;border-top:1px solid var(--hairline);
+    font-size:11.5px;color:var(--ink-muted)}
+
+  @media (max-width:640px){
+    .barra{padding:11px 14px}
+    .env{padding:24px 14px 40px}
+    h1{font-size:22px}
+  }
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <span class="t">App Taller</span>
+  <span class="quien" id="quien"></span>
+</div>
+
+<div class="env">
+  <h1>Expreso Diemar</h1>
+  <p class="sub">Elegí con qué querés trabajar.</p>
+
+  <nav class="modulos">
+    <a class="mod" href="/gomeria">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7">
+          <circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.4"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Gomería</strong>
+        <span>Cargar movimientos de cubiertas escribiendo lo que hiciste</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+
+    <a class="mod" href="/repuestos">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Stock de Repuestos</strong>
+        <span>Artículos, movimientos y carga de remitos</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+
+    <a class="mod" href="/flota">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V6"/><path d="M4 15l5-4 4 3 7-6"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Panel de Flota</strong>
+        <span>Services, consumo y emisiones de un vistazo</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+
+    <a class="mod" href="/control">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/>
+          <circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Control de Flota</strong>
+        <span>Services, prefiltros y telemetría por unidad</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+  </nav>
+
+  <p class="pie" id="pie">Gomería y usuarios en Supabase. Flota, en las planillas de Google.</p>
+</div>
+
+<script>
+"use strict";
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
+  if (!d) return;
+  document.getElementById('quien').innerHTML =
+    `<span class="rol">${esc(d.rol)}</span>${esc(d.nombre)} <a href="/salir">Salir</a>`;
+}).catch(() => {});
+</script>
+</body>
+</html>

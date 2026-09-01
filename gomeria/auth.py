@@ -131,12 +131,74 @@ def token_de_cookie(cabecera):
         return None
 
 
-def cookie_de_sesion(token, borrar=False):
-    """Armá la cookie. HttpOnly para que ningún script de la página la lea."""
+def cookie_de_sesion(token, borrar=False, seguro=False):
+    """Armá la cookie.
+
+    HttpOnly para que ningún script de la página la lea. Secure cuando la
+    conexión es https: sin eso, la cookie viajaría también por http y
+    cualquiera en la misma red podría copiarla.
+    """
+    extra = "; Secure" if seguro else ""
     if borrar:
-        return f"{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax"
+        return f"{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{extra}"
     return (f"{COOKIE}={token}; Path=/; Max-Age={DIAS_SESION * 86400}; "
-            f"HttpOnly; SameSite=Lax")
+            f"HttpOnly; SameSite=Lax{extra}")
+
+
+# =====================================================================
+# FRENO A LA FUERZA BRUTA
+# =====================================================================
+# En una red interna alcanzaba con la lentitud de scrypt. Expuesto a
+# internet, hay que cortarle el paso a quien prueba contraseñas en serie.
+_INTENTOS = {}
+MAX_INTENTOS = 8
+ESPERA_MIN = 15
+
+
+def puede_intentar(quien):
+    """False si ese origen ya falló demasiadas veces hace poco."""
+    import time
+    fallos, desde = _INTENTOS.get(quien, (0, 0))
+    if fallos < MAX_INTENTOS:
+        return True, 0
+    faltan = int(desde + ESPERA_MIN * 60 - time.time())
+    if faltan <= 0:
+        _INTENTOS.pop(quien, None)
+        return True, 0
+    return False, max(1, faltan // 60 + 1)
+
+
+def anotar_fallo(quien):
+    import time
+    fallos, desde = _INTENTOS.get(quien, (0, 0))
+    # La ventana arranca en el primer fallo de la racha.
+    _INTENTOS[quien] = (fallos + 1, desde or time.time())
+    if len(_INTENTOS) > 5000:          # que no crezca sin límite
+        _INTENTOS.clear()
+
+
+def limpiar_intentos(quien):
+    _INTENTOS.pop(quien, None)
+
+
+# =====================================================================
+# PRIMER USUARIO
+# =====================================================================
+def crear_admin_inicial(cx, spec):
+    """Crea el primer admin desde una variable de entorno.
+
+    En la nube no hay terminal para correr usuarios.py, así que el primer
+    acceso entra por USUARIO_INICIAL="usuario:Nombre Completo:contraseña".
+    Solo actúa si todavía no hay ningún usuario.
+    """
+    if cx.execute("select count(*) as n from usuarios").fetchone()["n"]:
+        return None
+    partes = str(spec).split(":", 2)
+    if len(partes) != 3 or not all(x.strip() for x in partes):
+        raise ValueError('USUARIO_INICIAL tiene que ser "usuario:Nombre Completo:contraseña"')
+    usuario, nombre, clave = (x.strip() for x in partes)
+    crear_usuario(cx, usuario, nombre, clave, rol="admin")
+    return usuario
 
 
 # =====================================================================

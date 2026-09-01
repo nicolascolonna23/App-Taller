@@ -33,6 +33,17 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "GomeriaDiemar/1.0"
     usuario = None
 
+    def _es_https(self):
+        """En la nube el candado lo pone el proxy, y avisa con esta cabecera."""
+        return (self.headers.get("X-Forwarded-Proto", "").lower() == "https"
+                or os.environ.get("FORZAR_HTTPS") == "1")
+
+    def _origen(self):
+        """De dónde viene, para contarle los intentos fallidos."""
+        adelantado = self.headers.get("X-Forwarded-For", "")
+        return (adelantado.split(",")[0].strip() if adelantado
+                else self.client_address[0])
+
     def _sesion(self):
         """Deja self.usuario cargado. True si hay sesión válida."""
         token = auth.token_de_cookie(self.headers.get("Cookie"))
@@ -95,7 +106,8 @@ class Handler(BaseHTTPRequestHandler):
             with base.conectar() as cx:
                 auth.cerrar_sesion(cx, token)
                 cx.commit()
-            return self._redirigir("/login", cookie=auth.cookie_de_sesion(None, borrar=True))
+            return self._redirigir("/login", cookie=auth.cookie_de_sesion(
+                None, borrar=True, seguro=self._es_https()))
 
         if not self._exigir_sesion():
             return
@@ -148,19 +160,30 @@ class Handler(BaseHTTPRequestHandler):
         if not destino.startswith("/") or destino.startswith("//"):
             destino = "/"          # que nadie use el login para mandar a otro sitio
 
+        origen = self._origen()
+        puede, minutos = auth.puede_intentar(origen)
+        if not puede:
+            return self._responder(
+                auth.pagina_login(f"Demasiados intentos fallidos. Probá de nuevo en "
+                                  f"{minutos} minuto{'s' if minutos > 1 else ''}.", destino),
+                "text/html; charset=utf-8", codigo=429)
+
         with base.conectar() as cx:
             quien = auth.autenticar(cx, usuario, clave)
             if not quien:
                 cx.commit()
+                auth.anotar_fallo(origen)
                 # Un solo mensaje para los dos casos: decir cuál falló le
                 # confirma a quien prueba que ese usuario existe.
                 return self._responder(
                     auth.pagina_login("Usuario o contraseña incorrectos.", destino),
                     "text/html; charset=utf-8", codigo=401)
+            auth.limpiar_intentos(origen)
             token = auth.abrir_sesion(cx, quien["id"], self.headers.get("User-Agent"))
             auth.limpiar_vencidas(cx)
             cx.commit()
-        return self._redirigir(destino, cookie=auth.cookie_de_sesion(token))
+        return self._redirigir(destino,
+                               cookie=auth.cookie_de_sesion(token, seguro=self._es_https()))
 
     def do_POST(self):
         ruta = urlparse(self.path).path
