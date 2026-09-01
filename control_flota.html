@@ -708,7 +708,6 @@ const CFG = {
     telemDist : "1044040871",   // consumo mensual de toda la flota (incluye distribucion)
     emisiones : "882343299"     // % ralenti y kg CO2
   },
-  local: { flota: "data/flota.json", telemetria: "data/telemetria.json", servicios: "data/services.json" },
   refreshMs: 300000,
 
   // URL /exec de la aplicacion web de Apps Script (apps_script/tablero_webapp.gs).
@@ -893,10 +892,8 @@ async function cargarFlota() {
                    interno:r[5]||'', semi:r[6]||'', sucursal:r[7]||'', uso:r[8]||'' }));
     if (out.length > 5) { APP.fuentes.flota = 'vivo'; return out; }
   }
-  const j = await fetch(CFG.local.flota, { cache: 'no-store' }).then(r => r.json());
-  APP.fuentes.flota = 'local';
-  return j.unidades.map(u => ({ modelo:u[0], marca:u[1], chofer:u[2], patente:u[3],
-                                interno:u[4], semi:u[5], sucursal:u[6], uso:u[7] }));
+  throw new Error('No se pudo leer el maestro de unidades. Revisá que la planilla ' +
+                  'de services esté compartida como "cualquier persona con el enlace".');
 }
 
 /** Tablas de service: patente(0) marca(1) chofer(2) residencia(3) fecha(4) kmUlt(5) kmProx(6) kmAct(7) falta(8) */
@@ -936,18 +933,8 @@ async function cargarServicios() {
     };
   }
 
-  // Respaldo local del repositorio
-  const j = await fetch(CFG.local.servicios, { cache: 'no-store' }).then(r => r.json());
-  APP.fuentes.servicios = 'local';
-  const fila = r => ({ patente: normPat(r[0]), marca: r[1], chofer: r[2], residencia: r[3],
-                       fechaUlt: r[4], kmUlt: r[5], kmProx: r[6], kmAct: r[7], falta: r[8] });
-  APP.prefiltros = (j.prefiltros || [])
-    .filter(r => esPatente(r[0]))
-    .map(r => ({ patente: normPat(r[0]), kmUlt: r[1], kmProx: r[2], falta: r[3] }));
-  return {
-    servicios: j.lad.concat(j.conjunto).map(fila),
-    setLAD: new Set(j.lad.map(r => normPat(r[0])))
-  };
+  throw new Error('No se pudieron leer los services. Revisá que la planilla esté ' +
+                  'compartida como "cualquier persona con el enlace".');
 }
 
 /** La telemetria es mensual y la planilla es grande: se cachea unas horas
@@ -1056,9 +1043,10 @@ async function cargarTelemetria() {
     }
   }
 
-  const j = await fetch(CFG.local.telemetria, { cache: 'no-store' }).then(r => r.json());
-  APP.fuentes.telemetria = 'local';
-  telemCache = { t: Date.now(), data: { patentes: j.patentes } };
+  // Sin telemetría el tablero sigue sirviendo: services y prefiltros no dependen
+  // de ella. Se devuelve vacío y los gráficos de consumo quedan sin datos.
+  APP.fuentes.telemetria = null;
+  telemCache = { t: Date.now(), data: { patentes: {} } };
   return telemCache.data;
 }
 
@@ -2138,15 +2126,12 @@ $('#form-service').addEventListener('submit', async ev => {
    ===================================================================== */
 function marcarFuente() {
   const f = APP.fuentes;
-  const respaldo = [f.servicios === 'local' && 'services',
-                    f.flota === 'local' && 'flota',
-                    f.telemetria === 'local' && 'telemetría'].filter(Boolean);
+  const vivas = ['servicios', 'flota', 'telemetria'].filter(k => f[k] === 'vivo');
   const chip = $('#chip-fuente'), dot = chip.querySelector('.dot');
-  const todoLocal = respaldo.length === 3;
-  dot.className = 'dot ' + (respaldo.length === 0 ? 'live' : todoLocal ? 'off' : 'warn');
-  $('#fuente-txt').textContent = respaldo.length === 0 ? 'Datos en vivo'
-    : todoLocal ? 'Respaldo local del repositorio'
-    : `En vivo · respaldo local: ${respaldo.join(' y ')}`;
+  dot.className = 'dot ' + (vivas.length === 3 ? 'live' : vivas.length ? 'warn' : 'off');
+  $('#fuente-txt').textContent = vivas.length === 3 ? 'Datos en vivo'
+    : vivas.length ? `Datos parciales (${vivas.length}/3)`
+    : 'Sin acceso a las planillas';
   chip.title = `Services: ${f.servicios || '—'} · Flota: ${f.flota || '—'} · Telemetría: ${f.telemetria || '—'}`;
 }
 
@@ -2177,7 +2162,10 @@ async function cargarTodo(manual) {
       new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
   } catch (err) {
     console.error('Error de carga:', err);
-    $('#fuente-txt').textContent = 'Error al cargar los datos';
+    // El motivo va en el chip: casi siempre es la planilla sin compartir, y
+    // decirlo ahorra tener que abrir la consola del navegador para enterarse.
+    $('#fuente-txt').textContent = 'Sin acceso a las planillas';
+    $('#chip-fuente').title = err && err.message ? err.message : 'Error al cargar los datos';
     $('#chip-fuente').querySelector('.dot').className = 'dot off';
   } finally {
     document.querySelectorAll('.panel').forEach(p => p.style.opacity = '1');

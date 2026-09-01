@@ -61,16 +61,55 @@ HOJA = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 </body></html>"""
 
 
+CARTEL = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<title>QR - Gomeria</title><style>
+  @page {{ size: A4; margin: 15mm; }}
+  body {{ font-family: system-ui,-apple-system,'Segoe UI',sans-serif; margin:0; color:#000;
+         text-align:center; background:#fff; }}
+  .aviso {{ font-size:12px; color:#555; padding-bottom:8mm; }}
+  @media print {{ .aviso {{ display:none; }} }}
+  h1 {{ font-size:32pt; margin:0 0 2mm; letter-spacing:2px; }}
+  h2 {{ font-size:13pt; font-weight:400; color:#333; margin:0 0 8mm; }}
+  svg {{ width:100mm; height:100mm; }}
+  .pasos {{ text-align:left; max-width:120mm; margin:6mm auto 0; font-size:12pt; line-height:1.7; }}
+  .pasos b {{ display:inline-block; width:7mm; }}
+  .ej {{ font-style:italic; color:#444; }}
+  .pie {{ margin-top:8mm; font-size:8.5pt; letter-spacing:3px; color:#666; text-transform:uppercase; }}
+</style></head><body>
+<div class="aviso">Apunta a {base_url} &middot; Ctrl+P para imprimir. Este texto no sale impreso.</div>
+<h1>GOMER&Iacute;A</h1>
+<h2>Escane&aacute; para cargar un movimiento de cubiertas</h2>
+{qr}
+<div class="pasos">
+  <div><b>1.</b> Escane&aacute; el c&oacute;digo con la c&aacute;mara del celular.</div>
+  <div><b>2.</b> Escrib&iacute; la patente y qu&eacute; hiciste, como lo dir&iacute;as.</div>
+  <div style="margin-left:7mm" class="ej">&ldquo;AD 247 MQ gir&eacute; las dos de afuera del lado izquierdo&rdquo;</div>
+  <div><b>3.</b> Revis&aacute; lo que entendi&oacute; y confirm&aacute;.</div>
+</div>
+<div class="pie">Expreso Diemar</div>
+</body></html>"""
+
+
 def main():
     ap = argparse.ArgumentParser(description="Etiquetas QR de las unidades")
     ap.add_argument("--base", required=True,
                     help="Dirección del servidor de gomería como la ven los celulares, "
                          "por ejemplo http://192.168.1.45:8100")
     ap.add_argument("--patentes", help="Lista separada por comas. Si no se pasa, todas las activas.")
+    ap.add_argument("--uno", action="store_true",
+                    help="Un solo cartel con un QR para toda la gomería, en vez de una "
+                         "etiqueta por unidad. La patente se escribe dentro del texto.")
     ap.add_argument("--salida", default=os.path.join(AQUI, "etiquetas.html"))
     a = ap.parse_args()
 
     base_url = a.base.rstrip("/")
+
+    if a.uno:
+        with open(a.salida, "w", encoding="utf-8") as fh:
+            fh.write(CARTEL.format(base_url=base_url, qr=svg_qr(base_url + "/")))
+        print(f"Listo: {a.salida}")
+        print(f"Un cartel A4 con un solo QR, apuntando a {base_url}/")
+        return
 
     if a.patentes:
         filas = [{"patente": p.strip().upper().replace(" ", ""), "interno": None, "sucursal": None}

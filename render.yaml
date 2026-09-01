@@ -1,0 +1,19 @@
+# Deploy automático en Render. Cada push a la rama publica la versión nueva.
+services:
+  - type: web
+    name: app-taller
+    runtime: python
+    plan: starter                 # el gratuito se duerme y tarda en despertar
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 app.py
+    healthCheckPath: /login
+    envVars:
+      - key: SUPABASE_DB_URL      # Connect → Connection String → Session pooler
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: USUARIO_INICIAL      # "usuario:Nombre Completo:contraseña". Borrala después.
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.6"

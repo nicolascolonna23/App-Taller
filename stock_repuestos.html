@@ -261,37 +261,20 @@ tr.baja .code{color:#4E5F70}
 <script>
 "use strict";
 /* =======================================================================
-   1. GUARDADO  (window.storage -> localStorage -> memoria)
+   1. GUARDADO EN SUPABASE A TRAVÉS DEL SERVIDOR AUTENTICADO
    ======================================================================= */
-var GAS = !!(typeof google!=="undefined" && google.script && google.script.run);
-var MEM = {};
-function srv(fn,args){
-  return new Promise(function(res,rej){
-    google.script.run.withSuccessHandler(res).withFailureHandler(rej)[fn].apply(null,args||[]);
-  });
+async function apiRepuestos(opciones){
+  var r=await fetch("/api/repuestos",opciones||{}), d;
+  try{ d=await r.json(); }catch(e){ d={error:"Respuesta inválida del servidor."}; }
+  if(!r.ok) throw new Error(d.error||("Error "+r.status));
+  return d;
 }
-var Store = {
-  mode: GAS ? "la planilla" : "memoria",
-  url: "",
-  async get(k){
-    try{ if(window.storage){ var r = await window.storage.get(k,false); return r ? JSON.parse(r.value) : null; } }catch(e){ return null; }
-    try{ var v = localStorage.getItem(k); return v ? JSON.parse(v) : null; }catch(e){}
-    return MEM[k] || null;
-  },
-  async set(k,v){
-    var s = JSON.stringify(v);
-    try{ if(window.storage){ await window.storage.set(k,s,false); this.mode="la nube"; return true; } }catch(e){}
-    try{ localStorage.setItem(k,s); this.mode="este navegador"; return true; }catch(e){}
-    MEM[k]=v; this.mode="memoria"; return false;
-  }
-};
-var K_ART="repuestos:articulos", K_MOV="repuestos:movimientos";
 
 /* =======================================================================
    2. DATOS
    ======================================================================= */
 var SEMILLA = [{"codigo":"INT-175","descripcion":"Acople con birola 10","rubro":"Mecanica","interno":"175","anterior":"","minimo":0,"activo":true},{"codigo":"INT-176","descripcion":"Acople con birola 12","rubro":"Mecanica","interno":"176","anterior":"","minimo":0,"activo":true},{"codigo":"INT-139","descripcion":"Acrilico Ambar","rubro":"Electricidad","interno":"139","anterior":"","minimo":0,"activo":true},{"codigo":"INT-140","descripcion":"Acrilico Blanco","rubro":"Electricidad","interno":"140","anterior":"","minimo":0,"activo":true},{"codigo":"INT-141","descripcion":"Acrilico Rojo","rubro":"Electricidad","interno":"141","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0028","descripcion":"Agua destilada tacho 10L","rubro":"Sin rubro","interno":"112","anterior":"DM-0028","minimo":0,"activo":true},{"codigo":"504385137","descripcion":"ALTERNADOR 110AMP - DAILY","rubro":"Electricidad","interno":"119","anterior":"DM-0035","minimo":0,"activo":true},{"codigo":"5802879829","descripcion":"ALTERNADOR 6GA 24V 90A PARA C13 EURO VI","rubro":"Electricidad","interno":"126","anterior":"DM-0042","minimo":0,"activo":true},{"codigo":"DM-0005","descripcion":"Alternador reparado","rubro":"Sin rubro","interno":"89","anterior":"DM-0005","minimo":0,"activo":true},{"codigo":"DM-0020","descripcion":"Amortiguadores reparados Scania","rubro":"Sin rubro","interno":"104","anterior":"DM-0020","minimo":0,"activo":true},{"codigo":"5801399894","descripcion":"Arandela de Carter - NAVICAM","rubro":"Mecanica","interno":"60","anterior":"5801399894","minimo":0,"activo":true},{"codigo":"16508460","descripcion":"Arandela de Carter 360/Daily","rubro":"Sin rubro","interno":"29","anterior":"16508460","minimo":0,"activo":true},{"codigo":"DM-0009","descripcion":"Babero Scania","rubro":"Sin rubro","interno":"93","anterior":"DM-0009","minimo":0,"activo":true},{"codigo":"DM-0010","descripcion":"Babero universal","rubro":"Sin rubro","interno":"94","anterior":"DM-0010","minimo":0,"activo":true},{"codigo":"INT-153","descripcion":"Bajada de aluminio vigia","rubro":"Manguera","interno":"153","anterior":"","minimo":0,"activo":true},{"codigo":"INT-143","descripcion":"Bajada inferior Vigia","rubro":"Manguera","interno":"143","anterior":"","minimo":0,"activo":true},{"codigo":"INT-142","descripcion":"Bajada superior Vigia","rubro":"Manguera","interno":"142","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0004","descripcion":"Base de filtro","rubro":"Sin rubro","interno":"88","anterior":"DM-0004","minimo":0,"activo":true},{"codigo":"5801931331","descripcion":"Bomba de agua 360","rubro":"Sin rubro","interno":"72","anterior":"5801931331","minimo":0,"activo":true},{"codigo":"5801931139","descripcion":"Bomba de agua 440","rubro":"Sin rubro","interno":"71","anterior":"5801931139","minimo":0,"activo":true},{"codigo":"84-1620-","descripcion":"BORNE SAPITO GRANDE NEGATIVO","rubro":"Electricidad","interno":"152","anterior":"","minimo":0,"activo":true},{"codigo":"84-1620+","descripcion":"BORNE SAPITO GRANDE POSITIVO","rubro":"Electricidad","interno":"151","anterior":"","minimo":0,"activo":true},{"codigo":"9708","descripcion":"BUJE DE TENSOR 7/8” x 80 AST-PRA 947 o 949","rubro":"Sin rubro","interno":"21","anterior":"","minimo":0,"activo":true},{"codigo":"INT-162","descripcion":"Buje perno Fijo Patines","rubro":"Mecanica","interno":"162","anterior":"","minimo":0,"activo":true},{"codigo":"INT-155","descripcion":"Bulon Masa semi","rubro":"Mecanica","interno":"155","anterior":"","minimo":0,"activo":true},{"codigo":"INT-159","descripcion":"Bulon tensor Chasis semi","rubro":"Mecanica","interno":"159","anterior":"","minimo":0,"activo":true},{"codigo":"INT-158","descripcion":"Bulon tensor eje","rubro":"Mecanica","interno":"158","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0015","descripcion":"Bulones Scania","rubro":"Sin rubro","interno":"99","anterior":"DM-0015","minimo":0,"activo":true},{"codigo":"5801599462","descripcion":"BURLETE PUERTA","rubro":"Carroceria","interno":"122","anterior":"DM-0038","minimo":0,"activo":true},{"codigo":"9300N","descripcion":"CHALECO NARANJA ECONÓMICO REFLECTIVO","rubro":"Sin rubro","interno":"18","anterior":"9300N","minimo":0,"activo":true},{"codigo":"DM-0027","descripcion":"Climátic resfriar","rubro":"Sin rubro","interno":"111","anterior":"DM-0027","minimo":0,"activo":true},{"codigo":"INT-187","descripcion":"Codo superior Vigia","rubro":"Mecanica","interno":"187","anterior":"","minimo":0,"activo":true},{"codigo":"INT-147","descripcion":"Codo vigia","rubro":"Mecanica","interno":"147","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0001","descripcion":"Compresor de aire","rubro":"Sin rubro","interno":"85","anterior":"DM-0001","minimo":0,"activo":true},{"codigo":"R025.1","descripcion":"CONECTOR BAIML ELECTRÓNICO 3 VÍAS BIPOLAR","rubro":"Sin rubro","interno":"13","anterior":"R025.1","minimo":0,"activo":true},{"codigo":"504129824","descripcion":"Correa air.acon. 4PK-1041","rubro":"Sin rubro","interno":"58","anterior":"504129824","minimo":0,"activo":true},{"codigo":"5802102076","descripcion":"Correa de aire acondiconado - (Daily AG082ZL)","rubro":"Sin rubro","interno":"77","anterior":"5802102076","minimo":0,"activo":true},{"codigo":"5801496097","descripcion":"Correa poly-v 10PK-1714","rubro":"Sin rubro","interno":"62","anterior":"5801496097","minimo":0,"activo":true},{"codigo":"504049426","descripcion":"Correa Poly-V 12PK-1835","rubro":"Sin rubro","interno":"51","anterior":"504049426","minimo":0,"activo":true},{"codigo":"5802102048","descripcion":"CorreaPoly-V  - (Daily AG082ZL)","rubro":"Sin rubro","interno":"76","anterior":"5802102048","minimo":0,"activo":true},{"codigo":"IR100-H7","descripcion":"CREE LED KIT DE LED IR100-HD7 CANBUS","rubro":"Sin rubro","interno":"10","anterior":"IR100-H7","minimo":0,"activo":true},{"codigo":"5801718330","descripcion":"DISCO DE FRENO DAILY","rubro":"Mecanica","interno":"120","anterior":"DM-0036","minimo":0,"activo":true},{"codigo":"DM-0030","descripcion":"DISCO DE FRENO NEXP","rubro":"Mecanica","interno":"115","anterior":"DM-0030","minimo":0,"activo":true},{"codigo":"DM-0006","descripcion":"Emblema Iveco","rubro":"Sin rubro","interno":"90","anterior":"DM-0006","minimo":0,"activo":true},{"codigo":"R-3712","descripcion":"ENCHUFE LUCES RG 7 P HEMBRA PLÁSTICO","rubro":"Sin rubro","interno":"20","anterior":"R-3712","minimo":0,"activo":true},{"codigo":"INT-174","descripcion":"escobilla 28 pulgadas","rubro":"Carroceria","interno":"174","anterior":"","minimo":0,"activo":true},{"codigo":"1035FL2.RAVA","descripcion":"FARO BAIML FL2 1035 (RO-AM/ME-AM)","rubro":"Sin rubro","interno":"6","anterior":"1035FL2.RAVA","minimo":0,"activo":true},{"codigo":"1010E.ASF","descripcion":"FARO BAIML LED 1010 AMBAR 12/24V SIN FICHA","rubro":"Sin rubro","interno":"7","anterior":"1010E.ASF","minimo":0,"activo":true},{"codigo":"1033E-R","descripcion":"FARO BAIML LED 1033 ROJO 12/24V","rubro":"Sin rubro","interno":"8","anterior":"1033E-R","minimo":0,"activo":true},{"codigo":"1034E-AB","descripcion":"FARO BAIML LED 1034 AMBAR BIPOLAR 12/24V","rubro":"Sin rubro","interno":"9","anterior":"1034E-AB","minimo":0,"activo":true},{"codigo":"3000E-RB","descripcion":"FARO BAIML LED 3000E ROJO 39 LEDS 12/24V BIPOL","rubro":"Sin rubro","interno":"2","anterior":"3000E-RB","minimo":0,"activo":true},{"codigo":"3100E-AU","descripcion":"FARO BAIML LED 3100 AMBAR 20 LEDS 12/24V","rubro":"Sin rubro","interno":"4","anterior":"3100E-AU","minimo":0,"activo":true},{"codigo":"3100E-CU-FRIO","descripcion":"FARO BAIML LED 3100 CRISTAL 20 LEDS 12/24V","rubro":"Sin rubro","interno":"5","anterior":"3100E-CU-FRIO","minimo":0,"activo":true},{"codigo":"3300E-RC","descripcion":"FARO BAIML LED 3300E CRISTAL 30 LEDS 12/24V","rubro":"Sin rubro","interno":"3","anterior":"3300E-RC","minimo":0,"activo":true},{"codigo":"5801755108","descripcion":"Faro giro derecho","rubro":"Carroceria","interno":"178","anterior":"","minimo":0,"activo":true},{"codigo":"5801755107","descripcion":"Faro giro izquierdo","rubro":"Carroceria","interno":"179","anterior":"","minimo":0,"activo":true},{"codigo":"504250984","descripcion":"Faro paragolpe derecho","rubro":"Carroceria","interno":"181","anterior":"","minimo":0,"activo":true},{"codigo":"5801754885","descripcion":"Faro paragolpe izquierdo","rubro":"Carroceria","interno":"180","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0023","descripcion":"Faros usados Scania","rubro":"Sin rubro","interno":"107","anterior":"DM-0023","minimo":0,"activo":true},{"codigo":"INT-186","descripcion":"Ficha 2 Vias","rubro":"Electricidad","interno":"186","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0017","descripcion":"Filtro aire (9529)","rubro":"Sin rubro","interno":"101","anterior":"DM-0017","minimo":0,"activo":true},{"codigo":"2995964","descripcion":"Filtro antipolen","rubro":"Sin rubro","interno":"25","anterior":"2995964","minimo":0,"activo":true},{"codigo":"500086309","descripcion":"Filtro antipolen - (Daily AG082ZL)","rubro":"Sin rubro","interno":"44","anterior":"500086309","minimo":0,"activo":true},{"codigo":"2996570","descripcion":"Filtro de aceite","rubro":"Sin rubro","interno":"27","anterior":"2996570","minimo":0,"activo":true},{"codigo":"5801592262","descripcion":"Filtro de aceite 440","rubro":"Sin rubro","interno":"67","anterior":"5801592262","minimo":0,"activo":true},{"codigo":"5801982827","descripcion":"Filtro de aceite daily - (Daily AG082ZL)","rubro":"Sin rubro","interno":"74","anterior":"5801982827","minimo":0,"activo":true},{"codigo":"2996126","descripcion":"Filtro de aire","rubro":"Sin rubro","interno":"26","anterior":"2996126","minimo":0,"activo":true},{"codigo":"5801317097","descripcion":"Filtro de aire - (Daily AG082ZL)","rubro":"Sin rubro","interno":"59","anterior":"5801317097","minimo":0,"activo":true},{"codigo":"500054588","descripcion":"Filtro de combustible","rubro":"Sin rubro","interno":"38","anterior":"500054588","minimo":0,"activo":true},{"codigo":"5803040442","descripcion":"Filtro de combustible - (Daily AG082ZL)","rubro":"Sin rubro","interno":"78","anterior":"5803040442","minimo":0,"activo":true},{"codigo":"5801586769","descripcion":"Filtro de combustible 440","rubro":"Sin rubro","interno":"66","anterior":"5801586769","minimo":0,"activo":true},{"codigo":"500056689","descripcion":"Filtro de secado","rubro":"Sin rubro","interno":"42","anterior":"500056689","minimo":0,"activo":true},{"codigo":"5803502997","descripcion":"Filtro de trampa de agua para S-Way","rubro":"Sin rubro","interno":"79","anterior":"5803502997","minimo":0,"activo":true},{"codigo":"500055972","descripcion":"Filtro de urea","rubro":"Sin rubro","interno":"39","anterior":"500055972","minimo":0,"activo":true},{"codigo":"5801935268","descripcion":"Filtro electrovalvula - (Daily AG082ZL)","rubro":"Sin rubro","interno":"73","anterior":"5801935268","minimo":0,"activo":true},{"codigo":"1902137","descripcion":"Filtro hidraulico","rubro":"Sin rubro","interno":"23","anterior":"1902137","minimo":0,"activo":true},{"codigo":"DM-0018","descripcion":"Filtro secador de aire (4598)","rubro":"Sin rubro","interno":"102","anterior":"DM-0018","minimo":0,"activo":true},{"codigo":"5801403243","descripcion":"Filtro trampa de agua","rubro":"Sin rubro","interno":"61","anterior":"5801403243","minimo":0,"activo":true},{"codigo":"DM-0025","descripcion":"Filtro válvula APS Scania","rubro":"Sin rubro","interno":"109","anterior":"DM-0025","minimo":0,"activo":true},{"codigo":"INT-169","descripcion":"Fusible","rubro":"Electricidad","interno":"169","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0002","descripcion":"Gobernadora de aire","rubro":"Sin rubro","interno":"86","anterior":"DM-0002","minimo":0,"activo":true},{"codigo":"DM-0007","descripcion":"Guardabarros","rubro":"Sin rubro","interno":"91","anterior":"DM-0007","minimo":0,"activo":true},{"codigo":"INT-182","descripcion":"H4 12v 60/55w","rubro":"Electricidad","interno":"182","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0026","descripcion":"Inyectores Scania","rubro":"Sin rubro","interno":"110","anterior":"DM-0026","minimo":0,"activo":true},{"codigo":"DM-0032","descripcion":"JUEGO DE PASTILLA DE FRENOS","rubro":"Mecanica","interno":"116","anterior":"DM-0032","minimo":0,"activo":true},{"codigo":"17292081","descripcion":"junta bomba de agua 440","rubro":"Sin rubro","interno":"31","anterior":"17292081","minimo":0,"activo":true},{"codigo":"17291781","descripcion":"Junta de bomba de agua 360","rubro":"Sin rubro","interno":"30","anterior":"17291781","minimo":0,"activo":true},{"codigo":"99446692","descripcion":"Junta de tapa de valvulas","rubro":"Sin rubro","interno":"36","anterior":"99446692","minimo":0,"activo":true},{"codigo":"5801512813","descripcion":"Junta de tapa de valvulas","rubro":"Sin rubro","interno":"63","anterior":"5801512813","minimo":0,"activo":true},{"codigo":"504045785","descripcion":"Junta de termostato","rubro":"Sin rubro","interno":"49","anterior":"504045785","minimo":0,"activo":true},{"codigo":"500362150","descripcion":"Junta de termostato","rubro":"Sin rubro","interno":"46","anterior":"500362150","minimo":0,"activo":true},{"codigo":"DM-0033","descripcion":"KIT EMBREAGUE - DAILY","rubro":"Mecanica","interno":"117","anterior":"DM-0033","minimo":0,"activo":true},{"codigo":"DM-0016","descripcion":"Kit filtros serie 4 (7576)","rubro":"Sin rubro","interno":"100","anterior":"DM-0016","minimo":0,"activo":true},{"codigo":"DM-0019","descripcion":"Kit filtros serie 5 (4256)","rubro":"Sin rubro","interno":"103","anterior":"DM-0019","minimo":0,"activo":true},{"codigo":"KO12821PR","descripcion":"LAMPARA 12V CON CULOTE 5W 1 POLO","rubro":"Electricidad","interno":"137","anterior":"","minimo":0,"activo":true},{"codigo":"AH-2502","descripcion":"LAMPARA 12V H1 55W","rubro":"Electricidad","interno":"138","anterior":"","minimo":0,"activo":true},{"codigo":"1987302071","descripcion":"LAMPARA 12V H7 55W","rubro":"Electricidad","interno":"135","anterior":"","minimo":0,"activo":true},{"codigo":"AS-2346","descripcion":"LAMPARA 12V SIN CULOTE 5W","rubro":"Electricidad","interno":"136","anterior":"","minimo":0,"activo":true},{"codigo":"1987302501","descripcion":"LAMPARA 24v 21w c/culote 1 polo","rubro":"Electricidad","interno":"132","anterior":"","minimo":0,"activo":true},{"codigo":"KO13499PR","descripcion":"LAMPARA 24V CON CULOTE 21/5W 2 POLO","rubro":"Electricidad","interno":"129","anterior":"","minimo":0,"activo":true},{"codigo":"1987302868","descripcion":"LAMPARA 24V CON CULOTE 5W 1 polo","rubro":"Electricidad","interno":"133","anterior":"","minimo":0,"activo":true},{"codigo":"NE460","descripcion":"LAMPARA 24V H3 70W","rubro":"Electricidad","interno":"131","anterior":"","minimo":0,"activo":true},{"codigo":"1987302441","descripcion":"LAMPARA 24V H4 75/70W","rubro":"Electricidad","interno":"134","anterior":"","minimo":0,"activo":true},{"codigo":"KO13961PR","descripcion":"LAMPARA 24V SIN CULOTE 5W","rubro":"Electricidad","interno":"130","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0041","descripcion":"LAMPARA INTERMITENTE","rubro":"Electricidad","interno":"125","anterior":"DM-0041","minimo":0,"activo":true},{"codigo":"DM-0040","descripcion":"LAMPARA INTERMITENTE DER","rubro":"Electricidad","interno":"124","anterior":"DM-0040","minimo":0,"activo":true},{"codigo":"KO13496PR","descripcion":"LÁMPARA 24V CULOTE 21W 1 POLO AMBAR – KOBO","rubro":"Sin rubro","interno":"14","anterior":"KO13496PR","minimo":0,"activo":true},{"codigo":"AH-2503","descripcion":"LÁMPARA 24V H1 70W – WEGA","rubro":"Sin rubro","interno":"11","anterior":"AH-2503","minimo":0,"activo":true},{"codigo":"KO13972PR","descripcion":"LÁMPARA 24V H7 70W – KOBO","rubro":"Sin rubro","interno":"12","anterior":"KO13972PR","minimo":0,"activo":true},{"codigo":"AH-2560","descripcion":"LÁMPARA 24V H7 70W – WEGA","rubro":"Sin rubro","interno":"15","anterior":"AH-2560","minimo":0,"activo":true},{"codigo":"LED24111","descripcion":"LÁMPARA 24V SIN CULOTE 5 LED BLANCO","rubro":"Sin rubro","interno":"16","anterior":"LED24111","minimo":0,"activo":true},{"codigo":"DM-0011","descripcion":"Manguera agua (7082)","rubro":"Sin rubro","interno":"95","anterior":"DM-0011","minimo":0,"activo":true},{"codigo":"DM-0022","descripcion":"Manguera agua Scania","rubro":"Sin rubro","interno":"106","anterior":"DM-0022","minimo":0,"activo":true},{"codigo":"INT-154","descripcion":"Manija Acople Freno Aire 2 Vías","rubro":"Mecanica","interno":"154","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0008","descripcion":"Medio guardabarros","rubro":"Sin rubro","interno":"92","anterior":"DM-0008","minimo":0,"activo":true},{"codigo":"93161844","descripcion":"Mica de faro trasero IZQ/DER","rubro":"Sin rubro","interno":"34","anterior":"93161844","minimo":0,"activo":true},{"codigo":"INT-173","descripcion":"O-ring acople freno 2 vias","rubro":"Mecanica","interno":"173","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0024","descripcion":"Pastillas de freno Scania","rubro":"Sin rubro","interno":"108","anterior":"DM-0024","minimo":0,"activo":true},{"codigo":"INT-163","descripcion":"Perno Fijo Patin","rubro":"Mecanica","interno":"163","anterior":"","minimo":0,"activo":true},{"codigo":"INT-164","descripcion":"Perno Movil patin","rubro":"Mecanica","interno":"164","anterior":"","minimo":0,"activo":true},{"codigo":"INT-184","descripcion":"Porta Fusible","rubro":"Electricidad","interno":"184","anterior":"","minimo":0,"activo":true},{"codigo":"INT-183","descripcion":"Porta Relay","rubro":"Electricidad","interno":"183","anterior":"","minimo":0,"activo":true},{"codigo":"P8012","descripcion":"PORTALÁMPARA PTO/FARO GIRO IVECO STRALIS (FA8012)","rubro":"Sin rubro","interno":"17","anterior":"P8012","minimo":0,"activo":true},{"codigo":"INT-148","descripcion":"Protector de Rotor Semi","rubro":"Mecanica","interno":"148","anterior":"","minimo":0,"activo":true},{"codigo":"INT-149","descripcion":"Protector de Rotor tractor","rubro":"Mecanica","interno":"149","anterior":"","minimo":0,"activo":true},{"codigo":"INT-172","descripcion":"Purgador tanque de aire","rubro":"Mecanica","interno":"172","anterior":"","minimo":0,"activo":true},{"codigo":"504084141","descripcion":"RADIADOR - DAILY","rubro":"Mecanica","interno":"118","anterior":"DM-0034","minimo":0,"activo":true},{"codigo":"44071","descripcion":"registro de freno 28 estrias","rubro":"Mecanica","interno":"128","anterior":"44071","minimo":0,"activo":true},{"codigo":"47001","descripcion":"REGISTRO DE FRENO MANUAL 10 ESTRÍAS","rubro":"Sin rubro","interno":"22","anterior":"","minimo":0,"activo":true},{"codigo":"INT-170","descripcion":"Rele 12V 50A","rubro":"Electricidad","interno":"170","anterior":"","minimo":0,"activo":true},{"codigo":"INT-171","descripcion":"Rele 24V 30A","rubro":"Electricidad","interno":"171","anterior":"","minimo":0,"activo":true},{"codigo":"INT-168","descripcion":"Remache Patines","rubro":"Mecanica","interno":"168","anterior":"","minimo":0,"activo":true},{"codigo":"INT-165","descripcion":"Resorte Chico patin","rubro":"Mecanica","interno":"165","anterior":"","minimo":0,"activo":true},{"codigo":"INT-157","descripcion":"Resorte Fino pulmon de freno","rubro":"Mecanica","interno":"157","anterior":"","minimo":0,"activo":true},{"codigo":"INT-166","descripcion":"Resorte Grande patin","rubro":"Mecanica","interno":"166","anterior":"","minimo":0,"activo":true},{"codigo":"INT-160","descripcion":"Resorte gruso pulmon de freno","rubro":"Mecanica","interno":"160","anterior":"","minimo":0,"activo":true},{"codigo":"5801625924","descripcion":"Reten cigüeñal trasero","rubro":"Sin rubro","interno":"69","anterior":"5801625924","minimo":0,"activo":true},{"codigo":"504042684","descripcion":"Reten de cigüeñal delantero 360","rubro":"Sin rubro","interno":"48","anterior":"504042684","minimo":0,"activo":true},{"codigo":"5801625923","descripcion":"Reten de cigüeñal delantero 440","rubro":"Sin rubro","interno":"68","anterior":"5801625923","minimo":0,"activo":true},{"codigo":"500092158","descripcion":"Reten de rueda","rubro":"Sin rubro","interno":"45","anterior":"500092158","minimo":0,"activo":true},{"codigo":"40000690","descripcion":"Reten de rueda","rubro":"Sin rubro","interno":"32","anterior":"40000690","minimo":0,"activo":true},{"codigo":"INT-161","descripcion":"Reten Semi","rubro":"Mecanica","interno":"161","anterior":"","minimo":0,"activo":true},{"codigo":"504006261","descripcion":"Rodillo tensor de correa","rubro":"Sin rubro","interno":"47","anterior":"504006261","minimo":0,"activo":true},{"codigo":"INT-146","descripcion":"Rotor exterior Vigia","rubro":"Mecanica","interno":"146","anterior":"","minimo":0,"activo":true},{"codigo":"INT-177","descripcion":"Rotor Interior","rubro":"Mecanica","interno":"177","anterior":"","minimo":0,"activo":true},{"codigo":"HM518445/410","descripcion":"Ruleman semi","rubro":"Mecanica","interno":"167","anterior":"","minimo":0,"activo":true},{"codigo":"1905172","descripcion":"Rulemanes delanteros para retenes grandes","rubro":"Sin rubro","interno":"24","anterior":"1905172","minimo":0,"activo":true},{"codigo":"500056338","descripcion":"Rulemanes delanteros para retenes normales","rubro":"Sin rubro","interno":"40","anterior":"500056338","minimo":0,"activo":true},{"codigo":"7177004","descripcion":"Rulemanes traseros para retenes grandes","rubro":"Sin rubro","interno":"28","anterior":"7177004","minimo":0,"activo":true},{"codigo":"500056339","descripcion":"Rulemanes traseros para retenes normales","rubro":"Sin rubro","interno":"41","anterior":"500056339","minimo":0,"activo":true},{"codigo":"DM-0029","descripcion":"SENSOR","rubro":"Electricidad","interno":"114","anterior":"DM-0029","minimo":0,"activo":true},{"codigo":"DM-0037","descripcion":"SENSOR PRESION ACEITE-DAILY","rubro":"Electricidad","interno":"121","anterior":"DM-0037","minimo":0,"activo":true},{"codigo":"93829326","descripcion":"Tapa de combustible","rubro":"Sin rubro","interno":"35","anterior":"93829326","minimo":0,"activo":true},{"codigo":"41272013","descripcion":"Tapa de urea plana","rubro":"Sin rubro","interno":"33","anterior":"41272013","minimo":0,"activo":true},{"codigo":"500057912","descripcion":"Tapa de urea redonda","rubro":"Sin rubro","interno":"43","anterior":"500057912","minimo":0,"activo":true},{"codigo":"INT-150","descripcion":"Tapa plastica masa","rubro":"Mecanica","interno":"150","anterior":"","minimo":0,"activo":true},{"codigo":"X2442_A328_1","descripcion":"TAPA ROSCADA 1/4","rubro":"Manguera","interno":"127","anterior":"X2442_A328_1","minimo":0,"activo":true},{"codigo":"INT-185","descripcion":"Tecla / Switch 1 Punto","rubro":"Electricidad","interno":"185","anterior":"","minimo":0,"activo":true},{"codigo":"504086948","descripcion":"Tensor de correa - (Daily AG082ZL)","rubro":"Sin rubro","interno":"54","anterior":"504086948","minimo":0,"activo":true},{"codigo":"504084453","descripcion":"Tensor de correa daily - (Daily AG082ZL)","rubro":"Sin rubro","interno":"53","anterior":"504084453","minimo":0,"activo":true},{"codigo":"504046191","descripcion":"Tensor movil de correa","rubro":"Sin rubro","interno":"50","anterior":"504046191","minimo":0,"activo":true},{"codigo":"504072744","descripcion":"Tensor movil de correa","rubro":"Sin rubro","interno":"52","anterior":"504072744","minimo":0,"activo":true},{"codigo":"504096443","descripcion":"Termostato 360","rubro":"Sin rubro","interno":"55","anterior":"504096443","minimo":0,"activo":true},{"codigo":"5802055310","descripcion":"termostato completo 440","rubro":"Sin rubro","interno":"75","anterior":"5802055310","minimo":0,"activo":true},{"codigo":"5801633950","descripcion":"TUBERIA","rubro":"Manguera","interno":"123","anterior":"DM-0039","minimo":0,"activo":true},{"codigo":"504113535","descripcion":"Tuberia de combustible","rubro":"Sin rubro","interno":"56","anterior":"504113535","minimo":0,"activo":true},{"codigo":"504113538","descripcion":"Tuberia de combustible","rubro":"Sin rubro","interno":"57","anterior":"504113538","minimo":0,"activo":true},{"codigo":"5801582293","descripcion":"Tuberia de refrigerante de compresor","rubro":"Sin rubro","interno":"65","anterior":"5801582293","minimo":0,"activo":true},{"codigo":"5801798837","descripcion":"Tuberia de refrigerante de compresor","rubro":"Sin rubro","interno":"70","anterior":"5801798837","minimo":0,"activo":true},{"codigo":"5801519701","descripcion":"Tuberia de refrigerante de compresor 360","rubro":"Sin rubro","interno":"64","anterior":"5801519701","minimo":0,"activo":true},{"codigo":"99473920","descripcion":"Tuberia de refrigerante de compresor 360","rubro":"Sin rubro","interno":"37","anterior":"99473920","minimo":0,"activo":true},{"codigo":"DM-0012","descripcion":"Tubo combustible (3535)","rubro":"Sin rubro","interno":"96","anterior":"DM-0012","minimo":0,"activo":true},{"codigo":"DM-0013","descripcion":"Tubo combustible (3538)","rubro":"Sin rubro","interno":"97","anterior":"DM-0013","minimo":0,"activo":true},{"codigo":"TPS-004","descripcion":"TUBO CONEXIÓN ESPIRALADO AZUL 1/4 x 3/8 DE 7,5 M","rubro":"Sin rubro","interno":"19","anterior":"TPS-004","minimo":0,"activo":true},{"codigo":"DM-0014","descripcion":"Tuboflex compresor (4708)","rubro":"Sin rubro","interno":"98","anterior":"DM-0014","minimo":0,"activo":true},{"codigo":"INT-156","descripcion":"Tuerca Masa Semi","rubro":"Mecanica","interno":"156","anterior":"","minimo":0,"activo":true},{"codigo":"DM-0003","descripcion":"Turbo","rubro":"Sin rubro","interno":"87","anterior":"DM-0003","minimo":0,"activo":true},{"codigo":"NAVICAM","descripcion":"UREA BIN","rubro":"Insumos de Taller","interno":"84","anterior":"","minimo":0,"activo":true},{"codigo":"INT-144","descripcion":"Valvula Anti retorno Semi","rubro":"Manguera","interno":"144","anterior":"","minimo":0,"activo":true},{"codigo":"INT-145","descripcion":"Valvula Anti retorno Tractor","rubro":"Manguera","interno":"145","anterior":"","minimo":0,"activo":true},{"codigo":"503238117/VA","descripcion":"Vidrio de optica IZQ/DER","rubro":"Carroceria","interno":"1","anterior":"503238117/VA","minimo":0,"activo":true},{"codigo":"DM-0021","descripcion":"Vidrio óptica izq y der Scania","rubro":"Sin rubro","interno":"105","anterior":"DM-0021","minimo":0,"activo":true}];
-var S = { arts:[], movs:[], tab:"stock",
+var S = { arts:[], movs:[], tab:"stock", puedeGestionar:false,
   fStock:{q:"",rubro:"",estado:"activos"},
   fMov:{q:"",tipo:"",desde:"",hasta:""} };
 
@@ -303,50 +286,45 @@ function esc(t){ return String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;"
 function norm(t){ return String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 
 function marcar(txt){ var el=document.getElementById("lastsave");
-  if(el) el.textContent = txt || ("Datos en "+Store.mode); }
+  if(el) el.textContent = txt || "Datos en Supabase"; }
 
-/* op: "arts" | "mov+" | "mov-" | "todo" */
+/* op: "mov+" | "mov-lote" | "mov-" | "art-save" | "art-toggle" | "art-delete" */
 async function guardar(op,arg){
+  marcar("Guardando…");
   try{
-    if(GAS){
-      marcar("Guardando…");
-      if(op==="mov+")      await srv("apiAddMov",[arg]);
-      else if(op==="mov-") await srv("apiDelMov",[arg]);
-      else if(op==="arts") await srv("apiArts",[S.arts]);
-      else                 await srv("apiTodo",[S.arts,S.movs]);
-    }else{
-      await Store.set(K_ART,S.arts); await Store.set(K_MOV,S.movs);
-    }
+    var cuerpo;
+    if(op==="mov+") cuerpo={op:"movimiento_crear",movimiento:arg};
+    else if(op==="mov-lote") cuerpo={op:"movimientos_crear",movimientos:arg};
+    else if(op==="mov-") cuerpo={op:"movimiento_borrar",id:arg};
+    else if(op==="art-save") cuerpo={op:"articulo_guardar",articulo:arg};
+    else if(op==="art-toggle") cuerpo={op:"articulo_estado",codigo:arg.codigo,activo:arg.activo};
+    else if(op==="art-delete") cuerpo={op:"articulo_borrar",codigo:arg};
+    else throw new Error("Operación desconocida");
+    await apiRepuestos({method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(cuerpo)});
+    await cargar();
+    pintar();
     marcar();
+    return true;
   }catch(e){
     marcar("Sin guardar");
     toast("No se pudo guardar: "+((e&&e.message)||e));
+    try{ await cargar(); pintar(); }catch(ignorado){}
+    return false;
   }
 }
 
 async function cargar(){
-  if(GAS){
-    try{
-      var d = await srv("apiLeer");
-      Store.url = d.url || "";
-      if(d.arts && d.arts.length){ S.arts=d.arts; S.movs=d.movs||[]; }
-      else { S.arts=SEMILLA.map(x=>Object.assign({},x)); S.movs=[]; await guardar("todo"); }
-      return;
-    }catch(e){ toast("No se pudo leer la planilla: "+((e&&e.message)||e)); }
-  }
-  var a = await Store.get(K_ART), m = await Store.get(K_MOV);
-  S.arts = (a && a.length) ? a : SEMILLA.map(x=>Object.assign({},x));
-  S.movs = m || [];
-  if(!a) await guardar("todo");
+  var d=await apiRepuestos();
+  S.arts=d.arts||[];
+  S.movs=d.movs||[];
+  S.puedeGestionar=!!d.puede_gestionar;
 }
 
 async function refrescar(silencioso){
-  if(!GAS) return;
   try{
-    var d = await srv("apiLeer");
-    if(d.arts && d.arts.length){ S.arts=d.arts; S.movs=d.movs||[]; pintar(); }
+    await cargar(); pintar(); marcar();
     if(!silencioso) toast("Datos actualizados");
-  }catch(e){ if(!silencioso) toast("No se pudo actualizar"); }
+  }catch(e){ if(!silencioso) toast("No se pudo actualizar: "+((e&&e.message)||e)); }
 }
 
 /* ---- cálculos ---- */
@@ -414,7 +392,7 @@ function vistaStock(mp){
     '<select id="festado" style="width:auto">'+
       [["activos","Activos"],["rep","A reponer"],["cero","Sin stock"],["baja","Dados de baja"],["todos","Todos"]]
       .map(o=>'<option value="'+o[0]+'" '+(f.estado===o[0]?"selected":"")+'>'+o[1]+'</option>').join("")+'</select>'+
-    '<button class="btn" data-act="nuevo-art">+ Repuesto nuevo</button>'+
+    (S.puedeGestionar?'<button class="btn" data-act="nuevo-art">+ Repuesto nuevo</button>':'')+
     '<button class="btn ghost" data-act="nuevo-mov">Cargar movimiento</button>'+
     '<span class="count">'+lista.length+' de '+S.arts.length+'</span></div>';
 
@@ -434,8 +412,8 @@ function vistaStock(mp){
       '<td class="acts">'+
         (a.activo?'<button class="ic plus" title="Entrada" data-act="mov" data-cod="'+esc(a.codigo)+'" data-tipo="Entrada">+</button>'+
                   '<button class="ic minus" title="Salida" data-act="mov" data-cod="'+esc(a.codigo)+'" data-tipo="Salida">−</button>':'')+
-        '<button class="ic" title="Editar" data-act="edit-art" data-cod="'+esc(a.codigo)+'">✎</button>'+
-        '<button class="ic" title="'+(a.activo?"Dar de baja":"Dar de alta")+'" data-act="toggle-art" data-cod="'+esc(a.codigo)+'">'+(a.activo?"⊘":"↺")+'</button>'+
+        (S.puedeGestionar?'<button class="ic" title="Editar" data-act="edit-art" data-cod="'+esc(a.codigo)+'">✎</button>'+
+        '<button class="ic" title="'+(a.activo?"Dar de baja":"Dar de alta")+'" data-act="toggle-art" data-cod="'+esc(a.codigo)+'">'+(a.activo?"⊘":"↺")+'</button>':'')+
       '</td></tr>';
   });
   return h+'</tbody></table></div>';
@@ -479,7 +457,7 @@ function vistaMovs(){
       '<td><span class="tag '+cls+'">'+m.tipo+'</span></td>'+
       '<td class="num"><span class="mob-only">Cantidad</span>'+sig+Math.abs(m.cantidad)+'</td>'+
       '<td class="rubro">'+esc(m.obs||"")+'</td>'+
-      '<td class="acts"><button class="ic" title="Borrar movimiento" data-act="del-mov" data-id="'+m.id+'">✕</button></td>'+
+      '<td class="acts">'+(S.puedeGestionar?'<button class="ic" title="Borrar movimiento" data-act="del-mov" data-id="'+m.id+'">✕</button>':'')+'</td>'+
     '</tr>';
   });
   return h+'</tbody></table></div>';
@@ -487,14 +465,10 @@ function vistaMovs(){
 
 /* ---------- vista datos ---------- */
 function vistaDatos(){
-  var extra = GAS
-    ? '<p>Los datos viven en una planilla de Google, así que todos los que abran este link ven lo mismo.'+
-      (Store.url?' <a href="'+esc(Store.url)+'" target="_blank" style="color:var(--acc)">Abrir la planilla</a>.':'')+'</p>'
-    : '<p>Los datos se guardan en '+Store.mode+'. Bajá una copia cada tanto: con el respaldo podés volver a este mismo estado en cualquier computadora.</p>';
-  return '<div class="panel"><h3>Copias y planillas</h3>'+extra+
+  return '<div class="panel"><h3>Base de datos central</h3>'+
+    '<p>Los artículos y movimientos se guardan en Supabase. Todos los usuarios autorizados ven el mismo stock actualizado.</p>'+
     '<div class="bar">'+
     '<button class="btn" data-act="exp-json">Bajar respaldo</button>'+
-    '<button class="btn ghost" data-act="imp-json">Restaurar respaldo</button>'+
     '<button class="btn ghost" data-act="exp-stock">Exportar stock (CSV)</button>'+
     '<button class="btn ghost" data-act="exp-movs">Exportar movimientos (CSV)</button>'+
     '</div><p style="margin:10px 0 0">Los CSV se abren con doble clic en Excel o Numbers.</p></div>'+
@@ -506,11 +480,7 @@ function vistaDatos(){
     '<li><b>Ajuste:</b> corrección de conteo. Admite cantidad negativa.</li>'+
     '<li><b>Stock mínimo:</b> se carga desde el lápiz de cada repuesto. Cuando el stock cae a ese número, el estado pasa a “Reponer”.</li>'+
     '<li><b>Dar de baja:</b> el repuesto deja de aparecer en los listados pero conserva su historial. Se puede volver a dar de alta.</li>'+
-    '</ol></div>'+
-
-    '<div class="panel"><h3>Empezar de cero</h3>'+
-    '<p>Borra los movimientos y devuelve el listado a los '+SEMILLA.length+' repuestos originales. No se puede deshacer.</p>'+
-    '<button class="btn ghost" data-act="reset" style="border-color:#A32B21;color:#A32B21">Reiniciar todo</button></div>';
+    '</ol></div>';
 }
 
 /* =======================================================================
@@ -581,10 +551,10 @@ async function guardarMov(){
     var st=stockDe(a.codigo);
     if(M.cant>st && !confirm("El stock de “"+a.descripcion+"” es "+st+" y estás sacando "+M.cant+". ¿Guardo igual?")) return;
   }
-  S.movs.push({ id:uid(), ts:Date.now(), fecha:M.fecha, codigo:a.codigo, desc:a.descripcion,
-                patente:M.pat, tipo:M.tipo, cantidad:M.cant, obs:M.obs });
-  var etiqueta = M.tipo+" · "+a.descripcion, nuevo = S.movs[S.movs.length-1];
-  cerrar(); pintar(); await guardar("mov+", nuevo); toast("Movimiento guardado · "+etiqueta);
+  var nuevo={fecha:M.fecha,codigo:a.codigo,patente:M.pat,tipo:M.tipo,cantidad:M.cant,obs:M.obs};
+  var etiqueta=M.tipo+" · "+a.descripcion;
+  cerrar();
+  if(await guardar("mov+",nuevo)) toast("Movimiento guardado · "+etiqueta);
 }
 
 /* ---- artículo ---- */
@@ -623,23 +593,18 @@ async function guardarArt(){
   if(!M.descripcion){ M.err="Falta la descripción."; return pintarArt(); }
   if(!M.codigo){ M.err="Falta el código."; return pintarArt(); }
   if(S.arts.some(a=>a.codigo===M.codigo && a.codigo!==M.orig)){ M.err="Ya existe un repuesto con el código "+M.codigo+"."; return pintarArt(); }
-  if(M.nuevo){
-    S.arts.push({codigo:M.codigo,descripcion:M.descripcion,rubro:M.rubro,interno:M.interno,anterior:"",minimo:M.minimo,activo:true});
-  }else{
-    var a=art(M.orig);
-    if(M.codigo!==M.orig) S.movs.forEach(m=>{ if(m.codigo===M.orig) m.codigo=M.codigo; });
-    S.movs.forEach(m=>{ if(m.codigo===M.codigo) m.desc=M.descripcion; });
-    Object.assign(a,{codigo:M.codigo,descripcion:M.descripcion,rubro:M.rubro,interno:M.interno,minimo:M.minimo});
-  }
-  var esNuevo=M.nuevo, tocoMovs = !esNuevo;
-  cerrar(); pintar(); await guardar(tocoMovs?"todo":"arts"); toast(esNuevo?"Repuesto agregado":"Repuesto actualizado");
+  var esNuevo=M.nuevo;
+  var datos={original:M.orig,codigo:M.codigo,descripcion:M.descripcion,rubro:M.rubro,
+             interno:M.interno,minimo:M.minimo};
+  cerrar();
+  if(await guardar("art-save",datos)) toast(esNuevo?"Repuesto agregado":"Repuesto actualizado");
 }
 async function borrarArt(){
   var cod=M.orig, usos=S.movs.filter(m=>m.codigo===cod).length;
   if(usos){ alert("Este repuesto tiene "+usos+" movimiento(s) cargados. Dalo de baja en vez de eliminarlo, así no perdés el historial."); return; }
   if(!confirm("¿Eliminar “"+M.descripcion+"” del listado?")) return;
-  S.arts=S.arts.filter(a=>a.codigo!==cod);
-  cerrar(); pintar(); await guardar("arts"); toast("Repuesto eliminado");
+  cerrar();
+  if(await guardar("art-delete",cod)) toast("Repuesto eliminado");
 }
 
 /* =======================================================================
@@ -672,23 +637,6 @@ function expMovs(){
   bajar("movimientos_"+hoy()+".csv",csv(f),"text/csv");
 }
 function expJson(){ bajar("respaldo_repuestos_"+hoy()+".json",JSON.stringify({v:1,arts:S.arts,movs:S.movs}),"application/json"); }
-function impJson(){
-  var i=document.createElement("input"); i.type="file"; i.accept=".json,application/json";
-  i.onchange=()=>{ var fr=new FileReader();
-    fr.onload=async()=>{ try{
-        var d=JSON.parse(fr.result);
-        if(!d.arts||!d.movs) throw 0;
-        if(!confirm("Se reemplazan "+S.arts.length+" repuestos y "+S.movs.length+" movimientos por "+d.arts.length+" y "+d.movs.length+". ¿Sigo?")) return;
-        S.arts=d.arts; S.movs=d.movs; pintar(); await guardar("todo"); toast("Respaldo restaurado");
-      }catch(e){ alert("El archivo no es un respaldo válido de esta planilla."); } };
-    fr.readAsText(i.files[0]); };
-  i.click();
-}
-async function reset(){
-  if(!confirm("Se borran los "+S.movs.length+" movimientos y el listado vuelve al original. ¿Seguro?")) return;
-  S.arts=SEMILLA.map(x=>Object.assign({},x)); S.movs=[];
-  pintar(); await guardar("todo"); toast("Todo reiniciado");
-}
 
 /* =======================================================================
    6. EVENTOS
@@ -736,15 +684,15 @@ document.addEventListener("click", async e=>{
   if(a==="ar-borrar") return borrarArt();
   if(a==="toggle-art"){ var x=art(t.dataset.cod);
     if(x.activo && !confirm("¿Dar de baja “"+x.descripcion+"”? Deja de aparecer en los listados pero conserva su historial.")) return;
-    x.activo=!x.activo; pintar(); await guardar("arts"); return toast(x.activo?"Repuesto dado de alta":"Repuesto dado de baja"); }
-  if(a==="del-mov"){ var m=S.movs.find(z=>z.id===t.dataset.id);
+    var activo=!x.activo;
+    if(await guardar("art-toggle",{codigo:x.codigo,activo:activo})) toast(activo?"Repuesto dado de alta":"Repuesto dado de baja");
+    return; }
+  if(a==="del-mov"){ var m=S.movs.find(z=>String(z.id)===String(t.dataset.id));
     if(!confirm("¿Borrar el movimiento del "+fechaAR(m.fecha)+" de “"+m.desc+"”? El stock se recalcula.")) return;
-    S.movs=S.movs.filter(z=>z.id!==t.dataset.id); pintar(); await guardar("mov-", t.dataset.id); return toast("Movimiento borrado"); }
+    if(await guardar("mov-",t.dataset.id)) toast("Movimiento borrado"); return; }
   if(a==="exp-stock") return expStock();
   if(a==="exp-movs") return expMovs();
   if(a==="exp-json") return expJson();
-  if(a==="imp-json") return impJson();
-  if(a==="reset") return reset();
 });
 document.addEventListener("keydown", e=>{
   if(e.key==="Escape"){ if(M&&M.open){M.open=false;leerMov();pintarMov();} else cerrar(); }
@@ -757,8 +705,11 @@ document.addEventListener("keydown", e=>{
 });
 
 /* arranque */
-(async function(){ await cargar(); pintar(); marcar();
-  if(GAS) setInterval(function(){ if(!M) refrescar(true); }, 45000);
+(async function(){
+  try{ await cargar(); pintar(); marcar(); }
+  catch(e){ marcar("Sin conexión"); document.getElementById("view").innerHTML=
+    '<div class="panel"><h3>No se pudieron cargar los repuestos</h3><p>'+esc((e&&e.message)||e)+'</p></div>'; }
+  setInterval(function(){ if(!M) refrescar(true); },45000);
 })();
 </script>
 <!-- ===================================================================
@@ -1033,17 +984,11 @@ document.addEventListener("keydown", e=>{
       }]
     };
 
-    if (GAS) return srv("apiVision", [JSON.stringify(body)]);
-
-    return fetch("https://api.anthropic.com/v1/messages", {
+    return apiRepuestos({
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body)
-    }).then(function (r) { return r.json(); }).then(function (d) {
-      if (d.error) throw new Error(d.error.message || "Error de la API");
-      return (d.content || []).filter(function (x) { return x.type === "text"; })
-        .map(function (x) { return x.text; }).join("\n");
-    });
+      body: JSON.stringify({op:"vision",body:body})
+    }).then(function (d) { return d.texto || ""; });
   }
 
   function parsearJSON(texto) {
@@ -1108,24 +1053,14 @@ document.addEventListener("keydown", e=>{
     });
 
     var cant = nuevos.length;
-    nuevos.forEach(function (m) { S.movs.push(m); });
     cerrarOCR();
-    pintar();
-    persistir(nuevos).then(function () {
-      toast(cant + " movimiento(s) guardados desde la planilla");
+    persistir(nuevos).then(function (ok) {
+      if(ok) toast(cant + " movimiento(s) guardados desde la planilla");
     });
   }
 
   function persistir(nuevos) {
-    if (!GAS) return guardar("todo");
-    marcar("Guardando…");
-    return srv("apiAddMovs", [nuevos])
-      .catch(function () { return srv("apiTodo", [S.arts, S.movs]); })
-      .then(function () { marcar(); })
-      .catch(function (e) {
-        marcar("Sin guardar");
-        toast("No se pudo guardar: " + ((e && e.message) || e));
-      });
+    return guardar("mov-lote",nuevos);
   }
 
   /* ---------- eventos ---------- */

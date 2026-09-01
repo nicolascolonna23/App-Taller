@@ -27,7 +27,8 @@ Nunca usaste Supabase, así que va paso a paso. Es gratis para este tamaño.
    Guardala: la vas a necesitar en el paso 4 y no se puede volver a ver.
 3. Cuando el proyecto termine de crearse, andá a **SQL Editor** → **New query**.
    Pegá el contenido de `01_esquema.sql` y apretá **Run**. Después hacé lo mismo
-   con `02_vistas.sql`. Si no da error, la base quedó lista.
+   con `02_vistas.sql` y con `03_usuarios.sql`, cada uno en una consulta nueva.
+   Si no dan error, la base quedó lista.
 4. Arriba de todo, al lado de donde dice `main PRODUCTION`, está el botón verde
    **Connect**. Hacé clic ahí → **Connection String** → **Session pooler**.
    Copiá esa línea, que es algo así como
@@ -82,7 +83,39 @@ python3 gomeria/cargar_unidades.py gomeria/unidades.csv             # lo hace
 Se puede correr las veces que quieras: actualiza las que ya están y agrega las
 nuevas, sin tocar las cubiertas montadas.
 
-## 3. Levantar el módulo
+## 3. Crear los usuarios
+
+Al módulo se entra con usuario y contraseña: cada parte queda firmado por
+quien lo cargó. Creá el primero, que conviene que sea admin:
+
+```bash
+python3 gomeria/usuarios.py agregar nico "Nicolás Colonna" --rol admin
+```
+
+Te pide la contraseña en el momento y te la hace escribir dos veces, así no
+queda en el historial de la terminal. Después, uno por cada persona que vaya a
+cargar partes:
+
+```bash
+python3 gomeria/usuarios.py agregar ramon "Ramón Gómez"
+python3 gomeria/usuarios.py listar
+```
+
+| Rol | Qué puede |
+|---|---|
+| `operario` | cargar partes de gomería |
+| `encargado` | además confirmar y corregir |
+| `admin` | además administrar usuarios |
+
+Cuando alguien se va, `usuarios.py baja ramon` le corta el acceso y le cierra
+las sesiones abiertas, sin borrar lo que cargó. Si se olvidó la contraseña,
+`usuarios.py clave ramon`.
+
+Las contraseñas no se guardan: se guarda el resultado de pasarlas por scrypt
+con una sal distinta para cada una. Aunque alguien se lleve la tabla entera, no
+puede volver a las contraseñas.
+
+## 4. Levantar el módulo
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...     # o dejalo en chat/clave.txt
@@ -92,15 +125,30 @@ python3 gomeria/servidor.py --host 0.0.0.0
 Imprime la dirección que ven los celulares. La pantalla de una unidad es
 `http://IP:8100/u/PATENTE`.
 
-## 4. Imprimir los QR
+## 5. Imprimir el QR
+
+Hay dos formas, según cómo quieras trabajar.
+
+**Un solo QR para toda la gomería** (lo más simple). Se imprime un cartel, se
+pega en la pared del taller, y el gomero escribe la patente dentro del texto:
+
+```bash
+python3 gomeria/qr.py --base http://192.168.1.45:8100 --uno
+```
+
+**Una etiqueta por unidad**, pegada en cada camión. Al escanear ya sabe de qué
+unidad se trata y no hay que escribir la patente:
 
 ```bash
 python3 gomeria/qr.py --base http://192.168.1.45:8100
 ```
 
+Las dos conviven: si algún día pegás etiquetas por unidad, el cartel general
+sigue funcionando igual.
+
 Usá la IP que imprimió el servidor, no `127.0.0.1`: el QR lo escanea un celular,
 no esta computadora. Deja `etiquetas.html`; se abre en el navegador y se imprime
-con Ctrl+P. Salen en A4, tres por fila, listas para cortar y plastificar.
+con Ctrl+P.
 
 Si la IP del servidor cambia, hay que reimprimir. Por eso conviene pedir una IP
 fija antes de imprimir 53 etiquetas.
