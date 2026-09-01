@@ -31,11 +31,11 @@ Deja armado:
   sube**. Un odómetro no vuelve para atrás; una lectura mala no puede
   bajar el kilometraje bueno.
 - **`v_km_diarios`** — lo que recorrió entre lecturas, con la cantidad de
-  días. Ojo: el scraper corre de lunes a viernes, así que la lectura del
-  lunes trae el fin de semana entero.
-- **`v_km_por_montaje`** — los km que rodó cada cubierta entre que se
-  montó y que se sacó. Esto es lo que hoy depende de que el gomero
-  escriba el kilometraje a mano.
+  días. El scraper queda programado los siete días; si Hawk o el job fallan,
+  la siguiente lectura puede abarcar más de un día.
+- **`v_km_por_montaje`** — toma la primera lectura de Hawk desde la fecha de
+  montaje y la última hasta la fecha del siguiente movimiento en esa posición.
+  La diferencia es lo que rodó la cubierta; el gomero no carga kilómetros.
 - **`v_odometro_ultimo`** — la última lectura de cada unidad y hace
   cuántos días que no reporta.
 
@@ -107,6 +107,18 @@ python subir_odometros.py data/historico.csv
 ```
 
 Son unas 1.700 lecturas, 27 días de 69 unidades.
+
+## Cómo queda el cálculo en la app
+
+Al confirmar un montaje, rotación o desmontaje se guarda su fecha y hora. La
+ficha de la cubierta cruza ese intervalo con `odometros`: primera lectura
+diaria dentro del intervalo contra la última. Cuando al día siguiente entra
+una lectura nueva de Hawk, el valor se actualiza solo.
+
+Si todavía no hay dos días de lecturas, la app muestra **Esperando lecturas
+de Hawk**. Dos movimientos de una misma cubierta en el mismo día pueden dar
+0 km porque Hawk aporta un único odómetro diario; para conocer recorridos
+dentro del día harían falta lecturas con hora.
 
 ## Lo que no engancha, y está bien
 

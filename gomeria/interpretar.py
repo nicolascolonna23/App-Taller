@@ -33,7 +33,7 @@ HERRAMIENTA = {
             },
             "km_unidad": {
                 "type": ["number", "null"],
-                "description": "Kilometraje de la unidad si el texto lo menciona."
+                "description": "Siempre null. El kilometraje se obtiene automáticamente de Hawk."
             },
             "acciones": {
                 "type": "array",
@@ -184,7 +184,9 @@ REGLAS
 9. La cantidad que entra tiene que coincidir con la cantidad que sale. Si no
    coincide, o si hay más cubiertas nombradas que posiciones en ese lugar,
    no inventes: preguntá.
-10. Si menciona un kilometraje, ponelo en km_unidad.
+10. Dejá km_unidad siempre en null. Los kilómetros no los carga el gomero:
+    el sistema los calcula con las lecturas diarias de Hawk y las fechas de
+    montaje y desmontaje.
 11. El resumen tiene que ser entendible por el gomero que lo escribió, en una
     frase, nombrando las posiciones como las nombra él.
 

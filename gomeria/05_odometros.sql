@@ -61,8 +61,8 @@ create trigger tg_odometro_al_dia
 -- KILÓMETROS ENTRE LECTURAS
 -- ---------------------------------------------------------------------
 -- La diferencia contra la lectura anterior de esa misma unidad. Ojo que
--- no siempre son 24 horas: el scraper corre de lunes a viernes, así que
--- la lectura del lunes trae el fin de semana entero. Por eso va también
+-- normalmente son 24 horas, pero si Hawk o el job fallan puede haber más
+-- de un día entre lecturas. Por eso va también
 -- la cantidad de días, y el tope de lo creíble se mide por día y no por
 -- lectura. Un retroceso es un cambio de equipo, no un dato.
 -- ---------------------------------------------------------------------
@@ -105,14 +105,45 @@ select m.id            as montaje_id,
        p.codigo        as posicion,
        m.desde::date   as desde,
        m.hasta::date   as hasta,
-       (select min(o.km) from odometros o
-         where o.unidad_id = m.unidad_id and o.fecha >= m.desde::date) as km_desde,
-       (select max(o.km) from odometros o
-         where o.unidad_id = m.unidad_id
-           and o.fecha <= coalesce(m.hasta::date, current_date))       as km_hasta
+       inicio.fecha    as fecha_lectura_desde,
+       inicio.km       as km_desde,
+       fin.fecha       as fecha_lectura_hasta,
+       fin.km          as km_hasta,
+       case
+         when inicio.km is null or fin.km is null then null
+         when fin.km < inicio.km then null
+         when fin.km - inicio.km >
+              1200 * greatest(fin.fecha - inicio.fecha, 1) then null
+         else fin.km - inicio.km
+       end             as km_recorridos,
+       case
+         when inicio.km is null or fin.km is null then 'pendiente'
+         when fin.km < inicio.km then 'anomalo'
+         when fin.km - inicio.km >
+              1200 * greatest(fin.fecha - inicio.fecha, 1) then 'anomalo'
+         else 'calculado'
+       end             as estado_km
 from montajes m
 join cubiertas c on c.id = m.cubierta_id
-join configuracion_posiciones p on p.id = m.posicion_id;
+join configuracion_posiciones p on p.id = m.posicion_id
+left join lateral (
+  select o.fecha, o.km
+  from odometros o
+  where o.unidad_id = m.unidad_id
+    and o.fecha >= m.desde::date
+    and o.fecha <= coalesce(m.hasta::date, current_date)
+  order by o.fecha asc
+  limit 1
+) inicio on true
+left join lateral (
+  select o.fecha, o.km
+  from odometros o
+  where o.unidad_id = m.unidad_id
+    and o.fecha >= m.desde::date
+    and o.fecha <= coalesce(m.hasta::date, current_date)
+  order by o.fecha desc
+  limit 1
+) fin on true;
 
 -- ---------------------------------------------------------------------
 -- ÚLTIMA LECTURA DE CADA UNIDAD
