@@ -96,6 +96,15 @@
     @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.32; } }
     @media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } }
 
+    .nav-link {
+      display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+      font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase; font-weight: 600;
+      color: var(--ink-2); background: var(--surface-2);
+      border: 1px solid var(--hairline); border-radius: 999px;
+      padding: 6px 12px; white-space: nowrap; transition: color .18s, border-color .18s;
+    }
+    .nav-link:hover { color: var(--brand); border-color: rgba(255,122,26,0.4); }
+
     .btn-refresh {
       font: inherit; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
       font-weight: 600; color: var(--brand); background: var(--brand-soft);
@@ -272,47 +281,18 @@
 
   <!-- ============ HEADER ============ -->
   <div class="topbar">
-    <img src="logo_diemar4.png" alt="Diemar" class="logo">
+    <img src="/logo.png" alt="Diemar" class="logo">
     <div class="brandblock">
       <div class="sub">Expreso Diemar</div>
       <h1>Panel general de flota</h1>
     </div>
     <div class="meta">
+      <a class="nav-link" href="/">‹ Inicio</a>
       <span class="chip" id="chip-fuente" title="Origen de los datos"><span class="dot off"></span><span id="fuente-txt">Sincronizando</span></span>
       <span class="chip" id="chip-update"><span id="update-txt">--:--</span></span>
       <button class="btn-refresh" id="btn-refresh" type="button">Actualizar</button>
     </div>
   </div>
-
-  <!-- ============ ACCESOS A LAS PANTALLAS ============ -->
-  <nav class="accesos" aria-label="Pantallas del taller">
-    <a class="acceso" href="control_flota.html">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/>
-          <circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/>
-        </svg>
-      </span>
-      <span class="txt">
-        <strong>Control de Flota</strong>
-        <span>Services, prefiltros y telemetría por unidad</span>
-      </span>
-      <span class="badge st-sindato" id="badge-flota">—</span>
-    </a>
-
-    <a class="acceso" href="stock_repuestos.html">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 8 12 3 3 8l9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>
-        </svg>
-      </span>
-      <span class="txt">
-        <strong>Stock de Repuestos</strong>
-        <span>Artículos, movimientos y carga de remitos</span>
-      </span>
-      <span class="go" aria-hidden="true">›</span>
-    </a>
-  </nav>
 
   <!-- ============ KPIs ============ -->
   <div class="section-label">Estado general</div>
@@ -344,7 +324,7 @@
     <div class="card-head">
       <h2>Unidades que necesitan atención</h2>
       <span class="spacer"></span>
-      <a class="hint" href="control_flota.html" style="color:var(--brand);text-decoration:none">Ver todas en Control de Flota ›</a>
+      <a class="hint" href="/control" style="color:var(--brand);text-decoration:none">Ver todas en Control de Flota ›</a>
     </div>
     <div class="table-wrap" id="tabla-criticas"></div>
   </div>
@@ -395,8 +375,7 @@
   <div class="foot">
     <span id="foot-fuentes">Datos de las planillas de Google de services y combustible.</span>
     <span class="spacer" style="flex:1"></span>
-    <a href="control_flota.html">Control de Flota</a>
-    <a href="stock_repuestos.html">Stock de Repuestos</a>
+    <a href="/">Volver al inicio</a>
   </div>
 
 </div>

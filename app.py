@@ -35,6 +35,7 @@ import servidor as gom
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
     "/":           ("inicio.html",             "text/html; charset=utf-8"),
+    "/inicio-camion.jpg": ("inicio-camion-hero.jpg", "image/jpeg"),
     "/flota":      ("index.html",              "text/html; charset=utf-8"),
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),

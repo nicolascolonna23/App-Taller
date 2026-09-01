@@ -404,9 +404,6 @@ class Handler(BaseHTTPRequestHandler):
                 cx.commit()
                 return self._error(str(e))
 
-            if propuesta.get("km_unidad"):
-                cx.execute("update unidades set km_actual = %s where id = %s",
-                           (propuesta["km_unidad"], unidad["id"]))
             cx.execute("""update partes set estado='confirmado', resuelto=now(), resuelto_por=%s
                           where id = %s""", (usuario, parte["id"]))
             cx.commit()

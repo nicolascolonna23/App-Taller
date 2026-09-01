@@ -168,6 +168,42 @@ def buscar_cubierta(cx, codigo):
                       (str(codigo).strip(),)).fetchone()
 
 
+def _numero_de_fuego(codigo):
+    """079 y 79 son el mismo número de fuego escrito por dos personas."""
+    plano = "".join(ch for ch in str(codigo).upper() if ch.isalnum())
+    return plano.lstrip("0") or plano
+
+
+def buscar_cubierta_flexible(cx, codigo):
+    """Busca la cubierta como la nombró el gomero en el parte.
+
+    En el parte el número de fuego viene corto y sin ceros a la izquierda
+    ("entran 2 Michelin 079 y 327"), mientras que en la base puede estar
+    cargado con ceros, con guiones o con un prefijo. Primero se prueba el
+    código exacto y recién después el número de fuego suelto.
+
+    Si el número da con más de una cubierta no elige ninguna: avisa cuáles
+    son para que lo escriba completo.
+    """
+    exacta = buscar_cubierta(cx, codigo)
+    if exacta:
+        return exacta
+
+    buscado = _numero_de_fuego(codigo)
+    if not buscado:
+        return None
+
+    candidatas = [c for c in cx.execute("select * from cubiertas").fetchall()
+                  if _numero_de_fuego(c["codigo"]) == buscado]
+    if len(candidatas) == 1:
+        return candidatas[0]
+    if len(candidatas) > 1:
+        cuales = ", ".join(sorted(c["codigo"] for c in candidatas))
+        raise ValueError(f"El número {codigo} da con varias cubiertas ({cuales}). "
+                         f"Escribí el código completo.")
+    return None
+
+
 def stock(cx, medida=None, limite=50):
     if medida:
         return cx.execute("select * from v_stock where medida = %s order by codigo limit %s",
@@ -179,6 +215,67 @@ def historial_cubierta(cx, cubierta_id, limite=40):
     return cx.execute("""
         select * from v_historial_cubierta where cubierta_id = %s limit %s""",
         (cubierta_id, limite)).fetchall()
+
+
+def kilometros_por_montaje(cx, cubierta_id):
+    """Kilómetros de Hawk recorridos por la cubierta en cada montaje.
+
+    El movimiento aporta solamente ``desde``/``hasta``. Para cada intervalo
+    se toma la primera lectura diaria de Hawk dentro del montaje y la última
+    lectura anterior al cierre (o a hoy si sigue montada). Así una lectura
+    que llega después del parte completa el cálculo sin editar el movimiento.
+    """
+    existe = cx.execute(
+        "select to_regclass('public.odometros') as tabla"
+    ).fetchone()
+    if not existe or not existe["tabla"]:
+        return []
+
+    return cx.execute("""
+        select m.id as montaje_id, m.desde, m.hasta, u.patente,
+               p.codigo as posicion,
+               inicio.fecha as fecha_lectura_desde,
+               inicio.km as km_desde,
+               fin.fecha as fecha_lectura_hasta,
+               fin.km as km_hasta,
+               case
+                 when inicio.km is null or fin.km is null then null
+                 when fin.km < inicio.km then null
+                 when fin.km - inicio.km >
+                      1200 * greatest(fin.fecha - inicio.fecha, 1) then null
+                 else fin.km - inicio.km
+               end as km_recorridos,
+               case
+                 when inicio.km is null or fin.km is null then 'pendiente'
+                 when fin.km < inicio.km then 'anomalo'
+                 when fin.km - inicio.km >
+                      1200 * greatest(fin.fecha - inicio.fecha, 1) then 'anomalo'
+                 else 'calculado'
+               end as estado_km
+        from montajes m
+        join unidades u on u.id = m.unidad_id
+        join configuracion_posiciones p on p.id = m.posicion_id
+        left join lateral (
+          select o.fecha, o.km
+          from odometros o
+          where o.unidad_id = m.unidad_id
+            and o.fecha >= m.desde::date
+            and o.fecha <= coalesce(m.hasta::date, current_date)
+          order by o.fecha asc
+          limit 1
+        ) inicio on true
+        left join lateral (
+          select o.fecha, o.km
+          from odometros o
+          where o.unidad_id = m.unidad_id
+            and o.fecha >= m.desde::date
+            and o.fecha <= coalesce(m.hasta::date, current_date)
+          order by o.fecha desc
+          limit 1
+        ) fin on true
+        where m.cubierta_id = %s
+        order by m.desde desc
+    """, (cubierta_id,)).fetchall()
 
 
 def inventario_cubiertas(cx):
@@ -217,8 +314,18 @@ def ficha_cubierta(cx, cubierta_id):
     """, (cubierta_id,)).fetchone()
     if not cubierta:
         return None
+    montajes_km = kilometros_por_montaje(cx, cubierta_id)
+    calculados = [m for m in montajes_km if m["km_recorridos"] is not None]
+    cubierta["km_hawk_total"] = float(sum(m["km_recorridos"] for m in calculados))
+    cubierta["km_hawk_intervalos_calculados"] = len(calculados)
+    cubierta["km_hawk_activo"] = bool(montajes_km)
+    actual = next((m for m in montajes_km if m["hasta"] is None), None)
+    cubierta["km_montaje_actual"] = (
+        float(actual["km_recorridos"])
+        if actual and actual["km_recorridos"] is not None else None)
     return {"cubierta": cubierta,
-            "historial": historial_cubierta(cx, cubierta_id, limite=120)}
+            "historial": historial_cubierta(cx, cubierta_id, limite=120),
+            "montajes_km": montajes_km}
 
 
 # =====================================================================
@@ -319,25 +426,19 @@ def cambiar_estado_cubierta(cx, cubierta_id, estado, usuario=None, nota=None):
 # MOVIMIENTOS
 # =====================================================================
 def _cerrar_montaje(cx, unidad_id, posicion_id, km=None):
-    """Cierra el montaje abierto de esa posición y devuelve la cubierta que salió."""
+    """Cierra el montaje; los km se calculan luego con las lecturas de Hawk."""
     fila = cx.execute("""
-        update montajes set hasta = now(), km_unidad_desmontaje = %s
+        update montajes set hasta = now(), km_unidad_desmontaje = null
         where unidad_id = %s and posicion_id = %s and hasta is null
         returning id, cubierta_id, km_unidad_montaje""",
-        (km, unidad_id, posicion_id)).fetchone()
-    if fila and km is not None and fila["km_unidad_montaje"] is not None:
-        # Los km que rodó en esa posición se acumulan en la ficha de la cubierta.
-        recorridos = float(km) - float(fila["km_unidad_montaje"])
-        if recorridos > 0:
-            cx.execute("update cubiertas set km_acumulados = km_acumulados + %s where id = %s",
-                       (recorridos, fila["cubierta_id"]))
+        (unidad_id, posicion_id)).fetchone()
     return fila
 
 
 def _abrir_montaje(cx, unidad_id, posicion_id, cubierta_id, km=None, nota=None):
     cx.execute("""
         insert into montajes (unidad_id, posicion_id, cubierta_id, km_unidad_montaje, nota)
-        values (%s,%s,%s,%s,%s)""", (unidad_id, posicion_id, cubierta_id, km, nota))
+        values (%s,%s,%s,null,%s)""", (unidad_id, posicion_id, cubierta_id, nota))
     cx.execute("update cubiertas set estado = 'montada' where id = %s", (cubierta_id,))
 
 
@@ -366,6 +467,45 @@ def montar(cx, unidad_id, posicion_id, cubierta_id, km=None, grupo=None, **kw):
     _abrir_montaje(cx, unidad_id, posicion_id, cubierta_id, km, kw.get("nota"))
     _log(cx, grupo, "montaje", unidad_id=unidad_id, cubierta_id=cubierta_id,
          destino_id=posicion_id, km=km, **kw)
+    return grupo
+
+
+def montaje_abierto(cx, unidad_id, posicion_id):
+    """La cubierta que el sistema tiene puesta en esa posición, si tiene alguna."""
+    return cx.execute("""
+        select id, cubierta_id from montajes
+        where unidad_id = %s and posicion_id = %s and hasta is null""",
+        (unidad_id, posicion_id)).fetchone()
+
+
+def donde_esta(cx, cubierta_id):
+    """Si la cubierta figura montada, en qué unidad y en qué posición."""
+    return cx.execute("""
+        select u.patente, p.codigo as posicion
+        from montajes m
+        join unidades u on u.id = m.unidad_id
+        join configuracion_posiciones p on p.id = m.posicion_id
+        where m.cubierta_id = %s and m.hasta is null""",
+        (cubierta_id,)).fetchone()
+
+
+def sacar_de_servicio(cx, cubierta_id, destino="stock", unidad_id=None,
+                      posicion_id=None, km=None, grupo=None, **kw):
+    """Asienta la salida de una cubierta que el sistema no tenía montada.
+
+    Pasa mientras los mapas se están cargando: el gomero saca cubiertas que
+    nunca se registraron puestas. Rechazar el parte entero por eso sería
+    perder el dato que importa, que es dónde queda la cubierta.
+    """
+    grupo = grupo or uuid.uuid4()
+    cx.execute("update cubiertas set estado = %s where id = %s", (destino, cubierta_id))
+    if destino == "baja":
+        cx.execute("""update cubiertas set fecha_baja = current_date, motivo_baja = %s
+                      where id = %s""", (kw.get("nota"), cubierta_id))
+    tipo = {"baja": "baja", "recapado": "recapado",
+            "reparacion": "reparacion"}.get(destino, "desmontaje")
+    _log(cx, grupo, tipo, unidad_id=unidad_id, cubierta_id=cubierta_id,
+         origen_id=posicion_id, km=km, **kw)
     return grupo
 
 
