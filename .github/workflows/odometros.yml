@@ -1,0 +1,44 @@
+name: Odometros a Supabase
+
+# Toma las lecturas del satelital que el scraper de Hawk deja en el repo
+# ServiceDM y las guarda en la tabla odometros de Supabase.
+#
+# Lee data/historico.csv, que es acumulativo: trae todo desde el 29 de
+# julio. Por eso el mismo proceso sirve para la carga inicial y para el
+# día a día — lo que ya está cargado no se duplica, así que correrlo de
+# más no hace nada.
+#
+# Se dispara solo todos los días a las 09:00 de Argentina, una hora
+# después del scraper, y también a mano desde la pestaña Actions con el
+# botón "Run workflow".
+
+on:
+  schedule:
+    - cron: "0 12 * * *"      # 09:00 ART
+  workflow_dispatch:
+
+jobs:
+  cargar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install "psycopg[binary]" pandas
+
+      - name: Traer las lecturas de ServiceDM
+        run: |
+          curl -sSfL -o historico.csv \
+            https://raw.githubusercontent.com/${{ github.repository_owner }}/ServiceDM/main/data/historico.csv
+          echo "filas: $(wc -l < historico.csv)"
+
+      - name: Guardar en Supabase
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: python gomeria/subir_odometros.py historico.csv

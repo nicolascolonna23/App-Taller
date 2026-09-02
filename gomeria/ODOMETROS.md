@@ -15,8 +15,8 @@ que cuelga todo el módulo de gomería.
 | Dónde | Qué |
 |---|---|
 | Supabase | tabla `odometros` + 3 vistas (`05_odometros.sql`) |
-| ServiceDM | `subir_odometros.py` y 5 líneas en `hawk_km.py` |
-| ServiceDM | el secret `SUPABASE_DB_URL` |
+| App-Taller | el workflow `odometros.yml`, que corre solo |
+| App-Taller | el secret `SUPABASE_DB_URL` |
 
 ## Paso 1 — la tabla
 
@@ -39,9 +39,10 @@ Deja armado:
 - **`v_odometro_ultimo`** — la última lectura de cada unidad y hace
   cuántos días que no reporta.
 
-## Paso 2 — el secret
+## Paso 2 — el secret, en GitHub
 
-En ServiceDM: **Settings → Secrets and variables → Actions → New secret**
+En **App-Taller**: Settings → Secrets and variables → Actions → New
+repository secret.
 
 - Nombre: `SUPABASE_DB_URL`
 - Valor: la cadena de conexión de Supabase
@@ -52,61 +53,22 @@ Supabase sí, así que la directa no conecta desde ahí. La del pooler se
 copia en Supabase → *Project Settings* → *Database* → *Connection pooling*
 y se reconoce porque el host termina en `pooler.supabase.com`.
 
-## Paso 3 — el script
+## Paso 3 — apretar el botón
 
-Copiar `subir_odometros.py` a la raíz de ServiceDM, al lado de `hawk_km.py`.
+El workflow `.github/workflows/odometros.yml` hace todo: se baja
+`data/historico.csv` del repo ServiceDM y lo pasa a la base.
 
-En `hawk_km.py`, al final de `main()`, después del bloque que actualiza la
-planilla:
+En App-Taller → pestaña **Actions** → *Odometros a Supabase* → **Run
+workflow**. La primera corrida carga las ~1.700 lecturas que hay desde el
+29 de julio; después queda programado todos los días a las 09:00 de
+Argentina, una hora después del scraper.
 
-```python
-    try:
-        actualizar_sheets(df)
-    except Exception:
-        print("\n[sheets] error al actualizar la planilla:")
-        traceback.print_exc()
+No hace falta tocar nada en ServiceDM. El scraper ya deja el histórico
+commiteado en el repo en cada corrida, y este workflow lo lee de ahí.
 
-    # ---- agregar de acá para abajo ----
-    try:
-        import subir_odometros
-        subir_odometros.subir(df)
-    except Exception:
-        print("\n[supabase] error al subir los odometros:")
-        traceback.print_exc()
-```
-
-Va con su propio `try` igual que la planilla: los Excel ya están escritos y
-un problema de red con la base no tiene que voltear el job.
-
-En `hawk_km.yml`, agregar `psycopg[binary]` a las dependencias y el secret
-al paso que corre el scraper:
-
-```yaml
-      - name: Instalar dependencias
-        run: pip install selenium requests pandas openpyxl gspread google-auth psycopg[binary]
-
-      - name: Correr scraper
-        env:
-          HAWK_USER: ${{ secrets.HAWK_USER }}
-          HAWK_PASS: ${{ secrets.HAWK_PASS }}
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}     # <-- nueva
-          ...
-```
-
-Sin el secret el script avisa y no hace nada, así que el scraper sigue
-andando igual mientras tanto.
-
-## Paso 4 — cargar lo que ya hay
-
-El repo viene guardando `data/historico.csv` desde el 29 de julio. Eso se
-sube de una:
-
-```bash
-export SUPABASE_DB_URL='...la del pooler...'
-python subir_odometros.py data/historico.csv
-```
-
-Son unas 1.700 lecturas, 27 días de 69 unidades.
+`historico.csv` es acumulativo, así que todos los días se manda entero y
+la base se queda solo con lo que no tenía: por eso correrlo de más no
+duplica nada, y el resumen del workflow dice cuántas entraron nuevas.
 
 ## Cómo queda el cálculo en la app
 
