@@ -25,6 +25,10 @@ create table if not exists personas (
   legajo    text,
   sucursal  text,
   telefono  text,
+  -- La unidad que maneja hoy. En la planilla el chofer y el dominio van en
+  -- la misma fila: la VTV y el matafuego son de la unidad, las licencias
+  -- del chofer, pero se miran juntos porque salen juntos a la ruta.
+  unidad_id bigint references unidades(id),
   activa    boolean not null default true,
   creado    timestamptz not null default now()
 );
@@ -51,15 +55,18 @@ create table if not exists tipos_vencimiento (
   activo      boolean not null default true
 );
 
-insert into tipos_vencimiento (nombre, ambito, aviso_dias, meses, varios, orden) values
-  ('VTV',                    'unidad',  45, 12, false, 10),
-  ('Matafuego - carga',      'unidad',  30, 12, true,  20),
-  ('Matafuego - prueba hidráulica', 'unidad', 60, 60, true, 21),
-  ('Seguro',                 'unidad',  30, 12, false, 30),
-  ('RUTA',                   'unidad',  45, 12, false, 40),
-  ('Licencia de conducir',   'persona', 60, null, false, 50),
-  ('LiNTI',                  'persona', 60, 12, false, 60),
-  ('Psicofísico',            'persona', 45, 12, false, 70)
+-- Los cuatro que se controlan hoy, con los nombres de la planilla. Los
+-- demás quedan cargados pero apagados: si alguna vez se empiezan a seguir,
+-- se prenden con un update y aparecen solos en la pantalla.
+insert into tipos_vencimiento (nombre, ambito, aviso_dias, meses, varios, orden, activo) values
+  ('VTV',                    'unidad',  30, 12, false, 10, true),
+  ('Matafuegos',             'unidad',  30, 12, false, 20, true),
+  ('Licencia municipal',     'persona', 30, null, false, 30, true),
+  ('Licencia profesional',   'persona', 30, null, false, 40, true),
+  ('Seguro',                 'unidad',  30, 12, false, 50, false),
+  ('RUTA',                   'unidad',  45, 12, false, 60, false),
+  ('LiNTI',                  'persona', 60, 12, false, 70, false),
+  ('Psicofísico',            'persona', 45, 12, false, 80, false)
 on conflict (nombre) do nothing;
 
 -- ---------------------------------------------------------------------
@@ -141,6 +148,7 @@ select distinct on (v.tipo_id, v.unidad_id, v.persona_id, clave.ident)
        v.id, v.tipo_id, t.nombre as tipo, t.ambito, t.aviso_dias,
        v.unidad_id, u.patente, u.interno, u.sucursal as sucursal_unidad,
        v.persona_id, p.nombre as persona, p.sucursal as sucursal_persona,
+       pu.patente as patente_persona,
        v.identificador, v.detalle, v.desde, v.vence, v.donde,
        v.costo, v.observaciones,
        (v.vence - current_date) as dias,
@@ -154,6 +162,7 @@ from vencimientos v
 join tipos_vencimiento t on t.id = v.tipo_id
 left join unidades u  on u.id = v.unidad_id
 left join personas p  on p.id = v.persona_id
+left join unidades pu on pu.id = p.unidad_id
 cross join lateral (
   -- Sin 'varios' todas las renovaciones son de la misma cosa, así que la
   -- clave es una sola; con 'varios' cada matafuego va por separado.

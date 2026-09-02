@@ -64,8 +64,11 @@ def listar(cx):
             select id, patente, interno, sucursal from unidades
             where activa order by patente""").fetchall()],
         "personas": [dict(p) for p in cx.execute("""
-            select id, nombre, documento, sucursal from personas
-            where activa order by nombre""").fetchall()],
+            select p.id, p.nombre, p.documento, p.sucursal, p.unidad_id,
+                   u.patente as patente_unidad
+            from personas p
+            left join unidades u on u.id = p.unidad_id
+            where p.activa order by p.nombre""").fetchall()],
     }
 
 

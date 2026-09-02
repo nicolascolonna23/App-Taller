@@ -48,6 +48,36 @@
   .tarjeta.por_vencer b{color:var(--warn)}
   .tarjeta.vigente b{color:var(--ok)}
 
+  /* Sucursales, como se miran en el panel: cuánto le falta a cada una. */
+  .sucursales{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));
+    gap:11px;margin-bottom:18px}
+  .suc{background:var(--surface-1);border:1px solid var(--hairline);border-radius:13px;
+    padding:14px;text-align:left;font:inherit;color:inherit;cursor:pointer}
+  .suc:hover{border-color:var(--hairline-2)}
+  .suc.on{border-color:var(--brand);background:var(--brand-soft)}
+  .suc .nombre{display:flex;justify-content:space-between;align-items:center;
+    font-weight:800;letter-spacing:.4px;font-size:13px}
+  .suc .nombre span{color:var(--ink-muted);font-weight:400}
+  .cinta{display:flex;gap:2px;height:5px;margin:10px 0 9px;border-radius:99px;overflow:hidden}
+  .cinta i{display:block;height:100%}
+  .suc .detalle{font-size:11.5px;color:var(--ink-muted)}
+  .suc .detalle b{font-weight:700}
+  .rojo{color:var(--bad)} .ambar{color:var(--warn)} .verde{color:var(--ok)}
+
+  /* Gráfico: cuatro colores fijos por tipo de documento, siempre los mismos. */
+  .grafico{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:16px 16px 8px;margin-bottom:14px}
+  .grafico h2{margin:0 0 3px;font-size:15px;font-weight:600}
+  .grafico .pie2{color:var(--ink-muted);font-size:12px;margin:0 0 12px}
+  .leyenda{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .leyenda span{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+  .leyenda i{width:10px;height:10px;border-radius:3px;display:block}
+  .globo{position:fixed;z-index:40;pointer-events:none;opacity:0;transition:opacity .1s;
+    background:var(--surface-3);border:1px solid var(--hairline-2);border-radius:9px;
+    padding:8px 10px;font-size:12px;box-shadow:0 12px 28px rgba(0,0,0,.5);max-width:230px}
+  .globo b{display:block;margin-bottom:4px}
+  .globo div{display:flex;justify-content:space-between;gap:14px;color:var(--ink-2)}
+
   .barra{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap}
   input,select,textarea{background:var(--surface-2);color:var(--ink);
     border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
@@ -127,8 +157,17 @@
     <button class="tarjeta"            data-filtro="faltante"><b id="n-faltante">–</b><span>Sin cargar</span></button>
   </div>
 
+  <div class="sucursales" id="sucursales"></div>
+
+  <section class="grafico">
+    <h2>Cuándo vencen</h2>
+    <p class="pie2" id="pieGrafico">Los próximos doce meses.</p>
+    <div class="leyenda" id="leyenda"></div>
+    <div id="lienzo"></div>
+  </section>
+
   <div class="barra">
-    <input id="buscar" placeholder="Buscar patente, interno, persona o número">
+    <input id="buscar" placeholder="Buscar patente, interno, chófer o número">
     <select id="filtroTipo"><option value="">Todos los tipos</option></select>
     <button class="btn espacio" id="nuevo">+ Cargar vencimiento</button>
   </div>
@@ -143,6 +182,8 @@
     </table>
   </div>
 </main>
+
+<div class="globo" id="globo"></div>
 
 <div class="fondo" id="modalCarga"><div class="modal">
   <div class="cabecera"><h2 id="tituloCarga">Cargar vencimiento</h2>
@@ -198,7 +239,17 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const D = { datos:null, filtro:'', usuario:null };
+const D = { datos:null, filtro:'', sucursal:'', usuario:null };
+
+// Los cuatro colores de los tipos de documento. Son fijos y van siempre en
+// este orden: el color identifica al documento, no a su posición en la
+// lista, así que filtrar no repinta nada. Validados contra el fondo oscuro
+// para que se distingan también con daltonismo.
+const COLORES = ['#3987e5', '#d95926', '#199e70', '#c98500'];
+const colorDe = tipoId => {
+  const i = (D.datos.tipos || []).findIndex(t => t.id === tipoId);
+  return COLORES[i] || '#8d959e';
+};
 
 async function api(op, extra) {
   const r = await fetch('/api/vencimientos', {
@@ -225,6 +276,138 @@ function cuantoFalta(dias) {
   return `en ${dias} días`;
 }
 
+// ----------------------------------------------------------- sucursales
+function pintarSucursales() {
+  const por = new Map();
+  const cajon = s => {
+    if (!por.has(s)) por.set(s, {vencido:0, por_vencer:0, vigente:0, total:0,
+                                unidades:new Set(), personas:new Set()});
+    return por.get(s);
+  };
+  // Los chóferes y las patentes salen del padrón, no de los documentos: uno
+  // al que todavía no se le cargó nada igual pertenece a la sucursal, y si
+  // no se cuenta, la sucursal parece más chica de lo que es.
+  for (const p of D.datos.personas) if (p.sucursal) cajon(p.sucursal).personas.add(p.nombre);
+  for (const u of D.datos.unidades) if (u.sucursal) cajon(u.sucursal).unidades.add(u.patente);
+  for (const v of D.datos.vencimientos) {
+    const c = cajon(v.sucursal || 'Sin sucursal');
+    c[v.estado]++; c.total++;
+  }
+  const orden = [...por.entries()].sort((a, b) =>
+    (b[1].vencido + b[1].por_vencer) - (a[1].vencido + a[1].por_vencer) || b[1].total - a[1].total);
+
+  $('#sucursales').innerHTML = orden.map(([nombre, c]) => {
+    const trozo = (n, color) => n ? `<i style="flex:${n};background:${color}"></i>` : '';
+    const pendiente = c.vencido + c.por_vencer;
+    return `<button class="suc${D.sucursal === nombre ? ' on' : ''}" data-suc="${esc(nombre)}">
+      <div class="nombre">${esc(nombre)} <span>›</span></div>
+      <div class="cinta">
+        ${trozo(c.vencido, 'var(--bad)')}${trozo(c.por_vencer, 'var(--warn)')}${trozo(c.vigente, 'var(--ok)')}
+      </div>
+      <div class="detalle">
+        ${c.personas.size} chóferes · ${c.unidades.size} patentes ·
+        ${pendiente
+          ? `${c.vencido ? `<b class="rojo">${c.vencido} vencidos</b>` : ''}${c.vencido && c.por_vencer ? ' · ' : ''}${c.por_vencer ? `<b class="ambar">${c.por_vencer} por vencer</b>` : ''}`
+          : '<b class="verde">todo al día</b>'}
+      </div>
+    </button>`;
+  }).join('');
+}
+
+// -------------------------------------------------------------- gráfico
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+/** Los doce meses que vienen, más lo vencido adelante y el resto al final. */
+function baldes() {
+  const hoy = new Date();
+  const lista = [{clave:'vencidos', etiqueta:'vencidos', vencido:true, partes:new Map()}];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() + i, 1);
+    lista.push({clave:`${d.getFullYear()}-${d.getMonth()}`,
+                etiqueta: MESES[d.getMonth()] + (d.getMonth() === 0 || i === 0 ? ` '${String(d.getFullYear()).slice(2)}` : ''),
+                partes:new Map()});
+  }
+  lista.push({clave:'despues', etiqueta:'después', partes:new Map()});
+
+  const indice = new Map(lista.map((b, i) => [b.clave, i]));
+  for (const v of D.datos.vencimientos) {
+    if (D.sucursal && (v.sucursal || 'Sin sucursal') !== D.sucursal) continue;
+    let i;
+    if (v.dias < 0) i = 0;
+    else {
+      const f = new Date(v.vence + 'T00:00:00');
+      i = indice.get(`${f.getFullYear()}-${f.getMonth()}`);
+      if (i === undefined) i = lista.length - 1;
+    }
+    const b = lista[i];
+    b.partes.set(v.tipo_id, (b.partes.get(v.tipo_id) || 0) + 1);
+  }
+  return lista;
+}
+
+function dibujar() {
+  const datos = baldes();
+  const tipos = D.datos.tipos;
+  const alto = 250, arriba = 14, abajo = 26, izq = 30, der = 4;
+  const ancho = Math.max(560, $('#lienzo').clientWidth || 900);
+  const util = ancho - izq - der, cuerpo = alto - arriba - abajo;
+
+  const topes = datos.map(b => [...b.partes.values()].reduce((a, x) => a + x, 0));
+  const maximo = Math.max(1, ...topes);
+  // La escala sube hasta pasar el máximo, si no la barra más alta se corta.
+  let paso = 1;
+  while (Math.ceil(maximo / paso) > 5) paso *= (String(paso)[0] === '1' ? 2 : (String(paso)[0] === '2' ? 2.5 : 2));
+  const tope = Math.ceil(maximo / paso) * paso;
+  const y = v => arriba + cuerpo - (v / tope) * cuerpo;
+  const anchoBalde = util / datos.length;
+  const anchoBarra = Math.min(38, anchoBalde * 0.62);
+
+  let svg = `<svg viewBox="0 0 ${ancho} ${alto}" width="100%" height="${alto}"
+    role="img" aria-label="Vencimientos por mes, apilados por tipo de documento">`;
+
+  // Franja de lo vencido: dice qué es sin tocarle el color a las barras.
+  svg += `<rect x="${izq}" y="${arriba}" width="${anchoBalde}" height="${cuerpo}"
+           fill="rgba(227,93,98,.09)" rx="4"/>`;
+
+  for (let v = 0; v <= tope; v += paso) {
+    svg += `<line x1="${izq}" x2="${ancho - der}" y1="${y(v)}" y2="${y(v)}"
+             stroke="rgba(255,255,255,.07)" stroke-width="1"/>
+            <text x="${izq - 7}" y="${y(v) + 4}" text-anchor="end"
+             fill="#8d959e" font-size="10">${v}</text>`;
+  }
+
+  datos.forEach((b, i) => {
+    const cx = izq + anchoBalde * (i + .5);
+    const total = topes[i];
+    let cursor = y(0);
+    tipos.forEach(t => {
+      const n = b.partes.get(t.id);
+      if (!n) return;
+      const h = (n / tope) * cuerpo;
+      const arribaDe = cursor - h;
+      // 2px de aire entre tramos, para que se lea dónde termina cada uno.
+      svg += `<rect class="tramo" x="${cx - anchoBarra / 2}" y="${arribaDe}"
+               width="${anchoBarra}" height="${Math.max(1, h - 2)}"
+               rx="3" fill="${colorDe(t.id)}"
+               data-mes="${esc(b.etiqueta)}" data-tipo="${esc(t.nombre)}" data-n="${n}"></rect>`;
+      cursor = arribaDe;
+    });
+    if (total) {
+      svg += `<text x="${cx}" y="${y(total) - 6}" text-anchor="middle"
+               fill="#edf0f2" font-size="10.5" font-weight="700">${total}</text>`;
+    }
+    svg += `<text x="${cx}" y="${alto - 8}" text-anchor="middle"
+             fill="${b.vencido ? '#e35d62' : '#8d959e'}" font-size="10">${esc(b.etiqueta)}</text>`;
+  });
+
+  $('#lienzo').innerHTML = svg + '</svg>';
+  $('#leyenda').innerHTML = tipos.map(t =>
+    `<span><i style="background:${colorDe(t.id)}"></i>${esc(t.nombre)}</span>`).join('');
+  $('#pieGrafico').textContent = D.sucursal
+    ? `Los próximos doce meses en ${D.sucursal}.`
+    : 'Los próximos doce meses, en toda la flota.';
+}
+
 // ---------------------------------------------------------------- pintar
 function pintar() {
   const d = D.datos;
@@ -234,16 +417,19 @@ function pintar() {
 
   document.querySelectorAll('.tarjeta').forEach(t =>
     t.classList.toggle('on', t.dataset.filtro === D.filtro));
+  pintarSucursales();
+  dibujar();
 
   const busca = $('#buscar').value.trim().toLowerCase();
   const tipo  = $('#filtroTipo').value;
+  const enSucursal = v => !D.sucursal || (v.sucursal || 'Sin sucursal') === D.sucursal;
 
   if (D.filtro === 'faltante') return pintarFaltantes(busca, tipo);
 
   const filas = d.vencimientos.filter(v =>
-    (!D.filtro || v.estado === D.filtro) &&
+    (!D.filtro || v.estado === D.filtro) && enSucursal(v) &&
     (!tipo || String(v.tipo_id) === tipo) &&
-    (!busca || [v.patente, v.interno, v.persona, v.identificador, v.detalle, v.tipo]
+    (!busca || [v.patente, v.interno, v.persona, v.patente_persona, v.identificador, v.detalle, v.tipo]
        .some(x => String(x || '').toLowerCase().includes(busca))));
 
   $('#filas').innerHTML = filas.length ? filas.map(v => `
@@ -251,6 +437,7 @@ function pintar() {
       <td>${esc(v.tipo)}</td>
       <td><span class="de">${esc(v.patente ? pat(v.patente) : v.persona)}</span>
           ${v.interno ? `<div class="chico">int. ${esc(v.interno)}</div>` : ''}
+          ${v.patente_persona ? `<div class="chico">maneja ${esc(pat(v.patente_persona))}</div>` : ''}
           ${v.sucursal ? `<div class="chico">${esc(v.sucursal)}</div>` : ''}</td>
       <td class="chico">${esc(v.identificador || '')}</td>
       <td class="chico">${esc(v.detalle || '')}</td>
@@ -262,7 +449,8 @@ function pintar() {
     </tr>`).join('')
     : `<tr><td colspan="8" class="vacio">No hay nada acá.</td></tr>`;
 
-  $('#pie').textContent = `${filas.length} de ${d.vencimientos.length} vencimientos cargados.`;
+  $('#pie').textContent = `${filas.length} de ${d.vencimientos.length} documentos controlados`
+    + (D.sucursal ? ` · ${D.sucursal}` : '') + '.';
 }
 
 function pintarFaltantes(busca, tipo) {
@@ -374,6 +562,11 @@ document.addEventListener('click', async ev => {
     D.filtro = D.filtro === b.dataset.filtro ? '' : b.dataset.filtro;
     pintar();
   }
+  if (t.dataset.suc || t.closest('.suc')) {
+    const b = t.closest('.suc');
+    D.sucursal = D.sucursal === b.dataset.suc ? '' : b.dataset.suc;
+    pintar();
+  }
   if (t.dataset.renovar) {
     const v = D.datos.vencimientos.find(x => String(x.id) === t.dataset.renovar);
     abrir('#modalCarga', v);
@@ -405,6 +598,27 @@ document.addEventListener('click', async ev => {
     }
   }
 });
+
+// El globo del gráfico: sin esto una barra apilada es un dibujo lindo del
+// que no se puede sacar ningún número.
+document.addEventListener('mouseover', ev => {
+  const r = ev.target.closest && ev.target.closest('.tramo');
+  if (!r) return;
+  const g = $('#globo');
+  g.innerHTML = `<b>${esc(r.dataset.mes)}</b><div><span>${esc(r.dataset.tipo)}</span>
+    <span>${esc(r.dataset.n)}</span></div>`;
+  g.style.opacity = 1;
+});
+document.addEventListener('mousemove', ev => {
+  const g = $('#globo');
+  if (g.style.opacity !== '1') return;
+  g.style.left = Math.min(ev.clientX + 14, innerWidth - 240) + 'px';
+  g.style.top  = Math.max(8, ev.clientY - 46) + 'px';
+});
+document.addEventListener('mouseout', ev => {
+  if (ev.target.closest && ev.target.closest('.tramo')) $('#globo').style.opacity = 0;
+});
+addEventListener('resize', () => { if (D.datos) dibujar(); });
 
 $('#nuevo').onclick = () => abrir('#modalCarga', null);
 $('#cTipo').onchange = acomodarFormulario;
