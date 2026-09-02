@@ -478,6 +478,31 @@ def montaje_abierto(cx, unidad_id, posicion_id):
         (unidad_id, posicion_id)).fetchone()
 
 
+def odometro_en(cx, patente, fecha):
+    """El kilometraje que tenía esa unidad en esa fecha, según el satelital.
+
+    Se busca la lectura del día y, si no hay (el scraper no corrió, o el
+    equipo no reportó), la más cercana: primero hacia atrás, que es la que
+    no inventa kilómetros que la unidad todavía no había hecho.
+
+    Devuelve el diccionario de la lectura con la distancia en días, o None
+    si de esa unidad no hay ninguna lectura.
+    """
+    plano = "".join(ch for ch in str(patente or "").upper() if ch.isalnum())
+    if not plano:
+        return None
+    return cx.execute("""
+        select patente, fecha, km, ultimo_reporte,
+               (fecha - %s::date) as desvio
+        from odometros
+        where patente = %s
+        order by
+          case when fecha <= %s::date then 0 else 1 end,   -- antes que después
+          abs(fecha - %s::date)
+        limit 1
+    """, (fecha, plano, fecha, fecha)).fetchone()
+
+
 def donde_esta(cx, cubierta_id):
     """Si la cubierta figura montada, en qué unidad y en qué posición."""
     return cx.execute("""

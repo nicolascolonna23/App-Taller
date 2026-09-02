@@ -19,9 +19,9 @@ Configuración, toda por variables de entorno:
 
 Local: python3 app.py
 """
-import json, os, sys, traceback
+import datetime, json, os, sys, traceback
 from http.server import ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs
 
 import psycopg
 import anthropic
@@ -60,6 +60,28 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los repuestos: {e}", 500)
+
+        # El km que tenía una unidad en una fecha. Lo usa el formulario de
+        # service: la fecha del trabajo es la que manda, no la de hoy.
+        if ruta == "/api/odometro":
+            if not self._exigir_sesion():
+                return
+            params = parse_qs(urlparse(self.path).query)
+            patente = (params.get("patente") or [""])[0]
+            fecha = (params.get("fecha") or [""])[0]
+            try:
+                datetime.date.fromisoformat(fecha)
+            except ValueError:
+                return self._error("La fecha tiene que venir como AAAA-MM-DD.")
+            try:
+                with base.conectar() as cx:
+                    fila = base.odometro_en(cx, patente, fecha)
+                return self._responder(gom.jstr(dict(fila) if fila else {"km": None}))
+            except psycopg.errors.UndefinedTable:
+                return self._responder(gom.jstr({"km": None, "sin_tabla": True}))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el odómetro: {e}", 500)
 
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
