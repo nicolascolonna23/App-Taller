@@ -29,7 +29,7 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, repuestos
+import auth, base, repuestos, vencimientos as venc
 import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
@@ -39,6 +39,7 @@ PANTALLAS = {
     "/flota":      ("index.html",              "text/html; charset=utf-8"),
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
+    "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
 }
 
 
@@ -59,6 +60,20 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los repuestos: {e}", 500)
+
+        if ruta == "/api/vencimientos":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(venc.listar(cx)))
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear las tablas de vencimientos. Corré "
+                    "gomeria/06_vencimientos.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los vencimientos: {e}", 500)
 
         # El módulo de gomería vive bajo /gomeria; adentro sigue siendo el de siempre.
         if ruta == "/gomeria" or ruta.startswith("/gomeria/"):
@@ -110,6 +125,29 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el cambio: {e}", 500)
+        if ruta == "/api/vencimientos":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 256 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    resultado = venc.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except psycopg.errors.RaiseException as e:
+                # Los avisos del disparador ya vienen escritos para leer.
+                return self._error(str(e).split("\n")[0].replace("ERROR:  ", ""))
+            except ValueError as e:
+                return self._error(str(e))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar el vencimiento: {e}", 500)
+
         if ruta.startswith("/gomeria/api/"):
             self.path = ruta[len("/gomeria"):]
         return super().do_POST()
@@ -122,14 +160,29 @@ def preparar():
 
     with base.conectar() as cx:
         # base.conectar() devuelve diccionarios, así que la columna se nombra.
+        def existe(tabla):
+            return cx.execute("select to_regclass(%s) as existe",
+                              (f"public.{tabla}",)).fetchone()["existe"]
+
+        # Sin estas la app no puede ni levantar.
         faltan = [t for t in ("unidades", "usuarios", "sesiones",
                               "repuestos_articulos", "repuestos_movimientos")
-                  if not cx.execute("select to_regclass(%s) as existe",
-                                    (f"public.{t}",)).fetchone()["existe"]]
+                  if not existe(t)]
         if faltan:
             raise SystemExit(
                 "A la base le faltan tablas: " + ", ".join(faltan) +
                 "\nCorré los scripts 01 a 04 de gomeria en Supabase.")
+
+        # Las de un módulo agregado después solo apagan ese módulo. Que
+        # falte el SQL de vencimientos no puede dejar sin gomería al taller.
+        opcionales = {
+            "vencimientos": ("vencimientos", "tipos_vencimiento", "personas"),
+            "odómetros":    ("odometros",),
+        }
+        for modulo, tablas in opcionales.items():
+            if any(not existe(t) for t in tablas):
+                print(f"  Sin las tablas de {modulo}: ese módulo va a avisar "
+                      f"que falta correr su script en Supabase.")
 
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
         if inicial:
