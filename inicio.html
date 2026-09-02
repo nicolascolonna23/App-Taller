@@ -43,15 +43,21 @@
 
   .env{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:28px 22px 60px}
   .modulos,.pie{text-align:left}
-  .portada{position:relative;display:flex;min-height:340px;margin-bottom:18px;overflow:hidden;border:1px solid var(--hairline-2);
+  /* La portada toma el alto de la foto en vez de imponerle uno: así se ve
+     entera y no queda aire abajo. El texto va encima, sobre el cielo, que
+     es la parte despejada de la imagen. */
+  .portada{position:relative;display:flex;align-items:center;overflow:hidden;
+    aspect-ratio:1537/424;max-height:330px;min-height:230px;
+    margin-bottom:18px;border:1px solid var(--hairline-2);
     border-radius:20px;background:var(--surface-1);box-shadow:0 24px 55px rgba(0,0,0,.42)}
-  .portada-foto{position:absolute;z-index:0;inset:0 0 0 33%;
-    background:url('/inicio-camion.jpg') center 52%/cover no-repeat;
+  .portada-foto{position:absolute;z-index:0;inset:0;
+    background:url('/inicio-camion.jpg') center 42%/cover no-repeat;
     filter:saturate(.96) contrast(1.03)}
-  .portada::after{content:"";position:absolute;z-index:1;inset:0;
-    background:linear-gradient(90deg,var(--surface-1) 0%,var(--surface-1) 32%,rgba(18,22,26,.9) 38%,rgba(18,22,26,.28) 49%,transparent 61%);pointer-events:none}
-  .portada-copy{position:relative;z-index:2;display:flex;width:42%;min-height:340px;
-    padding:38px;flex-direction:column;justify-content:center}
+  .portada::after{content:"";position:absolute;z-index:1;inset:0;pointer-events:none;
+    background:linear-gradient(100deg,rgba(8,9,11,.92) 0%,rgba(8,9,11,.78) 22%,
+      rgba(8,9,11,.38) 38%,rgba(8,9,11,.10) 53%,transparent 70%)}
+  .portada-copy{position:relative;z-index:2;display:flex;width:min(560px,60%);
+    padding:36px 38px;flex-direction:column;justify-content:center}
   .eyebrow{margin:0 0 9px;color:var(--brand);font-size:10px;font-weight:700;
     letter-spacing:2.4px;text-transform:uppercase}
   h1{margin:0 0 8px;font-size:clamp(30px,3.4vw,42px);line-height:1.08;font-weight:600;
@@ -90,9 +96,10 @@
   @media (max-width:640px){
     .barra{padding:11px 14px}
     .env{padding:14px 12px 40px}
-    .portada{display:flex;min-height:0;border-radius:16px;flex-direction:column}
-    .portada-foto{position:relative;inset:auto;order:1;width:100%;height:220px;
-      background-position:58% center}
+    .portada{display:flex;aspect-ratio:auto;min-height:0;max-height:none;
+      border-radius:16px;flex-direction:column}
+    .portada-foto{position:relative;inset:auto;order:1;width:100%;height:200px;
+      background-position:62% center}
     .portada::after{display:none}
     .portada-copy{order:2;width:100%;min-height:0;padding:24px;justify-content:flex-start}
     h1{font-size:30px}
