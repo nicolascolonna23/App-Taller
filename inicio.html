@@ -82,6 +82,9 @@
   .mod .txt{min-width:0}
   .mod strong{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
   .mod span{font-size:12.5px;color:var(--ink-muted)}
+  /* Con una cantidad impar de tarjetas la última ocuparía media fila y
+     dejaría un hueco: se la estira a lo ancho y la grilla vuelve a cerrar. */
+  .mod:last-child:nth-child(odd){grid-column:1/-1}
   .mod .go{margin-left:auto;color:var(--ink-muted);font-size:20px;flex:none;align-self:center;
     transition:transform .18s,color .18s}
   .mod:hover .go{color:var(--brand);transform:translateX(3px)}
@@ -120,7 +123,7 @@
     <div class="portada-copy">
       <p class="eyebrow">Vencemos distancias</p>
       <h1 id="titulo-inicio">App Taller Diemar</h1>
-      <p class="sub">Gestión de flota, gomería y repuestos en un solo lugar.</p>
+      <p class="sub">Flota, gomería, repuestos y vencimientos en un solo lugar.</p>
     </div>
   </section>
 
@@ -162,6 +165,21 @@
       <span class="txt">
         <strong>Panel de Flota</strong>
         <span>Services, consumo y emisiones de un vistazo</span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+
+    <a class="mod" href="/vencimientos">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/>
+          <path d="M8 3v4"/><path d="M16 3v4"/><path d="M12 14v3"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Vencimientos</strong>
+        <span>VTV, licencias, matafuegos y seguros</span>
       </span>
       <span class="go" aria-hidden="true">›</span>
     </a>
