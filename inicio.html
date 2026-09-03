@@ -111,6 +111,11 @@ main{padding:0;max-width:none}
           <div class="km-num"><b id="km-valor">—</b><span>km</span></div>
           <p class="km-sub" id="km-sub">Cargando…</p>
         </div>
+        <div class="card km" id="consumo" hidden>
+          <div class="km-head"><span><b>Consumo de la flota</b><small>planilla de combustible</small></span></div>
+          <div class="km-num"><b id="cons-valor">—</b><span>L/100 km</span></div>
+          <p class="km-sub" id="cons-sub"></p>
+        </div>
         <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a></div>
         <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Control de flota</strong><small>Services y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
@@ -163,6 +168,120 @@ fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
       `Hay ${nfm.format(d.reponer)} artículo${d.reponer===1?'':'s'} para reponer. Entrá a Repuestos para verlos.`;
     document.getElementById('aviso').hidden=false;
   }
+}).catch(()=>{});
+/* =====================================================================
+   Consumo de la flota
+   ---------------------------------------------------------------------
+   Este número NO sale de la base: los litros viven solo en la planilla
+   COMBUSTIBLE. Se lee igual que en el panel de flota, por CSV público,
+   con las mismas dos hojas y el mismo parseo. Por eso la planilla tiene
+   que seguir compartida como "cualquiera con el enlace puede ver": si
+   deja de estarlo, la tarjeta no aparece y el resto de la portada sigue
+   andando igual.
+   ===================================================================== */
+const COMBUSTIBLE='1u7cckay0IJ60bfoKk2OZo-TjCvTbH9O1wKxNFdSKDCQ';
+const HOJA={lad:'0',flota:'1044040871'};   /* larga distancia · toda la flota */
+const nf1=new Intl.NumberFormat('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const MESES_AR=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const mesLabel=m=>{const p=String(m).split('-');
+  return p.length===2?`${MESES_AR[+p[1]-1]} ${p[0].slice(2)}`:m};
+const mesDe=s=>{const m=String(s||'').trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(!m)return null;let y=m[3];if(y.length===2)y='20'+y;
+  return `${y}-${String(+m[2]).padStart(2,'0')}`};
+const normPat=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const esPatente=s=>{const n=normPat(s);
+  return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(n)||/^[A-Z]{3}\d{3}$/.test(n)};
+/* Números en formato es-AR y en el crudo de gviz: 1.234,5 y 1234.5. */
+function num(v){
+  if(typeof v==='number')return isFinite(v)?v:null;
+  let s=String(v==null?'':v).replace(/[\s$%]/g,'').replace(/(kg|km|lts?)/gi,'').trim();
+  if(!s||s==='-'||s==='—'||!/^[\d.,]+$/.test(s))return null;
+  const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+  if(lc>=0&&ld>=0){const dec=lc>ld?',':'.';
+    s=s.replace(dec===','?/\./g:/,/g,'').replace(dec,'.');}
+  else if(lc>=0)s=/^\d{1,3}(,\d{3})+$/.test(s)?s.replace(/,/g,''):s.replace(',','.');
+  else if(ld>=0&&/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+  const n=parseFloat(s);return isFinite(n)?n:null;
+}
+function parseCSV(t){
+  const filas=[];let fila=[],celda='',comilla=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(comilla){if(c==='"'){if(t[i+1]==='"'){celda+='"';i++}else comilla=false}else celda+=c}
+    else if(c==='"')comilla=true;
+    else if(c===','){fila.push(celda.trim());celda=''}
+    else if(c==='\n'){fila.push(celda.trim());filas.push(fila);fila=[];celda=''}
+    else if(c!=='\r')celda+=c;}
+  if(celda!==''||fila.length){fila.push(celda.trim());filas.push(fila)}
+  return filas.filter(f=>f.some(c=>c!==''));
+}
+async function hoja(gid){
+  try{
+    const u=`https://docs.google.com/spreadsheets/d/${COMBUSTIBLE}/gviz/tq?tqx=out:csv&gid=${gid}&_=${Date.now()}`;
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok)return null;
+    const t=await r.text();
+    if(!t||t.trimStart().startsWith('<'))return null;   /* login de Google */
+    const filas=parseCSV(t);
+    return filas.length>1?filas:null;
+  }catch(e){return null}   /* CORS, red o permisos: la tarjeta no aparece */
+}
+/* Las dos hojas no traen las columnas en el mismo orden: se buscan por nombre. */
+const ALIAS={fecha:['FECHA'],patente:['DOMINIO','PATENTE'],
+  km:['DISTANCIA','KILOMETRAJE'],lts:['LITROS']};
+function leerConsumo(filas){
+  if(!filas)return[];
+  let idx=null,desde=0;
+  for(let i=0;i<Math.min(filas.length,12);i++){
+    const cab=filas[i].map(c=>String(c||'').toUpperCase()),m={};
+    for(const k in ALIAS){const j=cab.findIndex(c=>ALIAS[k].some(a=>c.includes(a)));if(j>=0)m[k]=j}
+    if(m.fecha!==undefined&&m.patente!==undefined){idx=m;desde=i+1;break}
+  }
+  if(!idx)return[];
+  const out=[];
+  for(const r of filas.slice(desde)){
+    const mes=mesDe(r[idx.fecha]);
+    if(!mes||!esPatente(r[idx.patente]))continue;
+    out.push({mes,km:idx.km===undefined?null:num(r[idx.km]),
+                  lts:idx.lts===undefined?null:num(r[idx.lts])});
+  }
+  return out;
+}
+async function consumoPorMes(){
+  const [lad,flota]=await Promise.all([hoja(HOJA.lad),hoja(HOJA.flota)]);
+  if(!lad&&!flota)return[];
+  const meses=new Map();
+  const slot=m=>{if(!meses.has(m))meses.set(m,{mes:m,km:0,lts:0,ladKm:0,ladLts:0});
+    return meses.get(m)};
+  for(const f of leerConsumo(flota)){const s=slot(f.mes);
+    if(f.km>0&&f.lts!=null){s.km+=f.km;s.lts+=f.lts}}
+  for(const f of leerConsumo(lad)){const s=slot(f.mes);
+    if(f.km>0&&f.lts!=null){s.ladKm+=f.km;s.ladLts+=f.lts}}
+  const hoy=new Date();
+  const enCurso=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  return [...meses.values()]
+    /* El mes que está corriendo queda afuera: está a medio cargar y contra un
+       mes entero da siempre una caída que no existe. */
+    .filter(s=>s.mes<enCurso)
+    /* Se suman kilómetros y litros y recién al final se divide: eso es el
+       consumo del mes, no el promedio de los promedios de cada unidad.
+       La hoja de toda la flota ya incluye larga distancia; si no llegara,
+       se usa la de LAD para no dejar el mes en blanco. */
+    .map(s=>({mes:s.mes,c100:s.km>0?s.lts/s.km*100:(s.ladKm>0?s.ladLts/s.ladKm*100:null)}))
+    .filter(s=>s.c100)
+    .sort((a,b)=>a.mes.localeCompare(b.mes));
+}
+consumoPorMes().then(ms=>{
+  if(!ms.length)return;
+  const a=ms[ms.length-1],b=ms[ms.length-2];
+  document.getElementById('cons-valor').textContent=nf1.format(a.c100);
+  let txt=mesLabel(a.mes);
+  if(b){
+    const p=(a.c100-b.c100)/b.c100*100;
+    /* Acá subir es peor: el verde va cuando el consumo baja. */
+    txt+=` · <span class="${p<=0?'sube':'baja'}">${p>=0?'+':''}${nf1.format(p)}%</span> vs. ${mesLabel(b.mes)}`;
+  }
+  document.getElementById('cons-sub').innerHTML=txt;
+  document.getElementById('consumo').hidden=false;
 }).catch(()=>{});
 </script>
 </body>

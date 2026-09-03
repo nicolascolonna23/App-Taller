@@ -11,7 +11,8 @@ GitHub Pages (o desde cualquier servidor de archivos).
 
 ## Planillas de origen
 
-El panel y el control de flota leen en vivo las dos planillas de Google:
+El panel y el control de flota leen en vivo las dos planillas de Google, y la
+portada lee de COMBUSTIBLE el consumo del mes:
 
 - **Services** `10xcMyBI6T4fxLidVu0strLV_tqrKrHJsdPi0y2SP0cU`
   - `gid=743729287` maestro de unidades · `gid=0` services larga distancia
@@ -25,6 +26,12 @@ compartida como "cualquier persona con el enlace puede ver"**. Si no, la pantall
 muestra "Sin acceso a las planillas" en lugar de datos.
 
 Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
+
+La portada muestra los **kilómetros** desde la base (tabla `odometros`, ver
+`gomeria/ODOMETROS.md`) y el **consumo en L/100 km** desde la planilla, porque
+los litros nunca entraron a Supabase. Si la planilla deja de estar compartida,
+la tarjeta de consumo simplemente no aparece y el resto de la portada sigue
+andando.
 
 ## Stock de repuestos: dónde se guardan los datos
 
