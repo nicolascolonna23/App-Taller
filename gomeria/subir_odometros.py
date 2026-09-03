@@ -118,6 +118,11 @@ def subir(df, url=None):
 
     with psycopg.connect(url) as cx:
         with cx.cursor() as cur:
+            # Cuántas había antes, para poder decir después cuántas son
+            # nuevas de verdad. En la corrida de todos los días se manda el
+            # histórico entero, así que informar lo enviado no dice nada.
+            antes = cx.execute("select count(*) from odometros").fetchone()[0]
+
             # El día ya cargado se pisa en vez de duplicarse: así el job se
             # puede volver a correr a mano sin ensuciar la serie.
             cur.executemany("""
@@ -130,17 +135,21 @@ def subir(df, url=None):
                        leido          = now()
             """, filas)
 
+            despues = cx.execute("select count(*) from odometros").fetchone()[0]
             dias = sorted({f[1] for f in filas})
             sin_unidad = cx.execute("""
                 select count(distinct patente) from odometros
                 where fecha between %s and %s and unidad_id is null""",
                 (dias[0], dias[-1])).fetchone()[0]
 
-    print(f"\n[supabase] {len(filas)} lecturas guardadas")
+    nuevas = despues - antes
+    print(f"\n[supabase] {len(filas)} lecturas leidas del archivo")
+    print(f"[supabase] {nuevas} nuevas, {len(filas) - nuevas} ya estaban")
+    print(f"[supabase] la tabla queda con {despues} lecturas")
     if sin_unidad:
         print(f"[supabase] {sin_unidad} patentes no estan en la tabla unidades "
               f"(la lectura queda guardada igual)")
-    return len(filas)
+    return nuevas
 
 
 if __name__ == "__main__":
@@ -155,4 +164,4 @@ if __name__ == "__main__":
     datos = pd.read_csv(sys.argv[1]) if sys.argv[1].endswith(".csv") \
         else pd.read_excel(sys.argv[1])
     print(f"{len(datos)} filas en {sys.argv[1]}")
-    print(f"guardadas: {subir(datos)}")
+    print(f"nuevas: {subir(datos)}")
