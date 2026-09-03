@@ -68,11 +68,13 @@
 
   /* ---------------------------------------------------------------- foto */
   .vista{position:relative;overflow:hidden;background:#0c0f12}
+  /* La foto es 3:2 y el hueco en una pantalla ancha queda parecido, así que
+     entra casi sin recorte. */
   .vista .foto{position:absolute;inset:0;
-    background:url('/inicio-camion.jpg') center 42%/cover no-repeat}
+    background:url('/inicio-camion.jpg') center center/cover no-repeat}
   .vista::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:linear-gradient(180deg,rgba(8,9,11,.34) 0%,transparent 20%,
-      transparent 34%,rgba(8,9,11,.62) 68%,rgba(8,9,11,.9) 100%)}
+    background:linear-gradient(180deg,rgba(8,9,11,.3) 0%,transparent 16%,
+      transparent 44%,rgba(8,9,11,.55) 74%,rgba(8,9,11,.88) 100%)}
 
   .encima{position:absolute;z-index:2;left:0;right:0;bottom:0;
     padding:22px clamp(18px,3vw,34px)}
@@ -112,7 +114,14 @@
     .lado .rot,.lado .abajo{display:none}
     .nav{flex:none;padding:9px 13px;background:var(--surface-2);white-space:nowrap}
     .nav b{font-size:13px}
-    .vista{height:min(74vh,620px)}
+    /* La foto toma lo que queda de pantalla, así no aparece un hueco negro
+       abajo de las cifras. dvh cuenta la barra del navegador del celular,
+       que aparece y desaparece al desplazarse. */
+    .vista{height:calc(100dvh - var(--barra) - 61px);min-height:440px}
+    /* En vertical se recorta mucho de los costados: se corre al camión para
+       no quedarse con el pasto, y un poco arriba para que la trompa no
+       termine tapada por las cifras. */
+    .vista .foto{background-position:62% 34%}
     .encima{padding:16px 14px}
     /* El saludo y la fecha en dos renglones: en un teléfono lado a lado se
        parten por la mitad las dos cosas. */
