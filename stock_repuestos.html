@@ -346,6 +346,23 @@ function estado(a,st){
 }
 function art(cod){ return S.arts.find(a=>a.codigo===cod); }
 
+/* La hoja de etiquetas sigue el filtro que se esté mirando: si estás viendo
+   un rubro, salen las de ese rubro y no las cuatrocientas. */
+function enlaceEtiquetas(){
+  var p = new URLSearchParams();
+  if(S.fStock.rubro) p.set("rubro", S.fStock.rubro);
+  else if(S.fStock.q){
+    // Con una búsqueda escrita se imprimen justo los que quedaron a la vista.
+    var q = norm(S.fStock.q);
+    var cods = S.arts.filter(a=>a.activo && (norm(a.descripcion).includes(q) ||
+      norm(a.codigo).includes(q) || norm(a.interno).includes(q)))
+      .map(a=>a.codigo);
+    if(cods.length && cods.length < S.arts.length) p.set("codigos", cods.join(","));
+  }
+  var q = p.toString();
+  return "/repuestos/etiquetas" + (q ? "?" + q : "");
+}
+
 function toast(msg){
   var el=document.getElementById("toast");
   el.innerHTML='<div class="toast">'+esc(msg)+'</div>';
@@ -394,6 +411,7 @@ function vistaStock(mp){
       .map(o=>'<option value="'+o[0]+'" '+(f.estado===o[0]?"selected":"")+'>'+o[1]+'</option>').join("")+'</select>'+
     (S.puedeGestionar?'<button class="btn" data-act="nuevo-art">+ Repuesto nuevo</button>':'')+
     '<button class="btn ghost" data-act="nuevo-mov">Cargar movimiento</button>'+
+    '<a class="btn ghost" href="'+enlaceEtiquetas()+'" target="_blank" rel="noopener">Etiquetas QR</a>'+
     '<span class="count">'+lista.length+' de '+S.arts.length+'</span></div>';
 
   if(!lista.length) return h+'<div class="card"><div class="empty"><b>Sin resultados</b>Cambiá el filtro o cargá un repuesto nuevo.</div></div>';
@@ -704,9 +722,30 @@ document.addEventListener("keydown", e=>{
   }
 });
 
+/* El código que dejó un QR escaneado: /repuestos/FIL-1234 */
+function codigoDeLaUrl(){
+  var m = /^\/repuestos\/(.+)$/.exec(location.pathname);
+  if(!m) return "";
+  var cod = decodeURIComponent(m[1]).replace(/\/$/, "");
+  return cod === "etiquetas" ? "" : cod;
+}
+
+/* Abre la salida de ese repuesto, que es a lo que se escanea una etiqueta.
+   Si el código no existe se avisa en vez de abrir un formulario vacío: casi
+   siempre es una etiqueta vieja de un artículo que se dio de baja. */
+function abrirDesdeQR(cod){
+  if(!cod) return;
+  if(art(cod)) modalMov(cod, "Salida");
+  else toast("No encontré el repuesto " + cod);
+  // La dirección vuelve a /repuestos para que refrescar no reabra el
+  // formulario, y para que el botón atrás del celular salga de la app.
+  history.replaceState(null, "", "/repuestos");
+}
+
 /* arranque */
 (async function(){
-  try{ await cargar(); pintar(); marcar(); }
+  var cod = codigoDeLaUrl();
+  try{ await cargar(); pintar(); marcar(); abrirDesdeQR(cod); }
   catch(e){ marcar("Sin conexión"); document.getElementById("view").innerHTML=
     '<div class="panel"><h3>No se pudieron cargar los repuestos</h3><p>'+esc((e&&e.message)||e)+'</p></div>'; }
   setInterval(function(){ if(!M) refrescar(true); },45000);
