@@ -21,7 +21,7 @@ Local: python3 app.py
 """
 import datetime, json, os, sys, traceback
 from http.server import ThreadingHTTPServer
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, unquote
 
 import psycopg
 import anthropic
@@ -29,7 +29,7 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, repuestos, vencimientos as venc
+import auth, base, etiquetas, repuestos, vencimientos as venc
 import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
@@ -60,6 +60,35 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los repuestos: {e}", 500)
+
+        # La hoja de etiquetas QR para pegar en los estantes.
+        if ruta == "/repuestos/etiquetas":
+            if not self._exigir_sesion():
+                return
+            params = parse_qs(urlparse(self.path).query)
+            codigos = [c for c in (params.get("codigos") or [""])[0].split(",") if c]
+            try:
+                with base.conectar() as cx:
+                    # La dirección tiene que ser la que ve el celular que
+                    # escanea, no la del servidor: sale del pedido.
+                    esquema = "https" if self._es_https() else "http"
+                    origen = f"{esquema}://{self.headers.get('Host', '')}"
+                    pagina = etiquetas.hoja(cx, origen,
+                                            rubro=(params.get("rubro") or [""])[0] or None,
+                                            codigos=codigos or None)
+                return self._responder(pagina.encode(), "text/html; charset=utf-8")
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron armar las etiquetas: {e}", 500)
+
+        # Lo que deja un QR escaneado: la pantalla de repuestos parada en
+        # ese código. Cuál es lo resuelve la propia página con la dirección.
+        if ruta.startswith("/repuestos/"):
+            if not self._exigir_sesion():
+                return
+            entero = os.path.join(AQUI, "stock_repuestos.html")
+            return self._responder(open(entero, "rb").read(),
+                                   "text/html; charset=utf-8")
 
         # El km que tenía una unidad en una fecha. Lo usa el formulario de
         # service: la fecha del trabajo es la que manda, no la de hoy.
