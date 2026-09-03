@@ -9,6 +9,15 @@ GitHub Pages (o desde cualquier servidor de archivos).
 | `control_flota.html` | Control de flota y mantenimiento: services, prefiltros y telemetría por unidad. |
 | `stock_repuestos.html` | Stock de repuestos: artículos, movimientos y carga de remitos. |
 
+## De dónde sale cada dato
+
+La información de las unidades —marca, modelo, chasis, chofer, semi,
+residencia y uso— vive en Supabase, en la tabla `unidades`, y se edita desde
+la pantalla `/unidades`. Ver `gomeria/UNIDADES.md`.
+
+Los tableros la piden a `/api/flota`; si la base no contesta, vuelven a leer
+la planilla, que queda como respaldo.
+
 ## Planillas de origen
 
 El panel y el control de flota leen en vivo las dos planillas de Google, y la

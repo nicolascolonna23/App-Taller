@@ -26,12 +26,9 @@ main{padding:0;max-width:none}
   background:linear-gradient(180deg,rgba(9,11,14,.55) 0%,rgba(9,11,14,.12) 26%,
     rgba(9,11,14,.2) 58%,rgba(9,11,14,.82) 100%)}
 .visual,.summary{position:relative;z-index:1}
-/* El bloque de texto pierde la caja: queda apoyado sobre la foto. */
+/* La foto sola: sin título ni bajada, esto no es una página web. */
 .visual{min-height:0;border:0;border-radius:0;background:none;overflow:visible}
 .visual::before{display:none}
-.visual-content{padding:0 0 4px}
-.visual h1{text-shadow:0 3px 26px rgba(0,0,0,.7)}
-.visual p{text-shadow:0 2px 14px rgba(0,0,0,.75)}
 /* Las tarjetas del resumen se apoyan sobre la imagen, translúcidas. */
 .summary .card{background:rgba(15,20,25,.74);backdrop-filter:blur(16px) saturate(1.15);
   border-color:rgba(255,255,255,.14)}
@@ -69,7 +66,6 @@ main{padding:0;max-width:none}
     background:linear-gradient(180deg,rgba(9,11,14,.42) 0%,rgba(9,11,14,.06) 34%,
       rgba(9,11,14,.72) 82%,rgba(9,11,14,.97) 100%),
       url('/inicio-camion.jpg') 62% center/cover no-repeat}
-  .visual-content{padding:0}
   .summary .card{background:var(--panel);backdrop-filter:none;border-color:var(--line)}
   .summary-head h2,.summary-head span{text-shadow:none}
 }
@@ -89,6 +85,7 @@ main{padding:0;max-width:none}
       <a href="/gomeria"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Gomería</span></a>
       <a href="/repuestos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Repuestos</span></a>
       <a href="/flota"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 19V6"/><path d="m4 15 5-4 4 3 7-6"/></svg><span>Panel de flota</span></a>
+      <a href="/unidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="9" width="13" height="7" rx="1"/><path d="M16 11h3l2 3v2h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>Unidades</span></a>
       <a href="/control"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Control de flota</span></a>
     </nav>
     <div class="side-footer"><strong>App Taller Diemar</strong>Gestión de operaciones</div>
@@ -96,7 +93,7 @@ main{padding:0;max-width:none}
   <main>
     <header class="topbar"><div class="context"><b>Operación de hoy</b><span id="fecha">Cargando fecha…</span></div><div class="person" id="quien"><span class="avatar">DN</span></div></header>
     <div class="workspace">
-      <section class="visual" aria-label="Acceso a la flota"><div class="visual-content"><p class="eyebrow">Flota en movimiento</p><h1>Todo el taller, en un mismo ritmo.</h1><p>Accedé al estado de las unidades, la gomería y el stock sin salir de la operación.</p><a class="button" href="/flota">Ver panel de flota <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></section>
+      <section class="visual" aria-hidden="true"></section>
       <section class="summary" aria-label="Resumen operativo">
         <div class="summary-head"><h2>Resumen operativo</h2><span>Accesos rápidos</span></div>
         <div class="card km" id="km">
@@ -117,7 +114,7 @@ main{padding:0;max-width:none}
           <p class="km-sub" id="cons-sub"></p>
         </div>
         <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a></div>
-        <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Control de flota</strong><small>Services y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
+        <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/unidades"><span class="quick-icon">▤</span><span><strong>Unidades</strong><small>El maestro de la flota</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Control de flota</strong><small>Services y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>

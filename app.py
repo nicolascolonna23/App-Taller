@@ -9,6 +9,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /control     control de flota y mantenimiento
     /repuestos   stock de repuestos
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
+    /unidades    maestro de unidades: de acá sale la info de cada vehículo
 
 Configuración, toda por variables de entorno:
 
@@ -29,7 +30,8 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, etiquetas, inicio, repuestos, vencimientos as venc
+import auth, base, etiquetas, inicio, repuestos, unidades as uni
+import vencimientos as venc
 import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
@@ -44,6 +46,7 @@ PANTALLAS = {
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
+    "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
 }
 
 
@@ -126,6 +129,39 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el odómetro: {e}", 500)
+
+        # El maestro con la forma que esperan los tableros de flota. Antes lo
+        # sacaban de la planilla; ahora la planilla es una copia y el que
+        # manda es este.
+        if ruta == "/api/flota":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(uni.para_tablero(cx)))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el maestro: {e}", 500)
+
+        # El maestro de unidades. De acá sale la información de cada vehículo
+        # para el resto del sistema, así que la pantalla lee la vista entera.
+        if ruta == "/api/unidades":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(uni.listar(cx)))
+            except psycopg.errors.UndefinedColumn:
+                return self._error(
+                    "Al maestro de unidades le faltan columnas. Corré "
+                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear la vista de unidades. Corré "
+                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el maestro de unidades: {e}", 500)
 
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
@@ -214,9 +250,47 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el vencimiento: {e}", 500)
 
+        if ruta == "/api/unidades":
+            return self._unidad_escribir()
+
         if ruta.startswith("/gomeria/api/"):
             self.path = ruta[len("/gomeria"):]
         return super().do_POST()
+
+
+    def do_DELETE(self):
+        ruta = urlparse(self.path).path
+        if ruta == "/api/unidades":
+            return self._unidad_escribir(borrar=True)
+        return self._error("No existe", 404)
+
+    def _unidad_escribir(self, borrar=False):
+        """El alta, el cambio y la baja del maestro comparten todo salvo una línea."""
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 64 * 1024:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            with base.conectar() as cx:
+                if borrar:
+                    salida = uni.eliminar(cx, datos.get("id"), self.usuario)
+                else:
+                    salida = uni.guardar(cx, datos, self.usuario)
+                cx.commit()
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except ValueError as e:
+            return self._error(str(e))
+        except psycopg.errors.UndefinedColumn:
+            return self._error(
+                "Al maestro de unidades le faltan columnas. Corré "
+                "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo guardar la unidad: {e}", 500)
 
 
 def preparar():
@@ -249,6 +323,16 @@ def preparar():
             if any(not existe(t) for t in tablas):
                 print(f"  Sin las tablas de {modulo}: ese módulo va a avisar "
                       f"que falta correr su script en Supabase.")
+
+        # El maestro no es una tabla nueva sino columnas agregadas a una que
+        # ya estaba, así que se pregunta por una de ellas.
+        tiene_maestro = cx.execute("""
+            select count(*) as n from information_schema.columns
+            where table_schema = 'public' and table_name = 'unidades'
+              and column_name in ('chasis','chofer','semi','tipo')""").fetchone()["n"]
+        if tiene_maestro < 4:
+            print("  Al maestro de unidades le faltan columnas: corré "
+                  "gomeria/07_unidades.sql en Supabase.")
 
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
         if inicial:
