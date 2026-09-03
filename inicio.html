@@ -8,9 +8,75 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root{color-scheme:dark;--bg:#090b0e;--panel:#12171c;--panel-2:#171e24;--line:rgba(255,255,255,.08);--ink:#f3f5f6;--muted:#9099a4;--orange:#ff7a1a;--orange-soft:rgba(255,122,26,.13);--radius:18px}*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased}.shell{min-height:100vh;display:grid;grid-template-columns:230px minmax(0,1fr)}.sidebar{position:sticky;top:0;height:100vh;padding:24px 16px;border-right:1px solid var(--line);background:#0d1115;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:11px;padding:0 8px 28px;border-bottom:1px solid var(--line)}.brand img{width:55px;max-height:32px;object-fit:contain}.brand span{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);text-transform:uppercase}.nav-label{margin:25px 9px 10px;font-size:10px;font-weight:700;letter-spacing:1.8px;color:#69737e;text-transform:uppercase}.nav{display:grid;gap:5px}.nav a{display:flex;align-items:center;gap:12px;padding:12px 10px;color:#b6bdc5;text-decoration:none;border-radius:11px;font-weight:500;transition:.18s background,.18s color}.nav a:hover,.nav a:focus-visible{color:var(--ink);background:#181f25;outline:none}.nav a.primary{color:#fff;background:var(--orange)}.nav svg{width:19px;height:19px;flex:none;stroke:currentColor}.side-footer{margin-top:auto;padding:16px 8px 0;border-top:1px solid var(--line);font-size:11px;color:#727c86}.side-footer strong{color:#d9dfe4;display:block;font-size:12px;margin-bottom:3px}main{min-width:0;padding:24px 32px 34px;max-width:1540px;width:100%;margin:auto}.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:22px}.context{color:var(--muted);font-size:13px}.context b{display:block;color:var(--ink);font-size:16px;margin-bottom:3px}.person{display:flex;align-items:center;gap:11px;color:var(--muted);font-size:13px}.avatar{width:31px;height:31px;border-radius:50%;display:grid;place-items:center;background:var(--orange-soft);border:1px solid rgba(255,122,26,.32);color:var(--orange);font-size:12px;font-weight:700}.workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,.72fr);gap:18px}.visual{position:relative;min-height:calc(100vh - 125px);overflow:hidden;border:1px solid var(--line);border-radius:var(--radius);background:#12171c;isolation:isolate}.visual::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(8,11,14,.84) 0%,rgba(8,11,14,.4) 40%,rgba(8,11,14,.04) 70%),url('/inicio-camion.jpg') center/cover no-repeat;z-index:-1}.visual-content{height:100%;display:flex;flex-direction:column;justify-content:flex-end;padding:34px}.eyebrow{margin:0 0 10px;font-size:10px;font-weight:700;letter-spacing:2.1px;color:var(--orange);text-transform:uppercase}.visual h1{max-width:440px;margin:0;font-size:clamp(28px,3vw,44px);line-height:1.08;letter-spacing:-.045em}.visual p{max-width:400px;margin:13px 0 22px;color:#c5cbd0;line-height:1.55}.button{display:inline-flex;width:max-content;align-items:center;gap:8px;border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:11px 14px;color:#fff;text-decoration:none;font-size:13px;font-weight:600;background:rgba(9,11,14,.45);backdrop-filter:blur(9px)}.button:hover{border-color:var(--orange);color:#fff}.button svg{width:16px}.summary{display:flex;min-height:0;flex-direction:column;gap:12px}.summary-head{display:flex;align-items:flex-end;justify-content:space-between;padding:2px 2px 1px}.summary-head h2{margin:0;font-size:15px;letter-spacing:-.015em}.summary-head span{font-size:11px;color:var(--muted)}.card{border:1px solid var(--line);border-radius:15px;background:var(--panel);padding:17px}.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.stat{min-height:116px;display:flex;flex-direction:column;justify-content:space-between}.stat .icon{width:32px;height:32px;display:grid;place-items:center;border-radius:9px;color:var(--orange);background:var(--orange-soft);border:1px solid rgba(255,122,26,.22)}.stat svg{width:17px}.stat b{font-size:24px;letter-spacing:-.04em}.stat small{color:var(--muted);font-size:11px}.quick{padding:6px}.quick a{display:flex;align-items:center;gap:11px;padding:12px;text-decoration:none;color:var(--ink);border-radius:11px}.quick a:hover{background:var(--panel-2)}.quick .quick-icon{width:33px;height:33px;display:grid;place-items:center;border-radius:9px;background:#1d252c;color:#cbd2d8}.quick svg{width:17px}.quick strong{font-size:13px;display:block}.quick small{display:block;margin-top:3px;color:var(--muted);font-size:11px}.arrow{margin-left:auto;color:#78828d;font-size:20px}.notice{display:flex;gap:10px;align-items:flex-start;background:linear-gradient(135deg,rgba(255,122,26,.13),rgba(255,122,26,.04));border-color:rgba(255,122,26,.25)}.notice svg{width:18px;color:var(--orange);flex:none;margin-top:1px}.notice b{font-size:12px}.notice p{margin:4px 0 0;color:#aeb5bc;font-size:11px;line-height:1.45}
-@media(max-width:980px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;padding:15px 18px;border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;gap:20px}.brand{padding:0;border:0}.nav-label,.side-footer{display:none}.nav{display:flex;gap:3px;overflow:auto}.nav a{padding:9px;white-space:nowrap}.nav a span{display:none}.workspace{grid-template-columns:1fr}.visual{min-height:440px}.summary{display:grid;grid-template-columns:1fr 1fr}.summary-head,.quick,.notice{grid-column:span 1}.summary-head{display:block}.summary-head span{display:block;margin-top:4px}.quick{grid-row:span 2}}@media(max-width:640px){main{padding:16px}.sidebar{padding:12px}.brand img{width:45px}.brand span{display:none}.nav a{padding:8px}.topbar{margin-bottom:16px}.context b{font-size:14px}.person{font-size:0}.workspace{gap:14px}.visual{min-height:480px}.visual::before{background:linear-gradient(0deg,rgba(8,11,14,.88) 0%,rgba(8,11,14,.16) 75%),url('/inicio-camion.jpg') 58% center/cover no-repeat}.visual-content{padding:23px}.visual h1{font-size:31px}.summary{display:block}.summary-head{margin:16px 2px 10px}.summary>*+*{margin-top:12px}.quick{padding:6px}.stat-grid{gap:10px}.stat{min-height:105px}}
-.visual::before{background-image:linear-gradient(90deg,rgba(8,11,14,.84) 0%,rgba(8,11,14,.4) 40%,rgba(8,11,14,.04) 70%),url('/inicio-camion-hero.jpg')}
-@media(max-width:640px){.visual::before{background-image:linear-gradient(0deg,rgba(8,11,14,.88) 0%,rgba(8,11,14,.16) 75%),url('/inicio-camion-hero.jpg')}}
+@media(max-width:980px){.shell{grid-template-columns:1fr}.sidebar{position:static;height:auto;padding:15px 18px;border-right:0;border-bottom:1px solid var(--line);flex-direction:row;align-items:center;gap:20px}.brand{padding:0;border:0}.nav-label,.side-footer{display:none}.nav{display:flex;gap:3px;overflow:auto}.nav a{padding:9px;white-space:nowrap}.nav a span{display:none}.workspace{grid-template-columns:1fr}.visual{min-height:440px}.summary{display:grid;grid-template-columns:1fr 1fr}.summary-head,.quick,.notice{grid-column:span 1}.km{grid-column:1/-1}.summary-head{display:block}.summary-head span{display:block;margin-top:4px}.quick{grid-row:span 2}}@media(max-width:640px){main{padding:16px}.sidebar{padding:12px}.brand img{width:45px}.brand span{display:none}.nav a{padding:8px}.topbar{margin-bottom:16px}.context b{font-size:14px}.person{font-size:0}.workspace{gap:14px}.visual{min-height:480px}.visual::before{background:linear-gradient(0deg,rgba(8,11,14,.88) 0%,rgba(8,11,14,.16) 75%),url('/inicio-camion.jpg') 58% center/cover no-repeat}.visual-content{padding:23px}.visual h1{font-size:31px}.summary{display:block}.summary-head{margin:16px 2px 10px}.summary>*+*{margin-top:12px}.quick{padding:6px}.stat-grid{gap:10px}.stat{min-height:105px}}
+
+/* ---------------------------------------------------------------------
+   La foto no va adentro de una tarjeta con borde y esquinas redondeadas:
+   ocupa el fondo entero del área de trabajo, de borde a borde. El velo
+   solo oscurece lo justo para que se lea lo que va encima.
+   --------------------------------------------------------------------- */
+main{padding:0;max-width:none}
+.topbar{padding:20px clamp(18px,2.4vw,32px) 0;margin-bottom:16px}
+.workspace{position:relative;display:grid;gap:18px;min-height:calc(100vh - 96px);
+  padding:0 clamp(18px,2.4vw,32px) clamp(18px,2.4vw,32px);
+  grid-template-columns:minmax(0,1fr) minmax(320px,380px)}
+.workspace::before{content:"";position:absolute;inset:0;z-index:0;
+  background:url('/inicio-camion.jpg') center 46%/cover no-repeat}
+.workspace::after{content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(9,11,14,.55) 0%,rgba(9,11,14,.12) 26%,
+    rgba(9,11,14,.2) 58%,rgba(9,11,14,.82) 100%)}
+.visual,.summary{position:relative;z-index:1}
+/* El bloque de texto pierde la caja: queda apoyado sobre la foto. */
+.visual{min-height:0;border:0;border-radius:0;background:none;overflow:visible}
+.visual::before{display:none}
+.visual-content{padding:0 0 4px}
+.visual h1{text-shadow:0 3px 26px rgba(0,0,0,.7)}
+.visual p{text-shadow:0 2px 14px rgba(0,0,0,.75)}
+/* Las tarjetas del resumen se apoyan sobre la imagen, translúcidas. */
+.summary .card{background:rgba(15,20,25,.74);backdrop-filter:blur(16px) saturate(1.15);
+  border-color:rgba(255,255,255,.14)}
+.summary-head h2,.summary-head span{text-shadow:0 2px 12px rgba(0,0,0,.7)}
+/* Los kilómetros de la flota son el número que más se mira: van arriba de
+   todo, con el selector de período al lado del título y no debajo. */
+.km-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.km-head b{display:block;font-size:13px}
+.km-head small{display:block;margin-top:2px;color:var(--muted);font-size:11px}
+.km-tabs{display:flex;gap:2px;flex:none;padding:2px;border-radius:9px;background:rgba(255,255,255,.07)}
+.km-tabs button{border:0;border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;
+  font-weight:600;color:var(--muted);background:none;cursor:pointer;transition:.15s}
+.km-tabs button:hover{color:var(--ink)}
+.km-tabs button.on{color:#fff;background:var(--orange)}
+.km-num{display:flex;align-items:baseline;gap:6px;margin-top:13px}
+.km-num b{font-size:33px;letter-spacing:-.045em;font-variant-numeric:tabular-nums}
+.km-num span{color:var(--muted);font-size:12px}
+.km-sub{margin:7px 0 0;color:var(--muted);font-size:11px;line-height:1.5}
+.km-sub .sube{color:#2fbd83;font-weight:600}
+.km-sub .baja{color:#ff8f6b;font-weight:600}
+[hidden]{display:none!important}
+/* El número y su rótulo son dos renglones, no una frase pegada. */
+.stat b,.stat small{display:block}
+.stat small{margin-top:3px}
+@media(max-width:980px){
+  .workspace{grid-template-columns:1fr;min-height:0;padding-bottom:24px}
+  /* Acá la foto deja de ser el fondo de todo: si cubre el scroll entero, las
+     tarjetas del resumen terminan apoyadas sobre la trompa del camión y no
+     se lee ni el número ni el rótulo. Queda detrás del bloque de arriba y
+     el resto vuelve al fondo liso. */
+  .workspace::before,.workspace::after{display:none}
+  .visual{position:relative;display:flex;align-items:flex-end;min-height:56vh;overflow:hidden;
+    margin:0 calc(-1 * clamp(18px,2.4vw,32px));padding:0 clamp(18px,2.4vw,32px) 24px}
+  .visual::before{content:"";display:block;position:absolute;inset:0;z-index:-1;
+    background:linear-gradient(180deg,rgba(9,11,14,.42) 0%,rgba(9,11,14,.06) 34%,
+      rgba(9,11,14,.72) 82%,rgba(9,11,14,.97) 100%),
+      url('/inicio-camion.jpg') 62% center/cover no-repeat}
+  .visual-content{padding:0}
+  .summary .card{background:var(--panel);backdrop-filter:none;border-color:var(--line)}
+  .summary-head h2,.summary-head span{text-shadow:none}
+}
+@media(max-width:640px){
+  .workspace{padding:0 14px 18px}
+  .visual{min-height:300px}
+}
 </style>
 </head>
 <body>
@@ -33,15 +99,190 @@
       <section class="visual" aria-label="Acceso a la flota"><div class="visual-content"><p class="eyebrow">Flota en movimiento</p><h1>Todo el taller, en un mismo ritmo.</h1><p>Accedé al estado de las unidades, la gomería y el stock sin salir de la operación.</p><a class="button" href="/flota">Ver panel de flota <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a></div></section>
       <section class="summary" aria-label="Resumen operativo">
         <div class="summary-head"><h2>Resumen operativo</h2><span>Accesos rápidos</span></div>
-        <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b>87</b><small>unidades con mapa</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b>7</b><small>artículos sin stock</small></span></a></div>
+        <div class="card km" id="km">
+          <div class="km-head">
+            <span><b>Kilómetros de la flota</b><small id="km-pie">del satelital</small></span>
+            <div class="km-tabs">
+              <button type="button" data-p="ayer" class="on">Ayer</button>
+              <button type="button" data-p="semana">7 días</button>
+              <button type="button" data-p="mes">30 días</button>
+            </div>
+          </div>
+          <div class="km-num"><b id="km-valor">—</b><span>km</span></div>
+          <p class="km-sub" id="km-sub">Cargando…</p>
+        </div>
+        <div class="card km" id="consumo" hidden>
+          <div class="km-head"><span><b>Consumo de la flota</b><small>planilla de combustible</small></span></div>
+          <div class="km-num"><b id="cons-valor">—</b><span>L/100 km</span></div>
+          <p class="km-sub" id="cons-sub"></p>
+        </div>
+        <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a></div>
         <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Control de flota</strong><small>Services y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
-        <div class="card notice"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p>Hay 7 artículos sin disponibilidad. Entrá a Repuestos para verlos.</p></div></div>
+        <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>
   </main>
 </div>
 <script>
 "use strict";const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));document.getElementById('fecha').textContent=new Intl.DateTimeFormat('es-AR',{weekday:'long',day:'numeric',month:'long'}).format(new Date());fetch('/api/yo').then(r=>r.ok?r.json():null).then(d=>{if(d)document.getElementById('quien').innerHTML=`<span class="avatar">${esc(d.nombre).slice(0,1).toUpperCase()}</span><span>${esc(d.nombre)}</span>`}).catch(()=>{});
+/* Los kilómetros que recorrió la flota, de las lecturas del satelital que
+   entran a la base todos los días. Se pide todo junto con el resto del
+   resumen: una sola llamada y el selector de período cambia sin ir al server. */
+const nfm=new Intl.NumberFormat('es-AR');
+const PREVIO={ayer:'ayer_previo',semana:'semana_previa',mes:'mes_previo'};
+const ROTULO={ayer:'ayer',semana:'los últimos 7 días',mes:'los últimos 30 días'};
+const CONTRA={ayer:'anteayer',semana:'los 7 anteriores',mes:'los 30 anteriores'};
+let RECORRIDO=null,PERIODO='ayer';
+function pintarKm(){
+  const valor=document.getElementById('km-valor'),pie=document.getElementById('km-sub');
+  const a=RECORRIDO&&RECORRIDO[PERIODO];
+  if(!a||!a.km){valor.textContent='—';pie.textContent='Todavía no hay lecturas para '+ROTULO[PERIODO]+'.';return}
+  valor.textContent=nfm.format(a.km);
+  let txt=`${a.unidades} unidad${a.unidades===1?'':'es'} en movimiento`;
+  const b=RECORRIDO[PREVIO[PERIODO]];
+  /* Solo se compara si el período anterior tiene una cobertura parecida: la
+     serie arranca el 29 de julio, así que contra un mes con cuatro días
+     cargados cualquier variación sería un espejismo. */
+  if(b&&b.km&&b.dias>=a.dias*0.8){
+    const p=Math.round((a.km-b.km)/b.km*100);
+    txt+=` · <span class="${p>=0?'sube':'baja'}">${p>=0?'+':''}${p}%</span> vs. ${CONTRA[PERIODO]}`;
+  }
+  pie.innerHTML=txt;
+}
+document.querySelectorAll('.km-tabs button').forEach(b=>b.addEventListener('click',()=>{
+  PERIODO=b.dataset.p;
+  document.querySelectorAll('.km-tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  pintarKm();
+}));
+fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
+  if(!d)return;
+  RECORRIDO=d.recorrido||null;pintarKm();
+  const poner=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null)e.textContent=nfm.format(v)};
+  poner('st-unidades',d.unidades);poner('st-reponer',d.reponer);
+  if(d.km_fecha)document.getElementById('km-pie').textContent=
+    'última lectura '+d.km_fecha.slice(8,10)+'/'+d.km_fecha.slice(5,7);
+  /* El aviso arranca oculto y solo aparece si de verdad falta algo: un
+     cartel naranja fijo deja de leerse a la semana. */
+  if(d.reponer){
+    document.getElementById('aviso-txt').textContent=
+      `Hay ${nfm.format(d.reponer)} artículo${d.reponer===1?'':'s'} para reponer. Entrá a Repuestos para verlos.`;
+    document.getElementById('aviso').hidden=false;
+  }
+}).catch(()=>{});
+/* =====================================================================
+   Consumo de la flota
+   ---------------------------------------------------------------------
+   Este número NO sale de la base: los litros viven solo en la planilla
+   COMBUSTIBLE. Se lee igual que en el panel de flota, por CSV público,
+   con las mismas dos hojas y el mismo parseo. Por eso la planilla tiene
+   que seguir compartida como "cualquiera con el enlace puede ver": si
+   deja de estarlo, la tarjeta no aparece y el resto de la portada sigue
+   andando igual.
+   ===================================================================== */
+const COMBUSTIBLE='1u7cckay0IJ60bfoKk2OZo-TjCvTbH9O1wKxNFdSKDCQ';
+const HOJA={lad:'0',flota:'1044040871'};   /* larga distancia · toda la flota */
+const nf1=new Intl.NumberFormat('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1});
+const MESES_AR=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const mesLabel=m=>{const p=String(m).split('-');
+  return p.length===2?`${MESES_AR[+p[1]-1]} ${p[0].slice(2)}`:m};
+const mesDe=s=>{const m=String(s||'').trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if(!m)return null;let y=m[3];if(y.length===2)y='20'+y;
+  return `${y}-${String(+m[2]).padStart(2,'0')}`};
+const normPat=s=>String(s||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const esPatente=s=>{const n=normPat(s);
+  return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(n)||/^[A-Z]{3}\d{3}$/.test(n)};
+/* Números en formato es-AR y en el crudo de gviz: 1.234,5 y 1234.5. */
+function num(v){
+  if(typeof v==='number')return isFinite(v)?v:null;
+  let s=String(v==null?'':v).replace(/[\s$%]/g,'').replace(/(kg|km|lts?)/gi,'').trim();
+  if(!s||s==='-'||s==='—'||!/^[\d.,]+$/.test(s))return null;
+  const lc=s.lastIndexOf(','),ld=s.lastIndexOf('.');
+  if(lc>=0&&ld>=0){const dec=lc>ld?',':'.';
+    s=s.replace(dec===','?/\./g:/,/g,'').replace(dec,'.');}
+  else if(lc>=0)s=/^\d{1,3}(,\d{3})+$/.test(s)?s.replace(/,/g,''):s.replace(',','.');
+  else if(ld>=0&&/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,'');
+  const n=parseFloat(s);return isFinite(n)?n:null;
+}
+function parseCSV(t){
+  const filas=[];let fila=[],celda='',comilla=false;
+  for(let i=0;i<t.length;i++){const c=t[i];
+    if(comilla){if(c==='"'){if(t[i+1]==='"'){celda+='"';i++}else comilla=false}else celda+=c}
+    else if(c==='"')comilla=true;
+    else if(c===','){fila.push(celda.trim());celda=''}
+    else if(c==='\n'){fila.push(celda.trim());filas.push(fila);fila=[];celda=''}
+    else if(c!=='\r')celda+=c;}
+  if(celda!==''||fila.length){fila.push(celda.trim());filas.push(fila)}
+  return filas.filter(f=>f.some(c=>c!==''));
+}
+async function hoja(gid){
+  try{
+    const u=`https://docs.google.com/spreadsheets/d/${COMBUSTIBLE}/gviz/tq?tqx=out:csv&gid=${gid}&_=${Date.now()}`;
+    const r=await fetch(u,{cache:'no-store'});
+    if(!r.ok)return null;
+    const t=await r.text();
+    if(!t||t.trimStart().startsWith('<'))return null;   /* login de Google */
+    const filas=parseCSV(t);
+    return filas.length>1?filas:null;
+  }catch(e){return null}   /* CORS, red o permisos: la tarjeta no aparece */
+}
+/* Las dos hojas no traen las columnas en el mismo orden: se buscan por nombre. */
+const ALIAS={fecha:['FECHA'],patente:['DOMINIO','PATENTE'],
+  km:['DISTANCIA','KILOMETRAJE'],lts:['LITROS']};
+function leerConsumo(filas){
+  if(!filas)return[];
+  let idx=null,desde=0;
+  for(let i=0;i<Math.min(filas.length,12);i++){
+    const cab=filas[i].map(c=>String(c||'').toUpperCase()),m={};
+    for(const k in ALIAS){const j=cab.findIndex(c=>ALIAS[k].some(a=>c.includes(a)));if(j>=0)m[k]=j}
+    if(m.fecha!==undefined&&m.patente!==undefined){idx=m;desde=i+1;break}
+  }
+  if(!idx)return[];
+  const out=[];
+  for(const r of filas.slice(desde)){
+    const mes=mesDe(r[idx.fecha]);
+    if(!mes||!esPatente(r[idx.patente]))continue;
+    out.push({mes,km:idx.km===undefined?null:num(r[idx.km]),
+                  lts:idx.lts===undefined?null:num(r[idx.lts])});
+  }
+  return out;
+}
+async function consumoPorMes(){
+  const [lad,flota]=await Promise.all([hoja(HOJA.lad),hoja(HOJA.flota)]);
+  if(!lad&&!flota)return[];
+  const meses=new Map();
+  const slot=m=>{if(!meses.has(m))meses.set(m,{mes:m,km:0,lts:0,ladKm:0,ladLts:0});
+    return meses.get(m)};
+  for(const f of leerConsumo(flota)){const s=slot(f.mes);
+    if(f.km>0&&f.lts!=null){s.km+=f.km;s.lts+=f.lts}}
+  for(const f of leerConsumo(lad)){const s=slot(f.mes);
+    if(f.km>0&&f.lts!=null){s.ladKm+=f.km;s.ladLts+=f.lts}}
+  const hoy=new Date();
+  const enCurso=`${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  return [...meses.values()]
+    /* El mes que está corriendo queda afuera: está a medio cargar y contra un
+       mes entero da siempre una caída que no existe. */
+    .filter(s=>s.mes<enCurso)
+    /* Se suman kilómetros y litros y recién al final se divide: eso es el
+       consumo del mes, no el promedio de los promedios de cada unidad.
+       La hoja de toda la flota ya incluye larga distancia; si no llegara,
+       se usa la de LAD para no dejar el mes en blanco. */
+    .map(s=>({mes:s.mes,c100:s.km>0?s.lts/s.km*100:(s.ladKm>0?s.ladLts/s.ladKm*100:null)}))
+    .filter(s=>s.c100)
+    .sort((a,b)=>a.mes.localeCompare(b.mes));
+}
+consumoPorMes().then(ms=>{
+  if(!ms.length)return;
+  const a=ms[ms.length-1],b=ms[ms.length-2];
+  document.getElementById('cons-valor').textContent=nf1.format(a.c100);
+  let txt=mesLabel(a.mes);
+  if(b){
+    const p=(a.c100-b.c100)/b.c100*100;
+    /* Acá subir es peor: el verde va cuando el consumo baja. */
+    txt+=` · <span class="${p<=0?'sube':'baja'}">${p>=0?'+':''}${nf1.format(p)}%</span> vs. ${mesLabel(b.mes)}`;
+  }
+  document.getElementById('cons-sub').innerHTML=txt;
+  document.getElementById('consumo').hidden=false;
+}).catch(()=>{});
 </script>
 </body>
 </html>

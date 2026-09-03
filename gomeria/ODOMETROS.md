@@ -82,6 +82,21 @@ de Hawk**. Dos movimientos de una misma cubierta en el mismo día pueden dar
 0 km porque Hawk aporta un único odómetro diario; para conocer recorridos
 dentro del día harían falta lecturas con hora.
 
+## En la portada
+
+El centro operativo muestra arriba de todo los **kilómetros de la flota**,
+con el selector *Ayer · 7 días · 30 días*. El número sale de esta misma
+tabla: por unidad se toma la última lectura del período menos la primera,
+que es más robusto que sumar día contra día —si un equipo no reportó un
+día, el tramo se cierra igual con la lectura siguiente en vez de perderse—
+y se descartan los retrocesos, que son cambios de módulo GPS y no viajes.
+
+Al lado va la variación contra el período anterior, pero solo cuando el
+anterior tiene una cobertura parecida. La serie arranca el 29 de julio: hoy
+los 30 días previos tienen apenas cuatro días cargados, así que ese
+porcentaje sería un espejismo y la portada directamente no lo muestra. Se
+va a prender solo cuando haya historia suficiente.
+
 ## Lo que no engancha, y está bien
 
 Algunas lecturas no corresponden a ninguna unidad de la flota. Se guardan
