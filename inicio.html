@@ -6,15 +6,16 @@
 <title>App Taller | Diemar</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='12' y='7' width='8' height='18' fill='%23ff7a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
   :root{
     color-scheme:dark;
     --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
-    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
+    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.13);
     --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
     --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.12);
-    --radius:14px;
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
+    --radius:16px;
   }
   *{box-sizing:border-box}
   html,body{margin:0;min-height:100%}
@@ -23,89 +24,135 @@
     background:var(--plane); color:var(--ink); font-size:15px; line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
-  body::before{content:"";position:fixed;inset:0 0 auto 0;height:380px;
-    background:radial-gradient(ellipse at center,rgba(255,122,26,.11),transparent 68%);
-    pointer-events:none;z-index:0}
 
-  .barra{position:relative;z-index:1;display:flex;align-items:center;gap:14px;
-    padding:14px 22px;border-bottom:1px solid var(--hairline);background:var(--surface-1)}
-  .barra::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-    background:linear-gradient(90deg,var(--brand),rgba(255,122,26,0) 55%)}
-  .barra img{height:28px}
+  /* ---------------------------------------------------------------- barra */
+  .barra{position:relative;z-index:3;display:flex;align-items:center;gap:14px;
+    padding:13px 24px;background:rgba(8,9,11,.72);backdrop-filter:blur(14px);
+    border-bottom:1px solid var(--hairline)}
+  .barra img{height:26px}
   .barra .t{font-size:10.5px;letter-spacing:2.2px;text-transform:uppercase;
-    color:var(--ink-muted);font-weight:600}
+    color:var(--ink-muted);font-weight:700}
   .barra .quien{margin-left:auto;display:flex;align-items:center;gap:12px;
-    font-size:12.5px;color:var(--ink-2)}
+    font-size:12.5px;color:var(--ink-2);min-width:0}
+  .barra .quien .rol,.barra .quien a{flex:none}
+  /* Se recorta el nombre, nunca el botón de salir. */
+  .barra .quien .nom{min-width:0;overflow:hidden;text-overflow:ellipsis;
+    white-space:nowrap}
   .barra .quien a{color:var(--ink-muted);text-decoration:none;font-size:11.5px}
   .barra .quien a:hover{color:var(--brand)}
-  .rol{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:700;
+  .rol{font-size:10px;letter-spacing:.8px;text-transform:uppercase;font-weight:800;
     color:var(--brand);background:var(--brand-soft);border-radius:5px;padding:3px 8px}
 
-  .env{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:28px 22px 60px}
-  .modulos,.pie{text-align:left}
-  /* La portada toma el alto de la foto en vez de imponerle uno: así se ve
-     entera y no queda aire abajo. El texto va encima, sobre el cielo, que
-     es la parte despejada de la imagen. */
-  .portada{position:relative;display:flex;align-items:center;overflow:hidden;
-    aspect-ratio:1537/424;max-height:330px;min-height:230px;
-    margin-bottom:18px;border:1px solid var(--hairline-2);
-    border-radius:20px;background:var(--surface-1);box-shadow:0 24px 55px rgba(0,0,0,.42)}
-  .portada-foto{position:absolute;z-index:0;inset:0;
-    background:url('/inicio-camion.jpg') center 42%/cover no-repeat;
-    filter:saturate(.96) contrast(1.03)}
-  .portada::after{content:"";position:absolute;z-index:1;inset:0;pointer-events:none;
-    background:linear-gradient(100deg,rgba(8,9,11,.92) 0%,rgba(8,9,11,.78) 22%,
-      rgba(8,9,11,.38) 38%,rgba(8,9,11,.10) 53%,transparent 70%)}
-  .portada-copy{position:relative;z-index:2;display:flex;width:min(560px,60%);
-    padding:36px 38px;flex-direction:column;justify-content:center}
-  .eyebrow{margin:0 0 9px;color:var(--brand);font-size:10px;font-weight:700;
-    letter-spacing:2.4px;text-transform:uppercase}
-  h1{margin:0 0 8px;font-size:clamp(30px,3.4vw,42px);line-height:1.08;font-weight:600;
-    letter-spacing:-.035em;text-shadow:0 2px 22px rgba(0,0,0,.55)}
-  .sub{margin:0;color:rgba(233,236,239,.74);font-size:14px}
+  /* ---------------------------------------------------------------- foto */
+  /* La foto va de borde a borde y con su proporción real: así se ve entera
+     y grande, sin estirarla ni recortarle los costados donde está el camión. */
+  .portada{position:relative;width:100%;aspect-ratio:1537/424;
+    max-height:min(60vh,560px);min-height:280px;overflow:hidden;background:#0c0f12}
+  .portada .foto{position:absolute;inset:0;
+    background:url('/inicio-camion.jpg') center 38%/cover no-repeat}
+  /* El velo va abajo, donde apoya el texto. Arriba la foto queda limpia. */
+  .portada::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:
+      linear-gradient(180deg,rgba(8,9,11,.5) 0%,transparent 26%,transparent 40%,
+        rgba(8,9,11,.72) 78%,var(--plane) 100%),
+      linear-gradient(90deg,rgba(8,9,11,.6) 0%,rgba(8,9,11,.1) 42%,transparent 66%)}
 
-  .modulos{display:grid;gap:16px;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr}
+  .titulo{position:absolute;z-index:2;left:0;right:0;bottom:0;
+    padding:0 24px 26px;max-width:1240px;margin:0 auto}
+  .eyebrow{display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;
+    color:var(--brand);font-size:10.5px;font-weight:800;letter-spacing:2.6px;
+    text-transform:uppercase}
+  .eyebrow i{width:6px;height:6px;border-radius:50%;background:var(--brand);
+    box-shadow:0 0 0 4px rgba(255,122,26,.18);animation:latir 2.4s infinite}
+  @keyframes latir{50%{opacity:.35}}
+  h1{margin:0;font-size:clamp(34px,6.2vw,68px);line-height:.98;font-weight:800;
+    letter-spacing:-.045em;text-shadow:0 4px 30px rgba(0,0,0,.6)}
+  h1 em{font-style:normal;color:var(--brand)}
+  .sub{margin:12px 0 0;font-size:clamp(14px,1.6vw,17px);color:rgba(233,236,239,.82);
+    max-width:52ch;text-shadow:0 2px 14px rgba(0,0,0,.7)}
+
+  .env{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:0 24px 64px}
+
+  /* ---------------------------------------------------------------- cifras */
+  /* La primera línea de la app son datos, no botones: si hay algo vencido
+     tiene que verse antes de entrar a ningún lado. */
+  .cifras{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
+    margin:-28px 0 26px;position:relative;z-index:3;
+    background:var(--hairline);border:1px solid var(--hairline);
+    border-radius:var(--radius);overflow:hidden;
+    box-shadow:0 26px 60px rgba(0,0,0,.55)}
+  .cifra{background:var(--surface-1);padding:18px 20px;min-height:104px;
+    display:flex;flex-direction:column;justify-content:center;
+    text-decoration:none;color:inherit;transition:background .16s}
+  a.cifra:hover{background:var(--surface-2)}
+  .cifra .n{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1;
+    font-variant-numeric:tabular-nums}
+  .cifra .n.mal{color:var(--bad)} .cifra .n.ojo{color:var(--warn)}
+  .cifra .n.bien{color:var(--ok)}
+  .cifra .q{margin-top:7px;font-size:10.5px;font-weight:700;letter-spacing:1.3px;
+    text-transform:uppercase;color:var(--ink-muted)}
+  .cifra .pie{margin-top:3px;font-size:11.5px;color:var(--ink-2)}
+  .cifra .n.cargando{color:var(--ink-muted);font-weight:400;font-size:22px}
+
+  /* --------------------------------------------------------------- módulos */
+  .rotulo{display:flex;align-items:center;gap:12px;margin:0 0 14px;
+    font-size:10.5px;font-weight:800;letter-spacing:2.2px;text-transform:uppercase;
+    color:var(--ink-muted)}
+  .rotulo::after{content:"";flex:1;height:1px;background:var(--hairline)}
+
+  .modulos{display:grid;gap:14px;grid-template-columns:repeat(2,minmax(0,1fr))}
   .mod{
-    display:flex;align-items:center;gap:16px;text-decoration:none;color:inherit;
-    background:linear-gradient(180deg,var(--surface-2),var(--surface-1));
-    border:1px solid var(--hairline);border-radius:var(--radius);
-    padding:20px;position:relative;overflow:hidden;
+    position:relative;display:flex;align-items:center;gap:18px;
+    text-decoration:none;color:inherit;overflow:hidden;
+    background:linear-gradient(140deg,var(--surface-2),var(--surface-1) 62%);
+    border:1px solid var(--hairline);border-radius:var(--radius);padding:22px 24px;
     transition:border-color .18s,transform .18s,box-shadow .18s;
   }
-  .mod::before{content:"";position:absolute;top:0;left:0;bottom:0;width:3px;background:var(--brand)}
-  .mod:hover{border-color:rgba(255,122,26,.45);transform:translateY(-2px);
-    box-shadow:0 14px 32px rgba(0,0,0,.45)}
+  .mod::before{content:"";position:absolute;top:0;left:0;bottom:0;width:3px;
+    background:var(--brand);opacity:.85}
+  .mod:hover{border-color:rgba(255,122,26,.42);transform:translateY(-2px);
+    box-shadow:0 18px 42px rgba(0,0,0,.5)}
   .mod:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
-  .mod .ico{width:42px;height:42px;flex:none;border-radius:11px;background:var(--brand-soft);
-    border:1px solid rgba(255,122,26,.28);display:grid;place-items:center;color:var(--brand)}
-  .mod .ico svg{width:21px;height:21px}
-  .mod .txt{min-width:0}
-  .mod strong{display:block;font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:3px}
-  .mod span{font-size:12.5px;color:var(--ink-muted)}
-  /* Con una cantidad impar de tarjetas la última ocuparía media fila y
-     dejaría un hueco: se la estira a lo ancho y la grilla vuelve a cerrar. */
-  .mod:last-child:nth-child(odd){grid-column:1/-1}
-  .mod .go{margin-left:auto;color:var(--ink-muted);font-size:20px;flex:none;align-self:center;
+  .mod .ico{width:48px;height:48px;flex:none;border-radius:13px;
+    background:var(--brand-soft);border:1px solid rgba(255,122,26,.26);
+    display:grid;place-items:center;color:var(--brand)}
+  .mod .ico svg{width:23px;height:23px}
+  .mod .txt{min-width:0;flex:1}
+  .mod strong{display:block;font-size:18px;font-weight:700;letter-spacing:-.02em}
+  .mod .que{display:block;margin-top:3px;font-size:12.5px;color:var(--ink-muted)}
+  .mod .dato{display:block;margin-top:7px;font-size:12px;font-weight:700;
+    color:var(--ink-2);font-variant-numeric:tabular-nums;min-height:1em}
+  .mod .dato .mal{color:var(--bad)} .mod .dato .ojo{color:var(--warn)}
+  .mod .go{color:var(--ink-muted);font-size:22px;flex:none;
     transition:transform .18s,color .18s}
   .mod:hover .go{color:var(--brand);transform:translateX(3px)}
-  .mod span{line-height:1.45}
+  /* Con una cantidad impar la última ocuparía media fila: se estira. */
+  .mod:last-child:nth-child(odd){grid-column:1/-1}
 
-  .pie{margin-top:40px;padding-top:16px;border-top:1px solid var(--hairline);
-    font-size:11.5px;color:var(--ink-muted)}
+  .pie2{margin-top:34px;padding-top:16px;border-top:1px solid var(--hairline);
+    display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--ink-muted)}
+  .pie2 b{color:var(--ink-2);font-weight:600}
 
-  @media (max-width:760px){
-    .modulos{grid-template-columns:minmax(0,1fr)}
+  @media (max-width:900px){
+    .cifras{grid-template-columns:repeat(2,1fr)}
   }
   @media (max-width:640px){
-    .barra{padding:11px 14px}
-    .env{padding:14px 12px 40px}
-    .portada{display:flex;aspect-ratio:auto;min-height:0;max-height:none;
-      border-radius:16px;flex-direction:column}
-    .portada-foto{position:relative;inset:auto;order:1;width:100%;height:200px;
-      background-position:62% center}
-    .portada::after{display:none}
-    .portada-copy{order:2;width:100%;min-height:0;padding:24px;justify-content:flex-start}
-    h1{font-size:30px}
+    .barra{padding:11px 14px;gap:10px}
+    .barra .t{display:none}
+    /* En el celular la foto se recorta a un cuadrado y se corre al camión,
+       con lugar arriba del texto para que la trompa se siga viendo. */
+    .portada{aspect-ratio:1/1;max-height:54vh;min-height:300px}
+    .portada .foto{background-position:58% 34%}
+    .portada::after{background:
+      linear-gradient(180deg,rgba(8,9,11,.45) 0%,transparent 22%,transparent 34%,
+        rgba(8,9,11,.8) 66%,var(--plane) 100%)}
+    .titulo{padding:0 16px 20px}
+    .env{padding:0 14px 44px}
+    .cifras{margin-top:-18px}
+    .cifra{padding:14px 15px;min-height:88px}
+    .cifra .n{font-size:25px}
+    .modulos{grid-template-columns:minmax(0,1fr)}
+    .mod{padding:18px}
   }
 </style>
 </head>
@@ -117,15 +164,42 @@
   <span class="quien" id="quien"></span>
 </div>
 
+<header class="portada">
+  <div class="foto" role="img" aria-label="Camión de Expreso Diemar en ruta"></div>
+  <div class="titulo">
+    <p class="eyebrow"><i></i>Vencemos distancias</p>
+    <h1>El taller,<br><em>en tiempo real</em></h1>
+    <p class="sub">Flota, gomería, repuestos y vencimientos sobre una sola base de datos.
+      Lo que se carga acá se ve al instante en todas las sucursales.</p>
+  </div>
+</header>
+
 <div class="env">
-  <section class="portada" aria-labelledby="titulo-inicio">
-    <div class="portada-foto" role="img" aria-label="Camión de Expreso Diemar en ruta"></div>
-    <div class="portada-copy">
-      <p class="eyebrow">Vencemos distancias</p>
-      <h1 id="titulo-inicio">App Taller Diemar</h1>
-      <p class="sub">Flota, gomería, repuestos y vencimientos en un solo lugar.</p>
+
+  <div class="cifras" id="cifras">
+    <a class="cifra" href="/vencimientos">
+      <span class="n cargando" data-n="vencidos">·</span>
+      <span class="q">Documentos vencidos</span>
+      <span class="pie" data-p="vencidos"></span>
+    </a>
+    <a class="cifra" href="/gomeria">
+      <span class="n cargando" data-n="montadas">·</span>
+      <span class="q">Cubiertas montadas</span>
+      <span class="pie" data-p="montadas"></span>
+    </a>
+    <a class="cifra" href="/repuestos">
+      <span class="n cargando" data-n="reponer">·</span>
+      <span class="q">Repuestos a reponer</span>
+      <span class="pie" data-p="reponer"></span>
+    </a>
+    <div class="cifra">
+      <span class="n cargando" data-n="km">·</span>
+      <span class="q">Unidades al día</span>
+      <span class="pie" data-p="km">Kilometraje del satelital</span>
     </div>
-  </section>
+  </div>
+
+  <p class="rotulo">Módulos</p>
 
   <nav class="modulos">
     <a class="mod" href="/gomeria">
@@ -136,7 +210,8 @@
       </span>
       <span class="txt">
         <strong>Gomería</strong>
-        <span>Mapas, stock y movimientos en texto libre</span>
+        <span class="que">Mapas por unidad, stock y movimientos en texto libre</span>
+        <span class="dato" data-d="gomeria"></span>
       </span>
       <span class="go" aria-hidden="true">›</span>
     </a>
@@ -150,21 +225,8 @@
       </span>
       <span class="txt">
         <strong>Stock de Repuestos</strong>
-        <span>Artículos, movimientos y carga de remitos</span>
-      </span>
-      <span class="go" aria-hidden="true">›</span>
-    </a>
-
-    <a class="mod" href="/flota">
-      <span class="ico" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
-             stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 19V6"/><path d="M4 15l5-4 4 3 7-6"/>
-        </svg>
-      </span>
-      <span class="txt">
-        <strong>Panel de Flota</strong>
-        <span>Services, consumo y emisiones de un vistazo</span>
+        <span class="que">Artículos, movimientos, etiquetas QR y carga de remitos</span>
+        <span class="dato" data-d="repuestos"></span>
       </span>
       <span class="go" aria-hidden="true">›</span>
     </a>
@@ -179,7 +241,23 @@
       </span>
       <span class="txt">
         <strong>Vencimientos</strong>
-        <span>VTV, licencias, matafuegos y seguros</span>
+        <span class="que">VTV, licencias, matafuegos y seguros por sucursal</span>
+        <span class="dato" data-d="vencimientos"></span>
+      </span>
+      <span class="go" aria-hidden="true">›</span>
+    </a>
+
+    <a class="mod" href="/flota">
+      <span class="ico" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"
+             stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19V6"/><path d="M4 15l5-4 4 3 7-6"/>
+        </svg>
+      </span>
+      <span class="txt">
+        <strong>Panel de Flota</strong>
+        <span class="que">Services, consumo y emisiones de un vistazo</span>
+        <span class="dato" data-d="flota"></span>
       </span>
       <span class="go" aria-hidden="true">›</span>
     </a>
@@ -194,25 +272,108 @@
       </span>
       <span class="txt">
         <strong>Control de Flota</strong>
-        <span>Services, prefiltros y telemetría por unidad</span>
+        <span class="que">Services, prefiltros y telemetría unidad por unidad</span>
+        <span class="dato" data-d="control"></span>
       </span>
       <span class="go" aria-hidden="true">›</span>
     </a>
   </nav>
 
-  <p class="pie" id="pie">Gomería y usuarios en Supabase. Flota, en las planillas de Google.</p>
+  <p class="pie2" id="pie">
+    <span>Gomería, repuestos, vencimientos y kilometrajes en <b>Supabase</b>.</span>
+    <span>Flota, en las planillas de Google.</span>
+  </p>
 </div>
 
 <script>
 "use strict";
+const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const mil = n => Number(n).toLocaleString('es-AR');
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   if (!d) return;
-  document.getElementById('quien').innerHTML =
-    `<span class="rol">${esc(d.rol)}</span>${esc(d.nombre)} <a href="/salir">Salir</a>`;
+  $('#quien').innerHTML =
+    `<span class="rol">${esc(d.rol)}</span><span class="nom">${esc(d.nombre)}</span>` +
+    `<a href="/salir">Salir</a>`;
 }).catch(() => {});
+
+/** Pinta una cifra. Sin dato queda un guion: es más honesto que un cero,
+    que se leería como "no hay ninguno" cuando en realidad no se sabe. */
+function cifra(clave, valor, tono, pie) {
+  const n = document.querySelector(`[data-n="${clave}"]`);
+  const p = document.querySelector(`[data-p="${clave}"]`);
+  if (!n) return;
+  n.classList.remove('cargando');
+  if (valor === null || valor === undefined) {
+    n.textContent = '—';
+    n.classList.add('cargando');
+    if (p) p.textContent = 'sin cargar todavía';
+    return;
+  }
+  n.textContent = mil(valor);
+  if (tono) n.classList.add(tono);
+  if (p && pie) p.textContent = pie;
+}
+
+function dato(clave, html) {
+  const e = document.querySelector(`[data-d="${clave}"]`);
+  if (e) e.innerHTML = html;
+}
+
+/** Para saber si el satelital está andando, hace cuánto fue importa más
+    que la fecha exacta. */
+function cuando(iso) {
+  if (!iso) return '';
+  const f = new Date(iso + 'T00:00:00');
+  const dias = Math.round((new Date().setHours(0,0,0,0) - f) / 86400000);
+  if (dias <= 0) return 'hoy';
+  if (dias === 1) return 'ayer';
+  if (dias < 7) return `hace ${dias} días`;
+  return f.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
+}
+
+fetch('/api/inicio').then(r => r.ok ? r.json() : null).then(d => {
+  if (!d) throw new Error('sin resumen');
+
+  cifra('vencidos', d.vencidos, d.vencidos > 0 ? 'mal' : 'bien',
+    d.por_vencer ? `${mil(d.por_vencer)} por vencer` :
+    (d.controlados ? `${mil(d.controlados)} controlados` : ''));
+
+  cifra('montadas', d.montadas, null,
+    d.en_stock != null ? `${mil(d.en_stock)} en stock` : '');
+
+  cifra('reponer', d.reponer, d.reponer > 0 ? 'ojo' : 'bien',
+    d.articulos != null ? `de ${mil(d.articulos)} artículos` : '');
+
+  cifra('km', d.km_unidades, null, d.km_fecha
+    ? `Satelital · ${cuando(d.km_fecha)}` : 'Kilometraje del satelital');
+
+  if (d.unidades != null)
+    dato('gomeria', `${mil(d.unidades)} unidades` +
+      (d.cubiertas != null ? ` · ${mil(d.cubiertas)} cubiertas` : ''));
+  if (d.articulos != null)
+    dato('repuestos', `${mil(d.articulos)} artículos` +
+      (d.reponer ? ` · <span class="ojo">${mil(d.reponer)} a reponer</span>` : ''));
+  if (d.controlados != null)
+    dato('vencimientos', `${mil(d.controlados)} documentos` +
+      (d.vencidos ? ` · <span class="mal">${mil(d.vencidos)} vencidos</span>` : ' · todo al día'));
+  if (d.unidades != null) {
+    dato('flota', `${mil(d.unidades)} unidades activas`);
+    // "de hoy" / "de ayer", pero "al 02/09": la preposición cambia según
+    // si lo que sigue es un momento o una fecha.
+    dato('control', d.km_fecha
+      ? (/^\d/.test(cuando(d.km_fecha)) ? `Odómetros al ${cuando(d.km_fecha)}`
+                                        : `Odómetros de ${cuando(d.km_fecha)}`)
+      : '');
+  }
+}).catch(() => {
+  document.querySelectorAll('.cifra .n').forEach(n => {
+    n.textContent = '—';
+    n.classList.add('cargando');
+  });
+});
 </script>
 </body>
 </html>

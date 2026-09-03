@@ -29,7 +29,7 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, etiquetas, repuestos, vencimientos as venc
+import auth, base, etiquetas, inicio, repuestos, vencimientos as venc
 import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
@@ -60,6 +60,17 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los repuestos: {e}", 500)
+
+        # Los números que la portada muestra en vivo.
+        if ruta == "/api/inicio":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(inicio.resumen(cx)))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el resumen: {e}", 500)
 
         # La hoja de etiquetas QR para pegar en los estantes.
         if ruta == "/repuestos/etiquetas":
