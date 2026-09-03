@@ -15,11 +15,18 @@ Medidas: 70 × 37 mm, tres columnas por ocho filas, 24 por hoja A4. Es el
 tamaño de las hojas autoadhesivas más comunes. Para cambiarlo, están las
 constantes de acá abajo.
 """
+import base64
 import io
 import html
+import os
 
 import qrcode
 from qrcode.image.svg import SvgPathImage
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
+# El monograma en azul, que es la versión que se lee sobre papel blanco: el
+# logo de la app es blanco y ahí desaparecería.
+LOGO = os.path.join(AQUI, os.pardir, "logo-dm-impresion.png")
 
 ANCHO_MM = 70
 ALTO_MM = 37
@@ -42,6 +49,14 @@ def _qr(texto):
             j = svg.index('"', i + len(atributo)) + 1
             svg = svg[:i] + svg[j:]
     return svg.replace("<svg", '<svg class="qr" preserveAspectRatio="xMidYMid meet"', 1)
+
+
+def _logo():
+    """El logo incrustado, para que la hoja se imprima igual sin internet."""
+    if not os.path.exists(LOGO):
+        return ""
+    datos = base64.b64encode(open(LOGO, "rb").read()).decode()
+    return f'<img class="dm" src="data:image/png;base64,{datos}" alt="Diemar">'
 
 
 def _articulos(cx, rubro=None, codigos=None, solo_activos=True):
@@ -74,6 +89,8 @@ def hoja(cx, base, rubro=None, codigos=None):
     arts = _articulos(cx, rubro, codigos)
     base = base.rstrip("/")
 
+    marca = _logo()
+
     def etiqueta(a):
         from urllib.parse import quote
         destino = f"{base}/repuestos/{quote(a['codigo'], safe='')}"
@@ -81,7 +98,7 @@ def hoja(cx, base, rubro=None, codigos=None):
         return f"""    <div class="et">
       {_qr(destino)}
       <div class="txt">
-        <b>{html.escape(a['codigo'])}</b>
+        <div class="cab"><b>{html.escape(a['codigo'])}</b>{marca}</div>
         <span class="desc">{html.escape(a['descripcion'])}</span>
         <span class="pie">{html.escape(a['rubro'])}{' · int. ' + html.escape(interno) if interno else ''}</span>
       </div>
@@ -123,8 +140,13 @@ def hoja(cx, base, rubro=None, codigos=None):
     overflow: hidden; border: 1px dashed #d4d4d8; }}
   .et .qr {{ height: {ALTO_MM - 7}mm; width: {ALTO_MM - 7}mm; flex: none; }}
   .et .txt {{ min-width: 0; display: flex; flex-direction: column; gap: 0.6mm; }}
-  .et b {{ font-size: 11pt; font-weight: 800; letter-spacing: .2px;
+  .et .cab {{ display: flex; align-items: center; gap: 2mm; }}
+  .et b {{ font-size: 11pt; font-weight: 800; letter-spacing: .2px; min-width: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+  /* El logo se queda con el ancho que sobra al lado del código, nunca al
+     revés: si el código es largo, se achica el logo y no el código. */
+  .et .dm {{ margin-left: auto; height: 3.4mm; flex: 0 1 auto; min-width: 0;
+    object-fit: contain; object-position: right; }}
   /* La descripción es lo que más varía de largo: se le dan tres renglones
      y lo que no entra se corta, para que ninguna etiqueta empuje a la de
      al lado y se desarme la grilla. */
@@ -146,6 +168,7 @@ def hoja(cx, base, rubro=None, codigos=None):
 <body>
 
 <div class="barra">
+  <img src="/logo.png" alt="Diemar" style="height:24px" onerror="this.style.display='none'">
   <a class="volver" href="/repuestos">‹ Volver</a>
   <b>{titulo}</b>
   <button onclick="print()">Imprimir</button>
