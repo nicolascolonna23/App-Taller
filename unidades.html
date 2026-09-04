@@ -588,54 +588,56 @@ const RUEDAS = {                       /* objeto del modelo → qué esquina es 
 
    Devuelve el mismo objeto {eje, lado} que la tabla de nombres, así el
    resto de la pantalla no se entera de cómo se encontraron. */
-function ruedasPorPosicion(objeto){
+/* Qué pedazos del modelo son ruedas. Sirven para dos cosas: para pintarlas
+   y para saber a qué hay que apuntarle con el clic.
+
+   Se buscan por nombre en varios idiomas —los modelos vienen de donde
+   vienen— y, si eso no da, por dónde están: los pedazos de abajo, redondos
+   y de un tamaño razonable. */
+const PALABRAS_RUEDA = /rueda|wheel|tire|tyre|llanta|neumat|goma|kerek|gumi|\brad\b|roue|pneu/i;
+
+function ruedasDelModelo(objeto){
   const piezas = [];
   objeto.traverse(m => {
     if (!m.isMesh || !m.geometry) return;
     const c = new THREE.Box3().setFromObject(m);
-    const tam = c.getSize(new THREE.Vector3());
-    const centro = c.getCenter(new THREE.Vector3());
-    piezas.push({ malla:m, tam, centro, volumen: tam.x * tam.y * tam.z });
+    piezas.push({ malla:m, tam:c.getSize(new THREE.Vector3()),
+                  centro:c.getCenter(new THREE.Vector3()) });
   });
-  if (piezas.length < 3) return [];
+  if (!piezas.length) return [];
+
+  const porNombre = piezas.filter(p => PALABRAS_RUEDA.test(p.malla.name));
+  if (porNombre.length) return porNombre.map(p => p.malla);
 
   const todo = new THREE.Box3().setFromObject(objeto);
   const tamTodo = todo.getSize(new THREE.Vector3());
-  const centroTodo = todo.getCenter(new THREE.Vector3());
-
-  const candidatas = piezas.filter(p => {
+  return piezas.filter(p => {
     /* Abajo: una rueda no llega ni a la mitad del alto del camión. */
     if (p.centro.y > todo.min.y + tamTodo.y * 0.42) return false;
-    /* Redonda: alto y largo parecidos, y más angosta que alta. */
-    const alto = p.tam.y, largo = p.tam.z, ancho = p.tam.x;
+    /* Redonda de perfil: alto y largo parecidos. */
+    const alto = p.tam.y, largo = p.tam.z;
     if (alto <= 0 || largo <= 0) return false;
-    if (Math.abs(alto - largo) / Math.max(alto, largo) > 0.35) return false;
-    if (ancho > alto * 1.2) return false;
-    /* De un tamaño razonable para el camión, ni un tornillo ni el chasis. */
-    if (alto < tamTodo.y * 0.12 || alto > tamTodo.y * 0.55) return false;
-    /* Corrida del centro a lo ancho. */
-    return Math.abs(p.centro.x - centroTodo.x) > tamTodo.x * 0.12;
-  });
-  if (candidatas.length < 2) return [];
+    if (Math.abs(alto - largo) / Math.max(alto, largo) > 0.4) return false;
+    /* De un tamaño razonable, ni un tornillo ni el chasis entero. */
+    return alto > tamTodo.y * 0.12 && alto < tamTodo.y * 0.55;
+  }).map(p => p.malla);
+}
 
-  /* Izquierda o derecha por el signo en X; adelante o atrás partiendo por
-     el medio de las candidatas, no del camión: en un tractor las ruedas
-     están todas en la mitad de atrás del chasis. */
-  const zetas = candidatas.map(p => p.centro.z).sort((a, b) => a - b);
-  const corte = (zetas[0] + zetas[zetas.length - 1]) / 2;
-  for (const p of candidatas){
-    p.malla.userData.esquina = {
-      eje:  p.centro.z < corte ? 'frente' : 'atras',
-      lado: p.centro.x < centroTodo.x ? 'I' : 'D',
-      rotulo: (p.centro.z < corte ? 'delantera' : 'trasera') + ' ' +
-              (p.centro.x < centroTodo.x ? 'izquierda' : 'derecha')
-    };
-  }
-  return candidatas.map(p => p.malla);
+/* Dónde se tocó, convertido en esquina del camión.
+
+   Se usa el punto del clic y no la malla porque hay modelos que traen las
+   dos ruedas de un eje en una sola pieza: preguntarle a la malla de qué
+   lado está no tiene respuesta, preguntarle al dedo sí. */
+function esquinaDelPunto(punto){
+  const lado = punto.x < 0 ? 'I' : 'D';
+  const eje  = punto.z < V.corte ? 'frente' : 'atras';
+  return { eje, lado,
+           rotulo: (eje === 'frente' ? 'delantera' : 'trasera') + ' ' +
+                   (lado === 'I' ? 'izquierda' : 'derecha') };
 }
 
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null };
+            anim:null, modelo:null, esquina:null, corte:0, marca:null };
 
 function apagarVisor(){
   if (V.anim) cancelAnimationFrame(V.anim);
@@ -643,7 +645,7 @@ function apagarVisor(){
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null });
+                     ruedas:[], modelo:null, esquina:null, corte:0, marca:null });
 }
 
 function visorVacio(texto){
@@ -703,44 +705,77 @@ function armarVisor(clave, archivo, unidad){
   cargador.load('/modelos/' + archivo, obj => {
     if (!V.render || V.render !== ren) return;      /* se cerró mientras cargaba */
 
-    /* Cada modelo viene como lo dejó su autor: en centímetros o en metros,
-       parado en Y o en Z, y a veces hundido bajo el piso. En vez de pedir
-       que vengan prolijos, se los acomoda: se paran, se escalan al tamaño
-       de un camión y se apoyan en el piso. */
+    /* Los FBX traen adentro las luces y la cámara con las que los armaron.
+       La escena ya tiene las suyas, y las de adentro le pegan de más al
+       modelo: el piso queda blanco y la carrocería se aplana. */
+    const aSacar = [];
+    obj.traverse(o => { if (o.isLight || o.isCamera) aSacar.push(o); });
+    for (const o of aSacar) o.parent && o.parent.remove(o);
+
+    /* Cada modelo viene como lo dejó su autor: en las unidades que sea,
+       parado en Y o en Z, girado en cualquier ángulo y a veces hundido
+       bajo el piso. En vez de pedir que vengan prolijos, se los acomoda.
+       El orden importa: primero se lo para, después se lo endereza, y
+       recién ahí se lo escala y se lo apoya. */
     let caja = new THREE.Box3().setFromObject(obj);
     let tam = caja.getSize(new THREE.Vector3());
-    /* Un camión es más largo que alto, y el resto de la pantalla espera el
-       largo en Z. Si el lado más grande cayó en Y, el modelo viene parado
-       en Z —así exporta media herramienta— y hay que acostarlo. */
-    if (tam.y > tam.z * 1.15) {
+
+    /* 1. Pararlo. El resto de la pantalla espera el alto en Y; si el lado
+          más grande cayó ahí, el modelo viene parado en Z, que es como
+          exporta media herramienta. */
+    if (tam.y > tam.z * 1.15 && tam.y > tam.x * 1.15) {
       obj.rotation.x = -Math.PI / 2;
       obj.updateMatrixWorld(true);
-      caja = new THREE.Box3().setFromObject(obj);
-      tam = caja.getSize(new THREE.Vector3());
     }
+
+    /* 2. Enderezarlo. Los modelos vienen girados en cualquier ángulo, no
+          solo en múltiplos de noventa grados: este venía en diagonal, a
+          cuarenta grados. La dirección de marcha no se puede sacar de la
+          caja —un camión en diagonal tiene la caja casi cuadrada— pero sí
+          de las ruedas: los ejes están alineados con el camión, siempre.
+          Se toma la recta que va de la rueda más adelantada a la más
+          atrasada y se la gira hasta que apunte al eje Z. */
+    let ruedas = ruedasDelModelo(obj);
+    if (ruedas.length >= 2) {
+      const puntos = ruedas.map(m =>
+        new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()));
+      let a = puntos[0], b = puntos[0], mayor = 0;
+      for (const p1 of puntos) for (const p2 of puntos) {
+        const d = (p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2;
+        if (d > mayor) { mayor = d; a = p1; b = p2; }
+      }
+      if (mayor > 0) {
+        obj.rotation.y -= Math.atan2(b.x - a.x, b.z - a.z);
+        obj.updateMatrixWorld(true);
+        ruedas = ruedasDelModelo(obj);   /* las cajas cambiaron de lugar */
+      }
+    }
+
+    caja = new THREE.Box3().setFromObject(obj);
+    tam = caja.getSize(new THREE.Vector3());
+
+    /* 3. Escalarlo. Un tractor mide seis metros y medio; si el modelo mide
+          650 venía en centímetros, y si mide 0,065 en otra cosa. */
     const largo = Math.max(tam.x, tam.y, tam.z);
-    /* 6,5 m es un tractor. Si el modelo mide 650, venía en centímetros. */
     if (largo > 0 && (largo < 1.5 || largo > 20)) {
-      const escala = 6.5 / largo;
-      obj.scale.multiplyScalar(escala);
+      obj.scale.multiplyScalar(6.5 / largo);
       obj.updateMatrixWorld(true);
       caja = new THREE.Box3().setFromObject(obj);
       tam = caja.getSize(new THREE.Vector3());
     }
 
-    /* Las ruedas: primero por nombre, que es exacto cuando el modelo viene
-       preparado; si no, por dónde están. */
+    /* Las del nombre exacto que usa el repo mandan; si no, las que se
+       reconocieron para enderezarlo. */
     const porNombre = [];
-    obj.traverse(m => { if (m.isMesh && RUEDAS[m.name]) {
-      m.userData.esquina = RUEDAS[m.name]; porNombre.push(m); } });
-    const ruedas = porNombre.length >= 2 ? porNombre : ruedasPorPosicion(obj);
-    const esRueda = new Set(ruedas);
+    obj.traverse(m => { if (m.isMesh && RUEDAS[m.name]) porNombre.push(m); });
+    const esRueda = new Set(porNombre.length >= 2 ? porNombre : ruedas);
 
     obj.traverse(m => {
       if (!m.isMesh) return;
       m.material = esRueda.has(m) ? goma.clone() : blanco;
       if (esRueda.has(m)) V.ruedas.push(m);
     });
+
     $('#visor-pista').textContent = V.ruedas.length
       ? 'Arrastrá para girar · tocá una rueda'
       : 'Arrastrá para girar · en este modelo no se reconocieron las ruedas';
@@ -748,8 +783,22 @@ function armarVisor(clave, archivo, unidad){
     obj.position.x -= (caja.min.x + caja.max.x) / 2;
     obj.position.z -= (caja.min.z + caja.max.z) / 2;
     obj.position.y -= caja.min.y;
+    obj.updateMatrixWorld(true);
     esc3.add(obj);
     const caja3 = new THREE.Box3().setFromObject(obj);
+
+    /* Dónde termina el tren delantero y empieza el trasero: el punto medio
+       entre la rueda más adelantada y la más atrasada. Sale de las ruedas y
+       no del chasis, porque en un tractor están todas en la mitad de atrás.
+
+       Va después de mover el modelo y no antes: calculado sobre las
+       posiciones viejas queda corrido y todos los clics caen del mismo
+       lado. */
+    if (V.ruedas.length){
+      const zs = new THREE.Box3();
+      for (const m of V.ruedas) zs.union(new THREE.Box3().setFromObject(m));
+      V.corte = (zs.min.z + zs.max.z) / 2;
+    }
 
     /* La cámara se acomoda al camión y no al revés: el S-Way y el Hi-Way
        no miden lo mismo, y el que venga después tampoco. */
@@ -777,6 +826,7 @@ function armarVisor(clave, archivo, unidad){
   Object.assign(V, { escena:esc3, camara:cam, render:ren, control:ctrl });
 
   const raton = new THREE.Vector2(), rayo = new THREE.Raycaster();
+  /* Devuelve dónde pegó el rayo, no qué malla: la esquina sale del punto. */
   const enRueda = ev => {
     const r = ren.domElement.getBoundingClientRect();
     const t = ev.changedTouches ? ev.changedTouches[0] : ev;
@@ -784,7 +834,7 @@ function armarVisor(clave, archivo, unidad){
     raton.y = -((t.clientY - r.top) / r.height) * 2 + 1;
     rayo.setFromCamera(raton, cam);
     const dio = rayo.intersectObjects(V.ruedas, false);
-    return dio.length ? dio[0].object : null;
+    return dio.length ? dio[0] : null;
   };
   /* Se distingue el clic del arrastre: girar el camión no tiene que abrir
      el panel de una rueda cada vez. */
@@ -795,8 +845,8 @@ function armarVisor(clave, archivo, unidad){
     const lejos = Math.hypot(e.clientX - desde[0], e.clientY - desde[1]) > 6;
     desde = null;
     if (lejos) return;
-    const m = enRueda(e);
-    elegirEsquina(m ? m.userData.esquina : null);
+    const golpe = enRueda(e);
+    elegirEsquina(golpe ? esquinaDelPunto(golpe.point) : null);
   });
   ren.domElement.addEventListener('pointermove', e => {
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
@@ -821,14 +871,46 @@ function armarVisor(clave, archivo, unidad){
 /* Las ruedas se pintan según lo que tenga esa esquina: naranja la elegida,
    roja la que tiene alguna posición vacía, gris la que está completa. */
 function pintarRuedas(){
+  /* Cuando cada rueda es una pieza aparte, se pinta la elegida. Cuando el
+     modelo trae las dos de un eje en una sola pieza —pasa seguido— pintarla
+     mentiría: se marca el punto que se tocó con una chapita naranja. */
   for (const m of V.ruedas){
-    const e = m.userData.esquina;
-    const pos = posicionesDe(e);
-    const vacias = pos.filter(p => !p.cubierta_id).length;
-    const elegida = V.esquina && V.esquina.eje === e.eje && V.esquina.lado === e.lado;
-    m.material.color.setHex(elegida ? 0xff7a1a : (vacias ? 0x6d3a34 : 0x24282d));
-    m.material.emissive.setHex(elegida ? 0x3a1a04 : 0x000000);
+    const caja = new THREE.Box3().setFromObject(m);
+    const propia = caja.min.x > 0 || caja.max.x < 0;   /* de un solo lado */
+    let color = 0x24282d;
+    if (propia && V.esquina){
+      const e = esquinaDelPunto(caja.getCenter(new THREE.Vector3()));
+      if (e.eje === V.esquina.eje && e.lado === V.esquina.lado) color = 0xff7a1a;
+      else if (posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
+    } else if (propia){
+      const e = esquinaDelPunto(caja.getCenter(new THREE.Vector3()));
+      if (posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
+    }
+    m.material.color.setHex(color);
+    m.material.emissive.setHex(color === 0xff7a1a ? 0x3a1a04 : 0x000000);
   }
+  marcarPunto();
+}
+
+/* La chapita que marca la esquina elegida, para los modelos donde no se
+   puede pintar la rueda sola. */
+function marcarPunto(){
+  if (V.marca){ V.escena.remove(V.marca); V.marca = null; }
+  if (!V.esquina || !V.modelo) return;
+  const caja = new THREE.Box3();
+  for (const m of V.ruedas) caja.union(new THREE.Box3().setFromObject(m));
+  if (caja.isEmpty()) return;
+  const alto = caja.max.y - caja.min.y;
+  const anillo = new THREE.Mesh(
+    new THREE.TorusGeometry(alto * 0.62, alto * 0.06, 8, 32),
+    new THREE.MeshBasicMaterial({ color:0xff7a1a }));
+  anillo.rotation.y = Math.PI / 2;
+  anillo.position.set(
+    (V.esquina.lado === 'I' ? caja.min.x : caja.max.x) + (V.esquina.lado === 'I' ? -0.02 : 0.02),
+    (caja.min.y + caja.max.y) / 2,
+    V.esquina.eje === 'frente' ? (caja.min.z + V.corte) / 2 : (caja.max.z + V.corte) / 2);
+  V.escena.add(anillo);
+  V.marca = anillo;
 }
 
 function posicionesDe(esquina){
