@@ -26,7 +26,7 @@ def jstr(d):
 
 
 # Lo único que se sirve sin haber entrado.
-LIBRES = ("/login", "/logo.png")
+LIBRES = ("/login", "/logo.png", "/favicon.png")
 
 
 class Handler(BaseHTTPRequestHandler):

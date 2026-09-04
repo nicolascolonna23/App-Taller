@@ -10,19 +10,22 @@ Los equipos que no tienen patente (autoelevadores, apiladores) van en la
 misma tabla con su código en el lugar de la patente y `tipo = 'equipo'`.
 Están en el mismo listado que en la planilla, y así se mantiene.
 """
+import os
 import re
+
+AQUI = os.path.dirname(os.path.abspath(__file__))
 
 GESTORES = {"admin", "encargado"}
 
 # Los campos que la pantalla puede tocar. Todo lo que no esté acá se ignora,
 # así un JSON de más no llega nunca a la consulta.
 CAMPOS = ("interno", "tipo", "marca", "modelo", "chasis", "chofer", "semi",
-          "sucursal", "uso", "nota", "activa")
+          "sucursal", "uso", "nota", "activa", "modelo_3d")
 
 
-def _exigir_gestor(usuario):
+def _exigir_gestor(usuario, que="tocar el maestro de unidades"):
     if (usuario or {}).get("rol") not in GESTORES:
-        raise PermissionError("Solo un encargado o administrador puede tocar el maestro de unidades.")
+        raise PermissionError(f"Solo un encargado o administrador puede {que}.")
 
 
 def normalizar(patente):
@@ -69,6 +72,35 @@ def listar(cx):
     }
 
 
+# Los modelos 3D que hay, y con qué se los reconoce en el texto del modelo
+# cargado en el maestro. El orden importa: gana el primero que coincida, y
+# S-WAY va antes que STRALIS porque un S-Way no es un Stralis.
+MODELOS_3D = (
+    ("sway",  "S-Way",  ("S-WAY", "SWAY", "S WAY")),
+    ("hiway", "Hi-Way", ("HI ROAD", "HI-ROAD", "HI WAY", "HI-WAY", "HIWAY",
+                         "STRALIS", "AS490", "AS600", "490S44", "600S44")),
+)
+
+
+def modelo_3d(unidad):
+    """Qué camión se dibuja. Lo elegido a mano gana; si no, se deduce.
+
+    Deducir del texto del modelo es lo que hace que ande sin cargar nada:
+    son 68 unidades y nadie va a elegir el 3D de una por una. Cuando la
+    deducción no acierta, se fuerza desde la pantalla y esto no se mete.
+    """
+    elegido = (unidad.get("modelo_3d") or "").strip().lower()
+    if elegido:
+        return elegido if elegido in {m[0] for m in MODELOS_3D} else None
+    if unidad.get("tipo") != "vehiculo":
+        return None
+    texto = f"{unidad.get('marca') or ''} {unidad.get('modelo') or ''}".upper()
+    for clave, _, pistas in MODELOS_3D:
+        if any(p in texto for p in pistas):
+            return clave
+    return None
+
+
 def _bloque(cx, consulta, valores=()):
     """Un pedazo de la ficha. Si su módulo todavía no está, viene vacío.
 
@@ -94,7 +126,19 @@ def ficha(cx, unidad_id):
     if not unidad:
         return None
 
-    salida = {"unidad": unidad}
+    # El modelo que le tocaría, y si el archivo está o falta. Del S-Way
+    # todavía no llegó el .obj: la unidad se deduce igual y la pantalla
+    # avisa qué falta, en vez de tirar un 404 sin explicación.
+    quiere = modelo_3d(unidad)
+    hay = quiere and os.path.isfile(
+        os.path.join(AQUI, os.pardir, "modelos", f"iveco-{quiere}.obj"))
+    salida = {"unidad": unidad,
+              "modelo_3d": quiere if hay else None,
+              "modelo_3d_falta": None if hay else quiere}
+
+    # El mapa entero, con posiciones vacías incluidas: el 3D las necesita
+    # para saber qué se puede montar dónde.
+    salida["mapa"] = posiciones(cx, unidad_id)
 
     # Las cubiertas puestas, en el orden en que se dibuja el mapa.
     salida["cubiertas"] = _bloque(cx, """
@@ -280,3 +324,115 @@ def para_tablero(cx):
         for campo in list(f):
             f[campo] = f[campo] or ""
     return filas
+
+
+# =====================================================================
+# LAS CUBIERTAS, DESDE EL 3D
+# ---------------------------------------------------------------------
+# El gomero toca una rueda en el modelo y cambia la cubierta ahí mismo.
+# Es la misma operación que hace el parte escrito, pero sin texto: acá ya
+# se sabe la unidad y la posición, así que no hay nada que interpretar.
+# =====================================================================
+def posiciones(cx, unidad_id):
+    """El mapa de la unidad: cada lugar donde entra una cubierta y qué tiene."""
+    return _bloque(cx, """
+        select posicion_id, posicion, eje, lado, montaje, es_auxilio, orden,
+               cubierta_id, cubierta, marca, medida, remanente_mm, recapados,
+               montada_desde
+        from v_mapa_unidad where unidad_id = %s order by orden""", (unidad_id,))
+
+
+def mover_cubierta(cx, datos, usuario=None):
+    """Monta o desmonta en una posición. Devuelve el mapa ya actualizado."""
+    import base as _base
+
+    _exigir_gestor(usuario, "cambiar cubiertas")
+
+    unidad_id = datos.get("unidad_id")
+    posicion_id = datos.get("posicion_id")
+    accion = (datos.get("accion") or "").strip().lower()
+    if not unidad_id or not posicion_id:
+        raise ValueError("Falta la unidad o la posición.")
+
+    unidad = cx.execute("select * from unidades where id = %s", (unidad_id,)).fetchone()
+    if not unidad:
+        raise ValueError("Esa unidad no existe.")
+
+    # La posición tiene que ser del mapa de esta unidad. Sin esto, un id
+    # suelto podría montar una cubierta en el mapa de otro camión.
+    de_esta = cx.execute("""
+        select 1 from configuracion_posiciones
+        where id = %s and configuracion_id = %s""",
+        (posicion_id, unidad["configuracion_id"])).fetchone()
+    if not de_esta:
+        raise ValueError("Esa posición no es de esta unidad.")
+
+    quien = (usuario or {}).get("nombre")
+
+    if accion == "desmontar":
+        # A dónde va la que sale lo decide el gomero: al stock si sirve, a
+        # recapar si está gastada, a baja si no da para más.
+        destino = (datos.get("destino") or "stock").strip().lower()
+        if destino not in ("stock", "recapado", "reparacion", "baja"):
+            raise ValueError("La cubierta que sale tiene que ir a stock, recapado, reparación o baja.")
+        puesta = _base.montaje_abierto(cx, unidad_id, posicion_id)
+        if not puesta:
+            raise ValueError("Esa posición ya estaba vacía.")
+        _base.sacar_de_servicio(cx, puesta["cubierta_id"], destino=destino,
+                                unidad_id=unidad_id, posicion_id=posicion_id,
+                                usuario=quien, nota=_texto(datos.get("nota"), 300))
+        cx.execute("""update montajes set hasta = now()
+                      where unidad_id = %s and posicion_id = %s and hasta is null""",
+                   (unidad_id, posicion_id))
+
+    elif accion == "montar":
+        cubierta_id = datos.get("cubierta_id")
+        if not cubierta_id:
+            raise ValueError("Elegí qué cubierta va.")
+        cubierta = cx.execute("select * from cubiertas where id = %s",
+                              (cubierta_id,)).fetchone()
+        if not cubierta:
+            raise ValueError("Esa cubierta no existe.")
+        # Una cubierta puesta en otra unidad no se puede poner acá sin
+        # sacarla antes: quedaría en dos lugares a la vez.
+        otra = cx.execute("""
+            select u.patente, p.codigo from montajes m
+            join unidades u on u.id = m.unidad_id
+            join configuracion_posiciones p on p.id = m.posicion_id
+            where m.cubierta_id = %s and m.hasta is null""", (cubierta_id,)).fetchone()
+        if otra:
+            raise ValueError(f"La {cubierta['codigo']} está puesta en "
+                             f"{base_fmt(otra['patente'])}, posición {otra['codigo']}. "
+                             f"Sacala de ahí primero.")
+        _base.montar(cx, unidad_id, posicion_id, cubierta_id,
+                     usuario=quien, nota=_texto(datos.get("nota"), 300))
+    else:
+        raise ValueError("La acción tiene que ser montar o desmontar.")
+
+    return {"mapa": posiciones(cx, unidad_id)}
+
+
+def stock_para(cx, medida=None, limite=200):
+    """Las cubiertas que se pueden poner: en stock o recapadas, y libres.
+
+    El estado no alcanza para saber si está libre. Los mapas se cargaron a
+    mano y hay cubiertas marcadas 'stock' que en realidad están puestas: lo
+    que manda es si tienen un montaje abierto.
+    """
+    # El filtro por medida se arma o no se arma. Mandarlo como "%s is null"
+    # no anda: psycopg no puede deducir el tipo de un parámetro que solo
+    # aparece en una comparación con null.
+    filtro, valores = "", []
+    if medida:
+        filtro = "and c.medida = %s"
+        valores.append(medida)
+    valores.append(limite)
+    return _bloque(cx, f"""
+        select c.id, c.codigo, c.marca, c.modelo, c.medida, c.remanente_mm,
+               c.recapados, c.estado
+        from cubiertas c
+        where c.estado in ('stock','recapado')
+          and not exists (select 1 from montajes m
+                           where m.cubierta_id = c.id and m.hasta is null)
+          {filtro}
+        order by c.medida, c.codigo limit %s""", valores)

@@ -8,7 +8,8 @@ existiendo, pero deja de ser la que manda.
 
 | Dónde | Qué |
 |---|---|
-| Supabase | `07_unidades.sql`: cuatro columnas nuevas y dos vistas |
+| Supabase | `07_unidades.sql`: las columnas y las vistas |
+| Supabase | `09_maestro_datos.sql`: los datos de las 68 unidades |
 | App | la pantalla `/unidades`, con alta, cambio y baja |
 | App | `importar_unidades.py`, para la carga inicial y las de después |
 
@@ -37,12 +38,22 @@ Y quedan armadas dos vistas:
 
 ## Paso 2 — cargar la planilla
 
+Lo más simple: en Supabase → **SQL Editor** → pegar y correr
+`gomeria/09_maestro_datos.sql`. Trae las 68 unidades adentro y no necesita
+nada más. Al final muestra cuántas quedaron con chasis, chofer y semi.
+
+**Sin este paso el maestro queda a medias**: las columnas existen pero
+vacías, y la pantalla muestra guiones donde va el chasis.
+
+Desde una máquina con la cadena de conexión a mano, lo mismo se puede
+hacer con el script, que además tiene simulación:
+
 ```
 python3 gomeria/importar_unidades.py gomeria/unidades_maestro.tsv --simular
 python3 gomeria/importar_unidades.py gomeria/unidades_maestro.tsv
 ```
 
-Con `--simular` dice qué haría y no escribe nada. Conviene mirarlo antes.
+Con `--simular` dice qué haría y no escribe nada.
 
 Se puede correr las veces que haga falta. **Un campo vacío en el archivo no
 pisa lo que ya está cargado**, así que se puede importar una planilla
@@ -98,6 +109,32 @@ deja de contar en los tableros y la historia queda. La pantalla lo avisa
 cuando pasa.
 
 Una unidad recién cargada, sin nada colgando, sí se borra de verdad.
+
+## La cédula
+
+Cada unidad tiene su cédula: el mismo documento que se lleva en la guantera,
+con el logo de la empresa, el dominio en la chapa, el chasis, el chofer y el
+semi. El botón la imprime sola, sin el resto de la pantalla, en A4.
+
+## El camión en 3D
+
+Debajo de la cédula se dibuja el camión y se lo puede girar, acercar y
+**tocar las ruedas**: al tocar una salen las posiciones de esa esquina con
+lo que tienen puesto, y desde ahí se saca y se pone una cubierta sin ir a
+gomería.
+
+- **Sacar** pregunta a dónde va la que sale: stock, recapado, reparación o
+  baja. Queda asentada como cualquier otro movimiento.
+- **Poner** ofrece lo que hay libre en stock. Una cubierta puesta en otra
+  unidad no se puede montar sin sacarla de ahí primero, y lo dice con la
+  patente y la posición donde está.
+- Las ruedas se pintan solas: **naranja** la elegida, **rojiza** la esquina
+  con alguna posición vacía, gris la que está completa.
+
+Cambiar cubiertas pide ser encargado o administrador, igual que editar.
+
+Cuáles unidades tienen modelo y cómo agregar otro está en
+`modelos/LEEME.md`.
 
 ## Qué lee de acá
 

@@ -47,6 +47,10 @@ PANTALLAS = {
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
+    # El logo de la app es blanco; sobre el papel claro de la cédula no se
+    # vería. Este es el azul, el mismo que se imprime en las etiquetas.
+    "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
+    "/favicon.png": ("favicon.png",             "image/png"),
 }
 
 
@@ -142,6 +146,54 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro: {e}", 500)
+
+        # Three.js y sus complementos viven en el repo, no en un CDN: el
+        # taller no siempre tiene buena conexión y una pantalla que depende
+        # de que conteste Cloudflare es una pantalla que un día no abre.
+        if ruta.startswith("/vendor/") and ruta.endswith(".js"):
+            if not self._exigir_sesion():
+                return
+            camino = os.path.join(AQUI, "vendor", os.path.basename(ruta))
+            if not os.path.isfile(camino):
+                return self._error("No existe ese archivo.", 404)
+            cuerpo = open(camino, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/javascript; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.send_header("Cache-Control", "public, max-age=604800")
+            self.end_headers()
+            return self.wfile.write(cuerpo)
+
+        # Los modelos 3D. Son archivos estáticos y no cambian nunca, así que
+        # se dejan cachear: son 240 KB y no tiene sentido bajarlos en cada
+        # unidad que se abre.
+        if ruta.startswith("/modelos/") and ruta.endswith(".obj"):
+            if not self._exigir_sesion():
+                return
+            nombre = os.path.basename(ruta)
+            camino = os.path.join(AQUI, "modelos", nombre)
+            if not os.path.isfile(camino):
+                return self._error("No existe ese modelo.", 404)
+            cuerpo = open(camino, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.send_header("Cache-Control", "public, max-age=604800")
+            self.end_headers()
+            return self.wfile.write(cuerpo)
+
+        # Las cubiertas que se pueden poner: lo que hay en stock, con la
+        # medida que ya está montada primero.
+        if ruta == "/api/gomeria/stock":
+            if not self._exigir_sesion():
+                return
+            medida = (parse_qs(urlparse(self.path).query).get("medida") or [None])[0]
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(uni.stock_para(cx, medida)))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el stock: {e}", 500)
 
         # La ficha de una unidad: el maestro más lo que sabe cada módulo.
         if ruta.startswith("/api/unidades/"):
@@ -267,6 +319,29 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el vencimiento: {e}", 500)
+
+        # El cambio de cubierta hecho tocando la rueda en el 3D. Es la misma
+        # operación que el parte escrito, pero acá la unidad y la posición ya
+        # se saben, así que no hay texto que interpretar.
+        if ruta == "/api/gomeria/posicion":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 32 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    salida = uni.mover_cubierta(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(salida))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo hacer el cambio: {e}", 500)
 
         if ruta == "/api/unidades":
             return self._unidad_escribir()
