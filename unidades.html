@@ -605,8 +605,13 @@ const PALABRAS_RUEDA = /rueda|wheel|tire|tyre|llanta|neumat|goma|kerek|gumi|\bra
 const SIGLA_RUEDA = /^[fmr][lr]$/i;
 /* Los colliders son cajas invisibles para las físicas del juego del que
    salió el modelo. Se dibujan como bloques blancos y desvirtúan todas las
-   medidas, así que no entran. */
-const SOBRA = /collider|collision|bound(ing)?box|_col\b|camera|light/i;
+   medidas, así que no entran.
+
+   Acá van nombres y nada más. Las luces y las cámaras de verdad se sacan
+   por lo que son, no por cómo se llaman: filtrarlas por nombre escondía
+   los faros y los focos traseros del 6x2 —"Lights_head", "Rear_Lights"—
+   que son chapa y vidrio, no una luz. */
+const SOBRA = /collider|collision|bound(ing)?box|_col\b/i;
 
 /* El nombre de una malla no siempre dice nada —en los glTF las mallas se
    llaman todas "model"— pero el del nodo que la contiene sí. Se mira la
@@ -916,13 +921,20 @@ function armarVisor(clave, archivo, unidad){
        no miden lo mismo, y el que venga después tampoco. */
     const medida = caja3.getSize(new THREE.Vector3());
     const mayor = Math.max(medida.x, medida.y, medida.z);
-    /* La distancia a la que el lado más largo entra justo en el encuadre,
-       más un margen: pegado al borde se ve mal y no se puede girar sin que
-       se salga. Se mira desde una esquina y un poco desde arriba, que es
-       como se le ve el techo y las cuatro ruedas de una. */
-    const lejos = mayor / (2 * Math.tan((cam.fov * Math.PI / 180) / 2)) * 1.45;
+    /* La distancia a la que el camión entra justo en el encuadre, más un
+       margen para poder girarlo sin que se salga. Hay que mirar los dos
+       lados del cuadro y no solo el alto: la ficha es más ancha que alta,
+       y encuadrar por el vertical deja el camión chiquito en el medio de
+       un panel vacío. Se mira desde una esquina y un poco desde arriba,
+       que es como se le ve el techo y las cuatro ruedas de una. */
+    const medioV = (cam.fov * Math.PI / 180) / 2;
+    const medioH = Math.atan(Math.tan(medioV) * Math.max(cam.aspect, .5));
+    const lejos = Math.max(mayor / (2 * Math.tan(medioH)),
+                           medida.y / (2 * Math.tan(medioV))) * 1.4;
     cam.position.copy(new THREE.Vector3(1, .42, 1).normalize().multiplyScalar(lejos));
-    ctrl.target.set(0, medida.y * .38, 0);
+    /* Al centro del camión, no al de la escena: si mira más abajo, el
+       camión se va para arriba y queda medio panel de piso vacío. */
+    ctrl.target.set(0, medida.y / 2, 0);
     ctrl.minDistance = lejos * .5;
     ctrl.maxDistance = lejos * 2.2;
     ctrl.update();

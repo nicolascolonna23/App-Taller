@@ -57,6 +57,37 @@ PANTALLAS = {
 }
 
 
+def _version():
+    """Qué versión del código está corriendo, para poder contestarlo.
+
+    Un despliegue tarda unos minutos: entre que se acepta un cambio y que
+    queda arriba, la pantalla sigue mostrando el código viejo. Sin esto no
+    hay forma de distinguir "no se arregló" de "todavía no llegó", y se
+    pierde media tarde mirando una pantalla que ya está vieja.
+
+    En la nube el commit lo pone el servicio en el ambiente; local sale del
+    repo. Si no hay ni una cosa ni la otra, se dice que no se sabe."""
+    commit = (os.environ.get("RENDER_GIT_COMMIT")
+              or os.environ.get("GIT_COMMIT") or "")
+    if not commit:
+        try:
+            import subprocess
+            commit = subprocess.run(
+                ["git", "-C", AQUI, "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5).stdout.strip()
+        except Exception:
+            commit = ""
+    return {
+        "commit": commit[:7] or "no se sabe",
+        # Cuándo arrancó este proceso. Es la fecha del despliegue: el
+        # servidor se reinicia entero en cada uno.
+        "desde": datetime.datetime.now().isoformat(timespec="minutes"),
+    }
+
+
+VERSION = _version()
+
+
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
 
@@ -85,6 +116,13 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el resumen: {e}", 500)
+
+        # Qué versión está corriendo. La usa la portada para poder mostrar
+        # de qué código es lo que se está viendo.
+        if ruta == "/api/version":
+            if not self._exigir_sesion():
+                return
+            return self._responder(gom.jstr(VERSION))
 
         # La hoja de etiquetas QR para pegar en los estantes.
         if ruta == "/repuestos/etiquetas":
