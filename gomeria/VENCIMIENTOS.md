@@ -86,3 +86,32 @@ El **"sin cargar"** sí es distinto a propósito: el panel dice 86 y la app 130,
 porque la app cruza todas las unidades activas contra todos los tipos, no solo
 las filas que existen en la planilla. Un camión sin VTV cargada es un hueco
 real aunque nadie le haya hecho la fila.
+
+## Cargar la planilla
+
+Lo más simple: en Supabase → **SQL Editor** → pegar y correr
+`gomeria/11_vencimientos_datos.sql`. Trae los 49 chóferes y los 144
+documentos adentro, más las 22 unidades que la planilla tenía y el maestro
+no (casi todas semis). Al final muestra cuántos quedaron vencidos, por
+vencer y al día.
+
+Se puede correr las veces que haga falta: una fecha que ya está no se
+duplica, y una fecha nueva entra como renovación arriba de la anterior.
+
+Desde una máquina con la cadena de conexión a mano, lo mismo se hace con el
+script, que además tiene simulación:
+
+```
+python3 gomeria/importar_vencimientos.py "VENCIMIENTO DE LICENCIAS.xlsx" --probar
+python3 gomeria/importar_vencimientos.py "VENCIMIENTO DE LICENCIAS.xlsx"
+```
+
+Para actualizarlo: bajar la planilla de Drive como `.xlsx` y volver a
+correr el script; el SQL se regenera desde ahí.
+
+### Las sucursales
+
+La planilla nombra las sucursales enteras —LARGA DISTANCIA, CATAMARCA— y el
+maestro de unidades las abrevia —LAD, CAT—. Al importar se traducen. Sin
+eso el panel muestra las dos como lugares distintos, cada uno con la mitad
+de los datos: los chóferes de un lado y las patentes del otro.

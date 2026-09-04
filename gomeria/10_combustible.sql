@@ -80,7 +80,12 @@ create trigger tg_combustible_al_dia before insert or update on combustible_carg
 -- ---------------------------------------------------------------------
 -- Una fila por remito, con lo que dice cada lado y en qué no coinciden.
 -- El estado es lo único que se mira: 'ok' se paga, el resto se revisa.
+-- Las dos se tiran juntas y en orden inverso al que se crean: resumen
+-- lee de cruce, así que cruce no se puede tirar primero. Correr este
+-- archivo por segunda vez fallaba justo acá.
+drop view if exists v_combustible_resumen;
 drop view if exists v_combustible_cruce;
+
 create view v_combustible_cruce as
 with remitos as (
   select distinct remito from combustible_cargas where remito <> ''
@@ -115,7 +120,6 @@ left join combustible_cargas p on p.remito = r.remito and p.origen = 'planilla';
 comment on view v_combustible_cruce is
   'Un renglón por remito. solo_estacion = nos lo facturan y no lo tenemos. solo_planilla = lo cargamos y no vino en el listado.';
 
-drop view if exists v_combustible_resumen;
 create view v_combustible_resumen as
 select estado, count(*)::int as remitos,
        round(sum(coalesce(litros_estacion, litros_planilla)), 2)  as litros,

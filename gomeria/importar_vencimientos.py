@@ -32,6 +32,28 @@ import openpyxl
 import psycopg
 from psycopg.rows import dict_row
 
+# La planilla nombra las sucursales enteras y el maestro de unidades las
+# abrevia. Sin traducirlas, el panel muestra "LARGA DISTANCIA" y "LAD" como
+# si fueran dos lugares distintos, y cada uno con la mitad de los datos.
+SUCURSALES = {
+    "LARGA DISTANCIA": "LAD",
+    "TUCUMAN": "TUC",
+    "BUENOS AIRES": "BUE",
+    "LA RIOJA": "LRJ",
+    "CATAMARCA": "CAT",
+    "BELEN": "BEL",
+    "CORDOBA": "COR",
+    "SALTA": "SAL",
+    "TALLER": "TAL",
+}
+
+
+def sucursal_de(hoja):
+    """El código con el que la sucursal se llama en el resto del sistema."""
+    nombre = " ".join(str(hoja or "").upper().split())
+    return SUCURSALES.get(nombre, nombre[:20])
+
+
 # Las hojas que no son sucursales.
 NO_SON_SUCURSALES = {"respuestas de formulario 1", "tablas_juntas", "tablas juntas"}
 
@@ -91,7 +113,7 @@ def leer(archivo):
                 vence = fecha(celdas[col_vence]) if len(celdas) > col_vence else None
                 if vence:
                     fechas[tipo] = (alta, vence)
-            filas.append({"sucursal": hoja.strip(), "chofer": chofer,
+            filas.append({"sucursal": sucursal_de(hoja), "chofer": chofer,
                           "patente": pat, "observaciones": str(obs).strip() if obs else None,
                           "fechas": fechas})
     return filas
