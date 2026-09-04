@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Flota | Diemar</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='6' y='12' width='20' height='9' rx='2' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.13);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  [hidden]{display:none!important}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .marca{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+
+  main{max-width:1400px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px}
+
+  /* Filtros: buscador, sucursal, uso y estado. Todo en una barra. */
+  .barra{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:14px}
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:9px;padding:9px 11px;font:inherit}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
+  #buscar{flex:1;min-width:190px}
+  .btn{background:var(--brand);color:#fff;border:0;border-radius:9px;
+    padding:10px 15px;font:inherit;font-weight:700;cursor:pointer}
+  .btn.gris{background:var(--surface-3);color:var(--ink)}
+  .btn.roja{background:transparent;color:var(--bad);border:1px solid rgba(227,93,98,.4)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .cuenta{color:var(--ink-muted);font-size:12px;margin-left:auto}
+
+  /* La tabla scrollea sola: son diez columnas y no entran en un celular. */
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;overflow:auto}
+  table{width:100%;border-collapse:collapse;font-size:13px;white-space:nowrap}
+  th{position:sticky;top:0;background:var(--surface-2);text-align:left;
+    padding:10px 12px;font-size:10px;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--ink-muted);border-bottom:1px solid var(--hairline);cursor:pointer;
+    user-select:none}
+  th:hover{color:var(--ink)}
+  th .flecha{color:var(--brand)}
+  td{padding:9px 12px;border-bottom:1px solid var(--hairline)}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:var(--surface-2)}
+  tr.baja td{opacity:.45}
+  .pat{font-weight:700;letter-spacing:.4px}
+  .chip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;
+    font-weight:700;letter-spacing:.5px;background:var(--surface-3);color:var(--ink-2)}
+  .chip.lad{background:rgba(255,122,26,.15);color:var(--brand)}
+  .chip.equipo{background:rgba(57,135,229,.15);color:#7db3ef}
+  .apagado{color:var(--ink-muted)}
+  .vacio{padding:40px;text-align:center;color:var(--ink-muted)}
+
+  /* Lo que no cierra, arriba de la tabla y plegado. */
+  details.revisar{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;padding:12px 15px;margin-bottom:14px}
+  details.revisar summary{cursor:pointer;font-weight:700;font-size:13px}
+  details.revisar ul{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:12px;
+    columns:2;column-gap:26px}
+  details.revisar li{margin-bottom:3px;break-inside:avoid}
+
+  /* La ficha. Se abre encima; en el celular ocupa la pantalla entera. */
+  .fondo{position:fixed;inset:0;background:rgba(4,6,8,.72);display:grid;
+    place-items:center;padding:18px;z-index:20;backdrop-filter:blur(3px)}
+  .ficha{background:var(--surface-1);border:1px solid var(--hairline-2);
+    border-radius:15px;width:min(760px,100%);max-height:90vh;overflow:auto;padding:20px}
+  .ficha h2{margin:0 0 3px;font-size:19px}
+  .ficha .quien{color:var(--ink-muted);font-size:12px;margin-bottom:16px}
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .campo{display:flex;flex-direction:column;gap:5px;min-width:0}
+  .campo.ancho{grid-column:1/-1}
+  .campo label{font-size:10px;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:700}
+  .campo .ayuda{font-size:11px;color:var(--ink-muted)}
+  .pie{display:flex;gap:9px;align-items:center;margin-top:18px;
+    padding-top:15px;border-top:1px solid var(--hairline)}
+  .pie .der{margin-left:auto;display:flex;gap:9px}
+  .error{background:rgba(227,93,98,.12);border:1px solid rgba(227,93,98,.35);
+    color:#ffb4b6;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+  .aviso{background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.35);
+    color:#f5d68a;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:13px}
+  /* Lo que el resto del sistema sabe de la unidad. No se edita acá: cada
+     cosa se toca en su módulo, y desde acá se salta. */
+  .estado{margin-top:18px;padding-top:16px;border-top:1px solid var(--hairline);
+    display:grid;gap:13px}
+  .estado .cargando{color:var(--ink-muted);font-size:12px}
+  .bloque{background:rgba(255,255,255,.04);border:1px solid var(--hairline);
+    border-radius:11px;padding:12px 14px}
+  .bloque > h3{margin:0 0 9px;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-muted);display:flex;align-items:center;gap:8px}
+  .bloque > h3 a{margin-left:auto;color:var(--brand);text-decoration:none;
+    font-size:11px;letter-spacing:0;text-transform:none;font-weight:600}
+  .numeros{display:flex;gap:22px;flex-wrap:wrap}
+  .numeros div{min-width:0}
+  .numeros b{display:block;font-size:20px;letter-spacing:-.03em;line-height:1.2;
+    font-variant-numeric:tabular-nums}
+  .numeros span{font-size:11px;color:var(--ink-muted)}
+  .lista{display:grid;gap:5px;font-size:12px}
+  .lista .fila{display:flex;gap:10px;align-items:baseline}
+  .lista .fila .izq{font-weight:700;min-width:52px}
+  .lista .fila .der{margin-left:auto;color:var(--ink-muted);font-size:11px;
+    white-space:nowrap}
+  .lista .fila.vencido .der{color:var(--bad)}
+  .lista .fila.por_vencer .der{color:var(--warn)}
+  .lista .fila.vigente .der{color:var(--ok)}
+  .nada{color:var(--ink-muted);font-size:12px}
+
+
+  @media(max-width:720px){
+    main{padding:14px}
+    .campos{grid-template-columns:1fr}
+    details.revisar ul{columns:1}
+    .cuenta{margin-left:0;width:100%}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="marca">Flota</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Flota</h1>
+  <p class="sub">Toda la información de las unidades. De acá sale para el resto del sistema.</p>
+
+  <div id="error" class="error" hidden></div>
+
+  <details class="revisar" id="revisar" hidden>
+    <summary>Datos para revisar <span id="revisar-n" class="apagado"></span></summary>
+    <ul id="revisar-lista"></ul>
+  </details>
+
+  <div class="barra">
+    <input id="buscar" type="search" placeholder="Patente, interno, chofer, chasis, modelo…">
+    <select id="f-sucursal"><option value="">Toda residencia</option></select>
+    <select id="f-uso"><option value="">Todo uso</option></select>
+    <select id="f-estado">
+      <option value="activas">Activas</option>
+      <option value="todas">Todas</option>
+      <option value="bajas">Solo de baja</option>
+      <option value="equipos">Solo equipos</option>
+    </select>
+    <button class="btn" id="nueva">+ Nueva unidad</button>
+    <span class="cuenta" id="cuenta"></span>
+  </div>
+
+  <div class="caja">
+    <table>
+      <thead><tr id="cabecera"></tr></thead>
+      <tbody id="cuerpo"></tbody>
+    </table>
+    <p class="vacio" id="vacio" hidden>No hay unidades que entren en ese filtro.</p>
+  </div>
+</main>
+
+<div class="fondo" id="fondo" hidden>
+  <form class="ficha" id="ficha" autocomplete="off">
+    <h2 id="ficha-titulo">Nueva unidad</h2>
+    <p class="quien" id="ficha-quien"></p>
+    <div id="ficha-error" class="error" hidden></div>
+    <div id="ficha-aviso" class="aviso" hidden></div>
+
+    <div class="campos">
+      <div class="campo">
+        <label for="c-patente">Patente o código</label>
+        <input id="c-patente" name="patente" required>
+        <span class="ayuda">Se guarda sin espacios. Un equipo sin patente va con su código: AUTCAT01.</span>
+      </div>
+      <div class="campo">
+        <label for="c-interno">Nro. interno</label>
+        <input id="c-interno" name="interno">
+      </div>
+      <div class="campo">
+        <label for="c-marca">Marca</label>
+        <input id="c-marca" name="marca" list="marcas">
+      </div>
+      <div class="campo">
+        <label for="c-modelo">Modelo</label>
+        <input id="c-modelo" name="modelo">
+      </div>
+      <div class="campo ancho">
+        <label for="c-chasis">Número de chasis</label>
+        <input id="c-chasis" name="chasis">
+      </div>
+      <div class="campo">
+        <label for="c-chofer">Chofer</label>
+        <input id="c-chofer" name="chofer" list="choferes">
+      </div>
+      <div class="campo">
+        <label for="c-semi">Semi asociado</label>
+        <input id="c-semi" name="semi">
+        <span class="ayuda">La patente del semi. Se guarda sin espacios.</span>
+      </div>
+      <div class="campo">
+        <label for="c-sucursal">Residencia</label>
+        <input id="c-sucursal" name="sucursal" list="sucursales">
+      </div>
+      <div class="campo">
+        <label for="c-uso">Uso</label>
+        <input id="c-uso" name="uso" list="usos">
+      </div>
+      <div class="campo">
+        <label for="c-tipo">Tipo</label>
+        <select id="c-tipo" name="tipo">
+          <option value="vehiculo">Vehículo</option>
+          <option value="equipo">Equipo (sin patente)</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="c-activa">Estado</label>
+        <select id="c-activa" name="activa">
+          <option value="1">Activa</option>
+          <option value="0">De baja</option>
+        </select>
+      </div>
+      <div class="campo ancho">
+        <label for="c-nota">Nota</label>
+        <textarea id="c-nota" name="nota" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="estado" id="c-estado">
+      <div class="cargando">Buscando lo que sabe el resto del sistema…</div>
+    </div>
+
+    <div class="pie">
+      <button type="button" class="btn roja" id="borrar" hidden>Eliminar</button>
+      <div class="der">
+        <button type="button" class="btn gris" id="cerrar">Cancelar</button>
+        <button type="submit" class="btn" id="guardar">Guardar</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<datalist id="marcas"></datalist>
+<datalist id="choferes"></datalist>
+<datalist id="sucursales"></datalist>
+<datalist id="usos"></datalist>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* La patente se guarda pegada y se muestra separada, que es como se lee. */
+const fmtPat = p => {
+  const n = String(p || '').toUpperCase();
+  const m = n.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = n.match(/^([A-Z]{3})(\d{3})$/);
+  return o ? `${o[1]} ${o[2]}` : n;
+};
+
+const COLS = [
+  { k:'patente',  t:'Patente',    v:u => `<span class="pat">${esc(fmtPat(u.patente))}</span>` },
+  { k:'interno',  t:'Interno',    v:u => esc(u.interno || '—'), n:true },
+  { k:'marca',    t:'Marca',      v:u => esc(u.marca || '—') },
+  { k:'modelo',   t:'Modelo',     v:u => esc(u.modelo || '—') },
+  { k:'chofer',   t:'Chofer',     v:u => esc(u.chofer || '—') },
+  { k:'semi',     t:'Semi',       v:u => u.semi ? esc(fmtPat(u.semi)) : '—' },
+  { k:'sucursal', t:'Residencia', v:u => esc(u.sucursal || '—') },
+  { k:'uso',      t:'Uso',        v:u => u.tipo === 'equipo'
+      ? '<span class="chip equipo">EQUIPO</span>'
+      : (u.uso === 'LARGA DISTANCIA' ? '<span class="chip lad">LARGA DISTANCIA</span>'
+                                     : `<span class="chip">${esc(u.uso || '—')}</span>`) },
+  { k:'chasis',   t:'Chasis',     v:u => `<span class="apagado">${esc(u.chasis || '—')}</span>` }
+];
+
+let DATOS = { unidades: [], sucursales: [], usos: [], revisar: [] };
+let ORDEN = { col:'interno', asc:true };
+let PUEDE = false;          /* si el usuario puede escribir */
+
+/* ------------------------------------------------------------------ */
+function pintarCabecera(){
+  $('#cabecera').innerHTML = COLS.map(c =>
+    `<th data-k="${c.k}">${c.t}${ORDEN.col === c.k
+      ? ` <span class="flecha">${ORDEN.asc ? '▲' : '▼'}</span>` : ''}</th>`).join('');
+  document.querySelectorAll('#cabecera th').forEach(th => th.onclick = () => {
+    const k = th.dataset.k;
+    ORDEN = { col:k, asc: ORDEN.col === k ? !ORDEN.asc : true };
+    pintarCabecera(); pintar();
+  });
+}
+
+function filtradas(){
+  const txt = $('#buscar').value.trim().toUpperCase().replace(/\s+/g,' ');
+  const plano = txt.replace(/[^A-Z0-9]/g,'');
+  const suc = $('#f-sucursal').value, uso = $('#f-uso').value, est = $('#f-estado').value;
+  return DATOS.unidades.filter(u => {
+    if (est === 'activas'  && !u.activa) return false;
+    if (est === 'bajas'    &&  u.activa) return false;
+    if (est === 'equipos'  && u.tipo !== 'equipo') return false;
+    if (suc && u.sucursal !== suc) return false;
+    if (uso && u.uso !== uso) return false;
+    if (!txt) return true;
+    /* La patente se compara pegada: da igual cómo la escriban en el buscador. */
+    if (plano && String(u.patente || '').includes(plano)) return true;
+    return [u.interno, u.marca, u.modelo, u.chofer, u.chasis, u.semi, u.sucursal, u.uso]
+      .some(v => String(v || '').toUpperCase().includes(txt));
+  });
+}
+
+function ordenar(filas){
+  const c = COLS.find(x => x.k === ORDEN.col) || COLS[0];
+  const signo = ORDEN.asc ? 1 : -1;
+  return filas.slice().sort((a, b) => {
+    let x = a[c.k], y = b[c.k];
+    /* El interno es un número escrito como texto: 2 va antes que 100. */
+    if (c.n) { x = parseInt(x, 10); y = parseInt(y, 10);
+      if (isNaN(x) && isNaN(y)) return 0;
+      if (isNaN(x)) return 1;      /* los que no tienen, al final siempre */
+      if (isNaN(y)) return -1;
+      return (x - y) * signo; }
+    return String(x || '￿').localeCompare(String(y || '￿'), 'es') * signo;
+  });
+}
+
+function pintar(){
+  const filas = ordenar(filtradas());
+  $('#cuerpo').innerHTML = filas.map(u =>
+    `<tr data-id="${u.id}" class="${u.activa ? '' : 'baja'}">` +
+    COLS.map(c => `<td>${c.v(u)}</td>`).join('') + '</tr>').join('');
+  $('#vacio').hidden = filas.length > 0;
+  const total = DATOS.unidades.length;
+  $('#cuenta').textContent = filas.length === total
+    ? `${total} unidades` : `${filas.length} de ${total}`;
+  document.querySelectorAll('#cuerpo tr').forEach(tr =>
+    tr.onclick = () => abrir(DATOS.unidades.find(u => String(u.id) === tr.dataset.id)));
+}
+
+function opciones(sel, valores, rotulo){
+  const antes = sel.value;
+  sel.innerHTML = `<option value="">${rotulo}</option>` +
+    valores.map(v => `<option>${esc(v)}</option>`).join('');
+  sel.value = antes;
+}
+const datalist = (id, valores) =>
+  document.getElementById(id).innerHTML = valores.map(v => `<option value="${esc(v)}">`).join('');
+
+/* ------------------------------------------------------------------ */
+/* La ficha                                                            */
+let EDITANDO = null;
+
+function abrir(u){
+  EDITANDO = u || null;
+  $('#ficha-error').hidden = true; $('#ficha-aviso').hidden = true;
+  $('#ficha-titulo').textContent = u ? fmtPat(u.patente) : 'Nueva unidad';
+  $('#ficha-quien').textContent = u
+    ? [u.modelo, u.interno && `interno ${u.interno}`].filter(Boolean).join(' · ')
+    : 'Se da de alta en el maestro y queda disponible en todo el sistema.';
+
+  const set = (id, v) => $(id).value = v == null ? '' : v;
+  set('#c-patente', u ? fmtPat(u.patente) : '');
+  for (const c of ['interno','marca','modelo','chasis','chofer','sucursal','uso','nota'])
+    set('#c-' + c, u ? u[c] : '');
+  set('#c-semi', u && u.semi ? fmtPat(u.semi) : '');
+  $('#c-tipo').value = u ? u.tipo : 'vehiculo';
+  $('#c-activa').value = u ? (u.activa ? '1' : '0') : '1';
+
+  /* Lo que sabe el resto del sistema se pide aparte: la lista no lo trae y
+     no tiene por qué, son cuatro consultas más por unidad. */
+  const estado = $('#c-estado');
+  estado.hidden = !u;
+  if (u){
+    estado.innerHTML = '<div class="cargando">Buscando lo que sabe el resto del sistema…</div>';
+    pintarEstado(u.id);
+  }
+
+  $('#borrar').hidden = !u || !PUEDE;
+  $('#guardar').disabled = !PUEDE;
+  $('#fondo').hidden = false;
+  $('#c-patente').focus();
+}
+const nf0 = new Intl.NumberFormat('es-AR');
+const fecha = f => { const p = String(f || '').split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(2)}` : (f || '—'); };
+
+function bloque(titulo, cuerpo, enlace){
+  return `<div class="bloque"><h3>${esc(titulo)}` +
+    (enlace ? `<a href="${enlace[1]}">${esc(enlace[0])} ›</a>` : '') +
+    `</h3>${cuerpo}</div>`;
+}
+
+async function pintarEstado(id){
+  const caja = $('#c-estado');
+  let d;
+  try {
+    const r = await fetch('/api/unidades/' + id);
+    if (!r.ok) throw new Error();
+    d = await r.json();
+  } catch (e) {
+    caja.innerHTML = '<div class="cargando">No se pudo leer el resto de la ficha.</div>';
+    return;
+  }
+  /* Mientras se pedía, el usuario pudo cerrar o abrir otra: se descarta. */
+  if (!EDITANDO || EDITANDO.id !== id) return;
+
+  const u = d.unidad, partes = [];
+
+  /* Lo que viene rodando. */
+  const rec = d.recorrido;
+  partes.push(bloque('En la ruta',
+    `<div class="numeros">
+       <div><b>${u.km_actual != null ? nf0.format(Math.round(u.km_actual)) : '—'}</b>
+            <span>km del odómetro</span></div>
+       <div><b>${rec && rec.km ? nf0.format(Math.round(rec.km)) : '—'}</b>
+            <span>últimos 30 días${rec && rec.dias ? ` · ${rec.dias} lecturas` : ''}</span></div>
+       <div><b>${u.ultima_lectura ? fecha(u.ultima_lectura) : '—'}</b>
+            <span>última lectura</span></div>
+     </div>` +
+    (d.lecturas && d.lecturas.length > 1
+      ? `<div class="lista" style="margin-top:11px">` + d.lecturas.slice(0, 5).map(l =>
+          `<div class="fila"><span class="izq">${fecha(l.fecha)}</span>` +
+          `<span class="der">${nf0.format(Math.round(l.km))} km</span></div>`).join('') + '</div>'
+      : '<p class="nada" style="margin:9px 0 0">Todavía no hay serie de lecturas.</p>')));
+
+  /* Las cubiertas puestas. */
+  const cub = d.cubiertas || [];
+  partes.push(bloque('Cubiertas',
+    cub.length
+      ? '<div class="lista">' + cub.map(c =>
+          `<div class="fila"><span class="izq">${esc(c.posicion)}</span>` +
+          `<span>${esc(c.cubierta)}${c.marca ? ' · ' + esc(c.marca) : ''}` +
+          `${c.medida ? ' · ' + esc(c.medida) : ''}</span>` +
+          `<span class="der">${c.remanente_mm != null ? c.remanente_mm + ' mm' : ''}` +
+          `${c.recapados ? ` · ${c.recapados} recap.` : ''}</span></div>`).join('') + '</div>'
+      : `<p class="nada">${u.configuracion
+          ? 'El mapa está armado pero no tiene cubiertas montadas.'
+          : 'Todavía no tiene mapa de cubiertas asignado.'}</p>`,
+    ['Ver el mapa', '/gomeria/u/' + encodeURIComponent(u.patente)]));
+
+  /* Los documentos: los de la unidad y los del chofer. */
+  const doc = d.documentos || [];
+  partes.push(bloque('Documentos',
+    doc.length
+      ? '<div class="lista">' + doc.map(v =>
+          `<div class="fila ${esc(v.estado)}"><span class="izq">${esc(v.tipo)}</span>` +
+          `<span>${esc(v.identificador || v.persona || '')}</span>` +
+          `<span class="der">${fecha(v.vence)}` +
+          `${v.dias < 0 ? ` · vencido hace ${-v.dias} d`
+                        : ` · faltan ${v.dias} d`}</span></div>`).join('') + '</div>'
+      : '<p class="nada">Sin documentos cargados para esta unidad.</p>',
+    ['Vencimientos', '/vencimientos']));
+
+  /* El semi, si lo hay. */
+  if (u.semi){
+    const s = d.semi_unidad;
+    partes.push(bloque('Semi asociado',
+      s ? `<div class="lista"><div class="fila"><span class="izq">${esc(fmtPat(s.patente))}</span>` +
+          `<span>${esc([s.marca, s.modelo].filter(Boolean).join(' '))  || 'sin modelo cargado'}</span>` +
+          `<span class="der">${s.configuracion_id ? 'con mapa' : 'sin mapa'}</span></div></div>`
+        : `<p class="nada">${esc(fmtPat(u.semi))} — no está cargado como unidad. ` +
+          `Si lleva cubiertas propias, conviene darlo de alta.</p>`));
+  }
+
+  caja.innerHTML = partes.join('');
+}
+
+const cerrar = () => { $('#fondo').hidden = true; EDITANDO = null; };
+
+$('#cerrar').onclick = cerrar;
+$('#fondo').onclick = e => { if (e.target === $('#fondo')) cerrar(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#fondo').hidden) cerrar(); });
+$('#nueva').onclick = () => abrir(null);
+
+async function mandar(cuerpo, metodo){
+  const r = await fetch('/api/unidades', {
+    method: metodo || 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(cuerpo)
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar.');
+  return d;
+}
+
+$('#ficha').onsubmit = async e => {
+  e.preventDefault();
+  $('#ficha-error').hidden = true;
+  const cuerpo = { id: EDITANDO ? EDITANDO.id : null };
+  for (const c of ['patente','interno','marca','modelo','chasis','chofer',
+                   'semi','sucursal','uso','nota','tipo'])
+    cuerpo[c] = $('#c-' + c).value;
+  cuerpo.activa = $('#c-activa').value === '1';
+  $('#guardar').disabled = true;
+  try { await mandar(cuerpo); cerrar(); await cargar(); }
+  catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
+  finally { $('#guardar').disabled = false; }
+};
+
+$('#borrar').onclick = async () => {
+  if (!EDITANDO) return;
+  if (!confirm(`¿Eliminar ${fmtPat(EDITANDO.patente)} del maestro?\n\n` +
+               `Si tiene cubiertas, lecturas o documentos cargados no se borra: ` +
+               `se le da de baja y la historia queda.`)) return;
+  try {
+    const d = await mandar({ id: EDITANDO.id }, 'DELETE');
+    await cargar();
+    if (d.baja) { abrir(DATOS.unidades.find(u => u.id === EDITANDO.id));
+      $('#ficha-aviso').textContent = d.aviso; $('#ficha-aviso').hidden = false; }
+    else cerrar();
+  } catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
+};
+
+/* ------------------------------------------------------------------ */
+async function cargar(){
+  const r = await fetch('/api/unidades');
+  if (!r.ok) {
+    const d = await r.json().catch(() => ({}));
+    $('#error').textContent = d.error || 'No se pudo leer el maestro de unidades.';
+    $('#error').hidden = false;
+    return;
+  }
+  DATOS = await r.json();
+  $('#error').hidden = true;
+
+  opciones($('#f-sucursal'), DATOS.sucursales, 'Toda residencia');
+  opciones($('#f-uso'), DATOS.usos, 'Todo uso');
+  datalist('sucursales', DATOS.sucursales);
+  datalist('usos', DATOS.usos);
+  const unicos = k => [...new Set(DATOS.unidades.map(u => u[k]).filter(Boolean))].sort();
+  datalist('marcas', unicos('marca'));
+  datalist('choferes', unicos('chofer'));
+
+  const rev = DATOS.revisar || [];
+  $('#revisar').hidden = rev.length === 0;
+  $('#revisar-n').textContent = rev.length ? `(${rev.length})` : '';
+  $('#revisar-lista').innerHTML = rev.map(r =>
+    `<li><b>${esc(fmtPat(r.patente))}</b> — ${esc(r.problema)}` +
+    `${r.detalle ? ' <span class="apagado">' + esc(r.detalle) + '</span>' : ''}</li>`).join('');
+
+  pintar();
+}
+
+for (const id of ['#buscar','#f-sucursal','#f-uso','#f-estado'])
+  $(id).addEventListener('input', pintar);
+
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
+  if (!d) return;
+  PUEDE = ['admin','encargado'].includes(d.rol);
+  $('#quien').textContent = `${d.nombre} · ${d.rol}`;
+  $('#nueva').hidden = !PUEDE;
+  if (!PUEDE) $('.sub').textContent += ' Solo lectura: para editar hace falta ser encargado.';
+}).catch(() => {});
+
+pintarCabecera();
+cargar();
+</script>
+</body>
+</html>

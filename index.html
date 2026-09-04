@@ -551,16 +551,35 @@ async function fetchCSV(urls) {
 
 const APP = { unidades: [], meses: [], prefiltros: [], fuentes: { flota:null, servicios:null, telemetria:null } };
 
+/* El maestro sale de la base, que es donde se edita. La planilla queda
+   como respaldo: si la base no contesta —la pantalla abierta sin sesión, un
+   despliegue a medias— el tablero sigue andando con lo último que hay ahí. */
+async function maestroDeLaBase() {
+  try {
+    const r = await fetch('/api/flota', { cache: 'no-store' });
+    if (!r.ok) return null;
+    const filas = await r.json();
+    return Array.isArray(filas) && filas.length ? filas : null;
+  } catch (e) { return null; }
+}
+
 /** Maestro: modelo(0) marca(2) chofer(3) patente(4) interno(5) semi(6) sucursal(7) uso(8) */
 async function cargarFlota() {
+  const arma = u => ({ modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
+                       patente:normPat(u.patente), display:fmtPat(u.patente),
+                       interno:u.interno||'', semi:u.semi||'',
+                       sucursal:(u.sucursal||'').trim().toUpperCase(), uso:u.uso||'' });
+
+  const base = await maestroDeLaBase();
+  if (base) { APP.fuentes.flota = 'base'; return base.map(arma); }
+
   const rows = await fetchCSV([pub(CFG.gid.flota), gviz(CFG.idServices, CFG.gid.flota)]);
   if (!rows) return [];
   const head = rows.findIndex(r => (r[4] || '').toUpperCase().includes('PATENTE'));
   const out = rows.slice(head >= 0 ? head + 1 : 1)
     .filter(r => esPatente(r[4]))
-    .map(r => ({ modelo:r[0]||'', marca:r[2]||'', chofer:r[3]||'', patente:normPat(r[4]),
-                 display:fmtPat(r[4]), interno:r[5]||'', semi:r[6]||'',
-                 sucursal:(r[7]||'').trim().toUpperCase(), uso:r[8]||'' }));
+    .map(r => arma({ modelo:r[0], marca:r[2], chofer:r[3], patente:r[4],
+                     interno:r[5], semi:r[6], sucursal:r[7], uso:r[8] }));
   if (out.length) APP.fuentes.flota = 'vivo';
   return out;
 }
@@ -1093,7 +1112,10 @@ function renderRalenti() {
    ===================================================================== */
 function marcarFuente() {
   const f = APP.fuentes;
-  const vivas = ['flota', 'servicios', 'telemetria'].filter(k => f[k] === 'vivo');
+  // 'base' es el maestro leído de Supabase: cuenta como fuente viva igual
+  // que la planilla, o mejor, porque es la que se edita.
+  const viva = v => v === 'vivo' || v === 'base';
+  const vivas = ['flota', 'servicios', 'telemetria'].filter(k => viva(f[k]));
   const chip = $('#chip-fuente'), dot = chip.querySelector('.dot');
   const total = 3;
 
