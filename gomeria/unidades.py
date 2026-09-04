@@ -202,12 +202,25 @@ def ficha(cx, unidad_id):
     if not unidad:
         return None
 
+    # El mapa entero, con posiciones vacías incluidas: el 3D las necesita
+    # para saber qué se puede montar dónde.
+    mapa = posiciones(cx, unidad_id)
+
+    # Cuántas gomas lleva de verdad. Se cuenta acá y no se espera a que la
+    # vista lo traiga: la regla del taller es esa —seis gomas es un 4x2,
+    # diez es un 6x2— y no puede depender de que una migración esté
+    # corrida. Sin el número se caía en el nombre del armado, y hay
+    # configuraciones cargadas como "S-D-D" que en el mapa tienen seis
+    # posiciones: el nombre miente y el mapa no.
+    contada = dict(unidad)
+    contada["posiciones"] = sum(1 for p in mapa if not p.get("es_auxilio"))
+
     # El modelo que le tocaría, y si el archivo está o falta. Del S-Way
     # todavía no llegó el .obj: la unidad se deduce igual y la pantalla
     # avisa qué falta, en vez de tirar un 404 sin explicación.
-    quiere = modelo_3d(unidad)
+    quiere = modelo_3d(contada)
     archivo, version = _archivo_3d(quiere)
-    ejes, por = ejes_de(unidad)
+    ejes, por = ejes_de(contada)
     salida = {"unidad": unidad,
               "modelo_3d": quiere if archivo else None,
               "modelo_3d_archivo": archivo,
@@ -219,9 +232,7 @@ def ficha(cx, unidad_id):
               # mismo que el mapa de cubiertas ya cargado.
               "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por}
 
-    # El mapa entero, con posiciones vacías incluidas: el 3D las necesita
-    # para saber qué se puede montar dónde.
-    salida["mapa"] = posiciones(cx, unidad_id)
+    salida["mapa"] = mapa
 
     # Las cubiertas puestas, en el orden en que se dibuja el mapa.
     salida["cubiertas"] = _bloque(cx, """
