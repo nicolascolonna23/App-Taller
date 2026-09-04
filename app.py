@@ -170,7 +170,7 @@ class App(gom.Handler):
         # Los modelos 3D. Son archivos estáticos y no cambian nunca, así que
         # se dejan cachear: son 240 KB y no tiene sentido bajarlos en cada
         # unidad que se abre.
-        if ruta.startswith("/modelos/") and ruta.endswith(".obj"):
+        if ruta.startswith("/modelos/") and ruta.endswith((".obj", ".fbx")):
             if not self._exigir_sesion():
                 return
             nombre = os.path.basename(ruta)
@@ -179,7 +179,10 @@ class App(gom.Handler):
                 return self._error("No existe ese modelo.", 404)
             cuerpo = open(camino, "rb").read()
             self.send_response(200)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            # El FBX es binario; el OBJ es texto. Mandar el binario como
+            # texto lo rompe en el camino.
+            self.send_header("Content-Type", "application/octet-stream"
+                             if nombre.endswith(".fbx") else "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(cuerpo)))
             self.send_header("Cache-Control", "public, max-age=604800")
             self.end_headers()

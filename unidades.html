@@ -207,6 +207,8 @@
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/OBJLoader.js"></script>
 <script src="/vendor/OrbitControls.js"></script>
+<script src="/vendor/fflate.min.js"></script>
+<script src="/vendor/FBXLoader.js"></script>
 </head>
 <body>
 
@@ -578,6 +580,60 @@ const RUEDAS = {                       /* objeto del modelo → qué esquina es 
   rueda_atras_izq:  { eje: 'atras',  lado: 'I', rotulo: 'trasera izquierda' },
   rueda_atras_der:  { eje: 'atras',  lado: 'D', rotulo: 'trasera derecha' }
 };
+/* Encontrar las ruedas sin depender de cómo las llamó el que armó el
+   modelo. Los nombres cambian con cada archivo —en alemán, en inglés, o
+   "Object_012"— así que primero se prueba por nombre y, si no da, se
+   buscan por dónde están: son los pedazos de abajo, corridos hacia los
+   costados, y todos parecidos entre sí.
+
+   Devuelve el mismo objeto {eje, lado} que la tabla de nombres, así el
+   resto de la pantalla no se entera de cómo se encontraron. */
+function ruedasPorPosicion(objeto){
+  const piezas = [];
+  objeto.traverse(m => {
+    if (!m.isMesh || !m.geometry) return;
+    const c = new THREE.Box3().setFromObject(m);
+    const tam = c.getSize(new THREE.Vector3());
+    const centro = c.getCenter(new THREE.Vector3());
+    piezas.push({ malla:m, tam, centro, volumen: tam.x * tam.y * tam.z });
+  });
+  if (piezas.length < 3) return [];
+
+  const todo = new THREE.Box3().setFromObject(objeto);
+  const tamTodo = todo.getSize(new THREE.Vector3());
+  const centroTodo = todo.getCenter(new THREE.Vector3());
+
+  const candidatas = piezas.filter(p => {
+    /* Abajo: una rueda no llega ni a la mitad del alto del camión. */
+    if (p.centro.y > todo.min.y + tamTodo.y * 0.42) return false;
+    /* Redonda: alto y largo parecidos, y más angosta que alta. */
+    const alto = p.tam.y, largo = p.tam.z, ancho = p.tam.x;
+    if (alto <= 0 || largo <= 0) return false;
+    if (Math.abs(alto - largo) / Math.max(alto, largo) > 0.35) return false;
+    if (ancho > alto * 1.2) return false;
+    /* De un tamaño razonable para el camión, ni un tornillo ni el chasis. */
+    if (alto < tamTodo.y * 0.12 || alto > tamTodo.y * 0.55) return false;
+    /* Corrida del centro a lo ancho. */
+    return Math.abs(p.centro.x - centroTodo.x) > tamTodo.x * 0.12;
+  });
+  if (candidatas.length < 2) return [];
+
+  /* Izquierda o derecha por el signo en X; adelante o atrás partiendo por
+     el medio de las candidatas, no del camión: en un tractor las ruedas
+     están todas en la mitad de atrás del chasis. */
+  const zetas = candidatas.map(p => p.centro.z).sort((a, b) => a - b);
+  const corte = (zetas[0] + zetas[zetas.length - 1]) / 2;
+  for (const p of candidatas){
+    p.malla.userData.esquina = {
+      eje:  p.centro.z < corte ? 'frente' : 'atras',
+      lado: p.centro.x < centroTodo.x ? 'I' : 'D',
+      rotulo: (p.centro.z < corte ? 'delantera' : 'trasera') + ' ' +
+              (p.centro.x < centroTodo.x ? 'izquierda' : 'derecha')
+    };
+  }
+  return candidatas.map(p => p.malla);
+}
+
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
             anim:null, modelo:null, esquina:null };
 
@@ -598,7 +654,7 @@ function visorVacio(texto){
   $('#visor-rotulo').textContent = '';
 }
 
-function armarVisor(clave, unidad){
+function armarVisor(clave, archivo, unidad){
   apagarVisor();
   $('#visor-vacio').hidden = true;
   $('#visor-rotulo').textContent = clave === 'sway' ? 'Iveco S-Way' : 'Iveco Hi-Way';
@@ -633,31 +689,74 @@ function armarVisor(clave, unidad){
   const blanco = new THREE.MeshStandardMaterial({ color:0xf2f4f6, roughness:.42, metalness:.12 });
   const goma   = new THREE.MeshStandardMaterial({ color:0x24282d, roughness:.92, metalness:.02 });
 
-  new THREE.OBJLoader().load('/modelos/iveco-' + clave + '.obj', obj => {
+  /* El .obj y el .fbx se leen igual de acá para abajo. El FBX se acepta
+     porque es como vienen casi todos los modelos, y convertirlos sería un
+     paso más que se puede saltear. */
+  const esFbx = archivo.toLowerCase().endsWith('.fbx');
+  const cargador = esFbx ? new THREE.FBXLoader() : new THREE.OBJLoader();
+
+  cargador.load('/modelos/' + archivo, obj => {
     if (!V.render || V.render !== ren) return;      /* se cerró mientras cargaba */
+
+    /* Cada modelo viene como lo dejó su autor: en centímetros o en metros,
+       parado en Y o en Z, y a veces hundido bajo el piso. En vez de pedir
+       que vengan prolijos, se los acomoda: se paran, se escalan al tamaño
+       de un camión y se apoyan en el piso. */
+    let caja = new THREE.Box3().setFromObject(obj);
+    let tam = caja.getSize(new THREE.Vector3());
+    /* Un camión es más largo que alto, y el resto de la pantalla espera el
+       largo en Z. Si el lado más grande cayó en Y, el modelo viene parado
+       en Z —así exporta media herramienta— y hay que acostarlo. */
+    if (tam.y > tam.z * 1.15) {
+      obj.rotation.x = -Math.PI / 2;
+      obj.updateMatrixWorld(true);
+      caja = new THREE.Box3().setFromObject(obj);
+      tam = caja.getSize(new THREE.Vector3());
+    }
+    const largo = Math.max(tam.x, tam.y, tam.z);
+    /* 6,5 m es un tractor. Si el modelo mide 650, venía en centímetros. */
+    if (largo > 0 && (largo < 1.5 || largo > 20)) {
+      const escala = 6.5 / largo;
+      obj.scale.multiplyScalar(escala);
+      obj.updateMatrixWorld(true);
+      caja = new THREE.Box3().setFromObject(obj);
+      tam = caja.getSize(new THREE.Vector3());
+    }
+
+    /* Las ruedas: primero por nombre, que es exacto cuando el modelo viene
+       preparado; si no, por dónde están. */
+    const porNombre = [];
+    obj.traverse(m => { if (m.isMesh && RUEDAS[m.name]) {
+      m.userData.esquina = RUEDAS[m.name]; porNombre.push(m); } });
+    const ruedas = porNombre.length >= 2 ? porNombre : ruedasPorPosicion(obj);
+    const esRueda = new Set(ruedas);
+
     obj.traverse(m => {
       if (!m.isMesh) return;
-      const esRueda = RUEDAS[m.name];
-      m.material = esRueda ? goma.clone() : blanco;
-      if (esRueda) { m.userData.esquina = RUEDAS[m.name]; V.ruedas.push(m); }
+      m.material = esRueda.has(m) ? goma.clone() : blanco;
+      if (esRueda.has(m)) V.ruedas.push(m);
     });
-    /* El modelo viene en metros y con el piso en Y=0, así que entra
-       derecho; solo se lo centra a lo largo. */
-    const caja3 = new THREE.Box3().setFromObject(obj);
-    obj.position.z -= (caja3.min.z + caja3.max.z) / 2;
+    $('#visor-pista').textContent = V.ruedas.length
+      ? 'Arrastrá para girar · tocá una rueda'
+      : 'Arrastrá para girar · en este modelo no se reconocieron las ruedas';
+    /* Centrado a lo largo y a lo ancho, y apoyado en el piso. */
+    obj.position.x -= (caja.min.x + caja.max.x) / 2;
+    obj.position.z -= (caja.min.z + caja.max.z) / 2;
+    obj.position.y -= caja.min.y;
     esc3.add(obj);
+    const caja3 = new THREE.Box3().setFromObject(obj);
 
     /* La cámara se acomoda al camión y no al revés: el S-Way y el Hi-Way
        no miden lo mismo, y el que venga después tampoco. */
-    const tam = caja3.getSize(new THREE.Vector3());
-    const largo = Math.max(tam.x, tam.y, tam.z);
+    const medida = caja3.getSize(new THREE.Vector3());
+    const mayor = Math.max(medida.x, medida.y, medida.z);
     /* La distancia a la que el lado más largo entra justo en el encuadre,
        más un margen: pegado al borde se ve mal y no se puede girar sin que
        se salga. Se mira desde una esquina y un poco desde arriba, que es
        como se le ve el techo y las cuatro ruedas de una. */
-    const lejos = largo / (2 * Math.tan((cam.fov * Math.PI / 180) / 2)) * 1.45;
+    const lejos = mayor / (2 * Math.tan((cam.fov * Math.PI / 180) / 2)) * 1.45;
     cam.position.copy(new THREE.Vector3(1, .42, 1).normalize().multiplyScalar(lejos));
-    ctrl.target.set(0, tam.y * .38, 0);
+    ctrl.target.set(0, medida.y * .38, 0);
     ctrl.minDistance = lejos * .5;
     ctrl.maxDistance = lejos * 2.2;
     ctrl.update();
@@ -906,7 +1005,8 @@ async function pintarEstado(id){
   if (d.modelo_3d_falta){
     visorVacio(`Falta el archivo del modelo ` +
       `<b>${d.modelo_3d_falta === 'sway' ? 'Iveco S-Way' : 'Iveco Hi-Way'}</b>.<br>` +
-      `Va en <code>modelos/iveco-${esc(d.modelo_3d_falta)}.obj</code>.`);
+      `Va en <code>modelos/iveco-${esc(d.modelo_3d_falta)}.obj</code> ` +
+      `o <code>.fbx</code>.`);
   } else if (!d.modelo_3d){
     visorVacio(u.tipo === 'equipo'
       ? 'Los equipos no tienen modelo 3D.'
@@ -915,7 +1015,7 @@ async function pintarEstado(id){
   } else if (typeof THREE === 'undefined'){
     visorVacio('No cargó la librería 3D.');
   } else {
-    armarVisor(d.modelo_3d, u);
+    armarVisor(d.modelo_3d, d.modelo_3d_archivo, u);
   }
 
   /* Lo que viene rodando. */

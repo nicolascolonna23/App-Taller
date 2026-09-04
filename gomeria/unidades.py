@@ -82,6 +82,21 @@ MODELOS_3D = (
 )
 
 
+def _archivo_3d(clave):
+    """El archivo del modelo, sea .obj o .fbx. None si no está ninguno.
+
+    Se aceptan los dos porque los modelos se consiguen casi siempre en FBX
+    y convertirlos es un paso más que se puede saltear.
+    """
+    if not clave:
+        return None
+    for ext in (".obj", ".fbx"):
+        nombre = f"iveco-{clave}{ext}"
+        if os.path.isfile(os.path.join(AQUI, os.pardir, "modelos", nombre)):
+            return nombre
+    return None
+
+
 def modelo_3d(unidad):
     """Qué camión se dibuja. Lo elegido a mano gana; si no, se deduce.
 
@@ -130,11 +145,11 @@ def ficha(cx, unidad_id):
     # todavía no llegó el .obj: la unidad se deduce igual y la pantalla
     # avisa qué falta, en vez de tirar un 404 sin explicación.
     quiere = modelo_3d(unidad)
-    hay = quiere and os.path.isfile(
-        os.path.join(AQUI, os.pardir, "modelos", f"iveco-{quiere}.obj"))
+    archivo = _archivo_3d(quiere)
     salida = {"unidad": unidad,
-              "modelo_3d": quiere if hay else None,
-              "modelo_3d_falta": None if hay else quiere}
+              "modelo_3d": quiere if archivo else None,
+              "modelo_3d_archivo": archivo,
+              "modelo_3d_falta": None if archivo else quiere}
 
     # El mapa entero, con posiciones vacías incluidas: el 3D las necesita
     # para saber qué se puede montar dónde.
