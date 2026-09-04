@@ -155,18 +155,23 @@ def modelo_3d(unidad):
 
 
 def _archivo_3d(clave):
-    """El archivo del modelo, sea .obj o .fbx. None si no está ninguno.
+    """El archivo y la versión del modelo, o ``(None, None)`` si falta.
 
     Se aceptan los dos porque los modelos se consiguen casi siempre en FBX
     y convertirlos es un paso más que se puede saltear.
+
+    La versión viaja a la pantalla para que el navegador no siga usando una
+    copia anterior después de reemplazar un modelo con el mismo nombre.
     """
     if not clave:
-        return None
+        return None, None
     for ext in (".obj", ".fbx"):
         nombre = f"iveco-{clave}{ext}"
-        if os.path.isfile(os.path.join(AQUI, os.pardir, "modelos", nombre)):
-            return nombre
-    return None
+        camino = os.path.join(AQUI, os.pardir, "modelos", nombre)
+        if os.path.isfile(camino):
+            datos = os.stat(camino)
+            return nombre, f"{datos.st_mtime_ns:x}-{datos.st_size:x}"
+    return None, None
 
 
 def _bloque(cx, consulta, valores=()):
@@ -198,11 +203,12 @@ def ficha(cx, unidad_id):
     # todavía no llegó el .obj: la unidad se deduce igual y la pantalla
     # avisa qué falta, en vez de tirar un 404 sin explicación.
     quiere = modelo_3d(unidad)
-    archivo = _archivo_3d(quiere)
+    archivo, version = _archivo_3d(quiere)
     ejes, por = ejes_de(unidad)
     salida = {"unidad": unidad,
               "modelo_3d": quiere if archivo else None,
               "modelo_3d_archivo": archivo,
+              "modelo_3d_version": version,
               "modelo_3d_falta": None if archivo else quiere,
               "modelo_3d_ejes": ejes,
               # De dónde salió: 'mano' si alguien lo eligió, y si no de qué
