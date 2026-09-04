@@ -700,9 +700,20 @@ function armarVisor(clave, archivo, unidad){
      porque es como vienen casi todos los modelos, y convertirlos sería un
      paso más que se puede saltear. */
   const esFbx = archivo.toLowerCase().endsWith('.fbx');
-  const cargador = esFbx ? new THREE.FBXLoader() : new THREE.OBJLoader();
+  const ClaseCargador = esFbx ? THREE.FBXLoader : THREE.OBJLoader;
+  if (!ClaseCargador){
+    visorVacio(`Falta el lector para el archivo <code>${esc(archivo)}</code>. ` +
+      'Recargá la página; si sigue igual, avisá al administrador.');
+    return;
+  }
+  const cargador = new ClaseCargador();
+  /* La versión evita que quede pegado en caché un OBJ/FBX anterior —o el
+     404 de antes de que se haya subido— cuando se actualiza un modelo. */
+  const version = (FICHA && FICHA.modelo_3d_version) || '';
+  const urlModelo = '/modelos/' + encodeURIComponent(archivo) +
+    (version ? '?v=' + encodeURIComponent(version) : '');
 
-  cargador.load('/modelos/' + archivo, obj => {
+  cargador.load(urlModelo, obj => {
     if (!V.render || V.render !== ren) return;      /* se cerró mientras cargaba */
 
     /* Los FBX traen adentro las luces y la cámara con las que los armaron.
@@ -816,7 +827,11 @@ function armarVisor(clave, archivo, unidad){
     ctrl.update();
     V.modelo = obj;
     pintarRuedas();
-  }, undefined, () => visorVacio('No se pudo cargar el modelo 3D.'));
+  }, undefined, error => {
+    const detalle = error && error.message ? ` (${esc(error.message)})` : '';
+    visorVacio(`No se pudo cargar <code>${esc(archivo)}</code>${detalle}. ` +
+      'Probá recargar la página.');
+  });
 
   /* Piso: un disco apenas más claro, para que el camión no flote. */
   const piso = new THREE.Mesh(new THREE.CircleGeometry(9, 64),
