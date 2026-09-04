@@ -142,7 +142,13 @@ create trigger tg_vencimiento_coherente
 -- identificador, porque un camión lleva más de uno y cada uno vence
 -- por su cuenta.
 -- ---------------------------------------------------------------------
+-- Las tres vistas se tiran juntas y en orden inverso al que se crean:
+-- pendientes y faltantes leen de hoy, así que hoy no se puede tirar
+-- primero. Correr este archivo por segunda vez fallaba justo acá.
+drop view if exists v_vencimientos_faltantes;
+drop view if exists v_vencimientos_pendientes;
 drop view if exists v_vencimientos_hoy;
+
 create view v_vencimientos_hoy as
 select distinct on (v.tipo_id, v.unidad_id, v.persona_id, clave.ident)
        v.id, v.tipo_id, t.nombre as tipo, t.ambito, t.aviso_dias,
@@ -179,7 +185,6 @@ order by v.tipo_id, v.unidad_id, v.persona_id, clave.ident, v.vence desc, v.id d
 -- Solo lo vencido y lo que está por vencer, lo urgente primero. Es lo
 -- que va arriba de la pantalla y lo que sale en el aviso.
 -- ---------------------------------------------------------------------
-drop view if exists v_vencimientos_pendientes;
 create view v_vencimientos_pendientes as
 select * from v_vencimientos_hoy
 where estado in ('vencido','por_vencer')
@@ -192,7 +197,6 @@ order by dias, orden, tipo, patente, persona;
 -- tener. Un dato que no está no se ve en ninguna lista, y esa es
 -- justamente la forma en que se pasan de largo.
 -- ---------------------------------------------------------------------
-drop view if exists v_vencimientos_faltantes;
 create view v_vencimientos_faltantes as
 select t.id as tipo_id, t.nombre as tipo, t.ambito,
        u.id as unidad_id, u.patente, u.interno,

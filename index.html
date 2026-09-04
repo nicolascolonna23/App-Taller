@@ -1024,13 +1024,19 @@ function renderKPIs() {
             mesCO2 ? `${mesLabel(mesCO2.mes)} · kilos emitidos` : 'sin datos de emisiones', C.s3);
 
   // El acceso a Control de Flota lleva el pendiente mas urgente a la vista.
+  // Ese cartelito se sacó de la pantalla cuando se quitó la tarjeta
+  // repetida de Control de Flota, y esto lo seguía buscando: reventaba
+  // acá, y como es lo primero que se dibuja, se caían todos los gráficos
+  // de abajo. De ahí el "Error al cargar los datos" con los KPIs llenos.
   const badge = $('#badge-flota');
-  const criticas = cuenta.vencido + cuenta.urgente;
-  if (!u.length) { badge.className = 'badge st-sindato'; badge.textContent = '—'; }
-  else if (criticas) {
-    badge.className = 'badge ' + (cuenta.vencido ? 'st-vencido' : 'st-urgente');
-    badge.textContent = `${criticas} a revisar`;
-  } else { badge.className = 'badge st-ok'; badge.textContent = 'Al día'; }
+  if (badge) {
+    const criticas = cuenta.vencido + cuenta.urgente;
+    if (!u.length) { badge.className = 'badge st-sindato'; badge.textContent = '—'; }
+    else if (criticas) {
+      badge.className = 'badge ' + (cuenta.vencido ? 'st-vencido' : 'st-urgente');
+      badge.textContent = `${criticas} a revisar`;
+    } else { badge.className = 'badge st-ok'; badge.textContent = 'Al día'; }
+  }
 }
 
 function renderEstados() {
