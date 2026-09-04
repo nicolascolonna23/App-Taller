@@ -69,6 +69,75 @@ def listar(cx):
     }
 
 
+def _bloque(cx, consulta, valores=()):
+    """Un pedazo de la ficha. Si su módulo todavía no está, viene vacío.
+
+    Los módulos se prenden de a uno: hasta que no esté corrido todo el SQL
+    va a haber tablas que no existen. Que falte una apaga su bloque, no la
+    ficha entera.
+    """
+    try:
+        return cx.execute(consulta, valores).fetchall()
+    except Exception:
+        cx.rollback()
+        return []
+
+
+def ficha(cx, unidad_id):
+    """Todo lo que el sistema sabe de una unidad, junto.
+
+    Es lo que se ve al abrir una unidad en Flota: los datos del maestro más
+    las cubiertas que tiene puestas, sus documentos, lo que viene rodando y
+    el semi que arrastra. Cada cosa vive en su módulo; acá se juntan.
+    """
+    unidad = una(cx, unidad_id)
+    if not unidad:
+        return None
+
+    salida = {"unidad": unidad}
+
+    # Las cubiertas puestas, en el orden en que se dibuja el mapa.
+    salida["cubiertas"] = _bloque(cx, """
+        select posicion, eje, lado, es_auxilio, cubierta, marca, medida,
+               remanente_mm, recapados, montada_desde
+        from v_mapa_unidad
+        where unidad_id = %s and cubierta_id is not null
+        order by orden""", (unidad_id,))
+
+    # Los documentos de la unidad y los del chofer que la maneja: al que
+    # sale a la ruta lo paran por los dos.
+    salida["documentos"] = _bloque(cx, """
+        select tipo, ambito, identificador, vence, dias, estado, donde, persona
+        from v_vencimientos_hoy
+        where unidad_id = %s
+        order by vence""", (unidad_id,))
+
+    # Lo que rodó en los últimos 30 días, con la misma cuenta que la
+    # portada: última lectura menos primera, que aguanta que falte un día.
+    recorrido = _bloque(cx, """
+        select max(km) - min(km) as km,
+               count(distinct fecha)::int as dias,
+               min(fecha) as desde, max(fecha) as hasta
+        from odometros
+        where unidad_id = %s and fecha >= current_date - 31""", (unidad_id,))
+    salida["recorrido"] = recorrido[0] if recorrido else None
+
+    salida["lecturas"] = _bloque(cx, """
+        select fecha, km from odometros
+        where unidad_id = %s order by fecha desc limit 10""", (unidad_id,))
+
+    # El semi es texto: puede o no estar cargado como unidad. Si está, se
+    # devuelve su id para poder saltar; si no, queda la patente sola.
+    salida["semi_unidad"] = None
+    if unidad.get("semi"):
+        fila = _bloque(cx, """
+            select id, patente, marca, modelo, configuracion_id
+            from unidades where patente = %s""", (unidad["semi"],))
+        salida["semi_unidad"] = fila[0] if fila else None
+
+    return salida
+
+
 def una(cx, unidad_id):
     return cx.execute("select * from v_unidades where id = %s", (unidad_id,)).fetchone()
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Unidades | Diemar</title>
+<title>Flota | Diemar</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='6' y='12' width='20' height='9' rx='2' fill='%23ff7a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -99,9 +99,32 @@
     color:#ffb4b6;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:13px}
   .aviso{background:rgba(240,180,41,.12);border:1px solid rgba(240,180,41,.35);
     color:#f5d68a;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:13px}
-  .solo-lectura{background:rgba(255,255,255,.05);border:1px solid var(--hairline);
-    border-radius:9px;padding:10px 12px;font-size:12px;color:var(--ink-2);
-    grid-column:1/-1;display:flex;gap:18px;flex-wrap:wrap}
+  /* Lo que el resto del sistema sabe de la unidad. No se edita acá: cada
+     cosa se toca en su módulo, y desde acá se salta. */
+  .estado{margin-top:18px;padding-top:16px;border-top:1px solid var(--hairline);
+    display:grid;gap:13px}
+  .estado .cargando{color:var(--ink-muted);font-size:12px}
+  .bloque{background:rgba(255,255,255,.04);border:1px solid var(--hairline);
+    border-radius:11px;padding:12px 14px}
+  .bloque > h3{margin:0 0 9px;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--ink-muted);display:flex;align-items:center;gap:8px}
+  .bloque > h3 a{margin-left:auto;color:var(--brand);text-decoration:none;
+    font-size:11px;letter-spacing:0;text-transform:none;font-weight:600}
+  .numeros{display:flex;gap:22px;flex-wrap:wrap}
+  .numeros div{min-width:0}
+  .numeros b{display:block;font-size:20px;letter-spacing:-.03em;line-height:1.2;
+    font-variant-numeric:tabular-nums}
+  .numeros span{font-size:11px;color:var(--ink-muted)}
+  .lista{display:grid;gap:5px;font-size:12px}
+  .lista .fila{display:flex;gap:10px;align-items:baseline}
+  .lista .fila .izq{font-weight:700;min-width:52px}
+  .lista .fila .der{margin-left:auto;color:var(--ink-muted);font-size:11px;
+    white-space:nowrap}
+  .lista .fila.vencido .der{color:var(--bad)}
+  .lista .fila.por_vencer .der{color:var(--warn)}
+  .lista .fila.vigente .der{color:var(--ok)}
+  .nada{color:var(--ink-muted);font-size:12px}
+
 
   @media(max-width:720px){
     main{padding:14px}
@@ -116,13 +139,13 @@
 <header class="top">
   <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
-  <span class="marca">Unidades</span>
+  <span class="marca">Flota</span>
   <span class="who" id="quien"></span>
 </header>
 
 <main>
-  <h1>Maestro de unidades</h1>
-  <p class="sub">De acá sale la información de cada vehículo para todo el sistema.</p>
+  <h1>Flota</h1>
+  <p class="sub">Toda la información de las unidades. De acá sale para el resto del sistema.</p>
 
   <div id="error" class="error" hidden></div>
 
@@ -218,7 +241,10 @@
         <label for="c-nota">Nota</label>
         <textarea id="c-nota" name="nota" rows="2"></textarea>
       </div>
-      <div class="solo-lectura" id="c-extra" hidden></div>
+    </div>
+
+    <div class="estado" id="c-estado">
+      <div class="cargando">Buscando lo que sabe el resto del sistema…</div>
     </div>
 
     <div class="pie">
@@ -357,24 +383,105 @@ function abrir(u){
   $('#c-tipo').value = u ? u.tipo : 'vehiculo';
   $('#c-activa').value = u ? (u.activa ? '1' : '0') : '1';
 
-  /* Lo que no se edita acá: sale de otros módulos y se muestra para ubicarse. */
-  const extra = $('#c-extra');
+  /* Lo que sabe el resto del sistema se pide aparte: la lista no lo trae y
+     no tiene por qué, son cuatro consultas más por unidad. */
+  const estado = $('#c-estado');
+  estado.hidden = !u;
   if (u){
-    extra.hidden = false;
-    extra.innerHTML = [
-      ['Mapa de cubiertas', u.configuracion || 'sin asignar'],
-      ['Cubiertas montadas', u.cubiertas_montadas],
-      ['Km del satelital', u.km_actual != null
-        ? new Intl.NumberFormat('es-AR').format(Math.round(u.km_actual)) : '—'],
-      ['Última lectura', u.ultima_lectura || 'nunca reportó']
-    ].map(([k, v]) => `<span><b>${esc(k)}:</b> ${esc(v)}</span>`).join('');
-  } else extra.hidden = true;
+    estado.innerHTML = '<div class="cargando">Buscando lo que sabe el resto del sistema…</div>';
+    pintarEstado(u.id);
+  }
 
   $('#borrar').hidden = !u || !PUEDE;
   $('#guardar').disabled = !PUEDE;
   $('#fondo').hidden = false;
   $('#c-patente').focus();
 }
+const nf0 = new Intl.NumberFormat('es-AR');
+const fecha = f => { const p = String(f || '').split('-');
+  return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(2)}` : (f || '—'); };
+
+function bloque(titulo, cuerpo, enlace){
+  return `<div class="bloque"><h3>${esc(titulo)}` +
+    (enlace ? `<a href="${enlace[1]}">${esc(enlace[0])} ›</a>` : '') +
+    `</h3>${cuerpo}</div>`;
+}
+
+async function pintarEstado(id){
+  const caja = $('#c-estado');
+  let d;
+  try {
+    const r = await fetch('/api/unidades/' + id);
+    if (!r.ok) throw new Error();
+    d = await r.json();
+  } catch (e) {
+    caja.innerHTML = '<div class="cargando">No se pudo leer el resto de la ficha.</div>';
+    return;
+  }
+  /* Mientras se pedía, el usuario pudo cerrar o abrir otra: se descarta. */
+  if (!EDITANDO || EDITANDO.id !== id) return;
+
+  const u = d.unidad, partes = [];
+
+  /* Lo que viene rodando. */
+  const rec = d.recorrido;
+  partes.push(bloque('En la ruta',
+    `<div class="numeros">
+       <div><b>${u.km_actual != null ? nf0.format(Math.round(u.km_actual)) : '—'}</b>
+            <span>km del odómetro</span></div>
+       <div><b>${rec && rec.km ? nf0.format(Math.round(rec.km)) : '—'}</b>
+            <span>últimos 30 días${rec && rec.dias ? ` · ${rec.dias} lecturas` : ''}</span></div>
+       <div><b>${u.ultima_lectura ? fecha(u.ultima_lectura) : '—'}</b>
+            <span>última lectura</span></div>
+     </div>` +
+    (d.lecturas && d.lecturas.length > 1
+      ? `<div class="lista" style="margin-top:11px">` + d.lecturas.slice(0, 5).map(l =>
+          `<div class="fila"><span class="izq">${fecha(l.fecha)}</span>` +
+          `<span class="der">${nf0.format(Math.round(l.km))} km</span></div>`).join('') + '</div>'
+      : '<p class="nada" style="margin:9px 0 0">Todavía no hay serie de lecturas.</p>')));
+
+  /* Las cubiertas puestas. */
+  const cub = d.cubiertas || [];
+  partes.push(bloque('Cubiertas',
+    cub.length
+      ? '<div class="lista">' + cub.map(c =>
+          `<div class="fila"><span class="izq">${esc(c.posicion)}</span>` +
+          `<span>${esc(c.cubierta)}${c.marca ? ' · ' + esc(c.marca) : ''}` +
+          `${c.medida ? ' · ' + esc(c.medida) : ''}</span>` +
+          `<span class="der">${c.remanente_mm != null ? c.remanente_mm + ' mm' : ''}` +
+          `${c.recapados ? ` · ${c.recapados} recap.` : ''}</span></div>`).join('') + '</div>'
+      : `<p class="nada">${u.configuracion
+          ? 'El mapa está armado pero no tiene cubiertas montadas.'
+          : 'Todavía no tiene mapa de cubiertas asignado.'}</p>`,
+    ['Ver el mapa', '/gomeria/u/' + encodeURIComponent(u.patente)]));
+
+  /* Los documentos: los de la unidad y los del chofer. */
+  const doc = d.documentos || [];
+  partes.push(bloque('Documentos',
+    doc.length
+      ? '<div class="lista">' + doc.map(v =>
+          `<div class="fila ${esc(v.estado)}"><span class="izq">${esc(v.tipo)}</span>` +
+          `<span>${esc(v.identificador || v.persona || '')}</span>` +
+          `<span class="der">${fecha(v.vence)}` +
+          `${v.dias < 0 ? ` · vencido hace ${-v.dias} d`
+                        : ` · faltan ${v.dias} d`}</span></div>`).join('') + '</div>'
+      : '<p class="nada">Sin documentos cargados para esta unidad.</p>',
+    ['Vencimientos', '/vencimientos']));
+
+  /* El semi, si lo hay. */
+  if (u.semi){
+    const s = d.semi_unidad;
+    partes.push(bloque('Semi asociado',
+      s ? `<div class="lista"><div class="fila"><span class="izq">${esc(fmtPat(s.patente))}</span>` +
+          `<span>${esc([s.marca, s.modelo].filter(Boolean).join(' '))  || 'sin modelo cargado'}</span>` +
+          `<span class="der">${s.configuracion_id ? 'con mapa' : 'sin mapa'}</span></div></div>`
+        : `<p class="nada">${esc(fmtPat(u.semi))} — no está cargado como unidad. ` +
+          `Si lleva cubiertas propias, conviene darlo de alta.</p>`));
+  }
+
+  caja.innerHTML = partes.join('');
+}
+
 const cerrar = () => { $('#fondo').hidden = true; EDITANDO = null; };
 
 $('#cerrar').onclick = cerrar;

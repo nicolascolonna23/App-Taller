@@ -1,4 +1,4 @@
-# El maestro de unidades
+# Flota — el maestro de unidades
 
 De acá sale la información de un vehículo para todo el sistema: la gomería,
 los vencimientos, el control de flota y el panel general. La planilla sigue
@@ -56,9 +56,24 @@ actualizarla, se pega de nuevo y se vuelve a correr.
 
 ## La pantalla
 
-`/unidades`. Buscador, filtros por residencia, uso y estado, y la tabla
-ordenable por cualquier columna. Se hace clic en una fila y se abre la
-ficha.
+**Flota**, en `/unidades`. Buscador, filtros por residencia, uso y estado, y
+la tabla ordenable por cualquier columna. Se hace clic en una fila y se abre
+la ficha.
+
+La ficha tiene dos partes. Arriba, los datos del maestro, que se editan.
+Abajo, lo que sabe el resto del sistema y no se toca desde acá:
+
+- **En la ruta** — el odómetro, lo que rodó en los últimos 30 días y las
+  últimas cinco lecturas del satelital.
+- **Cubiertas** — las que tiene puestas, con posición, marca, medida,
+  remanente y recapados. Enlaza al mapa en gomería.
+- **Documentos** — VTV, matafuegos y licencias de esa unidad, en verde,
+  amarillo o rojo según cuánto falte. Enlaza a vencimientos.
+- **Semi asociado** — si el semi está cargado como unidad se muestra con su
+  modelo y si tiene mapa; si no, avisa que conviene darlo de alta.
+
+Cada bloque es independiente: si un módulo todavía no tiene su SQL corrido,
+ese bloque viene vacío y los demás se ven igual.
 
 La patente se escribe como salga —`ad 247 mq`, `AD-247-MQ`— y se guarda
 siempre igual, pegada, que es como la manda el satelital. El buscador hace

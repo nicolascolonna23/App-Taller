@@ -143,6 +143,24 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro: {e}", 500)
 
+        # La ficha de una unidad: el maestro más lo que sabe cada módulo.
+        if ruta.startswith("/api/unidades/"):
+            if not self._exigir_sesion():
+                return
+            try:
+                unidad_id = int(ruta.rsplit("/", 1)[1])
+            except ValueError:
+                return self._error("Esa unidad no existe.", 404)
+            try:
+                with base.conectar() as cx:
+                    datos = uni.ficha(cx, unidad_id)
+                if not datos:
+                    return self._error("Esa unidad no existe.", 404)
+                return self._responder(gom.jstr(datos))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer la unidad: {e}", 500)
+
         # El maestro de unidades. De acá sale la información de cada vehículo
         # para el resto del sistema, así que la pantalla lee la vista entera.
         if ruta == "/api/unidades":
