@@ -46,10 +46,13 @@ create table if not exists combustible_cargas (
   creado      timestamptz not null default now()
 );
 
--- Un mismo remito no puede entrar dos veces por el mismo lado. Si el
--- listado se sube de nuevo, la fila se pisa en vez de duplicarse.
-create unique index if not exists ux_combustible_remito
-  on combustible_cargas (origen, remito);
+-- El número de remito NO alcanza como clave: dos estaciones distintas
+-- repiten numeración, y una planilla de un año trae el mismo número de
+-- dos proveedores. La patente lo desambigua. Si el mismo camión aparece
+-- dos veces con el mismo remito, eso sí es un duplicado y se pisa.
+drop index if exists ux_combustible_remito;
+create unique index if not exists ux_combustible_carga
+  on combustible_cargas (origen, remito, coalesce(patente, ''));
 
 create index if not exists ix_combustible_lote    on combustible_cargas(lote_id);
 create index if not exists ix_combustible_fecha   on combustible_cargas(fecha);
@@ -87,7 +90,16 @@ drop view if exists v_combustible_resumen;
 drop view if exists v_combustible_cruce;
 
 create view v_combustible_cruce as
-with remitos as (
+-- La estación manda un lote —una factura, un mes— y nuestra planilla
+-- tiene todo el historial. Cruzarlos enteros daría mil renglones de
+-- "solo nuestra planilla" que no son un hallazgo: son los otros meses.
+-- Por eso se toma el período que abarca lo que mandó la estación y lo de
+-- afuera queda aparte, en su propio estado.
+with ventana as (
+  select min(fecha) as desde, max(fecha) as hasta
+  from combustible_cargas where origen = 'estacion' and fecha is not null
+),
+remitos as (
   select distinct remito from combustible_cargas where remito <> ''
 )
 select r.remito,
@@ -106,6 +118,9 @@ select r.remito,
        round(coalesce(e.importe,0) - coalesce(p.importe,0), 2) as dif_importe,
        case
          when p.id is null then 'solo_estacion'   -- nos facturan algo que no tenemos
+         when e.id is null and v.desde is not null
+              and (p.fecha is null or p.fecha < v.desde or p.fecha > v.hasta)
+           then 'fuera_de_periodo'                -- de otro mes: no es un hallazgo
          when e.id is null then 'solo_planilla'   -- cargamos algo que no vino
          when abs(round(coalesce(e.litros,0) - coalesce(p.litros,0), 2)) > 0.5
            then 'difiere_litros'
@@ -114,11 +129,14 @@ select r.remito,
          else 'ok'
        end as estado
 from remitos r
+cross join ventana v
 left join combustible_cargas e on e.remito = r.remito and e.origen = 'estacion'
 left join combustible_cargas p on p.remito = r.remito and p.origen = 'planilla';
 
 comment on view v_combustible_cruce is
-  'Un renglón por remito. solo_estacion = nos lo facturan y no lo tenemos. solo_planilla = lo cargamos y no vino en el listado.';
+  'Un renglón por remito. solo_estacion = nos lo facturan y no lo tenemos. '
+  'solo_planilla = lo cargamos y no vino, dentro del período que mandó la estación. '
+  'fuera_de_periodo = de nuestra planilla pero de otro mes: no es parte de este control.';
 
 create view v_combustible_resumen as
 select estado, count(*)::int as remitos,

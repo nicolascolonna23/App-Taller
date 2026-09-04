@@ -89,6 +89,21 @@
   .tarjeta.solo_estacion b{color:var(--bad)}
   .tarjeta.solo_planilla b{color:var(--warn)}
   .tarjeta.difiere_litros b,.tarjeta.difiere_importe b{color:var(--info)}
+  .tarjeta.fuera_de_periodo b{color:var(--ink-muted)}
+  .pastilla.fuera_de_periodo{background:rgba(255,255,255,.06);color:var(--ink-muted)}
+
+  /* Elegir a mano qué columna es cada cosa. */
+  .mapeo{margin:11px 0;padding:11px;background:var(--surface-3);
+    border-radius:9px;display:flex;flex-wrap:wrap;gap:9px;align-items:flex-end}
+  .mapeo .titulo{width:100%;font-size:10px;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:700}
+  .mapeo label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;
+    color:var(--ink-muted);min-width:0}
+  .mapeo select{font-size:11.5px;padding:5px 7px;max-width:180px}
+  .mapeo .pista{width:100%;margin:2px 0 0;font-size:11px;color:var(--ink-muted);line-height:1.5}
+  .aviso-rep{margin:9px 0;padding:9px 11px;border-radius:8px;font-size:11.5px;
+    line-height:1.5;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);
+    color:#e8d9ae}
 
   .caja{background:var(--surface-1);border:1px solid var(--hairline);
     border-radius:13px;overflow:auto;margin-bottom:16px}
@@ -209,9 +224,11 @@ const ROTULO = {
   solo_estacion: ['Solo la estación', 'nos lo facturan y no lo tenemos cargado'],
   solo_planilla: ['Solo nuestra planilla', 'lo cargamos y no vino en el listado'],
   difiere_litros: ['Difieren los litros', 'más de medio litro de diferencia'],
-  difiere_importe: ['Difiere el importe', 'más de un peso de diferencia']
+  difiere_importe: ['Difiere el importe', 'más de un peso de diferencia'],
+  fuera_de_periodo: ['De otro período', 'de nuestra planilla, fuera del mes que mandó la estación']
 };
-const ORDEN = ['solo_estacion','difiere_importe','difiere_litros','solo_planilla','ok'];
+const ORDEN = ['solo_estacion','difiere_importe','difiere_litros','solo_planilla',
+               'ok','fuera_de_periodo'];
 
 let DATOS = { resumen: [], cruce: [], lotes: [] };
 let FILTRO = null, PUEDE = false;
@@ -244,6 +261,8 @@ const enBase64 = archivo => new Promise((ok, mal) => {
   l.readAsDataURL(archivo);
 });
 
+const COLUMNAS = { estacion: null, planilla: null };
+
 async function mandar(origen, archivo, confirmar){
   const caja = $('#p-' + origen);
   $('#error').hidden = true;
@@ -254,6 +273,7 @@ async function mandar(origen, archivo, confirmar){
       origen, confirmar,
       nombre: archivo.name,
       contenido: await enBase64(archivo),
+      columnas: COLUMNAS[origen],
       [origen === 'estacion' ? 'estacion' : 'periodo']: $('#e-' + origen).value
     };
     const r = await fetch('/api/combustible', {
@@ -263,14 +283,24 @@ async function mandar(origen, archivo, confirmar){
     if (!r.ok) throw new Error(d.error || 'No se pudo leer el archivo.');
 
     if (d.previo){
-      caja.innerHTML = vistaPrevia(archivo.name, d) ;
+      caja.innerHTML = vistaPrevia(origen, archivo.name, d);
       caja.querySelector('.guardar').onclick = () => mandar(origen, archivo, true);
-      caja.querySelector('.cancelar').onclick = () => { caja.hidden = true; $('#f-'+origen).value=''; };
+      caja.querySelector('.cancelar').onclick = () => {
+        caja.hidden = true; COLUMNAS[origen] = null; $('#f-'+origen).value = ''; };
+      // Cambiar una columna vuelve a leer el archivo con esa elección.
+      caja.querySelectorAll('select[data-campo]').forEach(sel => sel.onchange = () => {
+        const elegidas = {};
+        caja.querySelectorAll('select[data-campo]').forEach(x => {
+          if (x.value) elegidas[x.dataset.campo] = x.value; });
+        COLUMNAS[origen] = elegidas;
+        mandar(origen, archivo, false);
+      });
     } else {
       caja.innerHTML = `<b style="color:var(--ok)">Guardado.</b> ` +
         `${d.nuevas} remito${d.nuevas === 1 ? '' : 's'} nuevo${d.nuevas === 1 ? '' : 's'}` +
         `${d.actualizadas ? `, ${d.actualizadas} actualizado${d.actualizadas === 1 ? '' : 's'}` : ''}.`;
       $('#f-' + origen).value = '';
+      COLUMNAS[origen] = null;
       cargar();
     }
   } catch (err){
@@ -280,23 +310,48 @@ async function mandar(origen, archivo, confirmar){
   }
 }
 
-function vistaPrevia(nombre, d){
+/* Qué columna es cada cosa. La app adivina por el nombre del título, pero
+   adivinar no alcanza: una planilla de cargas puede tener el número de
+   ticket y el de remito a la vez, y el que cruza con la factura es uno
+   solo. Por eso se muestra cuál eligió y se puede cambiar. */
+const CAMPOS = [
+  ['remito',  'Remito',  true],
+  ['fecha',   'Fecha',   false],
+  ['patente', 'Patente', false],
+  ['litros',  'Litros',  false],
+  ['importe', 'Importe', false],
+];
+
+function vistaPrevia(origen, nombre, d){
   const cols = ['remito','fecha','patente','litros','importe'];
+  const opciones = campo => `<option value="">— ninguna —</option>` +
+    d.cabeceras.map(c => `<option value="${esc(c)}"${
+      d.usadas[campo] === c ? ' selected' : ''}>${esc(c)}</option>`).join('');
+
   return `<b>${esc(nombre)}</b> — ${d.leidas} remito${d.leidas === 1 ? '' : 's'}` +
-    `${d.descartadas ? `, ${d.descartadas} fila${d.descartadas === 1 ? '' : 's'} sin remito (se ignoran)` : ''}.<br>` +
-    `<span style="color:var(--ink-muted)">Columnas encontradas: ${d.columnas.join(', ')}</span>` +
+    `${d.descartadas ? `, ${d.descartadas} fila${d.descartadas === 1 ? '' : 's'} sin remito (se ignoran)` : ''}.` +
+
+    `<div class="mapeo"><span class="titulo">Qué columna es cada cosa</span>` +
+    CAMPOS.map(([campo, rotulo]) => `<label>${rotulo}
+       <select data-campo="${campo}">${opciones(campo)}</select></label>`).join('') +
+    `<p class="pista">Si el remito no cruza con la factura, casi siempre es
+       porque acá está agarrando la columna equivocada.</p></div>` +
+
     (d.repetidos.length
-      ? `<div style="color:var(--bad);margin-top:7px">Hay remitos repetidos en el archivo: ` +
-        `${d.repetidos.slice(0,8).map(esc).join(', ')}. Revisalo antes de subirlo.</div>` : '') +
+      ? `<div class="aviso-rep">El mismo remito aparece más de una vez con la misma
+         patente: ${d.repetidos.slice(0,8).map(esc).join(', ')}${
+         d.repetidos.length > 8 ? ` y ${d.repetidos.length - 8} más` : ''}.
+         Se guarda igual y queda la última fila de cada uno.</div>` : '') +
+
     `<table><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead><tbody>` +
     d.muestra.map(f => `<tr>${cols.map(c => `<td>${
       c === 'patente' ? esc(fmtPat(f[c])) :
       c === 'fecha'   ? esc(fecha(f[c]))  :
-      (f[c] == null ? '—' : esc(nf.format ? (typeof f[c] === 'number' ? nf.format(f[c]) : f[c]) : f[c]))
+      (f[c] == null ? '—' : (typeof f[c] === 'number' ? nf.format(f[c]) : esc(f[c])))
     }</td>`).join('')}</tr>`).join('') +
     `</tbody></table>` +
     `<div class="acciones">` +
-    `<button class="btn chico guardar"${d.repetidos.length ? ' disabled' : ''}>Guardar estos ${d.leidas}</button>` +
+    `<button class="btn chico guardar">Guardar estos ${d.leidas}</button>` +
     `<button class="btn chico gris cancelar">Cancelar</button></div>`;
 }
 

@@ -123,17 +123,30 @@ def _filas_de(nombre, crudo):
     return [f for f in csv.reader(io.StringIO(texto), delimiter=sep)]
 
 
-def _cabecera(filas):
+def _cabecera(filas, elegidas=None):
     """Dónde están los títulos y qué columna es cada cosa.
 
-    El título no siempre está en la primera fila: los listados suelen traer
-    el logo y el período arriba. Se busca la primera fila que tenga el
-    remito, que es la única columna sin la cual esto no sirve.
+    Adivina por el nombre del título, pero adivinar no alcanza: una planilla
+    de cargas puede tener a la vez el número de ticket y el de remito, y el
+    que sirve para cruzar es el que figura en la factura. Por eso `elegidas`
+    manda por encima de todo: es lo que el usuario eligió en la pantalla,
+    columna por columna.
     """
+    elegidas = elegidas or {}
     for i, fila in enumerate(filas[:15]):
         titulos = [" ".join(str(c or "").upper().split()) for c in fila]
+        if not any(titulos):
+            continue
         indice = {}
         for campo, nombres in ALIAS.items():
+            # Lo elegido a mano gana: se busca por el nombre exacto de la
+            # columna, que es lo que la pantalla devuelve.
+            if campo in elegidas:
+                j = next((k for k, t in enumerate(titulos)
+                          if t == elegidas[campo]), None)
+                if j is not None:
+                    indice[campo] = j
+                    continue
             for n in nombres:
                 j = next((k for k, t in enumerate(titulos)
                           if n in t and k not in indice.values()), None)
@@ -141,17 +154,17 @@ def _cabecera(filas):
                     indice[campo] = j
                     break
         if "remito" in indice:
-            return i, indice
-    return None, None
+            return i, indice, titulos
+    return None, None, None
 
 
-def leer(nombre, crudo):
+def leer(nombre, crudo, elegidas=None):
     """El archivo hecho filas listas para guardar, más lo que se descartó."""
     filas = _filas_de(nombre, crudo)
     if not filas:
         raise ValueError("El archivo está vacío.")
 
-    fila_titulos, indice = _cabecera(filas)
+    fila_titulos, indice, titulos = _cabecera(filas, elegidas)
     if indice is None:
         vistos = ", ".join(str(c) for c in filas[0][:8] if c)
         raise ValueError(
@@ -187,7 +200,11 @@ def leer(nombre, crudo):
     repetidos = sorted(r for r, n in repetidos.items() if n > 1)
 
     return {"filas": salida, "descartadas": descartadas, "repetidos": repetidos,
-            "columnas": sorted(indice)}
+            "columnas": sorted(indice),
+            # Qué columna terminó siendo cada cosa, y todas las que hay:
+            # con eso la pantalla arma los selectores para corregirlo.
+            "usadas": {campo: titulos[j] for campo, j in indice.items()},
+            "cabeceras": [t for t in titulos if t]}
 
 
 # =====================================================================
@@ -208,7 +225,7 @@ def subir(cx, datos, usuario=None):
     if not crudo:
         raise ValueError("El archivo llegó vacío.")
 
-    leido = leer(nombre, crudo)
+    leido = leer(nombre, crudo, datos.get("columnas"))
     filas = leido["filas"]
     if not filas:
         raise ValueError("No encontré ninguna fila con número de remito.")
@@ -221,12 +238,9 @@ def subir(cx, datos, usuario=None):
                 "descartadas": leido["descartadas"],
                 "repetidos": leido["repetidos"],
                 "columnas": leido["columnas"],
+                "usadas": leido["usadas"],
+                "cabeceras": leido["cabeceras"],
                 "muestra": filas[:8]}
-
-    if leido["repetidos"]:
-        raise ValueError("El archivo trae remitos repetidos: " +
-                         ", ".join(leido["repetidos"][:10]) +
-                         ". Revisalo antes de subirlo.")
 
     lote = cx.execute("""
         insert into combustible_lotes (origen, archivo, estacion, periodo, filas, usuario)
@@ -247,7 +261,7 @@ def subir(cx, datos, usuario=None):
                litros, importe, estacion, chofer)
             values (%(lote)s,%(origen)s,%(remito)s,%(bruto)s,%(fecha)s,%(patente)s,
                     %(litros)s,%(importe)s,%(estacion)s,%(chofer)s)
-            on conflict (origen, remito) do update set
+            on conflict (origen, remito, coalesce(patente, '')) do update set
               lote_id = excluded.lote_id, fecha = excluded.fecha,
               patente = excluded.patente, litros = excluded.litros,
               importe = excluded.importe, estacion = excluded.estacion,
@@ -261,6 +275,7 @@ def subir(cx, datos, usuario=None):
                          (origen,)).fetchone()["n"]
 
     return {"previo": False, "lote": lote, "leidas": len(filas),
+            "repetidos": leido["repetidos"],
             "nuevas": despues - antes, "actualizadas": len(filas) - (despues - antes),
             "descartadas": leido["descartadas"]}
 
