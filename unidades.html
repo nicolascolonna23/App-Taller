@@ -570,20 +570,19 @@ $('#imprimir').onclick = () => {
    EL CAMIÓN
    ---------------------------------------------------------------------
    El modelo trae las ruedas como objetos aparte, así que se les puede
-   pegar el mapa real de la unidad: se toca una rueda y salen las
-   posiciones de esa esquina, con lo que tienen puesto.
+   pegar el mapa real de la unidad: se toca una rueda y salen sus
+   posiciones, con lo que tienen puesto.
 
-   El modelo dibuja un tractor de dos ejes. Los 6x2 tienen tres, y el
-   dibujo no los muestra: por eso una rueda trasera no es "una posición"
-   sino todas las de ese lado de atrás, y la lista dice cuáles son. El
-   mapa de gomería sigue siendo el que manda; esto es para encontrar la
-   posición mirando el camión en vez de leyendo códigos.
+   Una rueda es un eje y un lado. Si ese lado de ese eje lleva dos
+   cubiertas —el dual de un tractor— la lista muestra las dos: son las dos
+   que hay que sacar para bajar esa rueda. El mapa de gomería sigue siendo
+   el que manda; esto es para encontrar la posición mirando el camión en
+   vez de leyendo códigos.
    ===================================================================== */
-const RUEDAS = {                       /* objeto del modelo → qué esquina es */
-  rueda_frente_izq: { eje: 'frente', lado: 'I', rotulo: 'delantera izquierda' },
-  rueda_frente_der: { eje: 'frente', lado: 'D', rotulo: 'delantera derecha' },
-  rueda_atras_izq:  { eje: 'atras',  lado: 'I', rotulo: 'trasera izquierda' },
-  rueda_atras_der:  { eje: 'atras',  lado: 'D', rotulo: 'trasera derecha' }
+/* Los nombres del modelo propio, que sí sabemos cuáles son. Cualquier otro
+   archivo cae en la búsqueda de más abajo. */
+const RUEDAS = {
+  rueda_frente_izq:1, rueda_frente_der:1, rueda_atras_izq:1, rueda_atras_der:1
 };
 /* Encontrar las ruedas sin depender de cómo las llamó el que armó el
    modelo. Los nombres cambian con cada archivo —en alemán, en inglés, o
@@ -668,21 +667,72 @@ function ruedasDelModelo(objeto){
   }).map(p => p.malla);
 }
 
-/* Dónde se tocó, convertido en esquina del camión.
+/* Los ejes del modelo, de adelante hacia atrás.
 
-   Se usa el punto del clic y no la malla porque hay modelos que traen las
-   dos ruedas de un eje en una sola pieza: preguntarle a la malla de qué
-   lado está no tiene respuesta, preguntarle al dedo sí. */
-function esquinaDelPunto(punto){
-  const lado = punto.x < 0 ? 'I' : 'D';
-  const eje  = punto.z < V.corte ? 'frente' : 'atras';
+   Antes esto era un solo corte al medio: adelante y atrás. En un 4x2 da
+   igual —hay dos ejes y nada más— pero un 6x2 tiene tres, y tocar una
+   rueda trasera marcaba las cuatro de atrás. Un eje es un eje.
+
+   Las ruedas de un mismo eje están a la misma altura del camión, y entre
+   eje y eje hay más de un metro: se ordenan a lo largo y se corta donde
+   haya un salto de más de media rueda. La medida sale de las ruedas
+   mismas para que no dependa de la escala del modelo. */
+function ejesDelModelo(ruedas){
+  if (!ruedas.length) return [];
+  const con = ruedas.map(m => {
+    const c = new THREE.Box3().setFromObject(m);
+    return { malla:m, z:(c.min.z + c.max.z) / 2, largo:c.max.z - c.min.z };
+  }).sort((a, b) => a.z - b.z);
+  const salto = Math.max(...con.map(r => r.largo)) * 0.5 || 0.3;
+
+  const ejes = [[con[0]]];
+  for (let i = 1; i < con.length; i++) {
+    if (con[i].z - con[i - 1].z > salto) ejes.push([]);
+    ejes[ejes.length - 1].push(con[i]);
+  }
+  /* Cada rueda se queda con el número de su eje: después alcanza con
+     mirarla para saber de cuál es, sin volver a medir nada. */
+  return ejes.map((grupo, i) => {
+    for (const r of grupo) r.malla.userData.eje = i + 1;
+    return { numero:i + 1,
+             z: grupo.reduce((a, r) => a + r.z, 0) / grupo.length };
+  });
+}
+
+/* Cómo se llama cada eje, para el rótulo del panel. */
+function nombreDelEje(eje, cuantos){
+  if (eje === 1) return 'delantera';
+  if (eje === cuantos) return 'trasera';
+  if (cuantos === 3) return 'del medio';
+  return `del ${eje}.º eje`;
+}
+
+function esquina(eje, lado){
   return { eje, lado,
-           rotulo: (eje === 'frente' ? 'delantera' : 'trasera') + ' ' +
+           rotulo: nombreDelEje(eje, V.ejes.length) + ' ' +
                    (lado === 'I' ? 'izquierda' : 'derecha') };
 }
 
+/* Dónde se tocó, convertido en rueda del camión.
+
+   Se usa el punto del clic y no la malla porque hay modelos que traen las
+   dos ruedas de un eje en una sola pieza: preguntarle a la malla de qué
+   lado está no tiene respuesta, preguntarle al dedo sí. El eje sí sale de
+   la malla, que es de uno solo siempre. */
+function esquinaDelPunto(punto, malla){
+  const lado = punto.x < 0 ? 'I' : 'D';
+  const eje = (malla && malla.userData.eje) || ejeMasCerca(punto.z);
+  return esquina(eje, lado);
+}
+
+function ejeMasCerca(z){
+  if (!V.ejes.length) return 1;
+  return V.ejes.reduce((a, b) =>
+    Math.abs(b.z - z) < Math.abs(a.z - z) ? b : a).numero;
+}
+
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null, corte:0 };
+            anim:null, modelo:null, esquina:null, ejes:[] };
 
 function apagarVisor(){
   if (V.anim) cancelAnimationFrame(V.anim);
@@ -690,7 +740,7 @@ function apagarVisor(){
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null, corte:0 });
+                     ruedas:[], modelo:null, esquina:null, ejes:[] });
 }
 
 function visorVacio(texto){
@@ -904,18 +954,10 @@ function armarVisor(clave, archivo, unidad){
     esc3.add(obj);
     const caja3 = cajaVisible(obj);
 
-    /* Dónde termina el tren delantero y empieza el trasero: el punto medio
-       entre la rueda más adelantada y la más atrasada. Sale de las ruedas y
-       no del chasis, porque en un tractor están todas en la mitad de atrás.
-
-       Va después de mover el modelo y no antes: calculado sobre las
-       posiciones viejas queda corrido y todos los clics caen del mismo
-       lado. */
-    if (V.ruedas.length){
-      const zs = new THREE.Box3();
-      for (const m of V.ruedas) zs.union(new THREE.Box3().setFromObject(m));
-      V.corte = (zs.min.z + zs.max.z) / 2;
-    }
+    /* Los ejes, de adelante hacia atrás. Va después de mover el modelo y no
+       antes: calculado sobre las posiciones viejas queda corrido y todos
+       los clics caen en el eje equivocado. */
+    V.ejes = ejesDelModelo(V.ruedas);
 
     /* La cámara se acomoda al camión y no al revés: el S-Way y el Hi-Way
        no miden lo mismo, y el que venga después tampoco. */
@@ -974,7 +1016,7 @@ function armarVisor(clave, archivo, unidad){
     desde = null;
     if (lejos) return;
     const golpe = enRueda(e);
-    elegirEsquina(golpe ? esquinaDelPunto(golpe.point) : null);
+    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null);
   });
   ren.domElement.addEventListener('pointermove', e => {
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
@@ -996,14 +1038,13 @@ function armarVisor(clave, archivo, unidad){
   })();
 }
 
-/* De qué esquina es una rueda, mirando dónde está.
+/* De qué eje y de qué lado es una rueda, mirando dónde está.
 
    El lado puede quedar en "ambos": hay modelos que traen las dos ruedas de
    un eje en una sola pieza, y esa pieza no es de un lado ni del otro. */
 function esquinaDeLaRueda(malla){
   const c = new THREE.Box3().setFromObject(malla);
-  const centro = c.getCenter(new THREE.Vector3());
-  return { eje: centro.z < V.corte ? 'frente' : 'atras',
+  return { eje: malla.userData.eje || ejeMasCerca((c.min.z + c.max.z) / 2),
            lado: c.max.x < 0 ? 'I' : c.min.x > 0 ? 'D' : 'ambos' };
 }
 
@@ -1028,10 +1069,29 @@ function pintarRuedas(){
   }
 }
 
+/* A qué eje del mapa de cubiertas corresponde uno del modelo.
+
+   Lo normal es que sean los mismos y estén en el mismo orden. Cuando no
+   —el modelo es genérico y el mapa es el de la unidad— el primero es el
+   primero, el último es el último, y los del medio caen en el que llegue:
+   más vale mostrar el eje de al lado que no mostrar nada. */
+function ejeDelMapa(numero){
+  const mapa = (FICHA && FICHA.mapa) || [];
+  const ejes = [...new Set(mapa.filter(p => !p.es_auxilio).map(p => p.eje))]
+    .sort((a, b) => a - b);
+  if (!ejes.length) return null;
+  if (ejes.length === V.ejes.length) return ejes[numero - 1];
+  if (numero === 1) return ejes[0];
+  if (numero === V.ejes.length) return ejes[ejes.length - 1];
+  return ejes[Math.min(numero, ejes.length) - 1];
+}
+
 function posicionesDe(esquina){
   const mapa = (FICHA && FICHA.mapa) || [];
-  return mapa.filter(p => !p.es_auxilio && p.lado === esquina.lado &&
-    (esquina.eje === 'frente' ? p.eje === 1 : p.eje > 1));
+  const eje = ejeDelMapa(esquina.eje);
+  return eje == null ? []
+    : mapa.filter(p => !p.es_auxilio && p.lado === esquina.lado &&
+                       p.eje === eje);
 }
 
 /* El panel de una esquina: qué tiene puesto y qué se puede hacer. Vive
