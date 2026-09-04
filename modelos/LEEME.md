@@ -7,7 +7,7 @@ cubiertas ahí mismo**.
 | Archivo | Para qué camiones | Unidades |
 |---|---|---|
 | `iveco-4x2.obj` | tractores de dos ejes | 10 |
-| `iveco-6x2.fbx` | tractores de tres ejes (6x2 y 6x4) | 8 |
+| `iveco-6x2.glb` | tractores de tres ejes (6x2 y 6x4) | 8 |
 
 **Cuidado al subirlos a GitHub:** subir el archivo anda, pero **renombrarlo
 después desde la web lo destruye**. GitHub abre el archivo en el editor de
@@ -20,7 +20,9 @@ y lo que importa acá es dónde están las ruedas.
 
 ## Qué necesita un modelo para servir
 
-**`.obj` o `.fbx`, los dos sirven.** El FBX se acepta porque es como vienen
+**`.glb`, `.gltf`, `.obj` o `.fbx`.** El mejor es el **`.glb`**: es un
+solo archivo, pesa menos y se lee más rápido. El mismo camión pasó de 7,4 MB
+en FBX a 930 KB en glb, con 14.916 triángulos en vez de 249.084. El FBX se acepta porque es como vienen
 casi todos los modelos que se consiguen, y convertirlos sería un paso más
 que se puede saltear. El archivo va como `modelos/iveco-<clave>.obj` o
 `.fbx`; la app busca los dos y usa el que encuentre.
@@ -45,8 +47,7 @@ este orden:
 5. **Lo apoya.** Se lo centra y se lo sienta en el piso, venga hundido o
    flotando.
 
-**Las ruedas se encuentran solas.** Primero por nombre, si el modelo trae
-estos:
+**Las ruedas se encuentran solas.** Primero por los nombres que usa el repo:
 
 ```
 rueda_frente_izq   rueda_frente_der
@@ -55,15 +56,24 @@ carroceria
 ```
 
 Y si no, por **cualquier palabra de rueda en cualquier idioma** —`rueda`,
-`wheel`, `tire`, `llanta`, `kerek`, `gumi`, `rad`, `roue`— porque los
-modelos vienen de donde vienen. Y si tampoco, **por dónde están**: los
-pedazos de abajo, redondos y de un tamaño razonable.
+`wheel`, `tire`, `llanta`, `kerek`, `gumi`, `rad`, `roue`— o por la sigla
+que usan los modelos de juegos: **FL, FR, ML, MR, RL, RR**. Y si tampoco,
+**por dónde están**: los pedazos de abajo, redondos y de un tamaño
+razonable. Se mira el nombre de la malla y el de los nodos que la
+contienen, porque en un glTF las mallas se llaman todas «model».
+
+**Los colliders no cuentan.** Son cajas invisibles para las físicas del
+juego del que salió el modelo, y abarcan el camión entero: si entraran, le
+falsearían el tamaño, el centro y el enderezado.
 
 **La esquina sale de dónde se tocó, no de qué pieza.** Muchos modelos traen
 las dos ruedas de un eje en una sola pieza: preguntarle a la pieza de qué
 lado está no tiene respuesta, preguntarle al dedo sí. Por eso se usa el
-punto exacto del clic. En esos modelos la rueda no se puede pintar sin
-mentir, así que se marca la esquina elegida con un anillo naranja.
+punto exacto del clic.
+
+La rueda elegida **se pinta de naranja**. Una pieza que abarca las dos
+ruedas de un eje se pinta cuando la esquina elegida es de ese eje, del lado
+que sea: no se puede pintar media pieza.
 
 Si en algún modelo no reconoce ninguna rueda, el camión se ve igual y la
 pista de abajo lo dice.
