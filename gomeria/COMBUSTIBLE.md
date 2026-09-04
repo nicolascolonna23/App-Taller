@@ -58,6 +58,35 @@ ahora sí son los números que están en la factura.
 
 Es lo primero que hay que mirar cuando un cruce da todo en rojo.
 
+### El cruce va por dos caminos
+
+**1. Por número de remito.** Es el ideal: el número está en la factura.
+
+**2. Por camión, fecha y litros.** Es el que salva el caso real. La
+numeración de la estación y la de nuestra planilla muchas veces **no tienen
+nada que ver**, porque cada uno numera su propio comprobante:
+
+```
+estación:  958, 959, 961, 962, 964
+planilla:  142575, 152659, 36360, 20196, 156373
+```
+
+No es un error de nadie: son dos papeles distintos de la misma carga. Pero
+el mismo camión, el mismo día, es la misma carga aunque el papel se llame
+distinto.
+
+El segundo camino solo mira lo que quedó suelto del primero, y **solo
+empareja cuando hay una sola candidata de cada lado**. Si el mismo camión
+cargó dos veces el mismo día, no se adivina: quedan sueltas.
+
+Empareja **sin mirar los litros**, a propósito. Que difieran es justamente
+lo que hay que ver: exigiendo que coincidan, la carga mal facturada quedaría
+como dos renglones sueltos y el error se perdería.
+
+Los renglones que salieron por este camino van marcados **por carga** en la
+tabla, para poder mirarlos con más desconfianza que los que cruzaron por
+número.
+
 ### El número de remito
 
 La estación factura con el punto de venta adelante (`0001-00123456`) y
