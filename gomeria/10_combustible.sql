@@ -90,27 +90,93 @@ drop view if exists v_combustible_resumen;
 drop view if exists v_combustible_cruce;
 
 create view v_combustible_cruce as
--- La estación manda un lote —una factura, un mes— y nuestra planilla
--- tiene todo el historial. Cruzarlos enteros daría mil renglones de
--- "solo nuestra planilla" que no son un hallazgo: son los otros meses.
--- Por eso se toma el período que abarca lo que mandó la estación y lo de
--- afuera queda aparte, en su propio estado.
+-- El cruce va por dos caminos, en este orden:
+--
+--   1. Por número de remito. Es el ideal: el número está en la factura.
+--   2. Por patente + fecha + litros. Es el que salva el caso real: la
+--      numeración de la estación y la de nuestra planilla muchas veces no
+--      tienen nada que ver —la estación numera 958 y nosotros anotamos
+--      142575— porque cada uno numera su propio comprobante. Pero el mismo
+--      camión, el mismo día, cargando los mismos litros es la misma carga
+--      aunque el papel se llame distinto.
+--
+-- El segundo camino solo empareja lo que quedó suelto del primero, y solo
+-- cuando hay una sola candidata de cada lado: si el mismo camión cargó dos
+-- veces el mismo día los mismos litros, no se adivina, quedan sueltas.
+--
+-- La columna `emparejado_por` dice cuál de los dos lo unió, para poder
+-- mirar con desconfianza los que salieron por el segundo.
 with ventana as (
+  -- La estación manda un lote —una factura, un mes— y nuestra planilla
+  -- tiene todo el historial. Lo de afuera de ese período no es un hallazgo:
+  -- son los otros meses.
   select min(fecha) as desde, max(fecha) as hasta
   from combustible_cargas where origen = 'estacion' and fecha is not null
 ),
-remitos as (
-  select distinct remito from combustible_cargas where remito <> ''
+por_remito as (
+  select e.id as eid, p.id as pid
+  from combustible_cargas e
+  join combustible_cargas p
+    on p.origen = 'planilla' and p.remito = e.remito
+  where e.origen = 'estacion' and e.remito <> ''
+),
+-- Lo que el remito no pudo emparejar, de cada lado.
+suelta_e as (
+  select * from combustible_cargas e
+  where e.origen = 'estacion'
+    and not exists (select 1 from por_remito x where x.eid = e.id)
+    and e.patente is not null and e.fecha is not null
+),
+suelta_p as (
+  select * from combustible_cargas p
+  where p.origen = 'planilla'
+    and not exists (select 1 from por_remito x where x.pid = p.id)
+    and p.patente is not null and p.fecha is not null
+),
+candidatas as (
+  -- Se emparejan por camión y día, sin mirar los litros. Que difieran es
+  -- justamente lo que hay que ver: si además se exigiera que coincidan, la
+  -- carga mal facturada quedaría como dos renglones sueltos y el error se
+  -- perdería, que es lo contrario de lo que este módulo tiene que hacer.
+  select e.id as eid, p.id as pid
+  from suelta_e e
+  join suelta_p p on p.patente = e.patente and p.fecha = e.fecha
+),
+-- Solo se empareja lo que es inequívoco: una candidata de cada lado.
+por_carga as (
+  select c.eid, c.pid from candidatas c
+  where (select count(*) from candidatas x where x.eid = c.eid) = 1
+    and (select count(*) from candidatas x where x.pid = c.pid) = 1
+),
+pares as (
+  select eid, pid, 'remito' as emparejado_por from por_remito
+  union all
+  select eid, pid, 'carga'  from por_carga
+),
+-- Un renglón por par, más lo que quedó solo de cada lado.
+renglones as (
+  select par.eid, par.pid, par.emparejado_por from pares par
+  union all
+  select e.id, null, null from combustible_cargas e
+   where e.origen = 'estacion'
+     and not exists (select 1 from pares x where x.eid = e.id)
+  union all
+  select null, p.id, null from combustible_cargas p
+   where p.origen = 'planilla'
+     and not exists (select 1 from pares x where x.pid = p.id)
 )
-select r.remito,
+select coalesce(e.remito, p.remito)             as remito,
        e.id as estacion_id, p.id as planilla_id,
+       r.emparejado_por,
+       e.remito_bruto                           as remito_estacion,
+       p.remito_bruto                           as remito_planilla,
        coalesce(e.remito_bruto, p.remito_bruto) as remito_bruto,
-       coalesce(e.fecha, p.fecha)     as fecha,
-       coalesce(e.patente, p.patente) as patente,
-       coalesce(e.unidad_id, p.unidad_id) as unidad_id,
+       coalesce(e.fecha, p.fecha)               as fecha,
+       coalesce(e.patente, p.patente)           as patente,
+       coalesce(e.unidad_id, p.unidad_id)       as unidad_id,
        e.litros  as litros_estacion,  p.litros  as litros_planilla,
        e.importe as importe_estacion, p.importe as importe_planilla,
-       coalesce(e.estacion, p.estacion) as estacion,
+       coalesce(e.estacion, p.estacion)         as estacion,
        -- Redondeo a dos decimales antes de comparar: la estación factura
        -- con dos y la planilla a veces arrastra más, y esa diferencia de
        -- milésimas no es una diferencia real.
@@ -128,15 +194,16 @@ select r.remito,
            then 'difiere_importe'
          else 'ok'
        end as estado
-from remitos r
+from renglones r
 cross join ventana v
-left join combustible_cargas e on e.remito = r.remito and e.origen = 'estacion'
-left join combustible_cargas p on p.remito = r.remito and p.origen = 'planilla';
+left join combustible_cargas e on e.id = r.eid
+left join combustible_cargas p on p.id = r.pid;
 
 comment on view v_combustible_cruce is
   'Un renglón por remito. solo_estacion = nos lo facturan y no lo tenemos. '
   'solo_planilla = lo cargamos y no vino, dentro del período que mandó la estación. '
-  'fuera_de_periodo = de nuestra planilla pero de otro mes: no es parte de este control.';
+  'fuera_de_periodo = de nuestra planilla pero de otro mes: no es parte de este control. '
+  'emparejado_por dice si los unió el número de remito o la carga (patente + fecha + litros).';
 
 create view v_combustible_resumen as
 select estado, count(*)::int as remitos,

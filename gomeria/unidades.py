@@ -72,32 +72,100 @@ def listar(cx):
     }
 
 
-# Los modelos 3D que hay, y con qué se los reconoce en el texto del modelo
-# cargado en el maestro. El orden importa: gana el primero que coincida, y
-# S-WAY va antes que STRALIS porque un S-Way no es un Stralis.
+# Los modelos 3D que hay. Se eligen por la cantidad de ejes, no por la
+# marca: un tractor de tres ejes se parece más a otro de tres ejes que a
+# uno de dos de la misma marca, y lo que importa acá es dónde están las
+# ruedas.
 MODELOS_3D = (
-    ("sway",  "S-Way",  ("S-WAY", "SWAY", "S WAY")),
-    ("hiway", "Hi-Way", ("HI ROAD", "HI-ROAD", "HI WAY", "HI-WAY", "HIWAY",
-                         "STRALIS", "AS490", "AS600", "490S44", "600S44")),
+    ("6x2", "Tractor 6x2 / 6x4"),
+    ("4x2", "Tractor 4x2"),
 )
+# Los nombres que se usaron antes, por si alguna unidad quedó con uno
+# elegido a mano.
+ALIAS_3D = {"hiway": "4x2", "sway": "6x2"}
+
+# En el código de Iveco, el número de tres cifras antes de la S es el peso
+# bruto combinado en toneladas por diez: 490S44 son 49 toneladas, 600S44
+# son 60. Sesenta toneladas no las lleva un chasis de dos ejes.
+_TRES_EJES_DESDE = 560
+
+
+def ejes_de(unidad):
+    """Cuántos ejes tiene, y de dónde salió el dato.
+
+    Devuelve (ejes, por_qué). El `por_qué` importa: un dato deducido del
+    nombre del modelo no vale lo mismo que el mapa de cubiertas ya cargado,
+    y la pantalla tiene que poder decirlo.
+    """
+    import re
+
+    # 1. Las gomas que lleva el mapa. Es el dato duro y es el que usa el
+    #    gomero para saberlo: seis gomas es un 4x2, diez es un 6x2. El
+    #    auxilio no cuenta.
+    gomas = unidad.get("posiciones") or 0
+    if gomas >= 9:
+        return 3, "mapa"
+    if gomas >= 5:
+        return 2, "mapa"
+
+    # 2. El nombre del armado, si el mapa no vino contado: S-D-D son tres
+    #    ejes, S-D son dos.
+    mapa = (unidad.get("configuracion") or "").upper()
+    if mapa and re.fullmatch(r"[SD](-[SD])*", mapa):
+        return mapa.count("-") + 1, "mapa"
+
+    texto = f"{unidad.get('marca') or ''} {unidad.get('modelo') or ''}".upper()
+
+    # 3. Lo que diga el modelo, cuando lo dice.
+    if re.search(r"6\s*X\s*[24]", texto):
+        return 3, "modelo"
+    if re.search(r"4\s*X\s*2", texto):
+        return 2, "modelo"
+
+    # 4. La nomenclatura de Iveco.
+    m = re.search(r"(\d{3})\s*S\d", texto)
+    if m:
+        return (3 if int(m[1]) >= _TRES_EJES_DESDE else 2), "codigo"
+
+    return 0, "no se sabe"
 
 
 def modelo_3d(unidad):
     """Qué camión se dibuja. Lo elegido a mano gana; si no, se deduce.
 
-    Deducir del texto del modelo es lo que hace que ande sin cargar nada:
-    son 68 unidades y nadie va a elegir el 3D de una por una. Cuando la
-    deducción no acierta, se fuerza desde la pantalla y esto no se mete.
+    Deducir es lo que hace que ande sin cargar nada: son 68 unidades y
+    nadie va a elegir el 3D de una por una. Cuando la deducción no acierta,
+    se fuerza desde la pantalla y esto no se mete.
     """
     elegido = (unidad.get("modelo_3d") or "").strip().lower()
+    elegido = ALIAS_3D.get(elegido, elegido)
     if elegido:
         return elegido if elegido in {m[0] for m in MODELOS_3D} else None
     if unidad.get("tipo") != "vehiculo":
         return None
-    texto = f"{unidad.get('marca') or ''} {unidad.get('modelo') or ''}".upper()
-    for clave, _, pistas in MODELOS_3D:
-        if any(p in texto for p in pistas):
-            return clave
+
+    ejes, _ = ejes_de(unidad)
+    if ejes >= 3:
+        return "6x2"
+    if ejes == 2:
+        return "4x2"
+    # Sin ningún dato: se dibuja el de dos ejes, que es el más común en la
+    # flota, y desde la ficha se corrige si no era.
+    return "4x2" if (unidad.get("uso") or "").upper() == "LARGA DISTANCIA" else None
+
+
+def _archivo_3d(clave):
+    """El archivo del modelo, sea .obj o .fbx. None si no está ninguno.
+
+    Se aceptan los dos porque los modelos se consiguen casi siempre en FBX
+    y convertirlos es un paso más que se puede saltear.
+    """
+    if not clave:
+        return None
+    for ext in (".obj", ".fbx"):
+        nombre = f"iveco-{clave}{ext}"
+        if os.path.isfile(os.path.join(AQUI, os.pardir, "modelos", nombre)):
+            return nombre
     return None
 
 
@@ -130,11 +198,17 @@ def ficha(cx, unidad_id):
     # todavía no llegó el .obj: la unidad se deduce igual y la pantalla
     # avisa qué falta, en vez de tirar un 404 sin explicación.
     quiere = modelo_3d(unidad)
-    hay = quiere and os.path.isfile(
-        os.path.join(AQUI, os.pardir, "modelos", f"iveco-{quiere}.obj"))
+    archivo = _archivo_3d(quiere)
+    ejes, por = ejes_de(unidad)
     salida = {"unidad": unidad,
-              "modelo_3d": quiere if hay else None,
-              "modelo_3d_falta": None if hay else quiere}
+              "modelo_3d": quiere if archivo else None,
+              "modelo_3d_archivo": archivo,
+              "modelo_3d_falta": None if archivo else quiere,
+              "modelo_3d_ejes": ejes,
+              # De dónde salió: 'mano' si alguien lo eligió, y si no de qué
+              # se dedujo. Un dato deducido del nombre del modelo no vale lo
+              # mismo que el mapa de cubiertas ya cargado.
+              "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por}
 
     # El mapa entero, con posiciones vacías incluidas: el 3D las necesita
     # para saber qué se puede montar dónde.
