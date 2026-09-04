@@ -99,6 +99,32 @@ cuando pasa.
 
 Una unidad recién cargada, sin nada colgando, sí se borra de verdad.
 
+## La cédula
+
+Cada unidad tiene su cédula: el mismo documento que se lleva en la guantera,
+con el logo de la empresa, el dominio en la chapa, el chasis, el chofer y el
+semi. El botón la imprime sola, sin el resto de la pantalla, en A4.
+
+## El camión en 3D
+
+Debajo de la cédula se dibuja el camión y se lo puede girar, acercar y
+**tocar las ruedas**: al tocar una salen las posiciones de esa esquina con
+lo que tienen puesto, y desde ahí se saca y se pone una cubierta sin ir a
+gomería.
+
+- **Sacar** pregunta a dónde va la que sale: stock, recapado, reparación o
+  baja. Queda asentada como cualquier otro movimiento.
+- **Poner** ofrece lo que hay libre en stock. Una cubierta puesta en otra
+  unidad no se puede montar sin sacarla de ahí primero, y lo dice con la
+  patente y la posición donde está.
+- Las ruedas se pintan solas: **naranja** la elegida, **rojiza** la esquina
+  con alguna posición vacía, gris la que está completa.
+
+Cambiar cubiertas pide ser encargado o administrador, igual que editar.
+
+Cuáles unidades tienen modelo y cómo agregar otro está en
+`modelos/LEEME.md`.
+
 ## Qué lee de acá
 
 El panel general y el control de flota piden el maestro a `/api/flota`. Si
