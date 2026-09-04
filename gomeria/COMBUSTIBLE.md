@@ -44,6 +44,20 @@ la primera fila: los listados suelen traer el logo y el período arriba, y se
 busca en las primeras quince. Las filas sin remito —totales, subtotales,
 renglones en blanco— se descartan solas y se informa cuántas.
 
+### Elegir la columna a mano
+
+La app adivina por el nombre del título, pero **adivinar no alcanza**. Una
+planilla de cargas suele traer el número de *ticket* y el de *remito* en dos
+columnas distintas, y el que cruza con la factura es uno solo. Si agarra el
+que no era, no cruza nada: todo cae en *solo la estación* y *solo nuestra
+planilla*, con numeraciones que ni se parecen.
+
+Por eso la vista previa muestra **qué columna eligió para cada cosa** y deja
+cambiarla. Al cambiarla vuelve a leer el archivo, así se ve al instante si
+ahora sí son los números que están en la factura.
+
+Es lo primero que hay que mirar cuando un cruce da todo en rojo.
+
 ### El número de remito
 
 La estación factura con el punto de venta adelante (`0001-00123456`) y
@@ -72,6 +86,7 @@ Una tarjeta por estado, y la tabla debajo. Se toca una tarjeta para filtrar.
 | **Solo nuestra planilla** | lo cargamos y no vino en el listado |
 | **Difieren los litros** | más de medio litro de diferencia |
 | **Difiere el importe** | más de un peso de diferencia |
+| **De otro período** | de nuestra planilla, fuera del mes que mandó la estación |
 
 Los márgenes son a propósito: la estación factura con dos decimales y la
 planilla a veces arrastra más, y esa diferencia de milésimas no es una
@@ -79,12 +94,22 @@ diferencia real. Se comparan redondeados a dos.
 
 Lo que hay que mirar va arriba; *coinciden* queda al final.
 
+**Por qué existe "de otro período".** La estación manda un lote —una
+factura, un mes— y nuestra planilla tiene todo el historial. Cruzarlos
+enteros daría mil renglones de *solo nuestra planilla* que no son un
+hallazgo: son los otros meses. Se toma el período que abarca lo que mandó la
+estación y lo de afuera queda aparte, sin ensuciar el control.
+
 ## Volver a subir
 
 Un remito que ya estaba **se pisa**, no se duplica: subir el listado
-corregido deja la última versión. Un remito repetido **dentro del mismo
-archivo** frena la carga y los muestra, porque eso es un error de armado y
-hay que verlo antes.
+corregido deja la última versión.
+
+La clave es **remito + patente**, no el remito solo. Dos estaciones
+distintas repiten numeración, y una planilla de un año trae el mismo número
+de dos proveedores. Con la patente adentro conviven sin pisarse. El mismo
+camión con el mismo remito dos veces sí es un duplicado: se avisa y queda la
+última fila.
 
 ## Borrar
 
