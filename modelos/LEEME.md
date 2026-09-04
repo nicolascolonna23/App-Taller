@@ -9,6 +9,11 @@ cubiertas ahí mismo**.
 | `iveco-4x2.obj` | tractores de dos ejes | 10 |
 | `iveco-6x2.fbx` | tractores de tres ejes (6x2 y 6x4) | 8 |
 
+**Cuidado al subirlos a GitHub:** subir el archivo anda, pero **renombrarlo
+después desde la web lo destruye**. GitHub abre el archivo en el editor de
+texto para renombrarlo, y un binario no se puede editar como texto: lo
+guarda vacío. Hay que subirlo ya con el nombre final.
+
 Se eligen **por la cantidad de ejes, no por la marca**: un tractor de tres
 ejes se parece más a otro de tres ejes que a uno de dos de la misma marca,
 y lo que importa acá es dónde están las ruedas.
@@ -20,15 +25,25 @@ casi todos los modelos que se consiguen, y convertirlos sería un paso más
 que se puede saltear. El archivo va como `modelos/iveco-<clave>.obj` o
 `.fbx`; la app busca los dos y usa el que encuentre.
 
-**No hace falta que venga prolijo.** La app lo acomoda sola al cargarlo:
+**No hace falta que venga prolijo.** La app lo acomoda sola al cargarlo, en
+este orden:
 
-- **Lo para.** Si el modelo viene parado en Z —así exporta media
-  herramienta— se lo acuesta. Se detecta porque en un camión el lado más
-  largo tiene que ser el largo, no el alto.
-- **Lo escala.** Si viene en centímetros o en pulgadas, se lo lleva a los
-  6,5 metros de un tractor.
-- **Lo apoya.** Se lo centra y se lo sienta en el piso, aunque venga
-  hundido o flotando.
+1. **Le saca las luces y la cámara.** Los FBX traen adentro las que usó el
+   que lo armó, y le pegan de más: el piso queda blanco y la carrocería se
+   aplana. La escena pone las suyas.
+2. **Lo para.** Si viene parado en Z —así exporta media herramienta— se lo
+   acuesta.
+3. **Lo endereza.** Los modelos vienen girados en cualquier ángulo, no solo
+   en múltiplos de noventa grados: el 6x2 venía en diagonal, a cuarenta
+   grados. La dirección de marcha no se puede sacar de la caja —un camión en
+   diagonal tiene la caja casi cuadrada— pero sí de las ruedas: **los ejes
+   están alineados con el camión, siempre**. Se toma la recta que va de la
+   rueda más adelantada a la más atrasada y se la gira hasta que apunte al
+   eje Z.
+4. **Lo escala.** Si mide 3.744 en vez de 6,5, se lo lleva a los seis metros
+   y medio de un tractor.
+5. **Lo apoya.** Se lo centra y se lo sienta en el piso, venga hundido o
+   flotando.
 
 **Las ruedas se encuentran solas.** Primero por nombre, si el modelo trae
 estos:
@@ -39,14 +54,19 @@ rueda_atras_izq    rueda_atras_der
 carroceria
 ```
 
-Y si no —que es lo normal, cada modelo las llama distinto o las deja como
-`Object_012`— se buscan **por dónde están**: son los pedazos de abajo,
-corridos hacia los costados, redondos y de un tamaño razonable. Después se
-las reparte en las cuatro esquinas por su posición.
+Y si no, por **cualquier palabra de rueda en cualquier idioma** —`rueda`,
+`wheel`, `tire`, `llanta`, `kerek`, `gumi`, `rad`, `roue`— porque los
+modelos vienen de donde vienen. Y si tampoco, **por dónde están**: los
+pedazos de abajo, redondos y de un tamaño razonable.
 
-Si en algún modelo no las reconoce, el camión se ve igual y la pista de
-abajo lo dice; ahí conviene renombrar los objetos a mano, que es el camino
-exacto.
+**La esquina sale de dónde se tocó, no de qué pieza.** Muchos modelos traen
+las dos ruedas de un eje en una sola pieza: preguntarle a la pieza de qué
+lado está no tiene respuesta, preguntarle al dedo sí. Por eso se usa el
+punto exacto del clic. En esos modelos la rueda no se puede pintar sin
+mentir, así que se marca la esquina elegida con un anillo naranja.
+
+Si en algún modelo no reconoce ninguna rueda, el camión se ve igual y la
+pista de abajo lo dice.
 
 **Lo único que sí importa: el peso.** El navegador se lo baja cada vez que
 se abre una unidad. El Hi-Way que está andando pesa 240 KB con 2.322
