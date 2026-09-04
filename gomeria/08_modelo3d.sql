@@ -24,6 +24,12 @@ select u.id, u.patente, u.interno, u.tipo, u.marca, u.modelo, u.chasis,
        u.km_actual, u.configuracion_id, c.nombre as configuracion,
        (select count(*) from montajes m
          where m.unidad_id = u.id and m.hasta is null) as cubiertas_montadas,
+       -- Cuántas gomas lleva el mapa, sin contar el auxilio. Es el dato con
+       -- el que se sabe de cuántos ejes es la unidad: 6 gomas es un 4x2 y
+       -- 10 es un 6x2. Lo dice el que las cambia, no el nombre del modelo.
+       (select count(*) from configuracion_posiciones p
+         where p.configuracion_id = u.configuracion_id
+           and not p.es_auxilio)::int as posiciones,
        (select max(o.fecha) from odometros o where o.unidad_id = u.id) as ultima_lectura,
        u.creado, u.actualizado
 from unidades u

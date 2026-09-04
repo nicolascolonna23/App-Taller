@@ -64,8 +64,10 @@ empresa.
 
 Por la cantidad de ejes, buscándola en este orden:
 
-1. **El mapa de cubiertas**, si la unidad ya lo tiene asignado. Es el dato
-   duro: `S-D-D` son tres ejes porque alguien los contó.
+1. **Cuántas gomas lleva el mapa**, si la unidad lo tiene asignado. Es el
+   dato duro y es el que usa el gomero: **6 gomas es un 4x2, 10 es un
+   6x2**. El auxilio no cuenta. Le gana a todo lo demás — un `600S44` con
+   seis gomas es un 4x2, diga lo que diga el código.
 2. **Lo que diga el modelo**, cuando lo dice: `6X2`, `6X4`, `4X2`.
 3. **El código de Iveco.** El número de tres cifras antes de la S es el peso
    bruto combinado en toneladas por diez: `490S44` son 49 toneladas y

@@ -99,21 +99,30 @@ def ejes_de(unidad):
     """
     import re
 
-    # 1. El mapa de cubiertas, si está asignado. Es el dato duro: S-D-D son
-    #    tres ejes porque alguien los contó.
+    # 1. Las gomas que lleva el mapa. Es el dato duro y es el que usa el
+    #    gomero para saberlo: seis gomas es un 4x2, diez es un 6x2. El
+    #    auxilio no cuenta.
+    gomas = unidad.get("posiciones") or 0
+    if gomas >= 9:
+        return 3, "mapa"
+    if gomas >= 5:
+        return 2, "mapa"
+
+    # 2. El nombre del armado, si el mapa no vino contado: S-D-D son tres
+    #    ejes, S-D son dos.
     mapa = (unidad.get("configuracion") or "").upper()
     if mapa and re.fullmatch(r"[SD](-[SD])*", mapa):
         return mapa.count("-") + 1, "mapa"
 
     texto = f"{unidad.get('marca') or ''} {unidad.get('modelo') or ''}".upper()
 
-    # 2. Lo que diga el modelo, cuando lo dice.
+    # 3. Lo que diga el modelo, cuando lo dice.
     if re.search(r"6\s*X\s*[24]", texto):
         return 3, "modelo"
     if re.search(r"4\s*X\s*2", texto):
         return 2, "modelo"
 
-    # 3. La nomenclatura de Iveco.
+    # 4. La nomenclatura de Iveco.
     m = re.search(r"(\d{3})\s*S\d", texto)
     if m:
         return (3 if int(m[1]) >= _TRES_EJES_DESDE else 2), "codigo"
