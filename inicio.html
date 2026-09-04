@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Centro operativo | Diemar</title>
+<link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -85,7 +86,7 @@ main{padding:0;max-width:none}
       <a href="/unidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="9" width="13" height="7" rx="1"/><path d="M16 11h3l2 3v2h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>Flota</span></a>
       <a href="/gomeria"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Gomería</span></a>
       <a href="/repuestos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Repuestos</span></a>
-      <a href="/flota"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 19V6"/><path d="m4 15 5-4 4 3 7-6"/></svg><span>Panel</span></a>
+      <a href="/vencimientos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg><span>Vencimientos</span></a>
       <a href="/control"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Services</span></a>
     </nav>
     <div class="side-footer"><strong>App Taller Diemar</strong>Gestión de operaciones</div>
@@ -114,7 +115,7 @@ main{padding:0;max-width:none}
           <p class="km-sub" id="cons-sub"></p>
         </div>
         <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a></div>
-        <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/unidades"><span class="quick-icon">▤</span><span><strong>Flota</strong><small>Toda la información de las unidades</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Services</strong><small>Mantenimiento y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
+        <div class="card quick"><a href="/gomeria"><span class="quick-icon">◉</span><span><strong>Gomería</strong><small>Mapas, movimientos y cubiertas</small></span><span class="arrow">›</span></a><a href="/repuestos"><span class="quick-icon">□</span><span><strong>Repuestos</strong><small>Stock, movimientos y remitos</small></span><span class="arrow">›</span></a><a href="/unidades"><span class="quick-icon">▤</span><span><strong>Flota</strong><small>Toda la información de las unidades</small></span><span class="arrow">›</span></a><a href="/vencimientos"><span class="quick-icon">✓</span><span><strong>Vencimientos</strong><small>VTV, licencias y matafuegos</small></span><span class="arrow">›</span></a><a href="/control"><span class="quick-icon">↗</span><span><strong>Services</strong><small>Mantenimiento y telemetría por unidad</small></span><span class="arrow">›</span></a></div>
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>

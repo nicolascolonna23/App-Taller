@@ -50,6 +50,7 @@ PANTALLAS = {
     # El logo de la app es blanco; sobre el papel claro de la cédula no se
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
     "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
+    "/favicon.png": ("favicon.png",             "image/png"),
 }
 
 
