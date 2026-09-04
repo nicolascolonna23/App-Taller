@@ -329,11 +329,11 @@
       <div class="campo">
         <label for="c-modelo_3d">Modelo 3D</label>
         <select id="c-modelo_3d" name="modelo_3d">
-          <option value="">Según el modelo</option>
-          <option value="hiway">Iveco Hi-Way</option>
-          <option value="sway">Iveco S-Way</option>
+          <option value="">Según los ejes</option>
+          <option value="6x2">Tractor 6x2 / 6x4</option>
+          <option value="4x2">Tractor 4x2</option>
         </select>
-        <span class="ayuda">Vacío, la app lo elige por el modelo cargado.</span>
+        <span class="ayuda">Vacío, la app lo deduce del mapa de cubiertas o del modelo.</span>
       </div>
       <div class="campo ancho">
         <label for="c-nota">Nota</label>
@@ -657,7 +657,12 @@ function visorVacio(texto){
 function armarVisor(clave, archivo, unidad){
   apagarVisor();
   $('#visor-vacio').hidden = true;
-  $('#visor-rotulo').textContent = clave === 'sway' ? 'Iveco S-Way' : 'Iveco Hi-Way';
+  const POR = { mano:'elegido a mano', mapa:'por el mapa de cubiertas',
+                modelo:'lo dice el modelo', codigo:'por el código de Iveco',
+                'no se sabe':'sin datos: se asume 4x2' };
+  $('#visor-rotulo').textContent =
+    (clave === '6x2' ? 'Tractor 6x2 / 6x4' : 'Tractor 4x2') +
+    ' · ' + (POR[FICHA.modelo_3d_por] || '');
   $('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
 
   const caja = $('#visor');
@@ -1004,9 +1009,9 @@ async function pintarEstado(id){
   /* El camión, si hay modelo para esta unidad. */
   if (d.modelo_3d_falta){
     visorVacio(`Falta el archivo del modelo ` +
-      `<b>${d.modelo_3d_falta === 'sway' ? 'Iveco S-Way' : 'Iveco Hi-Way'}</b>.<br>` +
-      `Va en <code>modelos/iveco-${esc(d.modelo_3d_falta)}.obj</code> ` +
-      `o <code>.fbx</code>.`);
+      `<b>${d.modelo_3d_falta === '6x2' ? 'tractor 6x2 / 6x4' : 'tractor 4x2'}</b>.<br>` +
+      `Va en <code>modelos/iveco-${esc(d.modelo_3d_falta)}.fbx</code> ` +
+      `o <code>.obj</code>.`);
   } else if (!d.modelo_3d){
     visorVacio(u.tipo === 'equipo'
       ? 'Los equipos no tienen modelo 3D.'

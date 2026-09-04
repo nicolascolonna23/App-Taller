@@ -4,10 +4,14 @@ Un `.obj` por tipo de camión. La pantalla de Flota lo dibuja al abrir una
 unidad y se puede girar, acercar y **tocar las ruedas para cambiar las
 cubiertas ahí mismo**.
 
-| Archivo | Camión | Unidades que le tocan |
+| Archivo | Para qué camiones | Unidades |
 |---|---|---|
-| `iveco-hiway.obj` | Iveco Stralis Hi-Way / Hi-Road | 11 |
-| `iveco-sway.obj` o `.fbx` | Iveco S-Way | 4 — **falta el archivo** |
+| `iveco-4x2.obj` | tractores de dos ejes | 10 |
+| `iveco-6x2.fbx` | tractores de tres ejes (6x2 y 6x4) | 8 |
+
+Se eligen **por la cantidad de ejes, no por la marca**: un tractor de tres
+ejes se parece más a otro de tres ejes que a uno de dos de la misma marca,
+y lo que importa acá es dónde están las ruedas.
 
 ## Qué necesita un modelo para servir
 
@@ -58,19 +62,33 @@ empresa.
 
 ## Cómo se elige cuál va
 
-La app lo deduce del modelo cargado en el maestro: un *S-WAY* dibuja el
-S-Way; un *STRALIS*, *HI ROAD*, *AS490* o *600S44* dibuja el Hi-Way. Cuando
-no acierta, se fuerza desde el campo **Modelo 3D** de la ficha.
+Por la cantidad de ejes, buscándola en este orden:
 
-De los 53 vehículos, 15 tienen modelo. Los otros 38 —Mercedes, Ford,
-Scania, las Daily de reparto— no tienen uno todavía y la ficha lo dice.
+1. **El mapa de cubiertas**, si la unidad ya lo tiene asignado. Es el dato
+   duro: `S-D-D` son tres ejes porque alguien los contó.
+2. **Lo que diga el modelo**, cuando lo dice: `6X2`, `6X4`, `4X2`.
+3. **El código de Iveco.** El número de tres cifras antes de la S es el peso
+   bruto combinado en toneladas por diez: `490S44` son 49 toneladas y
+   `600S44` son 60. Sesenta toneladas no las lleva un chasis de dos ejes,
+   así que de 56 para arriba son tres ejes.
+4. Si no se puede saber, se dibuja el de dos ejes, que es el más común en
+   la flota.
+
+La ficha **dice de dónde salió** —"por el mapa de cubiertas", "por el
+código de Iveco"— al lado del nombre del camión, para poder desconfiar de
+las deducidas del nombre sin tener que abrir el código. Cuando no acierta,
+se fuerza desde el campo **Modelo 3D** de la ficha y la deducción no se
+mete más con esa unidad.
+
+Los 50 vehículos que no son tractores —las Daily de reparto, las
+camionetas, los Mercedes chicos— no llevan modelo, y la ficha lo dice.
 
 ## Lo que hay que saber de este modelo
 
-`iveco-hiway.obj` es un **tractor de dos ejes**. Los 6x2 de la flota tienen
-tres, y el dibujo no muestra el tercero. Por eso tocar una rueda trasera no
-selecciona *una* posición sino **todas las de atrás de ese lado**, y la
-lista de abajo dice cuáles son. El mapa de gomería sigue siendo el que
+Los modelos dibujan las ruedas de a una por lado, pero los ejes traseros
+son duales: donde el dibujo muestra una rueda, el camión lleva dos. Por eso
+tocar una rueda trasera no selecciona *una* posición sino **todas las de
+atrás de ese lado**, y la lista de abajo dice cuáles son. El mapa de gomería sigue siendo el que
 manda; esto sirve para encontrar la posición mirando el camión en vez de
 leyendo códigos.
 
@@ -84,6 +102,5 @@ de la empresa, conviene reemplazarlo por uno propio o con licencia.
 1. Exportarlo a `.obj` o `.fbx`, con las ruedas como objetos separados.
 2. Guardarlo como `modelos/iveco-<clave>.obj` o `.fbx`. Se puede subir
    directo desde GitHub: **Add file → Upload files**, dentro de `modelos/`.
-3. Agregar la clave a `MODELOS_3D` en `gomeria/unidades.py`, con las
-   palabras que lo identifican en el texto del modelo.
+3. Agregar la clave a `MODELOS_3D` en `gomeria/unidades.py`.
 4. Sumar la opción al `<select>` de **Modelo 3D** en `unidades.html`.
