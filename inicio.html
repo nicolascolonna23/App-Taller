@@ -74,6 +74,9 @@ main{padding:0;max-width:none}
   .workspace{padding:0 14px 18px}
   .visual{min-height:300px}
 }
+/* El sello de versión: qué código está corriendo. Va apagado y al pie —
+   no se mira todos los días, pero cuando hace falta tiene que estar. */
+.sello{margin:14px 2px 0;font-size:10.5px;color:#5c656f;letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -120,6 +123,7 @@ main{padding:0;max-width:none}
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>
+    <p class="sello" id="sello"></p>
   </main>
 </div>
 <script>
@@ -281,6 +285,17 @@ consumoPorMes().then(ms=>{
   }
   document.getElementById('cons-sub').innerHTML=txt;
   document.getElementById('consumo').hidden=false;
+}).catch(()=>{});
+/* Qué versión está arriba. Un cambio aceptado tarda unos minutos en
+   desplegarse: hasta que no cambia este número, lo que se ve es el código
+   de antes. */
+fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{
+  if(!v)return;
+  const d=new Date(v.desde);
+  document.getElementById('sello').textContent =
+    `versión ${v.commit} · arriba desde el ` +
+    (isNaN(d) ? v.desde : d.toLocaleString('es-AR',
+      {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
 }).catch(()=>{});
 </script>
 </body>
