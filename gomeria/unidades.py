@@ -157,15 +157,18 @@ def modelo_3d(unidad):
 def _archivo_3d(clave):
     """El archivo y la versión del modelo, o ``(None, None)`` si falta.
 
-    Se aceptan los dos porque los modelos se consiguen casi siempre en FBX
-    y convertirlos es un paso más que se puede saltear.
+    Se aceptan los cuatro formatos porque los modelos se consiguen como se
+    consiguen y convertirlos es un paso más que se puede saltear. El mejor
+    es .glb: un solo archivo, más liviano y más rápido de leer.
 
     La versión viaja a la pantalla para que el navegador no siga usando una
     copia anterior después de reemplazar un modelo con el mismo nombre.
     """
     if not clave:
         return None, None
-    for ext in (".obj", ".fbx"):
+    # glb primero: es el más liviano y el que menos problemas da. El glTF
+    # suelto también entra, aunque necesita su .bin al lado.
+    for ext in (".glb", ".gltf", ".obj", ".fbx"):
         nombre = f"iveco-{clave}{ext}"
         camino = os.path.join(AQUI, os.pardir, "modelos", nombre)
         if os.path.isfile(camino):

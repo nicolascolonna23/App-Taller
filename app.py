@@ -150,6 +150,22 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro: {e}", 500)
 
+        # Los logos de las marcas de cubierta. Que falte uno no es un
+        # error: la pantalla muestra el nombre en texto y sigue.
+        if ruta.startswith("/marcas/") and ruta.endswith(".png"):
+            if not self._exigir_sesion():
+                return
+            camino = os.path.join(AQUI, "marcas", os.path.basename(ruta))
+            if not os.path.isfile(camino):
+                return self._error("No hay logo de esa marca.", 404)
+            cuerpo = open(camino, "rb").read()
+            self.send_response(200)
+            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Length", str(len(cuerpo)))
+            self.send_header("Cache-Control", "public, max-age=604800")
+            self.end_headers()
+            return self.wfile.write(cuerpo)
+
         # Three.js y sus complementos viven en el repo, no en un CDN: el
         # taller no siempre tiene buena conexión y una pantalla que depende
         # de que conteste Cloudflare es una pantalla que un día no abre.
@@ -170,7 +186,7 @@ class App(gom.Handler):
         # Los modelos 3D. Son archivos estáticos y no cambian nunca, así que
         # se dejan cachear: son 240 KB y no tiene sentido bajarlos en cada
         # unidad que se abre.
-        if ruta.startswith("/modelos/") and ruta.endswith((".obj", ".fbx")):
+        if ruta.startswith("/modelos/") and ruta.endswith((".obj", ".fbx", ".glb", ".gltf")):
             if not self._exigir_sesion():
                 return
             nombre = os.path.basename(ruta)
@@ -182,7 +198,8 @@ class App(gom.Handler):
             # El FBX es binario; el OBJ es texto. Mandar el binario como
             # texto lo rompe en el camino.
             self.send_header("Content-Type", "application/octet-stream"
-                             if nombre.endswith(".fbx") else "text/plain; charset=utf-8")
+                             if nombre.endswith((".fbx", ".glb"))
+                             else "text/plain; charset=utf-8")
             self.send_header("Content-Length", str(len(cuerpo)))
             self.send_header("Cache-Control", "public, max-age=604800")
             self.end_headers()

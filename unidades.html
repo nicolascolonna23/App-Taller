@@ -181,6 +181,10 @@
   .lista .fila.por_vencer .der{color:var(--warn)}
   .lista .fila.vigente .der{color:var(--ok)}
   .nada{color:var(--ink-muted);font-size:12px}
+  /* El logo va del alto de la línea, no más: es para reconocer la marca de
+     un vistazo, no para lucirlo. */
+  img.marca{height:16px;width:auto;max-width:76px;object-fit:contain;
+    vertical-align:-3px}
   .rotulo-esq{margin:0 0 8px;font-size:11px;font-weight:700;color:var(--brand)}
   .fila.pos .der{margin-left:auto}
   .mini{background:var(--surface-3);color:var(--ink);border:1px solid var(--hairline-2);
@@ -209,6 +213,7 @@
 <script src="/vendor/OrbitControls.js"></script>
 <script src="/vendor/fflate.min.js"></script>
 <script src="/vendor/FBXLoader.js"></script>
+<script src="/vendor/GLTFLoader.js"></script>
 </head>
 <body>
 
@@ -595,18 +600,53 @@ const RUEDAS = {                       /* objeto del modelo → qué esquina es 
    vienen— y, si eso no da, por dónde están: los pedazos de abajo, redondos
    y de un tamaño razonable. */
 const PALABRAS_RUEDA = /rueda|wheel|tire|tyre|llanta|neumat|goma|kerek|gumi|\brad\b|roue|pneu/i;
+/* La otra convención: FL, FR, ML, MR, RL, RR — front/middle/rear por
+   left/right. Vienen así los modelos armados para juegos. */
+const SIGLA_RUEDA = /^[fmr][lr]$/i;
+/* Los colliders son cajas invisibles para las físicas del juego del que
+   salió el modelo. Se dibujan como bloques blancos y desvirtúan todas las
+   medidas, así que no entran. */
+const SOBRA = /collider|collision|bound(ing)?box|_col\b|camera|light/i;
+
+/* El nombre de una malla no siempre dice nada —en los glTF las mallas se
+   llaman todas "model"— pero el del nodo que la contiene sí. Se mira la
+   malla y sus padres. */
+function nombresDe(m){
+  const nombres = [];
+  for (let o = m; o; o = o.parent) if (o.name) nombres.push(o.name);
+  return nombres;
+}
+
+function esSobra(m){
+  return nombresDe(m).some(n => SOBRA.test(n));
+}
+
+/* La caja de lo que se ve, sin colliders ni ayudas invisibles.
+
+   Box3.setFromObject mete todo lo que cuelgue del objeto, mire o no mire:
+   un collider que abarca el camión entero le duplica el tamaño y le corre
+   el centro, y después todo lo demás sale mal. */
+function cajaVisible(objeto){
+  const caja = new THREE.Box3();
+  objeto.traverse(m => {
+    if (m.isMesh && m.geometry && !esSobra(m))
+      caja.union(new THREE.Box3().setFromObject(m));
+  });
+  return caja.isEmpty() ? new THREE.Box3().setFromObject(objeto) : caja;
+}
 
 function ruedasDelModelo(objeto){
   const piezas = [];
   objeto.traverse(m => {
-    if (!m.isMesh || !m.geometry) return;
+    if (!m.isMesh || !m.geometry || esSobra(m)) return;
     const c = new THREE.Box3().setFromObject(m);
     piezas.push({ malla:m, tam:c.getSize(new THREE.Vector3()),
                   centro:c.getCenter(new THREE.Vector3()) });
   });
   if (!piezas.length) return [];
 
-  const porNombre = piezas.filter(p => PALABRAS_RUEDA.test(p.malla.name));
+  const porNombre = piezas.filter(p => nombresDe(p.malla).some(
+    n => PALABRAS_RUEDA.test(n) || SIGLA_RUEDA.test(n)));
   if (porNombre.length) return porNombre.map(p => p.malla);
 
   const todo = new THREE.Box3().setFromObject(objeto);
@@ -637,7 +677,7 @@ function esquinaDelPunto(punto){
 }
 
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null, corte:0, marca:null };
+            anim:null, modelo:null, esquina:null, corte:0 };
 
 function apagarVisor(){
   if (V.anim) cancelAnimationFrame(V.anim);
@@ -645,7 +685,7 @@ function apagarVisor(){
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null, corte:0, marca:null });
+                     ruedas:[], modelo:null, esquina:null, corte:0 });
 }
 
 function visorVacio(texto){
@@ -699,22 +739,35 @@ function armarVisor(clave, archivo, unidad){
   /* El .obj y el .fbx se leen igual de acá para abajo. El FBX se acepta
      porque es como vienen casi todos los modelos, y convertirlos sería un
      paso más que se puede saltear. */
-  const esFbx = archivo.toLowerCase().endsWith('.fbx');
-  const ClaseCargador = esFbx ? THREE.FBXLoader : THREE.OBJLoader;
+  const ext = archivo.toLowerCase().split('.').pop();
+  const ClaseCargador = ext === 'fbx' ? THREE.FBXLoader
+                      : (ext === 'glb' || ext === 'gltf') ? THREE.GLTFLoader
+                      : THREE.OBJLoader;
   if (!ClaseCargador){
     visorVacio(`Falta el lector para el archivo <code>${esc(archivo)}</code>. ` +
       'Recargá la página; si sigue igual, avisá al administrador.');
     return;
   }
   const cargador = new ClaseCargador();
-  /* La versión evita que quede pegado en caché un OBJ/FBX anterior —o el
-     404 de antes de que se haya subido— cuando se actualiza un modelo. */
+
+  /* La versión evita que quede pegado en caché un modelo anterior —o el 404
+     de antes de que se haya subido— cuando se reemplaza uno con el mismo
+     nombre. */
   const version = (FICHA && FICHA.modelo_3d_version) || '';
   const urlModelo = '/modelos/' + encodeURIComponent(archivo) +
     (version ? '?v=' + encodeURIComponent(version) : '');
 
-  cargador.load(urlModelo, obj => {
+  cargador.load(urlModelo, cargado => {
     if (!V.render || V.render !== ren) return;      /* se cerró mientras cargaba */
+    /* El GLTFLoader devuelve la escena adentro de un sobre; los otros dos
+       devuelven el objeto pelado. */
+    const obj = cargado.scene || cargado;
+
+    /* Refrescar las matrices antes de medir nada. Box3.setFromObject no
+       actualiza las de los padres, y en un glTF la posición de cada rueda
+       vive en el nodo que la contiene, no en la malla: sin esto se leen
+       todas en el origen y el enderezado gira un modelo que estaba bien. */
+    obj.updateMatrixWorld(true);
 
     /* Los FBX traen adentro las luces y la cámara con las que los armaron.
        La escena ya tiene las suyas, y las de adentro le pegan de más al
@@ -722,13 +775,16 @@ function armarVisor(clave, archivo, unidad){
     const aSacar = [];
     obj.traverse(o => { if (o.isLight || o.isCamera) aSacar.push(o); });
     for (const o of aSacar) o.parent && o.parent.remove(o);
+    /* Los colliders se apagan antes de medir nada: son cajas que abarcan
+       el camión entero y falsean el tamaño, el centro y el enderezado. */
+    obj.traverse(o => { if (o.isMesh && esSobra(o)) o.visible = false; });
 
     /* Cada modelo viene como lo dejó su autor: en las unidades que sea,
        parado en Y o en Z, girado en cualquier ángulo y a veces hundido
        bajo el piso. En vez de pedir que vengan prolijos, se los acomoda.
        El orden importa: primero se lo para, después se lo endereza, y
        recién ahí se lo escala y se lo apoya. */
-    let caja = new THREE.Box3().setFromObject(obj);
+    let caja = cajaVisible(obj);
     let tam = caja.getSize(new THREE.Vector3());
 
     /* 1. Pararlo. El resto de la pantalla espera el alto en Y; si el lado
@@ -740,29 +796,71 @@ function armarVisor(clave, archivo, unidad){
     }
 
     /* 2. Enderezarlo. Los modelos vienen girados en cualquier ángulo, no
-          solo en múltiplos de noventa grados: este venía en diagonal, a
+          solo en múltiplos de noventa grados: el 6x2 venía en diagonal, a
           cuarenta grados. La dirección de marcha no se puede sacar de la
           caja —un camión en diagonal tiene la caja casi cuadrada— pero sí
           de las ruedas: los ejes están alineados con el camión, siempre.
-          Se toma la recta que va de la rueda más adelantada a la más
-          atrasada y se la gira hasta que apunte al eje Z. */
+
+          Se saca el eje principal de los centros de las ruedas, que es la
+          dirección en la que están más desparramadas. Tomar las dos ruedas
+          más lejanas no sirve: en un camión bien orientado esas dos son la
+          diagonal, y enderezar por ahí tuerce un modelo que ya estaba
+          derecho. */
     let ruedas = ruedasDelModelo(obj);
     if (ruedas.length >= 2) {
       const puntos = ruedas.map(m =>
         new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()));
-      let a = puntos[0], b = puntos[0], mayor = 0;
-      for (const p1 of puntos) for (const p2 of puntos) {
-        const d = (p1.x - p2.x) ** 2 + (p1.z - p2.z) ** 2;
-        if (d > mayor) { mayor = d; a = p1; b = p2; }
+      const n = puntos.length;
+      const mx = puntos.reduce((a, p) => a + p.x, 0) / n;
+      const mz = puntos.reduce((a, p) => a + p.z, 0) / n;
+      let sxx = 0, szz = 0, sxz = 0;
+      for (const p of puntos) {
+        sxx += (p.x - mx) ** 2; szz += (p.z - mz) ** 2;
+        sxz += (p.x - mx) * (p.z - mz);
       }
-      if (mayor > 0) {
-        obj.rotation.y -= Math.atan2(b.x - a.x, b.z - a.z);
+      /* El ángulo del eje principal de una nube de puntos en dos
+         dimensiones sale directo de la matriz de covarianza. */
+      const ang = 0.5 * Math.atan2(2 * sxz, sxx - szz);
+      const dx = Math.cos(ang), dz = Math.sin(ang);
+      /* Solo se endereza si el eje principal está de verdad torcido:
+         girar por medio grado es ruido. */
+      const giro = -Math.atan2(dx, dz);
+      if (Math.abs(Math.sin(giro)) > 0.02) {
+        obj.rotation.y += giro;
         obj.updateMatrixWorld(true);
-        ruedas = ruedasDelModelo(obj);   /* las cajas cambiaron de lugar */
+        ruedas = ruedasDelModelo(obj);
+      }
+
+      /* Ya está a lo largo de Z, pero puede haber quedado de culata. El
+         frente es donde está la cabina, que es la parte alta de un tractor;
+         atrás va el chasis pelado.
+
+         Hay que mirar los vértices y no las cajas: la carrocería suele ser
+         una sola malla que abarca el camión entero, y su caja no dice de
+         qué lado está lo alto. Se toma uno de cada veinte, que para esto
+         alcanza y sobra. */
+      const cajaGiro = cajaVisible(obj);
+      const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
+      let altoAdelante = -Infinity, altoAtras = -Infinity;
+      const v = new THREE.Vector3();
+      obj.traverse(m => {
+        if (!m.isMesh || !m.geometry || !m.geometry.attributes.position) return;
+        if (esSobra(m)) return;
+        const pos = m.geometry.attributes.position;
+        for (let i = 0; i < pos.count; i += 20) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+          if (v.z < medio) altoAdelante = Math.max(altoAdelante, v.y);
+          else altoAtras = Math.max(altoAtras, v.y);
+        }
+      });
+      if (altoAtras > altoAdelante) {
+        obj.rotation.y += Math.PI;
+        obj.updateMatrixWorld(true);
+        ruedas = ruedasDelModelo(obj);
       }
     }
 
-    caja = new THREE.Box3().setFromObject(obj);
+    caja = cajaVisible(obj);
     tam = caja.getSize(new THREE.Vector3());
 
     /* 3. Escalarlo. Un tractor mide seis metros y medio; si el modelo mide
@@ -771,7 +869,7 @@ function armarVisor(clave, archivo, unidad){
     if (largo > 0 && (largo < 1.5 || largo > 20)) {
       obj.scale.multiplyScalar(6.5 / largo);
       obj.updateMatrixWorld(true);
-      caja = new THREE.Box3().setFromObject(obj);
+      caja = cajaVisible(obj);
       tam = caja.getSize(new THREE.Vector3());
     }
 
@@ -783,6 +881,9 @@ function armarVisor(clave, archivo, unidad){
 
     obj.traverse(m => {
       if (!m.isMesh) return;
+      /* Los colliders se esconden en vez de borrarse: son parte del
+         archivo y borrarlos podría romper la jerarquía. */
+      if (esSobra(m)) { m.visible = false; return; }
       m.material = esRueda.has(m) ? goma.clone() : blanco;
       if (esRueda.has(m)) V.ruedas.push(m);
     });
@@ -796,7 +897,7 @@ function armarVisor(clave, archivo, unidad){
     obj.position.y -= caja.min.y;
     obj.updateMatrixWorld(true);
     esc3.add(obj);
-    const caja3 = new THREE.Box3().setFromObject(obj);
+    const caja3 = cajaVisible(obj);
 
     /* Dónde termina el tren delantero y empieza el trasero: el punto medio
        entre la rueda más adelantada y la más atrasada. Sale de las ruedas y
@@ -883,49 +984,36 @@ function armarVisor(clave, archivo, unidad){
   })();
 }
 
-/* Las ruedas se pintan según lo que tenga esa esquina: naranja la elegida,
-   roja la que tiene alguna posición vacía, gris la que está completa. */
-function pintarRuedas(){
-  /* Cuando cada rueda es una pieza aparte, se pinta la elegida. Cuando el
-     modelo trae las dos de un eje en una sola pieza —pasa seguido— pintarla
-     mentiría: se marca el punto que se tocó con una chapita naranja. */
-  for (const m of V.ruedas){
-    const caja = new THREE.Box3().setFromObject(m);
-    const propia = caja.min.x > 0 || caja.max.x < 0;   /* de un solo lado */
-    let color = 0x24282d;
-    if (propia && V.esquina){
-      const e = esquinaDelPunto(caja.getCenter(new THREE.Vector3()));
-      if (e.eje === V.esquina.eje && e.lado === V.esquina.lado) color = 0xff7a1a;
-      else if (posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
-    } else if (propia){
-      const e = esquinaDelPunto(caja.getCenter(new THREE.Vector3()));
-      if (posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
-    }
-    m.material.color.setHex(color);
-    m.material.emissive.setHex(color === 0xff7a1a ? 0x3a1a04 : 0x000000);
-  }
-  marcarPunto();
+/* De qué esquina es una rueda, mirando dónde está.
+
+   El lado puede quedar en "ambos": hay modelos que traen las dos ruedas de
+   un eje en una sola pieza, y esa pieza no es de un lado ni del otro. */
+function esquinaDeLaRueda(malla){
+  const c = new THREE.Box3().setFromObject(malla);
+  const centro = c.getCenter(new THREE.Vector3());
+  return { eje: centro.z < V.corte ? 'frente' : 'atras',
+           lado: c.max.x < 0 ? 'I' : c.min.x > 0 ? 'D' : 'ambos' };
 }
 
-/* La chapita que marca la esquina elegida, para los modelos donde no se
-   puede pintar la rueda sola. */
-function marcarPunto(){
-  if (V.marca){ V.escena.remove(V.marca); V.marca = null; }
-  if (!V.esquina || !V.modelo) return;
-  const caja = new THREE.Box3();
-  for (const m of V.ruedas) caja.union(new THREE.Box3().setFromObject(m));
-  if (caja.isEmpty()) return;
-  const alto = caja.max.y - caja.min.y;
-  const anillo = new THREE.Mesh(
-    new THREE.TorusGeometry(alto * 0.62, alto * 0.06, 8, 32),
-    new THREE.MeshBasicMaterial({ color:0xff7a1a }));
-  anillo.rotation.y = Math.PI / 2;
-  anillo.position.set(
-    (V.esquina.lado === 'I' ? caja.min.x : caja.max.x) + (V.esquina.lado === 'I' ? -0.02 : 0.02),
-    (caja.min.y + caja.max.y) / 2,
-    V.esquina.eje === 'frente' ? (caja.min.z + V.corte) / 2 : (caja.max.z + V.corte) / 2);
-  V.escena.add(anillo);
-  V.marca = anillo;
+/* Se pinta la rueda elegida, y nada más. Nada de marcas flotando al lado:
+   la rueda es lo que se tocó y es lo que tiene que quedar marcado.
+
+   Naranja la elegida, rojiza la esquina a la que le falta alguna cubierta,
+   gris el resto. Una pieza que abarca las dos ruedas de un eje se pinta
+   cuando la esquina elegida es de ese eje, del lado que sea: no se puede
+   pintar media pieza. */
+function pintarRuedas(){
+  for (const m of V.ruedas){
+    const e = esquinaDeLaRueda(m);
+    const suya = V.esquina && e.eje === V.esquina.eje &&
+                 (e.lado === 'ambos' || e.lado === V.esquina.lado);
+    let color = 0x24282d;
+    if (suya) color = 0xff7a1a;
+    else if (e.lado !== 'ambos' &&
+             posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
+    m.material.color.setHex(color);
+    m.material.emissive.setHex(suya ? 0x3a1a04 : 0x000000);
+  }
 }
 
 function posicionesDe(esquina){
@@ -965,7 +1053,7 @@ function pintarCorner(){
       return `<div class="fila pos" data-pos="${p.posicion_id}">
         <span class="izq">${esc(p.posicion)}</span>
         <span>${puesta
-          ? esc(p.cubierta) + (p.marca ? ' · ' + esc(p.marca) : '') +
+          ? esc(p.cubierta) + (p.marca ? ' · ' + logoMarca(p.marca) : '') +
             (p.remanente_mm != null ? ` · ${p.remanente_mm} mm` : '')
           : '<i class="apagado">vacía</i>'}</span>
         <span class="der">${PUEDE
@@ -1076,6 +1164,18 @@ async function mover(cuerpo, caja){
   }
 }
 
+/* El logo de la marca de la cubierta. El archivo se llama como la marca en
+   minúsculas y sin signos, así que "BF Goodrich" y "BFGoodrich" caen las
+   dos en bfgoodrich.png. Si no está, el onerror deja el nombre en texto:
+   que falte un logo no puede romper la lista. */
+function logoMarca(marca){
+  const m = String(marca || '').trim();
+  if (!m) return '';
+  const archivo = m.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return `<img class="marca" src="/marcas/${esc(archivo)}.png" alt="${esc(m)}"` +
+         ` title="${esc(m)}" onerror="this.replaceWith('${esc(m)}')">`;
+}
+
 const nf0 = new Intl.NumberFormat('es-AR');
 const fecha = f => { const p = String(f || '').split('-');
   return p.length === 3 ? `${p[2]}/${p[1]}/${p[0].slice(2)}` : (f || '—'); };
@@ -1143,7 +1243,7 @@ async function pintarEstado(id){
     (cub.length
       ? '<div class="lista">' + cub.map(c =>
           `<div class="fila"><span class="izq">${esc(c.posicion)}</span>` +
-          `<span>${esc(c.cubierta)}${c.marca ? ' · ' + esc(c.marca) : ''}` +
+          `<span>${esc(c.cubierta)}${c.marca ? ' · ' + logoMarca(c.marca) : ''}` +
           `${c.medida ? ' · ' + esc(c.medida) : ''}</span>` +
           `<span class="der">${c.remanente_mm != null ? c.remanente_mm + ' mm' : ''}` +
           `${c.recapados ? ` · ${c.recapados} recap.` : ''}</span></div>`).join('') + '</div>'
