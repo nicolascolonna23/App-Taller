@@ -10,6 +10,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /repuestos   stock de repuestos
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
+    /combustible cruce de remitos contra el listado de la estación (en prueba)
 
 Configuración, toda por variables de entorno:
 
@@ -30,7 +31,8 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, etiquetas, inicio, repuestos, unidades as uni
+import auth, base, combustible as comb, etiquetas, inicio, repuestos
+import unidades as uni
 import vencimientos as venc
 import servidor as gom
 
@@ -47,6 +49,7 @@ PANTALLAS = {
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
+    "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     # El logo de la app es blanco; sobre el papel claro de la cédula no se
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
     "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
@@ -213,6 +216,23 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la unidad: {e}", 500)
 
+        # El cruce de remitos de combustible. Módulo en prueba: si su SQL
+        # todavía no se corrió, lo dice en vez de romper.
+        if ruta == "/api/combustible":
+            if not self._exigir_sesion():
+                return
+            estado = (parse_qs(urlparse(self.path).query).get("estado") or [None])[0]
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(comb.panel(cx, estado)))
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear las tablas de combustible. Corré "
+                    "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el cruce: {e}", 500)
+
         # El maestro de unidades. De acá sale la información de cada vehículo
         # para el resto del sistema, así que la pantalla lee la vista entera.
         if ruta == "/api/unidades":
@@ -343,6 +363,12 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo hacer el cambio: {e}", 500)
 
+        # Los archivos llegan en base64 adentro del JSON. Es un archivo por
+        # vez y de pocos cientos de filas: armar multipart para eso sería
+        # cargar el servidor con un parseo que no hace falta.
+        if ruta == "/api/combustible":
+            return self._combustible()
+
         if ruta == "/api/unidades":
             return self._unidad_escribir()
 
@@ -355,7 +381,38 @@ class App(gom.Handler):
         ruta = urlparse(self.path).path
         if ruta == "/api/unidades":
             return self._unidad_escribir(borrar=True)
+        if ruta == "/api/combustible":
+            return self._combustible(borrar=True)
         return self._error("No existe", 404)
+
+    def _combustible(self, borrar=False):
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            # Un listado de estación de 5.000 renglones no llega a 1 MB en
+            # xlsx; 12 deja lugar de sobra sin dejar entrar cualquier cosa.
+            if largo > 12 * 1024 * 1024:
+                return self._error("El archivo es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            with base.conectar() as cx:
+                if borrar:
+                    salida = comb.borrar_lote(cx, datos.get("lote_id"), self.usuario)
+                else:
+                    salida = comb.subir(cx, datos, self.usuario)
+                cx.commit()
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except ValueError as e:
+            return self._error(str(e))
+        except psycopg.errors.UndefinedTable:
+            return self._error(
+                "Falta crear las tablas de combustible. Corré "
+                "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo procesar el archivo: {e}", 500)
 
     def _unidad_escribir(self, borrar=False):
         """El alta, el cambio y la baja del maestro comparten todo salvo una línea."""

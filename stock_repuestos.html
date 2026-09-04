@@ -287,7 +287,7 @@ function esc(t){ return String(t==null?"":t).replace(/[&<>"']/g,c=>({"&":"&amp;"
 function norm(t){ return String(t||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 
 function marcar(txt){ var el=document.getElementById("lastsave");
-  if(el) el.textContent = txt || "Datos en Supabase"; }
+  if(el) el.textContent = txt || "Conectado a la base de datos"; }
 
 /* op: "mov+" | "mov-lote" | "mov-" | "art-save" | "art-toggle" | "art-delete" */
 async function guardar(op,arg){
