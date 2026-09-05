@@ -79,7 +79,12 @@ def listar(cx):
 MODELOS_3D = (
     ("6x2", "Tractor 6x2 / 6x4"),
     ("4x2", "Tractor 4x2"),
+    ("semi", "Semirremolque"),
 )
+# El archivo de cada uno. Los dos tractores se bajaron de un Iveco y les
+# quedó el nombre; el semi no, y no vale la pena renombrar un archivo que
+# ya está subido para que entre en un molde.
+ARCHIVO_3D = {"6x2": "iveco-6x2", "4x2": "iveco-4x2", "semi": "trailer"}
 # Los nombres que se usaron antes, por si alguna unidad quedó con uno
 # elegido a mano.
 ALIAS_3D = {"hiway": "4x2", "sway": "6x2"}
@@ -130,6 +135,17 @@ def ejes_de(unidad):
     return 0, "no se sabe"
 
 
+def es_semi(unidad):
+    """Si la unidad es un semirremolque.
+
+    Se mira el uso, que es donde está cargado: "SEMIRREMOLQUE". Se acepta
+    cualquier forma que empiece con "SEMI" —semi, semirremolque, semi-
+    remolque— porque el campo lo escribe una persona.
+    """
+    uso = (unidad.get("uso") or "").upper().replace(" ", "")
+    return uso.startswith("SEMI") or "REMOLQUE" in uso
+
+
 def modelo_3d(unidad):
     """Qué camión se dibuja. Lo elegido a mano gana; si no, se deduce.
 
@@ -143,6 +159,10 @@ def modelo_3d(unidad):
         return elegido if elegido in {m[0] for m in MODELOS_3D} else None
     if unidad.get("tipo") != "vehiculo":
         return None
+    # El semi va antes que todo lo demás: no es un tractor con otra
+    # cantidad de ejes, es otra cosa, y contarle ejes le da un camión.
+    if es_semi(unidad):
+        return "semi"
 
     ejes, _ = ejes_de(unidad)
     if ejes >= 3:
@@ -169,7 +189,7 @@ def _archivo_3d(clave):
     # glb primero: es el más liviano y el que menos problemas da. El glTF
     # suelto también entra, aunque necesita su .bin al lado.
     for ext in (".glb", ".gltf", ".obj", ".fbx"):
-        nombre = f"iveco-{clave}{ext}"
+        nombre = ARCHIVO_3D.get(clave, clave) + ext
         camino = os.path.join(AQUI, os.pardir, "modelos", nombre)
         if os.path.isfile(camino):
             datos = os.stat(camino)

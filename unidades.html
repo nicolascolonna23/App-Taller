@@ -659,7 +659,8 @@ function ruedasDelModelo(objeto){
 
   const todo = new THREE.Box3().setFromObject(objeto);
   const tamTodo = todo.getSize(new THREE.Vector3());
-  return piezas.filter(p => {
+  /* Primero, la rueda entera en una sola pieza, que es lo normal. */
+  const sueltas = piezas.filter(p => {
     /* Abajo: una rueda no llega ni a la mitad del alto del camión. */
     if (p.centro.y > todo.min.y + tamTodo.y * 0.42) return false;
     /* Redonda de perfil: alto y largo parecidos. */
@@ -669,6 +670,70 @@ function ruedasDelModelo(objeto){
     /* De un tamaño razonable, ni un tornillo ni el chasis entero. */
     return alto > tamTodo.y * 0.12 && alto < tamTodo.y * 0.55;
   }).map(p => p.malla);
+
+  return sueltas.length >= 2 ? sueltas : ruedasHechasPedazos(piezas, todo, tamTodo);
+}
+
+/* El otro caso: la rueda no es una pieza, son cientos.
+
+   Hay modelos —los que salen de Blockbench, por ejemplo— donde cada goma
+   viene partida en doscientos pedacitos de dos centímetros. Ninguno pasa
+   por rueda mirándolo solo, y buscar pieza por pieza no encuentra nada.
+
+   Lo que sí se ve es esto: las gomas son lo único que toca el piso. Se
+   toma la franja de abajo de todo, se la corta en grupos a lo largo del
+   camión —cada grupo es un eje— y de ahí se sube: cada pedazo que caiga
+   dentro del círculo de la rueda es parte de la rueda.
+
+   El radio sale de la huella. Un círculo cortado a la altura h deja una
+   cuerda c, y de esas dos medidas sale el radio; no hace falta suponer
+   cuánto mide una goma ni en qué escala vino el modelo. */
+function ruedasHechasPedazos(piezas, todo, tamTodo){
+  const piso = todo.min.y;
+  /* La franja tiene que ser fina: si se hace alta entra el chasis y los
+     tres ejes se pegan en un solo grupo. */
+  const franja = tamTodo.y * 0.06;
+  const tocan = piezas.filter(p => p.malla.geometry &&
+    new THREE.Box3().setFromObject(p.malla).min.y < piso + franja);
+  if (tocan.length < 2) return [];
+
+  /* A lo largo del camión: cada montón es un eje. */
+  const orden = tocan.slice().sort((a, b) => a.centro.z - b.centro.z);
+  const grupos = [[orden[0]]];
+  for (let i = 1; i < orden.length; i++) {
+    if (orden[i].centro.z - orden[i - 1].centro.z > tamTodo.z * 0.03) grupos.push([]);
+    grupos[grupos.length - 1].push(orden[i]);
+  }
+
+  const ruedas = new Set();
+  let numero = 0;
+  for (const g of grupos) {
+    const caja = new THREE.Box3();
+    for (const p of g) caja.union(new THREE.Box3().setFromObject(p.malla));
+    /* Una rueda no va en el medio del camión: la pata de apoyo y el
+       perno del enganche sí, y no son ruedas. */
+    if (caja.max.x - caja.min.x < tamTodo.x * 0.5) continue;
+    const cuerda = caja.max.z - caja.min.z;
+    const radio = (cuerda * cuerda / 4 + franja * franja) / (2 * franja);
+    if (!(radio > franja) || radio > tamTodo.y * 0.6) continue;
+
+    /* El centro de la rueda, y todo lo que le entre adentro. Se mira de
+       perfil —a lo alto y a lo largo— porque el ancho es el de la goma y
+       no dice nada. */
+    const cz = (caja.min.z + caja.max.z) / 2, cy = piso + radio;
+    numero++;
+    for (const p of piezas) {
+      const dz = p.centro.z - cz, dy = p.centro.y - cy;
+      if (dz * dz + dy * dy > radio * radio * 1.1) continue;
+      /* De qué eje es este pedazo. Se anota acá, que es donde se sabe:
+         más adelante los pedazos de dos ejes vecinos se tocan —una goma
+         mide más que lo que hay entre eje y eje— y separarlos otra vez
+         mirando dónde caen ya no se puede. */
+      p.malla.userData.grupoEje = numero;
+      ruedas.add(p.malla);
+    }
+  }
+  return [...ruedas];
 }
 
 /* Los ejes del modelo, de adelante hacia atrás.
@@ -685,23 +750,48 @@ function ejesDelModelo(ruedas){
   if (!ruedas.length) return [];
   const con = ruedas.map(m => {
     const c = new THREE.Box3().setFromObject(m);
-    return { malla:m, z:(c.min.z + c.max.z) / 2, largo:c.max.z - c.min.z };
+    return { malla:m, caja:c, z:(c.min.z + c.max.z) / 2,
+             largo:c.max.z - c.min.z };
   }).sort((a, b) => a.z - b.z);
-  const salto = Math.max(...con.map(r => r.largo)) * 0.5 || 0.3;
 
-  const ejes = [[con[0]]];
-  for (let i = 1; i < con.length; i++) {
-    if (con[i].z - con[i - 1].z > salto) ejes.push([]);
-    ejes[ejes.length - 1].push(con[i]);
+  let ejes;
+  if (con.every(r => r.malla.userData.grupoEje)) {
+    /* Las ruedas hechas pedazos ya vienen agrupadas de cuando se las
+       encontró. Cortar por dónde caen no serviría: los pedazos de dos
+       ejes vecinos se superponen. */
+    const por = new Map();
+    for (const r of con) {
+      const k = r.malla.userData.grupoEje;
+      if (!por.has(k)) por.set(k, []);
+      por.get(k).push(r);
+    }
+    ejes = [...por.values()].sort((a, b) => media(a) - media(b));
+  } else {
+    /* Una rueda por pieza: se ordenan a lo largo y se corta donde haya un
+       salto de más de media rueda. La medida sale de las ruedas mismas
+       para que no dependa de la escala del modelo. */
+    const salto = Math.max(...con.map(r => r.largo)) * 0.5 || 0.3;
+    ejes = [[con[0]]];
+    for (let i = 1; i < con.length; i++) {
+      if (con[i].z - con[i - 1].z > salto) ejes.push([]);
+      ejes[ejes.length - 1].push(con[i]);
+    }
   }
-  /* Cada rueda se queda con el número de su eje: después alcanza con
-     mirarla para saber de cuál es, sin volver a medir nada. */
+
+  /* Cada rueda se queda con su eje y su lado: después alcanza con mirarla
+     para saber cuál es, sin volver a medir nada. Con un modelo de dos mil
+     pedazos eso es la diferencia entre pintar al toque y trabarse. */
   return ejes.map((grupo, i) => {
-    for (const r of grupo) r.malla.userData.eje = i + 1;
-    return { numero:i + 1,
-             z: grupo.reduce((a, r) => a + r.z, 0) / grupo.length };
+    for (const r of grupo) {
+      r.malla.userData.eje = i + 1;
+      r.malla.userData.lado =
+        r.caja.max.x < 0 ? 'I' : r.caja.min.x > 0 ? 'D' : 'ambos';
+    }
+    return { numero:i + 1, z: media(grupo) };
   });
 }
+
+const media = g => g.reduce((a, r) => a + r.z, 0) / g.length;
 
 /* Cómo se llama cada eje, para el rótulo del panel. */
 function nombreDelEje(eje, cuantos){
@@ -760,10 +850,11 @@ function armarVisor(clave, archivo, unidad){
   $('#visor-vacio').hidden = true;
   const POR = { mano:'elegido a mano', mapa:'por el mapa de cubiertas',
                 modelo:'lo dice el modelo', codigo:'por el código de Iveco',
-                'no se sabe':'sin datos: se asume 4x2' };
+                'no se sabe':'sin datos' };
+  const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
+                   semi:'Semirremolque' };
   $('#visor-rotulo').textContent =
-    (clave === '6x2' ? 'Tractor 6x2 / 6x4' : 'Tractor 4x2') +
-    ' · ' + (POR[FICHA.modelo_3d_por] || '');
+    (NOMBRE[clave] || clave) + ' · ' + (POR[FICHA.modelo_3d_por] || '');
   $('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
 
   const caja = $('#visor');
@@ -890,29 +981,44 @@ function armarVisor(clave, archivo, unidad){
         ruedas = ruedasDelModelo(obj);
       }
 
-      /* Ya está a lo largo de Z, pero puede haber quedado de culata. El
-         frente es donde está la cabina, que es la parte alta de un tractor;
-         atrás va el chasis pelado.
-
-         Hay que mirar los vértices y no las cajas: la carrocería suele ser
-         una sola malla que abarca el camión entero, y su caja no dice de
-         qué lado está lo alto. Se toma uno de cada veinte, que para esto
-         alcanza y sobra. */
+      /* Ya está a lo largo de Z, pero puede haber quedado de culata. De qué
+         lado queda el frente depende de qué se está dibujando. */
       const cajaGiro = cajaVisible(obj);
       const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
-      let altoAdelante = -Infinity, altoAtras = -Infinity;
-      const v = new THREE.Vector3();
-      obj.traverse(m => {
-        if (!m.isMesh || !m.geometry || !m.geometry.attributes.position) return;
-        if (esSobra(m)) return;
-        const pos = m.geometry.attributes.position;
-        for (let i = 0; i < pos.count; i += 20) {
-          v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
-          if (v.z < medio) altoAdelante = Math.max(altoAdelante, v.y);
-          else altoAtras = Math.max(altoAtras, v.y);
-        }
-      });
-      if (altoAtras > altoAdelante) {
+      let alReves;
+
+      if (clave === 'semi') {
+        /* Un semi es igual de alto de punta a punta, así que la altura no
+           dice nada. Lo que sí: los ejes van todos atrás, y adelante no
+           hay más que el perno de enganche. */
+        const zr = ruedas.reduce((a, m) =>
+          a + new THREE.Box3().setFromObject(m).getCenter(new THREE.Vector3()).z,
+          0) / ruedas.length;
+        alReves = zr < medio;
+      } else {
+        /* En un tractor el frente es donde está la cabina, que es la parte
+           alta; atrás va el chasis pelado.
+
+           Hay que mirar los vértices y no las cajas: la carrocería suele
+           ser una sola malla que abarca el camión entero, y su caja no
+           dice de qué lado está lo alto. Se toma uno de cada veinte, que
+           para esto alcanza y sobra. */
+        let altoAdelante = -Infinity, altoAtras = -Infinity;
+        const v = new THREE.Vector3();
+        obj.traverse(m => {
+          if (!m.isMesh || !m.geometry || !m.geometry.attributes.position) return;
+          if (esSobra(m)) return;
+          const pos = m.geometry.attributes.position;
+          for (let i = 0; i < pos.count; i += 20) {
+            v.fromBufferAttribute(pos, i).applyMatrix4(m.matrixWorld);
+            if (v.z < medio) altoAdelante = Math.max(altoAdelante, v.y);
+            else altoAtras = Math.max(altoAtras, v.y);
+          }
+        });
+        alReves = altoAtras > altoAdelante;
+      }
+
+      if (alReves) {
         obj.rotation.y += Math.PI;
         obj.updateMatrixWorld(true);
         ruedas = ruedasDelModelo(obj);
@@ -1047,8 +1153,11 @@ function armarVisor(clave, archivo, unidad){
    El lado puede quedar en "ambos": hay modelos que traen las dos ruedas de
    un eje en una sola pieza, y esa pieza no es de un lado ni del otro. */
 function esquinaDeLaRueda(malla){
+  if (malla.userData.eje) {
+    return { eje:malla.userData.eje, lado:malla.userData.lado };
+  }
   const c = new THREE.Box3().setFromObject(malla);
-  return { eje: malla.userData.eje || ejeMasCerca((c.min.z + c.max.z) / 2),
+  return { eje: ejeMasCerca((c.min.z + c.max.z) / 2),
            lado: c.max.x < 0 ? 'I' : c.min.x > 0 ? 'D' : 'ambos' };
 }
 
