@@ -37,6 +37,8 @@ table.puestas td:first-child{font-weight:700;white-space:nowrap}
 table.puestas .num{text-align:right;white-space:nowrap;color:var(--m)}
 table.puestas .baja{color:var(--bad);font-weight:700}
 table.puestas .media{color:var(--w)}
+img.logomarca{height:15px;width:auto;max-width:74px;vertical-align:-3px;
+  object-fit:contain}
 @media(max-width:780px){.visor3d{height:290px}
   table.puestas th:nth-child(3),table.puestas td:nth-child(3){display:none}}
 </style></head><body>
@@ -77,6 +79,16 @@ const visorHtml=()=>`<div class="visor3d" id="visor"><span class="rot" id="visor
    aparte, abajo, con el mismo botón de siempre. */
 function auxilioHtml(mapa){const a=mapa.find(p=>p.es_auxilio);return a?`<div class="elegida"><h4>Auxilio</h4><div class="spare">${tire(a)}</div></div>`:''}
 
+/* El logo de la marca. El archivo es el nombre en minúsculas y sin signos:
+   MICHELIN -> michelin.png. La marca que no tenga logo muestra el nombre en
+   texto y listo, así se van subiendo de a uno sin romper nada. */
+function logoMarca(marca){
+  const m=String(marca||'').trim(); if(!m) return '';
+  const archivo=m.toLowerCase().replace(/[^a-z0-9]/g,'');
+  return `<img class="logomarca" src="/marcas/${esc(archivo)}.png" alt="${esc(m)}" `+
+    `title="${esc(m)}" onerror="this.replaceWith('${esc(m)}')">`;
+}
+
 /* La fecha del montaje, sin la hora: a nadie le importa a qué hora entró
    la goma, y con la hora la columna no entra en el celular. */
 const soloFecha=v=>v?new Date(v).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'}):'—';
@@ -89,7 +101,7 @@ function puestasHtml(mapa){
   if(!p.length)return '<div class="card section"><h3>Cubiertas puestas</h3><div class="emptymsg">No tiene ninguna cubierta montada.</div></div>';
   return `<div class="card section"><h3>Cubiertas puestas <span class="sub">${p.length} de ${mapa.length}</span></h3><table class="puestas"><thead><tr><th>Posición</th><th>Cubierta</th><th>Medida</th><th class="num">Remanente</th><th class="num">Colocada</th><th class="num">Km de la unidad</th></tr></thead><tbody>${p.map(x=>{
     const mm=x.remanente_mm, cls=mm!=null&&+mm<=4?'baja':mm!=null&&+mm<=8?'media':'';
-    return `<tr><td>${esc(x.posicion)}</td><td>${esc(x.cubierta)}${x.marca?' · '+esc(x.marca):''}${x.recapados?` <span class="sub">${x.recapados} recapado${x.recapados>1?'s':''}</span>`:''}</td><td>${esc(x.medida||'—')}</td><td class="num ${cls}">${mm!=null?esc(mm)+' mm':'—'}</td><td class="num">${x.montada_desde?esc(soloFecha(x.montada_desde)):'—'}</td><td class="num">${x.km_unidad_montaje!=null?esc(new Intl.NumberFormat('es-AR').format(Math.round(x.km_unidad_montaje))):'—'}</td></tr>`;
+    return `<tr><td>${esc(x.posicion)}</td><td>${esc(x.cubierta)}${x.marca?' · '+logoMarca(x.marca):''}${x.recapados?` <span class="sub">${x.recapados} recapado${x.recapados>1?'s':''}</span>`:''}</td><td>${esc(x.medida||'—')}</td><td class="num ${cls}">${mm!=null?esc(mm)+' mm':'—'}</td><td class="num">${x.montada_desde?esc(soloFecha(x.montada_desde)):'—'}</td><td class="num">${x.km_unidad_montaje!=null?esc(new Intl.NumberFormat('es-AR').format(Math.round(x.km_unidad_montaje))):'—'}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 

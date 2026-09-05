@@ -68,7 +68,8 @@ def listar(cx):
         "usos": distintos("uso"),
         "configuraciones": cx.execute(
             "select id, nombre from configuraciones order by nombre").fetchall(),
-        "revisar": cx.execute("select * from v_unidades_a_revisar").fetchall(),
+        "revisar": (cx.execute("select * from v_unidades_a_revisar").fetchall()
+                    + medidas_que_no_van(cx)),
         # Qué tipos de vehículo hay y cuáles todavía no tienen 3D.
         "armados": armados(cx),
     }
@@ -82,11 +83,13 @@ MODELOS_3D = (
     ("6x2", "Tractor 6x2 / 6x4"),
     ("4x2", "Tractor 4x2"),
     ("semi", "Semirremolque"),
+    ("autoelevador", "Autoelevador"),
 )
 # El archivo de cada uno. Los dos tractores se bajaron de un Iveco y les
 # quedó el nombre; el semi no, y no vale la pena renombrar un archivo que
 # ya está subido para que entre en un molde.
-ARCHIVO_3D = {"6x2": "iveco-6x2", "4x2": "iveco-4x2", "semi": "trailer"}
+ARCHIVO_3D = {"6x2": "iveco-6x2", "4x2": "iveco-4x2", "semi": "trailer",
+              "autoelevador": "forklift"}
 # Los nombres que se usaron antes, por si alguna unidad quedó con uno
 # elegido a mano.
 ALIAS_3D = {"hiway": "4x2", "sway": "6x2"}
@@ -137,6 +140,90 @@ def ejes_de(unidad):
     return 0, "no se sabe"
 
 
+# =====================================================================
+# QUÉ MEDIDA VA EN QUÉ
+# ---------------------------------------------------------------------
+# La regla del taller: en un tractor o en un semi va 295 y nada más; en un
+# autoelevador va 600x9 o 700x12 y nada más. Si en un movimiento aparece
+# otra medida, el movimiento está mal: o se tipeó el número de fuego de
+# otra cubierta, o se eligió la unidad equivocada.
+#
+# Se compara el primer número de la medida, que es el que la identifica.
+# Lo que viene después —el perfil, la llanta— cambia de una marca a otra y
+# no hace a la cuestión.
+# =====================================================================
+MEDIDAS = {
+    "camion":       ((295,), "295 (295/80R22.5 y las de esa familia)"),
+    "autoelevador": ((600, 700), "600x9 o 700x12"),
+}
+
+
+def clase_de_gomas(unidad):
+    """Qué medidas lleva esta unidad: 'camion', 'autoelevador' o None.
+
+    None es "no se sabe", y no se le controla nada: hay equipos que no son
+    autoelevadores y camiones chicos que todavía no tienen su regla.
+    """
+    if modelo_3d(unidad) == "autoelevador" or es_autoelevador(unidad):
+        return "autoelevador"
+    if es_semi(unidad):
+        return "camion"
+    # Un tractor: dos o tres ejes y uso de ruta. Los camiones chicos de
+    # reparto llevan otras medidas y todavía no están en la regla.
+    if unidad.get("tipo") == "vehiculo" and modelo_3d(unidad) in ("4x2", "6x2"):
+        return "camion"
+    return None
+
+
+def _primer_numero(medida):
+    """El número que identifica la medida.
+
+    295/80R22.5 -> 295 · 600x9 -> 600 · 6.00-9 -> 600, que es la misma
+    medida escrita a la vieja usanza, en pulgadas y con coma.
+    """
+    import re
+    m = re.match(r"\s*(\d+)(?:[.,](\d+))?", str(medida or ""))
+    if not m:
+        return None
+    entero = int(m.group(1))
+    if m.group(2) and entero < 100:
+        return int(f"{entero}{m.group(2)}".ljust(3, "0")[:3])
+    return entero
+
+
+def medida_va(unidad, medida):
+    """(entra, qué se esperaba). Sin regla para esa unidad, entra todo."""
+    clase = clase_de_gomas(unidad)
+    if not clase:
+        return True, None
+    validos, comose = MEDIDAS[clase]
+    return _primer_numero(medida) in validos, comose
+
+
+def es_autoelevador(unidad):
+    """Si la unidad es un autoelevador.
+
+    Los equipos vienen sin marca ni modelo, así que hay poco de dónde
+    agarrarse. Lo que sí es seguro es la medida de las gomas: 600x9 y
+    700x12 no las lleva ninguna otra cosa de la flota. Si no hay gomas
+    cargadas todavía, se mira el texto, y si tampoco dice nada se elige a
+    mano desde la ficha.
+
+    La medida solo cuenta en los equipos. En un camión sería morderse la
+    cola: le cargan una 700x12 por error, el error lo convierte en
+    autoelevador, y como autoelevador la 700x12 está bien. El aviso no
+    saldría nunca, que es justo lo que hay que evitar.
+    """
+    if unidad.get("tipo") != "vehiculo":
+        for m in (unidad.get("medidas") or ()):
+            if _primer_numero(m) in (600, 700):
+                return True
+    texto = " ".join(str(unidad.get(c) or "") for c in
+                     ("marca", "modelo", "nota", "patente")).upper()
+    return any(p in texto for p in
+               ("AUTOELEVADOR", "MONTACARGA", "FORKLIFT", "CLARK", "HYSTER"))
+
+
 def es_semi(unidad):
     """Si la unidad es un semirremolque.
 
@@ -159,10 +246,14 @@ def modelo_3d(unidad):
     elegido = ALIAS_3D.get(elegido, elegido)
     if elegido:
         return elegido if elegido in {m[0] for m in MODELOS_3D} else None
+    # El autoelevador va primero de todo: es un equipo, y el corte por tipo
+    # de acá abajo lo dejaría afuera.
+    if es_autoelevador(unidad):
+        return "autoelevador"
     if unidad.get("tipo") != "vehiculo":
         return None
-    # El semi va antes que todo lo demás: no es un tractor con otra
-    # cantidad de ejes, es otra cosa, y contarle ejes le da un camión.
+    # El semi va antes que el resto: no es un tractor con otra cantidad de
+    # ejes, es otra cosa, y contarle ejes le da un camión.
     if es_semi(unidad):
         return "semi"
 
@@ -211,6 +302,45 @@ def _bloque(cx, consulta, valores=()):
     except Exception:
         cx.rollback()
         return []
+
+
+def medidas_que_no_van(cx):
+    """Las cubiertas puestas con una medida que esa unidad no lleva.
+
+    La regla corta los movimientos nuevos, pero lo que ya estaba cargado
+    entró antes de la regla. Esto lo saca a la luz, con la misma forma que
+    el resto de los avisos para revisar.
+    """
+    filas = cx.execute("""
+        select u.id, u.patente, u.marca, u.modelo, u.uso, u.tipo, u.modelo_3d,
+               p.codigo as posicion, c.codigo as cubierta, c.medida
+          from montajes m
+          join unidades u on u.id = m.unidad_id
+          join cubiertas c on c.id = m.cubierta_id
+          join configuracion_posiciones p on p.id = m.posicion_id
+         where m.hasta is null and coalesce(c.medida,'') <> ''
+         order by u.patente, p.orden""").fetchall()
+
+    # Las medidas de cada unidad, para reconocer a los autoelevadores que
+    # no dicen serlo. Se arma de las mismas filas: una consulta y listo.
+    puestas = {}
+    for f in filas:
+        puestas.setdefault(f["id"], []).append(f["medida"])
+
+    avisos = []
+    for f in filas:
+        unidad = dict(f)
+        unidad["medidas"] = puestas[f["id"]]
+        entra, comose = medida_va(unidad, f["medida"])
+        if entra:
+            continue
+        avisos.append({
+            "patente": f["patente"],
+            "problema": f"la {f['cubierta']} en {f['posicion']} es "
+                        f"{f['medida']} y esta unidad lleva {comose}",
+            "detalle": "revisar el movimiento: el número de fuego o la unidad",
+        })
+    return avisos
 
 
 def armados(cx):
@@ -331,7 +461,7 @@ def ficha(cx, unidad_id):
     # corrida. Sin el número se caía en el nombre del armado, y hay
     # configuraciones cargadas como "S-D-D" que en el mapa tienen seis
     # posiciones: el nombre miente y el mapa no.
-    contada = dict(unidad)
+    contada = _con_medidas(cx, unidad)
     contada["posiciones"] = sum(1 for p in mapa if not p.get("es_auxilio"))
 
     # El modelo que le tocaría, y si el archivo está o falta. Del S-Way
@@ -349,7 +479,12 @@ def ficha(cx, unidad_id):
               # De dónde salió: 'mano' si alguien lo eligió, y si no de qué
               # se dedujo. Un dato deducido del nombre del modelo no vale lo
               # mismo que el mapa de cubiertas ya cargado.
-              "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por}
+              "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por,
+              # Qué medida lleva esta unidad. La pantalla lo usa para no
+              # ofrecer una cubierta que no va.
+              "medida_clase": clase_de_gomas(contada),
+              "medida_espera": (MEDIDAS[clase_de_gomas(contada)][1]
+                                if clase_de_gomas(contada) else None)}
 
     salida["mapa"] = mapa
 
@@ -613,6 +748,16 @@ def mover_cubierta(cx, datos, usuario=None):
             join unidades u on u.id = m.unidad_id
             join configuracion_posiciones p on p.id = m.posicion_id
             where m.cubierta_id = %s and m.hasta is null""", (cubierta_id,)).fetchone()
+        # La medida tiene que ser la que lleva la unidad. Si no lo es, el
+        # movimiento está mal: o se tipeó el número de fuego de otra
+        # cubierta, o se eligió la unidad equivocada. Se corta acá y no
+        # después, cuando ya quedó anotado y hay que rastrearlo.
+        entra, comose = medida_va(_con_medidas(cx, unidad), cubierta["medida"])
+        if not entra:
+            raise ValueError(
+                f"La {cubierta['codigo']} es {cubierta['medida'] or 'sin medida'} y "
+                f"{base_fmt(unidad['patente'])} lleva {comose}. "
+                "Revisá el número de fuego y la unidad: alguno de los dos no es.")
         if otra:
             raise ValueError(f"La {cubierta['codigo']} está puesta en "
                              f"{base_fmt(otra['patente'])}, posición {otra['codigo']}. "
@@ -623,6 +768,24 @@ def mover_cubierta(cx, datos, usuario=None):
         raise ValueError("La acción tiene que ser montar o desmontar.")
 
     return {"mapa": posiciones(cx, unidad_id)}
+
+
+def _con_medidas(cx, unidad):
+    """La unidad más las medidas que ya tiene puestas.
+
+    Un equipo sin marca ni modelo no dice qué es; sus gomas sí. Se leen una
+    sola vez y se le cuelgan, que es lo que miran clase_de_gomas y
+    es_autoelevador.
+    """
+    if "medidas" in unidad:
+        return unidad
+    con = dict(unidad)
+    con["medidas"] = [f["medida"] for f in cx.execute("""
+        select distinct c.medida from montajes m
+        join cubiertas c on c.id = m.cubierta_id
+        where m.unidad_id = %s and m.hasta is null
+          and coalesce(c.medida,'') <> ''""", (unidad["id"],)).fetchall()]
+    return con
 
 
 def stock_para(cx, medida=None, limite=200):
