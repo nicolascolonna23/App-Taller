@@ -108,9 +108,23 @@ function ruedasDelModelo(objeto){
     if (Math.abs(alto - largo) / Math.max(alto, largo) > 0.4) return false;
     /* De un tamaño razonable, ni un tornillo ni el chasis entero. */
     return alto > tamTodo.y * 0.12 && alto < tamTodo.y * 0.55;
-  }).map(p => p.malla);
+  });
 
-  return sueltas.length >= 2 ? sueltas : ruedasHechasPedazos(piezas, todo, tamTodo);
+  /* Y que tenga su par del otro lado. Una goma nunca va sola ni en el eje
+     del medio del vehículo: siempre hay otra igual, a la misma altura y a
+     la misma distancia del centro, del lado contrario.
+
+     Es lo que separa una rueda del contrapeso de un autoelevador, que es
+     redondo de perfil, está abajo y mide lo mismo que una goma —pasa
+     todos los filtros de arriba— pero está en el medio y no tiene par. */
+  const conPar = sueltas.filter(p => sueltas.some(o => o !== p &&
+    Math.abs(p.centro.x + o.centro.x) < tamTodo.x * 0.12 &&
+    Math.abs(p.centro.x) > tamTodo.x * 0.12 &&
+    Math.abs(p.centro.z - o.centro.z) < tamTodo.z * 0.06 &&
+    Math.abs(p.tam.y - o.tam.y) < Math.max(p.tam.y, o.tam.y) * 0.25
+  )).map(p => p.malla);
+
+  return conPar.length >= 2 ? conPar : ruedasHechasPedazos(piezas, todo, tamTodo);
 }
 
 /* El otro caso: la rueda no es una pieza, son cientos.
@@ -173,6 +187,92 @@ function ruedasHechasPedazos(piezas, todo, tamTodo){
     }
   }
   return [...ruedas];
+}
+
+/* Cuando el modelo vino como una sola malla, partirlo en sus pedazos.
+
+   Un archivo puede traer el camión entero en una malla sola, sin objetos
+   adentro: no es que le falten las ruedas, es que están soldadas al resto
+   en el mismo montón de triángulos. Pero soldadas de nombre nada más —la
+   goma no comparte un solo vértice con el guardabarros—, así que se las
+   puede separar.
+
+   Se agrupan los triángulos que se tocan: dos que comparten un vértice son
+   de la misma pieza. Lo que queda es lo que el que armó el modelo dibujó
+   como piezas, y de ahí para abajo todo sigue igual que siempre. */
+function partirSiEsUnaSola(raiz){
+  const mallas = [];
+  raiz.traverse(m => { if (m.isMesh && m.geometry) mallas.push(m); });
+  /* Con dos o más piezas ya hay con qué trabajar. Y una malla gigante no
+     se toca: partirla cuesta más de lo que rinde. */
+  if (mallas.length > 2) return;
+  for (const m of mallas) {
+    if (m.geometry.attributes.position.count > 300000) continue;
+    const partes = pedazosDe(m.geometry);
+    if (partes.length < 4) continue;          /* no había nada que partir */
+    const grupo = new THREE.Group();
+    grupo.name = m.name || 'partido';
+    for (let i = 0; i < partes.length; i++) {
+      const hijo = new THREE.Mesh(partes[i], m.material);
+      hijo.name = `${grupo.name}_${i + 1}`;
+      grupo.add(hijo);
+    }
+    grupo.applyMatrix4(m.matrix);
+    m.parent.add(grupo);
+    m.parent.remove(m);
+  }
+  raiz.updateMatrixWorld(true);
+}
+
+/* Las islas de una geometría: los triángulos que se tocan entre sí.
+
+   Dos vértices en el mismo punto son el mismo punto aunque el archivo los
+   repita —los .fbx y los .obj repiten los vértices de cada cara— así que
+   primero se sueldan por posición y recién después se agrupa. */
+function pedazosDe(geo){
+  const pos = geo.attributes.position, n = pos.count;
+  const padre = new Int32Array(n);
+  for (let i = 0; i < n; i++) padre[i] = i;
+  const raiz = x => { while (padre[x] !== x) { padre[x] = padre[padre[x]]; x = padre[x]; } return x; };
+  const une = (a, b) => { a = raiz(a); b = raiz(b); if (a !== b) padre[b] = a; };
+
+  const visto = new Map();
+  for (let i = 0; i < n; i++) {
+    const k = pos.getX(i).toFixed(4) + ',' + pos.getY(i).toFixed(4) + ',' +
+              pos.getZ(i).toFixed(4);
+    const antes = visto.get(k);
+    if (antes === undefined) visto.set(k, i); else une(antes, i);
+  }
+
+  const idx = geo.index, cuantos = idx ? idx.count : n;
+  const v = i => idx ? idx.getX(i) : i;
+  for (let i = 0; i + 2 < cuantos; i += 3) { une(v(i), v(i + 1)); une(v(i), v(i + 2)); }
+
+  const islas = new Map();
+  for (let i = 0; i + 2 < cuantos; i += 3) {
+    const r = raiz(v(i));
+    if (!islas.has(r)) islas.set(r, []);
+    islas.get(r).push(i);
+  }
+  if (islas.size < 4) return [];
+
+  /* Una geometría por isla, copiando los atributos que traía. */
+  const atributos = ['position', 'normal', 'uv'].filter(a => geo.attributes[a]);
+  return [...islas.values()].map(tris => {
+    const nueva = new THREE.BufferGeometry();
+    for (const nombre of atributos) {
+      const a = geo.attributes[nombre], ancho = a.itemSize;
+      const datos = new Float32Array(tris.length * 3 * ancho);
+      let k = 0;
+      for (const t of tris) for (let j = 0; j < 3; j++) {
+        const i = v(t + j);
+        for (let c = 0; c < ancho; c++) datos[k++] = a.array[i * ancho + c];
+      }
+      nueva.setAttribute(nombre, new THREE.BufferAttribute(datos, ancho));
+    }
+    if (!geo.attributes.normal) nueva.computeVertexNormals();
+    return nueva;
+  });
 }
 
 /* Los ejes del modelo, de adelante hacia atrás.
@@ -298,7 +398,7 @@ function armarVisor(clave, archivo, opciones){
                 modelo:'lo dice el modelo', codigo:'por el código de Iveco',
                 'no se sabe':'sin datos' };
   const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
-                   semi:'Semirremolque' };
+                   semi:'Semirremolque', autoelevador:'Autoelevador' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
   nodo('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
@@ -375,6 +475,11 @@ function armarVisor(clave, archivo, opciones){
        el camión entero y falsean el tamaño, el centro y el enderezado. */
     obj.traverse(o => { if (o.isMesh && esSobra(o)) o.visible = false; });
 
+    /* Y hay modelos que vienen como una sola malla, todo soldado en un
+       archivo: el autoelevador es uno. Ahí no hay ruedas que buscar
+       porque no hay piezas. Se lo parte antes de mirar nada. */
+    partirSiEsUnaSola(obj);
+
     /* Cada modelo viene como lo dejó su autor: en las unidades que sea,
        parado en Y o en Z, girado en cualquier ángulo y a veces hundido
        bajo el piso. En vez de pedir que vengan prolijos, se los acomoda.
@@ -433,7 +538,20 @@ function armarVisor(clave, archivo, opciones){
       const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
       let alReves;
 
-      if (clave === 'semi') {
+      if (clave === 'autoelevador') {
+        /* En un autoelevador el frente es donde está el mástil, y ahí van
+           las ruedas grandes: son las que traccionan y las que aguantan la
+           carga. Atrás van las chicas, las que doblan.
+
+           La altura no sirve para decidirlo —el techo de protección va de
+           punta a punta y tapa al mástil— pero el tamaño de las gomas no
+           falla en ningún autoelevador. */
+        const cajas = ruedas.map(m => new THREE.Box3().setFromObject(m));
+        const grande = cajas.reduce((a, c) =>
+          c.max.y - c.min.y > a.max.y - a.min.y ? c : a);
+        alReves = (grande.min.z + grande.max.z) / 2 > medio;
+
+      } else if (clave === 'semi') {
         /* Un semi es igual de alto de punta a punta, así que la altura no
            dice nada. Lo que sí: los ejes van todos atrás, y adelante no
            hay más que el perno de enganche. */

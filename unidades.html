@@ -689,11 +689,21 @@ async function formPoner(fila, p){
   } catch (e) { /* sin stock, el select queda vacío y se dice abajo */ }
   if (!caja.isConnected) return;
 
+  /* Las que no son de la medida de esta unidad no se ofrecen. Un tractor
+     lleva 295 y un autoelevador 600x9 o 700x12: si aparece otra cosa el
+     movimiento está mal, y el servidor lo va a rechazar igual. Más vale no
+     ponerla en la lista que dejar elegirla y explicar después. */
+  const fuera = stock.length;
+  if (FICHA.medida_clase)
+    stock = stock.filter(c => medidaVa(c.medida));
+
   stock.sort((a, b) => (a.medida === medida ? -1 : 0) - (b.medida === medida ? -1 : 0)
                     || String(a.codigo).localeCompare(String(b.codigo), 'es'));
   if (!stock.length){
-    caja.innerHTML = '<p class="nada">No hay cubiertas libres en stock. ' +
-      'Se dan de alta desde gomería.</p>' +
+    caja.innerHTML = '<p class="nada">' + (fuera
+      ? `No hay ninguna cubierta libre de ${esc(FICHA.medida_espera)}, que es ` +
+        `lo que lleva esta unidad. Hay ${fuera} en stock, pero de otra medida.`
+      : 'No hay cubiertas libres en stock. Se dan de alta desde gomería.') + '</p>' +
       '<div class="acc-pie"><button type="button" class="mini gris cancelar">Cerrar</button></div>';
     caja.querySelector('.cancelar').onclick = cerrarForms;
     return;
@@ -746,6 +756,23 @@ async function mover(cuerpo, caja){
    minúsculas y sin signos, así que "BF Goodrich" y "BFGoodrich" caen las
    dos en bfgoodrich.png. Si no está, el onerror deja el nombre en texto:
    que falte un logo no puede romper la lista. */
+/* La misma cuenta que hace el servidor: el primer número de la medida es
+   el que la identifica. 295/80R22.5 -> 295, 600x9 -> 600, y 6.00-9 -> 600,
+   que es la misma medida escrita a la vieja usanza. */
+function primerNumero(medida){
+  const m = String(medida || '').match(/\s*(\d+)(?:[.,](\d+))?/);
+  if (!m) return null;
+  const entero = +m[1];
+  return (m[2] && entero < 100) ? +(`${entero}${m[2]}`.padEnd(3, '0').slice(0, 3))
+                                : entero;
+}
+
+const MEDIDAS_VAN = { camion:[295], autoelevador:[600, 700] };
+function medidaVa(medida){
+  const va = MEDIDAS_VAN[FICHA && FICHA.medida_clase];
+  return !va || va.includes(primerNumero(medida));
+}
+
 function logoMarca(marca){
   const m = String(marca || '').trim();
   if (!m) return '';
