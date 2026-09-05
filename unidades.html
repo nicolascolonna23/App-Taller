@@ -187,6 +187,10 @@
     vertical-align:-3px}
   .rotulo-esq{margin:0 0 8px;font-size:11px;font-weight:700;color:var(--brand)}
   .fila.pos .der{margin-left:auto}
+  /* Cuál de las dos del dual es. Va pegado al código, apagado: el que
+     sabe leer "2DE" no lo necesita, el que no, sí. */
+  .fila.pos .izq small{display:block;font-weight:500;font-size:10px;
+    color:var(--ink-muted);letter-spacing:.2px}
   .mini{background:var(--surface-3);color:var(--ink);border:1px solid var(--hairline-2);
     border-radius:7px;padding:4px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
   .mini:hover{border-color:var(--brand)}
@@ -1119,11 +1123,18 @@ function pintarCorner(){
       `posiciones en el mapa de esta unidad.</p>`;
     return;
   }
-  caja.innerHTML = `<p class="rotulo-esq">Rueda ${esc(V.esquina.rotulo)}</p>` +
+  /* En un eje dual esa rueda lleva dos cubiertas, y cada una se saca y se
+     pone por su cuenta: son dos posiciones distintas del mapa. Conviene
+     decirlo, porque mirando el camión se ve una sola rueda. */
+  const dual = pos.length > 1;
+  caja.innerHTML = `<p class="rotulo-esq">Rueda ${esc(V.esquina.rotulo)}` +
+    (dual ? ` · ${pos.length} cubiertas, se cambian por separado` : '') + '</p>' +
     '<div class="lista">' + pos.map(p => {
       const puesta = p.cubierta_id;
       return `<div class="fila pos" data-pos="${p.posicion_id}">
-        <span class="izq">${esc(p.posicion)}</span>
+        <span class="izq">${esc(p.posicion)}${
+          p.montaje && p.montaje !== 'unica'
+            ? `<small>${esc(p.montaje)}</small>` : ''}</span>
         <span>${puesta
           ? esc(p.cubierta) + (p.marca ? ' · ' + logoMarca(p.marca) : '') +
             (p.remanente_mm != null ? ` · ${p.remanente_mm} mm` : '')
