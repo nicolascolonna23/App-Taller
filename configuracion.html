@@ -1,0 +1,202 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Configuración | Diemar</title>
+<style>
+:root{color-scheme:dark;--bg:#090b0e;--panel:#12171c;--panel-2:#171e24;--panel-3:#20262c;
+  --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
+  --ink:#f3f5f6;--ink-2:#c5cbd0;--muted:#9099a4;
+  --orange:#ff7a1a;--orange-soft:rgba(255,122,26,.13);
+  --ok:#31bd65;--bad:#e35d62;--radius:16px}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink);
+  font-size:14px;-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+.top{display:flex;align-items:center;gap:14px;padding:0 24px;height:58px;
+  background:var(--panel);border-bottom:1px solid var(--line)}
+.top img{width:52px;max-height:30px;object-fit:contain}
+.top .volver{color:var(--muted);text-decoration:none;font-size:13px;padding:6px 11px;
+  border:1px solid var(--line);border-radius:9px}
+.top .volver:hover{color:var(--ink);border-color:var(--line-2)}
+.top .donde{font-size:10px;font-weight:700;letter-spacing:2px;color:var(--muted);
+  text-transform:uppercase}
+.top .quien{margin-left:auto;color:var(--muted);font-size:13px}
+main{max-width:880px;margin:0 auto;padding:26px 24px 60px}
+h1{margin:0 0 4px;font-size:22px;letter-spacing:-.02em}
+.sub{margin:0 0 26px;color:var(--muted);font-size:13px}
+section{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);
+  padding:20px;margin-bottom:16px}
+section h2{margin:0 0 3px;font-size:15px;letter-spacing:-.01em}
+section .ayuda{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.55}
+.opciones{display:flex;flex-wrap:wrap;gap:10px}
+.opcion{display:flex;align-items:center;gap:9px;padding:11px 14px;border-radius:11px;
+  border:1px solid var(--line);background:var(--panel-2);color:var(--ink-2);
+  font:inherit;font-size:13px;cursor:pointer;transition:.15s}
+.opcion:hover{border-color:var(--line-2);color:var(--ink)}
+.opcion[aria-pressed=true]{border-color:var(--orange);background:var(--orange-soft);
+  color:var(--ink);font-weight:600}
+.muestra{width:17px;height:17px;border-radius:50%;flex:none;
+  box-shadow:0 0 0 1px rgba(255,255,255,.18) inset}
+/* La portada. La que se está usando, grande, y abajo qué hacer con ella. */
+.portada{position:relative;height:190px;border-radius:12px;overflow:hidden;
+  border:1px solid var(--line);background:var(--panel-2) center/cover no-repeat}
+.portada .cartel{position:absolute;left:0;right:0;bottom:0;padding:9px 12px;
+  font-size:11px;color:#fff;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}
+.acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.btn{padding:10px 15px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel-2);color:var(--ink);font:inherit;font-size:13px;
+  font-weight:600;cursor:pointer}
+.btn:hover{border-color:var(--line-2)}
+.btn.principal{background:var(--orange);border-color:var(--orange);color:#fff}
+.btn:disabled{opacity:.5;cursor:default}
+.aviso{margin-top:12px;font-size:12px;line-height:1.55}
+.aviso.mal{color:var(--bad)}
+.aviso.bien{color:var(--ok)}
+input[type=file]{display:none}
+@media(max-width:640px){main{padding:18px 14px 40px}section{padding:16px}
+  .portada{height:150px}}
+</style>
+<script src="/tema.js"></script>
+</head><body>
+<header class="top">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <a class="volver" href="/">‹ Inicio</a>
+  <span class="donde">Configuración</span>
+  <span class="quien" id="quien"></span>
+</header>
+<main>
+  <h1>Personalización</h1>
+  <p class="sub">Es tuya: se guarda en tu usuario y te sigue a la computadora del
+    taller y al celular. Nadie más la ve.</p>
+
+  <section>
+    <h2>Tema</h2>
+    <p class="ayuda">Oscuro para el taller, claro para la oficina. Con
+      <b>el del sistema</b> sigue lo que tengas puesto en la computadora.</p>
+    <div class="opciones" id="temas"></div>
+  </section>
+
+  <section>
+    <h2>Color</h2>
+    <p class="ayuda">El color de los botones, los números y lo que está elegido.</p>
+    <div class="opciones" id="paletas"></div>
+  </section>
+
+  <section>
+    <h2>Foto de portada</h2>
+    <p class="ayuda">La que se ve atrás en el inicio. Podés subir la tuya: una foto
+      de la flota, de tu sucursal, la que quieras. La ve tu usuario y nadie más.</p>
+    <div class="portada" id="portada"><span class="cartel" id="portada-pie"></span></div>
+    <div class="acciones">
+      <button type="button" class="btn principal" id="subir">Subir una foto</button>
+      <button type="button" class="btn" id="usar" hidden></button>
+      <button type="button" class="btn" id="sacar" hidden>Sacar la mía</button>
+      <input type="file" id="archivo" accept="image/jpeg,image/png,image/webp">
+    </div>
+    <p class="aviso" id="aviso" hidden></p>
+  </section>
+</main>
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+let P = null;   /* lo que dice el servidor */
+
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
+  if (d) $('#quien').textContent = d.nombre;
+}).catch(() => {});
+
+function decir(texto, clase){
+  const a = $('#aviso');
+  a.hidden = !texto;
+  a.textContent = texto || '';
+  a.className = 'aviso' + (clase ? ' ' + clase : '');
+}
+
+/* Guardar y, si algo sale mal, decirlo y volver a dibujar con lo que
+   realmente quedó. Nada peor que un botón marcado que no se guardó. */
+async function elegir(cambio){
+  try {
+    P = await Tema.guardar(cambio);
+    pintar();
+    decir('');
+  } catch (e) {
+    decir(e.message || 'No se pudo guardar.', 'mal');
+    pintar();
+  }
+}
+
+function pintar(){
+  if (!P) return;
+  $('#temas').innerHTML = (P.temas || []).map(t =>
+    `<button type="button" class="opcion" data-tema="${esc(t.id)}" ` +
+    `aria-pressed="${P.tema === t.id}">${esc(t.nombre)}</button>`).join('');
+  $('#temas').querySelectorAll('[data-tema]').forEach(b =>
+    b.onclick = () => elegir({ tema: b.dataset.tema }));
+
+  $('#paletas').innerHTML = (P.paletas || []).map(p =>
+    `<button type="button" class="opcion" data-paleta="${esc(p.id)}" ` +
+    `aria-pressed="${P.paleta === p.id}">` +
+    `<span class="muestra" style="background:${esc(p.color)}"></span>` +
+    `${esc(p.nombre)}</button>`).join('');
+  $('#paletas').querySelectorAll('[data-paleta]').forEach(b =>
+    b.onclick = () => elegir({ paleta: b.dataset.paleta }));
+
+  /* La portada que se está viendo ahora mismo. */
+  const propia = P.tiene_fondo && P.fondo_propio;
+  const url = P.tiene_fondo
+    ? '/api/fondo?v=' + encodeURIComponent(P.fondo_version || '')
+    : '/inicio-camion.jpg';
+  $('#portada').style.backgroundImage =
+    `url('${propia || !P.tiene_fondo ? url : '/inicio-camion.jpg'}')`;
+  $('#portada-pie').textContent = !P.tiene_fondo
+    ? 'La foto de la empresa'
+    : (propia ? 'La tuya' : 'La de la empresa · tenés una tuya guardada');
+
+  $('#usar').hidden = !P.tiene_fondo;
+  $('#usar').textContent = propia ? 'Usar la de la empresa' : 'Usar la mía';
+  $('#usar').onclick = () => elegir({ fondo_propio: !P.fondo_propio });
+  $('#sacar').hidden = !P.tiene_fondo;
+}
+
+$('#subir').onclick = () => $('#archivo').click();
+$('#archivo').onchange = async () => {
+  const f = $('#archivo').files[0];
+  if (!f) return;
+  decir('Subiendo…');
+  $('#subir').disabled = true;
+  try {
+    /* El archivo va crudo, con su tipo en la cabecera: para una sola
+       imagen no hace falta armar un formulario. */
+    const r = await fetch('/api/fondo', {
+      method: 'POST', headers: { 'Content-Type': f.type }, body: f });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo subir.');
+    P = Tema.poner(d);
+    pintar();
+    decir('Listo. Entrá al inicio para verla.', 'bien');
+  } catch (e) {
+    decir(e.message, 'mal');
+  }
+  $('#subir').disabled = false;
+  $('#archivo').value = '';
+};
+
+$('#sacar').onclick = async () => {
+  decir('Sacando…');
+  try {
+    const r = await fetch('/api/fondo', { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo sacar.');
+    P = Tema.poner(d);
+    pintar();
+    decir('Volvió la foto de la empresa.', 'bien');
+  } catch (e) { decir(e.message, 'mal'); }
+};
+
+fetch('/api/preferencias').then(r => r.json()).then(d => { P = Tema.poner(d); pintar(); })
+  .catch(() => decir('No se pudieron leer tus preferencias.', 'mal'));
+</script>
+</body></html>
