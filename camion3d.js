@@ -189,6 +189,27 @@ function ruedasHechasPedazos(piezas, todo, tamTodo){
   return [...ruedas];
 }
 
+/* El color de fondo del recuadro, como lo dejó el tema. Sirve para que el
+   piso del dibujo sea del mismo color que la pantalla y el camión no
+   quede flotando sobre un agujero negro. */
+function colorDeLaCaja(caja){
+  const c = new THREE.Color(0x161b20);
+  try {
+    let el = caja;
+    while (el) {
+      const fondo = getComputedStyle(el).backgroundColor;
+      /* Se sube hasta encontrar uno que pinte de verdad: los recuadros
+         suelen ser transparentes y heredan del panel de atrás. */
+      if (fondo && !/rgba\(0, 0, 0, 0\)|transparent/.test(fondo)) {
+        c.set(fondo);
+        break;
+      }
+      el = el.parentElement;
+    }
+  } catch (e) { /* si el navegador no lo dice, queda el oscuro de siempre */ }
+  return c;
+}
+
 /* Cuando el modelo vino como una sola malla, partirlo en sus pedazos.
 
    Un archivo puede traer el camión entero en una malla sola, sin objetos
@@ -414,9 +435,20 @@ function armarVisor(clave, archivo, opciones){
   ren.setSize(caja.clientWidth, caja.clientHeight);
   caja.appendChild(ren.domElement);
 
+  /* El piso y el rebote siguen al tema de la pantalla: en claro un piso
+     negro debajo del camión se ve como un agujero. El color sale del
+     recuadro del visor, que ya está pintado por el tema. */
+  const suelo = colorDeLaCaja(caja);
+  const claro = suelo.r + suelo.g + suelo.b > 1.5;
+
+  /* Sobre piso claro la carrocería se baja un punto: un camión blanco
+     sobre fondo blanco no se ve. */
+  const blanco = new THREE.MeshStandardMaterial(
+    { color: claro ? 0xdde3e8 : 0xf2f4f6, roughness:.42, metalness:.12 });
+
   /* Luz de tarde: una clave alta y un relleno bajo del otro lado, para que
      el blanco de la carrocería no se aplane. */
-  esc3.add(new THREE.HemisphereLight(0xdfe8f2, 0x0b0f13, .95));
+  esc3.add(new THREE.HemisphereLight(0xdfe8f2, claro ? 0xc9d2da : 0x0b0f13, .95));
   const sol = new THREE.DirectionalLight(0xfff2e2, 1.35);
   sol.position.set(6, 9, 5); esc3.add(sol);
   const relleno = new THREE.DirectionalLight(0x9fc4ef, .45);
@@ -430,7 +462,6 @@ function armarVisor(clave, archivo, opciones){
   ctrl.maxPolarAngle = Math.PI / 2 - .04;
   ctrl.enablePan = false;
 
-  const blanco = new THREE.MeshStandardMaterial({ color:0xf2f4f6, roughness:.42, metalness:.12 });
   const goma   = new THREE.MeshStandardMaterial({ color:0x24282d, roughness:.92, metalness:.02 });
 
   /* El .obj y el .fbx se leen igual de acá para abajo. El FBX se acepta
@@ -665,7 +696,7 @@ function armarVisor(clave, archivo, opciones){
 
   /* Piso: un disco apenas más claro, para que el camión no flote. */
   const piso = new THREE.Mesh(new THREE.CircleGeometry(9, 64),
-    new THREE.MeshStandardMaterial({ color:0x161b20, roughness:1 }));
+    new THREE.MeshStandardMaterial({ color:suelo, roughness:1 }));
   piso.rotation.x = -Math.PI / 2; piso.position.y = -.01; esc3.add(piso);
 
   Object.assign(V, { escena:esc3, camara:cam, render:ren, control:ctrl });

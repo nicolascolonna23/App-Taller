@@ -32,6 +32,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
 import auth, base, combustible as comb, etiquetas, inicio, repuestos
+import preferencias as prefs
 import unidades as uni
 import vencimientos as venc
 import servidor as gom
@@ -50,6 +51,7 @@ PANTALLAS = {
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
+    "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
     # El logo de la app es blanco; sobre el papel claro de la cédula no se
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
     "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
@@ -58,6 +60,8 @@ PANTALLAS = {
     # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
     # Gomería.
     "/camion3d.js": ("camion3d.js",             "text/javascript; charset=utf-8"),
+    # Cómo ve cada uno la aplicación. Lo cargan todas las pantallas.
+    "/tema.js":     ("tema.js",                 "text/javascript; charset=utf-8"),
 }
 
 
@@ -120,6 +124,39 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el resumen: {e}", 500)
+
+        # Cómo ve la aplicación este usuario: tema, paleta y portada.
+        if ruta == "/api/preferencias":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(prefs.leer(cx, self.usuario["id"])))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las preferencias: {e}", 500)
+
+        # La portada que subió. Es de cada uno: sale de la sesión y no de
+        # la dirección, así nadie puede mirar la del otro.
+        if ruta == "/api/fondo":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    cuerpo, tipo = prefs.fondo(cx, self.usuario["id"])
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer la portada: {e}", 500)
+            if not cuerpo:
+                return self._error("Este usuario no tiene portada propia.", 404)
+            self.send_response(200)
+            self.send_header("Content-Type", tipo)
+            self.send_header("Content-Length", str(len(cuerpo)))
+            # Privada: es de este usuario y no la puede guardar un
+            # intermediario para servírsela a otro.
+            self.send_header("Cache-Control", "private, max-age=86400")
+            self.end_headers()
+            return self.wfile.write(cuerpo)
 
         # Qué versión está corriendo. La usa la portada para poder mostrar
         # de qué código es lo que se está viendo.
@@ -346,8 +383,65 @@ class App(gom.Handler):
 
         return super().do_GET()
 
+    def do_DELETE(self):
+        """Volver a la portada de la empresa."""
+        if urlparse(self.path).path != "/api/fondo":
+            return self._error("No existe", 404)
+        if not self._exigir_sesion():
+            return
+        try:
+            with base.conectar() as cx:
+                salida = prefs.borrar_fondo(cx, self.usuario["id"])
+                cx.commit()
+            return self._responder(gom.jstr(salida))
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo sacar la portada: {e}", 500)
+
     def do_POST(self):
         ruta = urlparse(self.path).path
+
+        # Cómo quiere ver la aplicación este usuario.
+        if ruta == "/api/preferencias":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    salida = prefs.guardar(cx, self.usuario["id"], datos)
+                    cx.commit()
+                return self._responder(gom.jstr(salida))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron guardar las preferencias: {e}", 500)
+
+        # La portada propia. Llega el archivo crudo, con su tipo en la
+        # cabecera: no hace falta un formulario para una sola imagen.
+        if ruta == "/api/fondo":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > prefs.FONDO_MAXIMO + 1024:
+                    # Se corta antes de leerla: no tiene sentido subir seis
+                    # megas para después decir que no entra.
+                    return self._error(
+                        f"La imagen no puede pasar de "
+                        f"{prefs.FONDO_MAXIMO // (1024 * 1024)} MB.", 413)
+                cuerpo = self.rfile.read(largo)
+                with base.conectar() as cx:
+                    salida = prefs.guardar_fondo(
+                        cx, self.usuario["id"], cuerpo,
+                        self.headers.get("Content-Type"))
+                    cx.commit()
+                return self._responder(gom.jstr(salida))
+            except ValueError as e:
+                return self._error(str(e), 400)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar la portada: {e}", 500)
+
         if ruta == "/api/repuestos":
             if not self._exigir_sesion():
                 return
