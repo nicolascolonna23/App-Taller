@@ -203,21 +203,18 @@ def medida_va(unidad, medida):
 def es_autoelevador(unidad):
     """Si la unidad es un autoelevador.
 
-    Los equipos vienen sin marca ni modelo, así que hay poco de dónde
-    agarrarse. Lo que sí es seguro es la medida de las gomas: 600x9 y
-    700x12 no las lleva ninguna otra cosa de la flota. Si no hay gomas
-    cargadas todavía, se mira el texto, y si tampoco dice nada se elige a
-    mano desde la ficha.
+    En esta flota, equipo es autoelevador: lo que está cargado como equipo
+    son los autoelevadores y nada más. Los vehículos son los camiones y los
+    semis, que van por otro lado.
 
-    La medida solo cuenta en los equipos. En un camión sería morderse la
-    cola: le cargan una 700x12 por error, el error lo convierte en
-    autoelevador, y como autoelevador la 700x12 está bien. El aviso no
-    saldría nunca, que es justo lo que hay que evitar.
+    Se acepta además que lo diga el texto, por si alguno quedó cargado como
+    vehículo por error. La medida de las gomas no se usa acá: sería
+    morderse la cola —le cargan una 700x12 a un camión por error, el error
+    lo convierte en autoelevador, y como autoelevador la 700x12 está bien—
+    y el aviso de medida equivocada no saldría nunca.
     """
-    if unidad.get("tipo") != "vehiculo":
-        for m in (unidad.get("medidas") or ()):
-            if _primer_numero(m) in (600, 700):
-                return True
+    if unidad.get("tipo") and unidad["tipo"] != "vehiculo":
+        return True
     texto = " ".join(str(unidad.get(c) or "") for c in
                      ("marca", "modelo", "nota", "patente")).upper()
     return any(p in texto for p in
@@ -479,7 +476,11 @@ def ficha(cx, unidad_id):
               # De dónde salió: 'mano' si alguien lo eligió, y si no de qué
               # se dedujo. Un dato deducido del nombre del modelo no vale lo
               # mismo que el mapa de cubiertas ya cargado.
-              "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por,
+              # De dónde salió el modelo. Al autoelevador no se le cuentan
+              # ejes: sale de que está cargado como equipo, y eso es lo que
+              # tiene que decir.
+              "modelo_3d_por": ("mano" if (unidad.get("modelo_3d") or "").strip()
+                                else "equipo" if quiere == "autoelevador" else por),
               # Qué medida lleva esta unidad. La pantalla lo usa para no
               # ofrecer una cubierta que no va.
               "medida_clase": clase_de_gomas(contada),
