@@ -69,6 +69,8 @@ def listar(cx):
         "configuraciones": cx.execute(
             "select id, nombre from configuraciones order by nombre").fetchall(),
         "revisar": cx.execute("select * from v_unidades_a_revisar").fetchall(),
+        # Qué tipos de vehículo hay y cuáles todavía no tienen 3D.
+        "armados": armados(cx),
     }
 
 
@@ -209,6 +211,103 @@ def _bloque(cx, consulta, valores=()):
     except Exception:
         cx.rollback()
         return []
+
+
+def armados(cx):
+    """Los tipos de vehículo que hay en la flota, y cuáles tienen 3D.
+
+    Es para saber qué modelos 3D faltan conseguir. Se agrupa por lo único
+    que le importa al dibujo: cuántas gomas lleva y cómo están repartidas.
+    Dos unidades de marcas distintas con el mismo reparto de ejes se
+    dibujan con el mismo modelo; una Iveco y una Scania de tres ejes se
+    parecen más entre sí que una Iveco de tres a una Iveco de dos.
+
+    El reparto se calcula de las posiciones cargadas y no del nombre del
+    armado: hay configuraciones cargadas como "S-D-D" que en el mapa
+    tienen seis posiciones, y el que manda es el mapa.
+    """
+    # Las posiciones de cada armado, para sacarle el reparto real.
+    posic = {}
+    for p in cx.execute("""
+            select configuracion_id, eje, lado, montaje
+              from configuracion_posiciones
+             where not es_auxilio
+             order by configuracion_id, eje, orden""").fetchall():
+        posic.setdefault(p["configuracion_id"], []).append(p)
+
+    repartos, gomas_de = {}, {}
+    for cid, filas in posic.items():
+        por_eje = {}
+        for f in filas:
+            por_eje.setdefault(f["eje"], []).append(f)
+        # Una letra por eje, de adelante hacia atrás: S de rueda simple,
+        # D de rodado dual.
+        repartos[cid] = "-".join(
+            "D" if len(por_eje[e]) >= 4 else "S" for e in sorted(por_eje))
+        gomas_de[cid] = len(filas)
+
+    nombres = {c["id"]: c["nombre"] for c in
+               cx.execute("select id, nombre from configuraciones").fetchall()}
+
+    grupos = {}
+    for u in cx.execute("""
+            select id, patente, marca, modelo, uso, tipo, activa,
+                   configuracion_id, modelo_3d
+              from unidades order by patente""").fetchall():
+        cid = u["configuracion_id"]
+        unidad = dict(u)
+        unidad["posiciones"] = gomas_de.get(cid, 0)
+        quiere = modelo_3d(unidad)
+        archivo, _ = _archivo_3d(quiere)
+
+        # Las que ya tienen 3D se juntan por el modelo que usan: alcanza
+        # con saber cuántas son. Las que no, se agrupan por lo que sirva
+        # para salir a buscarlo: el mapa si está, y si no lo que dice la
+        # chapa. Poner los sesenta sin mapa en una sola fila no le sirve
+        # a nadie.
+        titulo = None
+        if archivo:
+            clave = ("con 3d", quiere)
+        elif cid:
+            clave = ("mapa", cid)
+        else:
+            titulo = (f"{u['marca'] or ''} {u['modelo'] or ''}".strip()
+                      or ("Equipo" if u["tipo"] != "vehiculo"
+                          else "Sin marca ni modelo cargados"))
+            clave = ("sin mapa", titulo)
+
+        g = grupos.setdefault(clave, {
+            "armado": nombres.get(cid),
+            "titulo": titulo,
+            "reparto": repartos.get(cid),
+            "gomas": gomas_de.get(cid, 0),
+            "ejes": len(repartos[cid].split("-")) if cid in repartos else 0,
+            "modelo_3d": quiere if archivo else None,
+            # Lo que se quiso dibujar pero no está el archivo. Es distinto
+            # de "no se sabe qué es": acá sí se sabe y falta bajarlo.
+            "falta_archivo": quiere if not archivo else None,
+            "unidades": 0, "activas": 0, "patentes": [], "usos": set(),
+            "modelos": set(),
+        })
+        g["unidades"] += 1
+        if u["activa"]:
+            g["activas"] += 1
+        g["patentes"].append(u["patente"])
+        if u["uso"]:
+            g["usos"].add(u["uso"])
+        if u["marca"] or u["modelo"]:
+            g["modelos"].add(f"{u['marca'] or ''} {u['modelo'] or ''}".strip())
+
+    salida = []
+    for g in grupos.values():
+        g["usos"] = sorted(g["usos"])
+        g["modelos"] = sorted(g["modelos"])[:8]
+        salida.append(g)
+    # Primero lo que falta, y dentro de eso lo que más unidades tiene: es
+    # el orden en que conviene salir a buscar los modelos.
+    salida.sort(key=lambda g: (g["modelo_3d"] is not None, -g["activas"],
+                               -g["unidades"]))
+    return salida
 
 
 def ficha(cx, unidad_id):

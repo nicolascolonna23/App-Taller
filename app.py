@@ -54,6 +54,10 @@ PANTALLAS = {
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
     "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
     "/favicon.png": ("favicon.png",             "image/png"),
+    # El visor 3D del camión. Está afuera de las pantallas porque lo usan
+    # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
+    # Gomería.
+    "/camion3d.js": ("camion3d.js",             "text/javascript; charset=utf-8"),
 }
 
 

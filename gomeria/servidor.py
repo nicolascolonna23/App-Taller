@@ -169,10 +169,15 @@ class Handler(BaseHTTPRequestHandler):
                     unidad = base.buscar_unidad(cx, unquote(patente))
                     if not unidad:
                         return self._error(f"No encontré la unidad {patente}.", 404)
+                    mapa = base.mapa_unidad(cx, unidad["id"])
                     return self._responder(jstr({
                         "unidad": unidad,
-                        "mapa": base.mapa_unidad(cx, unidad["id"]),
+                        "mapa": mapa,
                         "historial": base.historial_unidad(cx, unidad["id"]),
+                        # El modelo 3D, para dibujar el camión en vez de la
+                        # grilla. Sale de lo mismo que en Flota: el que
+                        # manda es el mapa, y las gomas se cuentan de acá.
+                        **_modelo_3d(unidad, mapa),
                     }))
             except Exception as e:
                 traceback.print_exc()
@@ -465,3 +470,28 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+
+def _modelo_3d(unidad, mapa):
+    """Qué camión dibujar para esta unidad, con la misma regla que Flota.
+
+    Vive acá y no en unidades.py para no darle vuelta el import: la
+    gomería se puede usar sin el maestro cargado, y si el módulo no está
+    la pantalla dibuja la grilla de siempre y sigue andando.
+    """
+    try:
+        import unidades as uni
+    except Exception:
+        return {}
+    con = dict(unidad)
+    con["posiciones"] = sum(1 for p in mapa if not p.get("es_auxilio"))
+    quiere = uni.modelo_3d(con)
+    archivo, version = uni._archivo_3d(quiere)
+    _, por = uni.ejes_de(con)
+    return {
+        "modelo_3d": quiere if archivo else None,
+        "modelo_3d_archivo": archivo,
+        "modelo_3d_version": version,
+        "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por,
+    }
