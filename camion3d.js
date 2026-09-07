@@ -837,21 +837,47 @@ function esquinaDeLaRueda(malla){
 /* Se pinta la rueda elegida, y nada más. Nada de marcas flotando al lado:
    la rueda es lo que se tocó y es lo que tiene que quedar marcado.
 
-   Naranja la elegida, rojiza la esquina a la que le falta alguna cubierta,
-   gris el resto. Una pieza que abarca las dos ruedas de un eje se pinta
-   cuando la esquina elegida es de ese eje, del lado que sea: no se puede
-   pintar media pieza. */
+   Cuatro colores, y cada uno contesta una pregunta distinta:
+
+     naranja   la que se está mirando
+     azul      la esquina que ya tiene puestas todas sus cubiertas
+     rojiza    la esquina a la que le falta alguna
+     gris      la rueda de la que el mapa no sabe nada
+
+   El azul y no un verde: contra el rojizo, rojo y verde es justo el par
+   que no distingue el que es daltónico, y esto se mira para decidir a qué
+   rueda hay que ir. El azul se separa de las dos.
+
+   Antes la que estaba puesta quedaba del gris de fábrica, que es igual al
+   de una rueda de la que no se sabe nada: la única forma de saber que esa
+   goma estaba ocupada era que NO fuera rojiza, que es pedirle a alguien
+   que lea lo que no está.
+
+   Una pieza que abarca las dos ruedas de un eje se pinta cuando la esquina
+   elegida es de ese eje, del lado que sea: no se puede pintar media
+   pieza, y por eso tampoco se le puede decir si está ocupada o no. */
+const RUEDA = {
+  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: 0x24282d,
+};
+
 function pintarRuedas(){
   for (const m of V.ruedas){
     const e = esquinaDeLaRueda(m);
     const suya = V.esquina && e.eje === V.esquina.eje &&
                  (e.lado === 'ambos' || e.lado === V.esquina.lado);
-    let color = 0x24282d;
-    if (suya) color = 0xff7a1a;
-    else if (e.lado !== 'ambos' &&
-             posicionesDe(e).some(p => !p.cubierta_id)) color = 0x6d3a34;
+    let color = RUEDA.sin_datos;
+    if (suya) {
+      color = RUEDA.elegida;
+    } else if (e.lado !== 'ambos') {
+      const posiciones = posicionesDe(e);
+      if (posiciones.some(p => !p.cubierta_id))  color = RUEDA.falta;
+      else if (posiciones.length)                color = RUEDA.puesta;
+    }
     m.material.color.setHex(color);
-    m.material.emissive.setHex(suya ? 0x3a1a04 : 0x000000);
+    // Luz propia solo la elegida. El azul se apoya en el color y nada más:
+    // con emissive gritaba más fuerte que el rojizo, y el que tiene que
+    // gritar es el que avisa que a esa esquina le falta una goma.
+    m.material.emissive.setHex(color === RUEDA.elegida ? 0x3a1a04 : 0x000000);
   }
 }
 
