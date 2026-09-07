@@ -85,6 +85,7 @@ MODELOS_3D = (
     ("semi", "Semirremolque"),
     ("autoelevador", "Autoelevador"),
     ("utilitario", "Utilitario / furgón"),
+    ("chasis", "Camión chasis con caja"),
     ("auto", "Auto"),
 )
 # El archivo de cada uno. Los dos tractores se bajaron de un Iveco y les
@@ -92,7 +93,7 @@ MODELOS_3D = (
 # ya está subido para que entre en un molde.
 ARCHIVO_3D = {"6x2": "iveco-6x2", "4x2": "iveco-4x2", "semi": "trailer",
               "autoelevador": "forklift", "utilitario": "utilitario",
-              "auto": "auto"}
+              "auto": "auto", "chasis": "chasis"}
 
 # Las familias de utilitario que hay en la flota y las que se le parecen.
 # Se mira la familia y no la versión: una Sprinter 313 y una 515 se
@@ -103,8 +104,19 @@ UTILITARIOS = ("SPRINTER", "MASTER", "BOXER", "TRANSIT", "DAILY", "HIACE",
 
 # Los autos. La lista es corta a propósito: son dos en toda la flota, y
 # poner familias que no están es adivinar. Se agrega la que aparezca.
-AUTOS = ("207 COMPACT", "GRAND VITARA", "COROLLA", "ETIOS", "CRONOS",
-         "ONIX", "GOL ", "CLIO", "PALIO", "SIENA", "FIESTA")
+AUTOS = ("207COMPACT", "GRANDVITARA", "COROLLA", "ETIOS", "CRONOS",
+         "ONIX", "CLIO", "PALIO", "SIENA", "FIESTA")
+
+# El camión de reparto: cabina adelante y caja atrás, con rueda dual. No
+# es un furgón —la caja no es parte de la carrocería— ni un tractor.
+#
+# Va antes que el utilitario a propósito. Una Daily 70 y una K2500 dicen
+# el nombre de una familia de furgones, pero son chasis con dual atrás: lo
+# que manda es el modelo, no la familia.
+CHASIS = ("DAILY70", "K2500", "170E28", "150E21", "HD78", "1063",
+          "608D", "L1614", "L1620", "L1318", "ACCELO", "CARGO", "P94",
+          "272710", "ATEGO", "TECTOR", "WORKER", "CONSTELLATION",
+          "DELIVERY", "CANTER", "HD65", "HD500", "NPR", "NQR")
 # Los nombres que se usaron antes, por si alguna unidad quedó con uno
 # elegido a mano.
 ALIAS_3D = {"hiway": "4x2", "sway": "6x2"}
@@ -237,8 +249,20 @@ def es_autoelevador(unidad):
 
 
 def _texto_de(unidad):
-    return " ".join(str(unidad.get(c) or "") for c in
-                    ("marca", "modelo", "nota")).upper()
+    """Marca, modelo y nota, sin espacios ni signos.
+
+    El mismo camión está cargado como "M. BENZ L1614", "MERCEDES BENZ
+    L-1620" y "MERCEDES BENZ L 1318": el separador lo pone el que escribe.
+    Sacándolo, alcanza con una entrada por familia.
+    """
+    texto = " ".join(str(unidad.get(c) or "") for c in
+                     ("marca", "modelo", "nota")).upper()
+    return "".join(ch for ch in texto if ch.isalnum())
+
+
+def es_chasis(unidad):
+    """Un camión de reparto: cabina adelante, caja atrás, dual atrás."""
+    return any(f in _texto_de(unidad) for f in CHASIS)
 
 
 def es_utilitario(unidad):
@@ -289,6 +313,10 @@ def modelo_3d(unidad):
     # cosas, y un auto nunca es un furgón.
     if es_auto(unidad):
         return "auto"
+    # Y el chasis antes que el utilitario: una Daily 70 dice "Daily" pero
+    # es un chasis con caja, no un furgón.
+    if es_chasis(unidad):
+        return "chasis"
     if es_utilitario(unidad):
         return "utilitario"
 
@@ -522,7 +550,7 @@ def ficha(cx, unidad_id):
                                 # Al auto y al utilitario no se les cuentan
                                 # ejes: se los reconoce por lo que dice la
                                 # chapa, y eso es lo que hay que decir.
-                                else "modelo" if quiere in ("auto", "utilitario")
+                                else "modelo" if quiere in ("auto", "utilitario", "chasis")
                                 else por),
               # Qué medida lleva esta unidad. La pantalla lo usa para no
               # ofrecer una cubierta que no va.

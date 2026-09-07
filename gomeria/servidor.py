@@ -497,6 +497,6 @@ def _modelo_3d(unidad, mapa):
         # equipo, a un auto y a un utilitario no se les cuentan ejes.
         "modelo_3d_por": ("mano" if (unidad.get("modelo_3d") or "").strip()
                           else "equipo" if quiere == "autoelevador"
-                          else "modelo" if quiere in ("auto", "utilitario")
+                          else "modelo" if quiere in ("auto", "utilitario", "chasis")
                           else por),
     }

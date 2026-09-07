@@ -423,7 +423,8 @@ function armarVisor(clave, archivo, opciones){
                 'no se sabe':'sin datos' };
   const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
                    semi:'Semirremolque', autoelevador:'Autoelevador',
-                   utilitario:'Utilitario / furgón', auto:'Auto' };
+                   utilitario:'Utilitario / furgón', auto:'Auto',
+                   chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
   nodo('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
@@ -581,7 +582,22 @@ function armarVisor(clave, archivo, opciones){
       const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
       let alReves;
 
-      if (clave === 'autoelevador') {
+      if (clave === 'chasis') {
+        /* Un camión de reparto tiene la caja más alta que la cabina, así
+           que la regla de "el frente es lo alto" lo da vuelta. Lo que no
+           falla: el rodado dual va atrás. El eje de atrás es el de las
+           ruedas más anchas. */
+        const cajas = ruedas.map(m => new THREE.Box3().setFromObject(m));
+        const ancho = c => c.max.x - c.min.x;
+        const mitad = cajas.reduce((a, c) =>
+          a + (c.min.z + c.max.z) / 2, 0) / cajas.length;
+        const adelante = cajas.filter(c => (c.min.z + c.max.z) / 2 < mitad);
+        const atras = cajas.filter(c => (c.min.z + c.max.z) / 2 >= mitad);
+        const media = g => g.reduce((a, c) => a + ancho(c), 0) / (g.length || 1);
+        alReves = adelante.length && atras.length &&
+                  media(adelante) > media(atras) * 1.15;
+
+      } else if (clave === 'autoelevador') {
         /* En un autoelevador el frente es donde está el mástil, y ahí van
            las ruedas grandes: son las que traccionan y las que aguantan la
            carga. Atrás van las chicas, las que doblan.
