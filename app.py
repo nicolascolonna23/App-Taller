@@ -11,6 +11,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
     /combustible cruce de remitos contra el listado de la estación (en prueba)
+    /ordenes     órdenes de trabajo del taller y servicios externos
 
 Configuración, toda por variables de entorno:
 
@@ -32,6 +33,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
 import auth, base, combustible as comb, etiquetas, inicio, repuestos
+import ordenes as ots
 import preferencias as prefs
 import unidades as uni
 import vencimientos as venc
@@ -51,6 +53,7 @@ PANTALLAS = {
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
+    "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
     # El logo de la app es blanco; sobre el papel claro de la cédula no se
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
@@ -352,6 +355,21 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro de unidades: {e}", 500)
 
+        # Las órdenes de trabajo del taller, con los totales ya sumados.
+        if ruta == "/api/ordenes":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(ots.listar(cx, self.usuario)))
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear las tablas de órdenes de trabajo. Corré "
+                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las órdenes: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -473,6 +491,33 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el cambio: {e}", 500)
+        # Las órdenes de trabajo. Una orden mueve stock, así que todo lo que
+        # toca —el renglón y la salida del depósito— se guarda en la misma
+        # transacción: o quedan las dos cosas o no queda ninguna.
+        if ruta == "/api/ordenes":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 256 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    resultado = ots.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear las tablas de órdenes de trabajo. Corré "
+                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar la orden: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -624,6 +669,8 @@ def preparar():
         opcionales = {
             "vencimientos": ("vencimientos", "tipos_vencimiento", "personas"),
             "odómetros":    ("odometros",),
+            "órdenes de trabajo": ("ordenes_trabajo", "ordenes_tareas",
+                                   "ordenes_repuestos"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):
