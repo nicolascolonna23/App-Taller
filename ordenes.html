@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Órdenes de trabajo | Diemar</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.13);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+  .who a{color:var(--ink-muted);margin-left:10px;text-decoration:none}
+
+  main{max-width:1320px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px}
+
+  .tarjetas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .tarjeta{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;padding:15px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+  .tarjeta:hover{border-color:var(--hairline-2)}
+  .tarjeta.on{border-color:var(--brand);background:var(--brand-soft)}
+  .tarjeta b{display:block;font-size:26px;line-height:1.1}
+  .tarjeta span{color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.9px;font-weight:700}
+  .tarjeta.abierta b{color:var(--warn)}
+  .tarjeta.cerrada b{color:var(--ok)}
+  .tarjeta.externa b{color:#7db3ef}
+
+  .barra{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
+    font:inherit;outline:none;width:100%}
+  textarea{resize:vertical;min-height:66px;line-height:1.45}
+  input:focus,select:focus,textarea:focus{border-color:rgba(255,122,26,.6)}
+  .barra input{max-width:340px}
+  .barra select{max-width:230px}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
+  .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .espacio{margin-left:auto}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:15px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
+    white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  tbody tr:hover{background:rgba(255,122,26,.06)}
+  .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .de{font-weight:800;letter-spacing:.4px}
+  .chico{color:var(--ink-muted);font-size:11.5px}
+  .marca{display:inline-block;border-radius:99px;padding:4px 9px;font-size:10.5px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .marca.abierta{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.cerrada{color:var(--ok);background:rgba(49,189,101,.12)}
+  .marca.anulada{color:var(--ink-muted);background:rgba(255,255,255,.06)}
+  .marca.externa{color:#7db3ef;background:rgba(125,179,239,.13)}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0}
+  .accion:hover{color:var(--brand)}
+  .vacio{text-align:center;color:var(--ink-muted);padding:34px}
+
+  .fondo{position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:30;
+    display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+  .fondo.on{display:flex}
+  .modal{width:min(620px,100%);background:var(--surface-1);
+    border:1px solid var(--hairline-2);border-radius:16px;padding:20px;margin:auto}
+  .modal.ancho{width:min(980px,100%)}
+  .modal h2{margin:0;font-size:19px}
+  .cabecera{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .cerrar{border:0;background:none;color:var(--ink-muted);font-size:25px;cursor:pointer}
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .campos .ancho{grid-column:1/-1}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--ink-muted);font-weight:700;margin-bottom:5px}
+  .pista{color:var(--ink-muted);font-size:12px;margin:6px 0 0}
+  .aviso{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+  .aviso.mal{background:rgba(227,93,98,.12);color:var(--bad);
+    border:1px solid rgba(227,93,98,.3)}
+  .aviso.bien{background:rgba(49,189,101,.12);color:var(--ok);
+    border:1px solid rgba(49,189,101,.3)}
+
+  /* La ficha de la orden abierta: cabecera, trabajos y repuestos. */
+  .ficha-cab{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+    background:var(--surface-2);border:1px solid var(--hairline);border-radius:12px;
+    padding:13px;margin-bottom:14px}
+  .ficha-cab div span{display:block;font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;color:var(--ink-muted);font-weight:700}
+  .ficha-cab div b{font-size:14px;font-weight:600}
+  .bloque{margin-bottom:16px}
+  .bloque h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;
+    letter-spacing:.9px;color:var(--ink-muted)}
+  .renglones{width:100%;border-collapse:collapse;margin-bottom:8px}
+  .renglones td{padding:8px;border-bottom:1px solid var(--hairline);font-size:13px}
+  .renglones .num{width:110px}
+  .alta{display:grid;grid-template-columns:1fr 90px 120px auto;gap:8px;align-items:end}
+  .alta.rep{grid-template-columns:1fr 80px 80px 120px auto}
+  .totales{display:flex;justify-content:flex-end;gap:26px;padding:12px 8px 0;
+    border-top:1px solid var(--hairline-2);font-size:13px}
+  .totales b{font-size:17px;display:block}
+  .totales span{color:var(--ink-muted);font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.8px;font-weight:700}
+  .pie-modal{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;
+    border-top:1px solid var(--hairline);padding-top:14px}
+
+  /* ------------------------------------------------------------------
+     LA HOJA QUE SE IMPRIME
+     Es papel: va en blanco y negro y con los colores puestos a mano, sin
+     depender del tema de la pantalla. En pantalla no se ve nunca.
+     ------------------------------------------------------------------ */
+  #hoja{display:none;background:#fff;color:#000;font:11px Inter,system-ui,sans-serif}
+  #hoja *{box-sizing:border-box}
+  #hoja .marco{border:1.4px solid #000;padding:0}
+  #hoja .titulo{display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:1.4px solid #000;padding:9px 11px}
+  #hoja .titulo .casa{font-size:15px;font-weight:800;letter-spacing:.5px}
+  #hoja .titulo .casa small{display:block;font-weight:400;font-size:9.5px;letter-spacing:0}
+  #hoja .titulo .nro{text-align:right;font-size:11px;line-height:1.5}
+  #hoja .titulo .nro b{font-size:19px;display:block;letter-spacing:1px}
+  #hoja h4{margin:0;font-size:9.5px;text-transform:uppercase;letter-spacing:1.1px;
+    background:#e9e9e9;border-bottom:1px solid #000;border-top:1px solid #000;padding:4px 11px}
+  #hoja .rejilla{display:grid;grid-template-columns:repeat(4,1fr)}
+  #hoja .rejilla div{padding:6px 11px;border-right:1px solid #bbb;border-bottom:1px solid #bbb}
+  #hoja .rejilla div:nth-child(4n){border-right:0}
+  #hoja .rejilla span{display:block;font-size:8px;text-transform:uppercase;
+    letter-spacing:.8px;color:#555}
+  #hoja .rejilla b{font-size:11.5px;font-weight:700}
+  #hoja .texto{padding:7px 11px;border-bottom:1px solid #bbb;min-height:34px;
+    white-space:pre-wrap;line-height:1.45}
+  #hoja table{width:100%;border-collapse:collapse}
+  #hoja th{background:#f2f2f2;font-size:8.5px;text-transform:uppercase;letter-spacing:.7px;
+    text-align:left;padding:4px 11px;border-bottom:1px solid #000;color:#000}
+  #hoja td{padding:5px 11px;border-bottom:1px solid #ddd;font-size:11px;vertical-align:top}
+  #hoja .der{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #hoja .total{display:flex;justify-content:flex-end;gap:18px;align-items:baseline;
+    padding:9px 11px;border-top:1.4px solid #000}
+  #hoja .total b{font-size:16px}
+  #hoja .iva{font-size:9px;color:#555;padding:0 11px 8px;text-align:right}
+  #hoja .firmas{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;
+    margin-top:34px;padding:0 11px}
+  #hoja .firmas div{border-top:1px solid #000;padding-top:4px;font-size:9px;
+    text-transform:uppercase;letter-spacing:.8px;color:#333}
+  #hoja .sello{margin-top:14px;font-size:8.5px;color:#666;text-align:center}
+
+  @media print{
+    body{background:#fff}
+    body > *:not(#hoja){display:none !important}
+    #hoja{display:block !important}
+    @page{size:A4 portrait;margin:11mm}
+  }
+
+  @media(max-width:900px){
+    .tarjetas{grid-template-columns:repeat(2,1fr)}
+    main{padding:13px}
+    .barra input,.barra select{max-width:none}
+    .campos{grid-template-columns:1fr}
+    .ficha-cab{grid-template-columns:repeat(2,1fr)}
+    .alta,.alta.rep{grid-template-columns:1fr}
+    th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}
+  }
+</style>
+<script src="/tema.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Órdenes de trabajo</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Órdenes de trabajo</h1>
+  <p class="sub" id="pie">Cargando…</p>
+
+  <div class="tarjetas">
+    <button class="tarjeta abierta" data-filtro="abierta"><b id="n-abierta">–</b><span>En el taller</span></button>
+    <button class="tarjeta cerrada" data-filtro="cerrada"><b id="n-cerrada">–</b><span>Cerradas</span></button>
+    <button class="tarjeta externa" data-filtro="externa"><b id="n-externa">–</b><span>Servicios externos</span></button>
+    <button class="tarjeta"         data-filtro="anulada"><b id="n-anulada">–</b><span>Anuladas</span></button>
+  </div>
+
+  <div class="barra">
+    <input id="buscar" placeholder="Buscar patente, interno, número o trabajo">
+    <select id="filtroUnidad"><option value="">Todas las unidades</option></select>
+    <button class="btn alt" id="verHistorial">Historial de la unidad</button>
+    <button class="btn espacio" id="nueva">+ Abrir orden</button>
+    <button class="btn alt" id="nuevaExterna">+ Servicio externo</button>
+  </div>
+
+  <div class="caja">
+    <table>
+      <thead><tr>
+        <th>Nº</th><th>Unidad</th><th>Fecha</th><th>Trabajo</th>
+        <th>Renglones</th><th class="num">Total</th><th>Estado</th><th></th>
+      </tr></thead>
+      <tbody id="filas"><tr><td colspan="8" class="vacio">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- ------------------------------------------------------ abrir orden -->
+<div class="fondo" id="modalNueva"><div class="modal">
+  <div class="cabecera"><h2>Abrir orden de trabajo</h2>
+    <button class="cerrar" data-cerrar="modalNueva">×</button></div>
+  <div class="campos">
+    <div class="ancho"><label>Unidad</label><select id="nUnidad"></select></div>
+    <div><label>Fecha de entrada</label><input id="nFecha" type="date"></div>
+    <div><label>Kilómetros</label><input id="nKm" type="number" min="0" step="1"></div>
+    <div><label>Chofer</label><input id="nChofer"></div>
+    <div><label>Responsable</label><input id="nResp" placeholder="Quién la lleva"></div>
+    <div class="ancho"><label>Lo que se pidió</label>
+      <textarea id="nSolicitado" placeholder="Lo que trajo la unidad al taller: ruido en el tren delantero, service de 40.000, pierde aire…"></textarea></div>
+  </div>
+  <div id="avisoNueva"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarNueva">Abrir orden</button>
+    <button class="btn alt" data-cerrar="modalNueva">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- ------------------------------------------------- servicio externo -->
+<div class="fondo" id="modalExterna"><div class="modal">
+  <div class="cabecera"><h2>Cargar servicio externo</h2>
+    <button class="cerrar" data-cerrar="modalExterna">×</button></div>
+  <p class="pista" style="margin:0 0 12px">El trabajo lo hizo un tercero y de eso quedó
+    una factura. Se guarda como una orden más, así aparece en el historial de la unidad.</p>
+  <div class="campos">
+    <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
+    <div><label>Fecha</label><input id="xFecha" type="date"></div>
+    <div><label>Nº de factura</label><input id="xFactura" placeholder="0001-00012345"></div>
+    <div><label>Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
+    <div><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1"></div>
+    <div class="ancho"><label>Taller o proveedor</label><input id="xTaller" placeholder="Nextruck, Iveco Catamarca…"></div>
+    <div class="ancho"><label>Qué se hizo</label>
+      <textarea id="xDetalle" placeholder="Service M6, cambio de filtros, reparación de caja…"></textarea></div>
+  </div>
+  <div id="avisoExterna"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarExterna">Guardar servicio</button>
+    <button class="btn alt" data-cerrar="modalExterna">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- ------------------------------------------------------- la orden ---->
+<div class="fondo" id="modalOrden"><div class="modal ancho">
+  <div class="cabecera"><h2 id="tituloOrden">Orden</h2>
+    <button class="cerrar" data-cerrar="modalOrden">×</button></div>
+  <div id="cuerpoOrden"></div>
+</div></div>
+
+<!-- ------------------------------------------------------- historial --->
+<div class="fondo" id="modalHist"><div class="modal ancho">
+  <div class="cabecera"><h2 id="tituloHist">Historial</h2>
+    <button class="cerrar" data-cerrar="modalHist">×</button></div>
+  <div id="cuerpoHist"></div>
+</div></div>
+
+<!-- La hoja de papel. Se arma al imprimir y no se ve en pantalla. -->
+<div id="hoja"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const D = { datos:null, filtro:'', usuario:null, orden:null };
+
+const nfm = new Intl.NumberFormat('es-AR');
+const money = n => Number(n || 0).toLocaleString('es-AR',
+  {minimumFractionDigits:2, maximumFractionDigits:2});
+const fecha = f => !f ? '' : String(f).slice(0,10).split('-').reverse().join('/');
+const hoy = () => new Date().toISOString().slice(0,10);
+
+/** AD247MQ -> AD 247 MQ, como lo lee una persona. */
+function pat(p) {
+  const m = /^([A-Z]{2})(\d{3})([A-Z]{2})$/.exec(p || '');
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = /^([A-Z]{3})(\d{3})$/.exec(p || '');
+  return o ? `${o[1]} ${o[2]}` : (p || '');
+}
+
+async function api(op, extra) {
+  const r = await fetch('/api/ordenes', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+// ------------------------------------------------------------- listado
+function pintar() {
+  const q = $('#buscar').value.trim().toLowerCase();
+  const uni = $('#filtroUnidad').value;
+  let lista = D.datos.ordenes;
+
+  if (D.filtro === 'externa')      lista = lista.filter(o => o.tipo === 'externa' && o.estado !== 'anulada');
+  else if (D.filtro === 'abierta') lista = lista.filter(o => o.estado === 'abierta');
+  else if (D.filtro === 'cerrada') lista = lista.filter(o => o.estado === 'cerrada' && o.tipo === 'interna');
+  else if (D.filtro === 'anulada') lista = lista.filter(o => o.estado === 'anulada');
+  if (uni) lista = lista.filter(o => o.patente === uni);
+  if (q) lista = lista.filter(o => [o.numero, o.patente, o.interno, o.solicitado,
+      o.diagnostico, o.taller, o.factura, o.responsable, o.chofer]
+      .join(' ').toLowerCase().includes(q));
+
+  $('#filas').innerHTML = lista.length ? lista.map(o => {
+    const marca = o.estado === 'anulada' ? 'anulada'
+      : o.tipo === 'externa' ? 'externa' : o.estado;
+    const rotulo = o.estado === 'anulada' ? 'Anulada'
+      : o.tipo === 'externa' ? 'Externa'
+      : o.estado === 'abierta' ? `Abierta · ${o.dias_abierta} día${o.dias_abierta === 1 ? '' : 's'}`
+      : 'Cerrada';
+    const trabajo = o.tipo === 'externa'
+      ? `${esc(o.taller || 'Servicio externo')}${o.factura ? ` · Fact. ${esc(o.factura)}` : ''}`
+      : esc((o.solicitado || o.diagnostico || '').slice(0, 90) || '—');
+    return `<tr>
+      <td class="de">${esc(o.numero)}</td>
+      <td><b>${esc(pat(o.patente))}</b>
+        <div class="chico">${esc(o.interno ? 'Interno ' + o.interno : '')}
+          ${esc([o.marca, o.modelo].filter(Boolean).join(' '))}</div></td>
+      <td>${fecha(o.fecha)}<div class="chico">${o.fecha_cierre ? 'cerró ' + fecha(o.fecha_cierre) : ''}</div></td>
+      <td>${trabajo}</td>
+      <td class="chico">${o.tipo === 'externa' ? '—'
+        : `${o.cuantas_tareas} trabajo${o.cuantas_tareas === 1 ? '' : 's'} ·
+           ${o.cuantos_repuestos} repuesto${o.cuantos_repuestos === 1 ? '' : 's'}`}</td>
+      <td class="num">${Number(o.total) ? '$ ' + money(o.total) : '—'}</td>
+      <td><span class="marca ${marca}">${rotulo}</span></td>
+      <td><button class="accion" data-ver="${o.id}">Abrir</button></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="8" class="vacio">No hay órdenes que cumplan con eso.</td></tr>';
+
+  const r = D.datos.resumen;
+  $('#n-abierta').textContent = r.abiertas;
+  $('#n-cerrada').textContent = r.cerradas;
+  $('#n-externa').textContent = r.externas;
+  $('#n-anulada').textContent = r.anuladas;
+  $('#pie').textContent = `${lista.length} de ${D.datos.ordenes.length} órdenes` +
+    (r.abiertas ? ` · ${r.abiertas} unidad${r.abiertas === 1 ? '' : 'es'} en el taller` : '');
+  document.querySelectorAll('.tarjeta').forEach(b =>
+    b.classList.toggle('on', b.dataset.filtro === D.filtro));
+}
+
+function opciones() {
+  const u = D.datos.unidades;
+  const lista = u.map(x => `<option value="${x.id}">${esc(pat(x.patente))}${
+    x.interno ? ' · ' + esc(x.interno) : ''}${
+    x.marca ? ' · ' + esc([x.marca, x.modelo].filter(Boolean).join(' ')) : ''}</option>`).join('');
+  $('#nUnidad').innerHTML = '<option value="">Elegí la unidad</option>' + lista;
+  $('#xUnidad').innerHTML = '<option value="">Elegí la unidad</option>' + lista;
+  $('#filtroUnidad').innerHTML = '<option value="">Todas las unidades</option>' +
+    u.map(x => `<option value="${esc(x.patente)}">${esc(pat(x.patente))}${
+      x.interno ? ' · ' + esc(x.interno) : ''}</option>`).join('');
+}
+
+async function cargar() {
+  const r = await fetch('/api/ordenes');
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudieron leer las órdenes.');
+  D.datos = d;
+  opciones();
+}
+
+// --------------------------------------------------------- la ficha
+async function abrirOrden(id) {
+  $('#tituloOrden').textContent = 'Orden';
+  $('#cuerpoOrden').innerHTML = '<p class="pista">Buscando…</p>';
+  $('#modalOrden').classList.add('on');
+  try {
+    D.orden = await api('ficha', {id: Number(id)});
+    dibujarOrden();
+  } catch (e) {
+    $('#cuerpoOrden').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+function dibujarOrden() {
+  const o = D.orden.orden, t = D.orden.tareas, r = D.orden.repuestos;
+  const editable = o.estado === 'abierta' && o.tipo === 'interna'
+                   && D.datos.puede_gestionar;
+  const totalT = t.reduce((s, x) => s + Number(x.importe || 0), 0);
+  const totalR = r.reduce((s, x) => s + Number(x.precio || 0) * x.cantidad, 0);
+
+  $('#tituloOrden').textContent =
+    `${o.tipo === 'externa' ? 'Servicio externo' : 'Orden'} Nº ${o.numero} · ${pat(o.patente)}`;
+
+  const dato = (rot, val) => `<div><span>${rot}</span><b>${esc(val || '—')}</b></div>`;
+
+  let html = `<div class="ficha-cab">
+      ${dato('Unidad', pat(o.patente))}
+      ${dato('Interno', o.interno)}
+      ${dato('Marca y modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
+      ${dato('Kilómetros', o.km ? nfm.format(o.km) : '')}
+      ${dato('Entró', fecha(o.fecha))}
+      ${dato(o.tipo === 'externa' ? 'Facturado' : 'Cerró', fecha(o.fecha_cierre))}
+      ${dato(o.tipo === 'externa' ? 'Taller' : 'Responsable',
+             o.tipo === 'externa' ? o.taller : o.responsable)}
+      ${dato('Estado', o.estado === 'abierta' ? 'Abierta'
+             : o.estado === 'anulada' ? 'Anulada' : 'Cerrada')}
+    </div>`;
+
+  if (o.tipo === 'externa') {
+    html += `<div class="bloque"><h3>La factura</h3>
+      <div class="ficha-cab" style="margin:0">
+        ${dato('Nº de factura', o.factura)}
+        ${dato('Monto', '$ ' + money(o.monto))}
+        ${dato('Chofer', o.chofer)}
+        ${dato('Cargó', o.usuario)}
+      </div></div>`;
+    if (o.solicitado)
+      html += `<div class="bloque"><h3>Qué se hizo</h3><p>${esc(o.solicitado)}</p></div>`;
+  } else {
+    // Lo que se pidió y lo que se encontró. Mientras está abierta se
+    // escriben acá mismo: obligar a abrir otra ventana para corregir una
+    // línea es la forma segura de que nadie la corrija.
+    html += `<div class="bloque"><h3>Lo que se pidió</h3>
+      ${editable
+        ? `<textarea id="fSolicitado">${esc(o.solicitado || '')}</textarea>`
+        : `<p>${esc(o.solicitado || '—')}</p>`}</div>
+      <div class="bloque"><h3>Lo que se encontró</h3>
+      ${editable
+        ? `<textarea id="fDiagnostico" placeholder="El diagnóstico: qué tenía la unidad.">${esc(o.diagnostico || '')}</textarea>`
+        : `<p>${esc(o.diagnostico || '—')}</p>`}</div>`;
+
+    // ---- trabajos
+    html += `<div class="bloque"><h3>Trabajos realizados</h3>
+      <table class="renglones"><tbody id="filasTareas">${
+        t.length ? t.map(x => `<tr>
+          <td>${esc(x.detalle)}</td>
+          <td class="num chico">${x.horas ? x.horas + ' h' : ''}</td>
+          <td class="num">${x.importe ? '$ ' + money(x.importe) : ''}</td>
+          ${editable ? `<td style="width:24px"><button class="accion" data-quitarT="${x.id}">quitar</button></td>` : ''}
+        </tr>`).join('')
+        : `<tr><td class="chico">Todavía no se cargó ningún trabajo.</td></tr>`}</tbody></table>`;
+    if (editable) html += `<div class="alta">
+        <div><label>Qué se le hizo</label><input id="tDetalle" placeholder="Cambio de filtros de aire y aceite"></div>
+        <div><label>Horas</label><input id="tHoras" type="number" min="0" step="0.5"></div>
+        <div><label>Importe</label><input id="tImporte" type="number" min="0" step="0.01"></div>
+        <button class="btn alt" id="agregarTarea">Agregar</button>
+      </div>`;
+    html += `</div>`;
+
+    // ---- repuestos
+    html += `<div class="bloque"><h3>Repuestos e insumos</h3>
+      <table class="renglones"><tbody id="filasRep">${
+        r.length ? r.map(x => `<tr>
+          <td><b>${esc(x.cantidad)}</b> · ${esc(x.descripcion)}
+            <div class="chico">${x.codigo ? esc(x.codigo) : 'sin código · no descuenta stock'}</div></td>
+          <td class="num">${x.precio ? '$ ' + money(Number(x.precio) * x.cantidad) : ''}</td>
+          ${editable ? `<td style="width:24px"><button class="accion" data-quitarR="${x.id}">quitar</button></td>` : ''}
+        </tr>`).join('')
+        : `<tr><td class="chico">Todavía no se cargó ningún repuesto.</td></tr>`}</tbody></table>`;
+    if (editable) html += `<div class="alta rep">
+        <div><label>Repuesto del depósito</label>
+          <input id="rCodigo" list="listaArticulos" placeholder="Código o descripción">
+          <datalist id="listaArticulos">${D.datos.articulos.map(a =>
+            `<option value="${esc(a.codigo)}">${esc(a.descripcion)} · quedan ${a.stock_actual}</option>`).join('')}</datalist>
+        </div>
+        <div><label>Cantidad</label><input id="rCantidad" type="number" min="1" step="1" value="1"></div>
+        <div><label>Precio c/u</label><input id="rPrecio" type="number" min="0" step="0.01"></div>
+        <div><label>Sin código</label><input id="rSuelto" placeholder="Qué se puso"></div>
+        <button class="btn alt" id="agregarRep">Descontar</button>
+      </div>
+      <p class="pista" id="rInfo">Elegí un repuesto del depósito y se descuenta del stock al agregarlo.
+        Lo que se compró para este trabajo y no está en el depósito va en “sin código”.</p>`;
+    html += `</div>`;
+
+    html += `<div class="totales">
+      <div><span>Mano de obra</span><b>$ ${money(totalT)}</b></div>
+      <div><span>Repuestos</span><b>$ ${money(totalR)}</b></div>
+      <div><span>Total</span><b>$ ${money(totalT + totalR)}</b></div>
+    </div>`;
+  }
+
+  // ---- observaciones y botones
+  if (editable)
+    html += `<div class="bloque" style="margin-top:14px"><h3>Observaciones</h3>
+      <textarea id="fObs">${esc(o.observaciones || '')}</textarea></div>`;
+  else if (o.observaciones)
+    html += `<div class="bloque" style="margin-top:14px"><h3>Observaciones</h3>
+      <p class="chico">${esc(o.observaciones)}</p></div>`;
+
+  html += `<div id="avisoOrden"></div><div class="pie-modal">`;
+  if (editable) {
+    html += `<button class="btn" id="cerrarOrden">Cerrar la orden</button>
+      <button class="btn alt" id="guardarCab">Guardar cambios</button>`;
+  }
+  html += `<button class="btn alt" id="imprimir">Imprimir</button>
+    <button class="btn alt" data-hist="${esc(o.patente)}">Historial de la unidad</button>`;
+  if (D.datos.puede_gestionar && o.estado !== 'anulada')
+    html += `<button class="btn mal espacio" id="anular">Anular</button>`;
+  if (D.usuario && D.usuario.rol === 'admin' && o.estado === 'cerrada' && o.tipo === 'interna')
+    html += `<button class="btn alt" id="reabrir">Reabrir</button>`;
+  html += `</div>`;
+
+  $('#cuerpoOrden').innerHTML = html;
+}
+
+function avisoOrden(texto, bien) {
+  const c = $('#avisoOrden');
+  if (c) c.innerHTML = `<div class="aviso ${bien ? 'bien' : 'mal'}">${esc(texto)}</div>`;
+}
+
+/** Una operación sobre la orden abierta: la hace, refresca y avisa si falla. */
+async function sobreOrden(op, extra, mensaje) {
+  try {
+    const r = await api(op, Object.assign({id: D.orden.orden.id}, extra || {}));
+    await cargar();
+    D.orden = await api('ficha', {id: D.orden.orden.id});
+    dibujarOrden();
+    pintar();
+    if (mensaje) avisoOrden(typeof mensaje === 'function' ? mensaje(r) : mensaje, true);
+    return r;
+  } catch (e) {
+    avisoOrden(e.message);
+    return null;
+  }
+}
+
+function cabecera() {
+  const campos = {};
+  if ($('#fSolicitado'))  campos.solicitado = $('#fSolicitado').value;
+  if ($('#fDiagnostico')) campos.diagnostico = $('#fDiagnostico').value;
+  if ($('#fObs'))         campos.observaciones = $('#fObs').value;
+  return campos;
+}
+
+// ------------------------------------------------------------ historial
+async function verHistorial(patente) {
+  $('#tituloHist').textContent = 'Historial de ' + pat(patente);
+  $('#cuerpoHist').innerHTML = '<p class="pista">Buscando…</p>';
+  $('#modalHist').classList.add('on');
+  try {
+    const h = await api('historial', {patente});
+    const filas = h.ordenes.map(o => `<tr>
+      <td class="de">${esc(o.numero)}</td>
+      <td>${fecha(o.fecha)}</td>
+      <td><span class="marca ${o.estado === 'anulada' ? 'anulada'
+            : o.tipo === 'externa' ? 'externa' : o.estado}">${
+            o.estado === 'anulada' ? 'Anulada' : o.tipo === 'externa' ? 'Externa'
+            : o.estado === 'abierta' ? 'Abierta' : 'Cerrada'}</span></td>
+      <td>${esc((o.tipo === 'externa'
+            ? [o.taller, o.solicitado].filter(Boolean).join(' · ')
+            : (o.solicitado || o.diagnostico || '')).slice(0, 110) || '—')}
+        ${o.factura ? `<div class="chico">Factura ${esc(o.factura)}</div>` : ''}</td>
+      <td class="num chico">${o.km ? nfm.format(o.km) + ' km' : ''}</td>
+      <td class="num">${Number(o.total) ? '$ ' + money(o.total) : '—'}</td>
+      <td><button class="accion" data-ver="${o.id}">Abrir</button></td>
+    </tr>`).join('');
+
+    $('#cuerpoHist').innerHTML = h.ordenes.length ? `
+      <p class="pista" style="margin:0 0 12px">${h.ordenes.length} ${
+        h.ordenes.length === 1 ? 'orden' : 'órdenes'} · gastado en total
+        <b>$ ${money(h.total)}</b> (sin contar las anuladas)</p>
+      <div class="caja" style="padding:0;border:0">
+        <table><thead><tr><th>Nº</th><th>Fecha</th><th>Tipo</th><th>Trabajo</th>
+          <th class="num">Km</th><th class="num">Total</th><th></th></tr></thead>
+        <tbody>${filas}</tbody></table></div>
+      <div class="bloque" style="margin-top:18px"><h3>Todo lo que se le hizo</h3>
+        ${h.trabajos.length ? `<table class="renglones"><tbody>${
+          h.trabajos.map(t => `<tr><td class="chico" style="width:120px">
+            ${fecha(t.fecha)} · OT ${esc(t.numero)}</td><td>${esc(t.detalle)}</td></tr>`).join('')
+          }</tbody></table>` : '<p class="chico">Sin trabajos cargados.</p>'}</div>
+      <div class="bloque"><h3>Repuestos que llevó</h3>
+        ${h.repuestos.length ? `<table class="renglones"><tbody>${
+          h.repuestos.map(x => `<tr><td class="chico" style="width:120px">
+            ${fecha(x.fecha)} · OT ${esc(x.numero)}</td>
+            <td><b>${esc(x.cantidad)}</b> · ${esc(x.descripcion)}
+              ${x.codigo ? `<span class="chico"> (${esc(x.codigo)})</span>` : ''}</td></tr>`).join('')
+          }</tbody></table>` : '<p class="chico">Sin repuestos cargados.</p>'}</div>`
+      : '<p class="vacio">Esta unidad todavía no tiene órdenes.</p>';
+  } catch (e) {
+    $('#cuerpoHist').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+// ------------------------------------------------------------- la hoja
+/** Arma el papel y lo manda a la impresora. */
+function imprimir() {
+  const o = D.orden.orden, t = D.orden.tareas, r = D.orden.repuestos;
+  const totalT = t.reduce((s, x) => s + Number(x.importe || 0), 0);
+  const totalR = r.reduce((s, x) => s + Number(x.precio || 0) * x.cantidad, 0);
+  const total = o.tipo === 'externa' ? Number(o.monto || 0) : totalT + totalR;
+  const dato = (rot, val) => `<div><span>${rot}</span><b>${esc(val || '—')}</b></div>`;
+  const numero = String(o.numero).padStart(7, '0');
+
+  let h = `<div class="marco">
+    <div class="titulo">
+      <div class="casa">DIEMAR<small>Taller propio · ${esc(o.sucursal || 'Casa central')}</small></div>
+      <div class="nro">${o.tipo === 'externa' ? 'SERVICIO EXTERNO' : 'HOJA DE ORDEN DE TRABAJO'}
+        <b>Nº ${numero}</b>
+        ${esc(o.estado === 'anulada' ? 'ANULADA' : o.estado === 'abierta' ? 'ABIERTA' : 'CERRADA')}</div>
+    </div>
+
+    <h4>Datos del vehículo</h4>
+    <div class="rejilla">
+      ${dato('Patente', pat(o.patente))}
+      ${dato('Interno', o.interno)}
+      ${dato('Marca y modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
+      ${dato('Chasis', o.chasis)}
+      ${dato('Kilómetros', o.km ? nfm.format(o.km) : '')}
+      ${dato('Chofer', o.chofer)}
+      ${dato('Sucursal', o.sucursal)}
+      ${dato('Responsable', o.tipo === 'externa' ? o.taller : o.responsable)}
+    </div>
+
+    <h4>Datos de la orden</h4>
+    <div class="rejilla">
+      ${dato('Fecha de entrada', fecha(o.fecha))}
+      ${dato(o.tipo === 'externa' ? 'Fecha de factura' : 'Fecha de cierre', fecha(o.fecha_cierre))}
+      ${dato(o.tipo === 'externa' ? 'Nº de factura' : 'Abrió', o.tipo === 'externa' ? o.factura : o.usuario)}
+      ${dato(o.tipo === 'externa' ? 'Taller' : 'Cerró', o.tipo === 'externa' ? o.taller : o.cerrada_por)}
+    </div>
+
+    <h4>${o.tipo === 'externa' ? 'Trabajo realizado' : 'Requerimiento del cliente'}</h4>
+    <div class="texto">${esc(o.solicitado || '')}</div>`;
+
+  if (o.tipo !== 'externa') {
+    h += `<h4>Diagnóstico</h4><div class="texto">${esc(o.diagnostico || '')}</div>`;
+
+    h += `<h4>Insumos y repuestos</h4><table>
+      <thead><tr><th style="width:60px">Cant.</th><th style="width:110px">Artículo</th>
+        <th>Descripción</th><th class="der" style="width:90px">Precio</th>
+        <th class="der" style="width:90px">Importe</th></tr></thead><tbody>${
+      r.length ? r.map(x => `<tr>
+        <td>${esc(x.cantidad)}</td><td>${esc(x.codigo || '')}</td>
+        <td>${esc(x.descripcion)}</td>
+        <td class="der">${x.precio ? money(x.precio) : ''}</td>
+        <td class="der">${x.precio ? money(Number(x.precio) * x.cantidad) : ''}</td></tr>`).join('')
+      : '<tr><td colspan="5">—</td></tr>'}</tbody></table>`;
+
+    h += `<h4>Trabajos realizados</h4><table>
+      <thead><tr><th>Descripción</th><th class="der" style="width:70px">Horas</th>
+        <th class="der" style="width:90px">Importe</th></tr></thead><tbody>${
+      t.length ? t.map(x => `<tr><td>${esc(x.detalle)}</td>
+        <td class="der">${x.horas || ''}</td>
+        <td class="der">${x.importe ? money(x.importe) : ''}</td></tr>`).join('')
+      : '<tr><td colspan="3">—</td></tr>'}</tbody></table>`;
+  } else {
+    h += `<h4>Factura</h4><table>
+      <thead><tr><th>Proveedor</th><th style="width:150px">Nº de factura</th>
+        <th class="der" style="width:110px">Monto</th></tr></thead>
+      <tbody><tr><td>${esc(o.taller || '')}</td><td>${esc(o.factura || '')}</td>
+        <td class="der">${money(o.monto)}</td></tr></tbody></table>`;
+  }
+
+  if (o.observaciones)
+    h += `<h4>Observaciones</h4><div class="texto">${esc(o.observaciones)}</div>`;
+
+  h += `<div class="total">
+      ${o.tipo !== 'externa' ? `<span>Repuestos $ ${money(totalR)}</span>
+        <span>Mano de obra $ ${money(totalT)}</span>` : ''}
+      <span>TOTAL</span><b>$ ${money(total)}</b></div>
+    <div class="iva">Los montos NO incluyen IVA</div>
+  </div>
+  <div class="firmas">
+    <div>Responsable</div><div>Aclaración</div><div>Fecha</div>
+  </div>
+  <p class="sello">App Taller Diemar · orden ${numero} · impresa el ${fecha(hoy())}</p>`;
+
+  $('#hoja').innerHTML = h;
+  window.print();
+}
+
+// ------------------------------------------------------------- eventos
+document.addEventListener('click', async ev => {
+  const t = ev.target;
+  if (t.dataset.cerrar) $('#' + t.dataset.cerrar).classList.remove('on');
+
+  const tarjeta = t.closest && t.closest('.tarjeta');
+  if (tarjeta) {
+    D.filtro = D.filtro === tarjeta.dataset.filtro ? '' : tarjeta.dataset.filtro;
+    pintar();
+  }
+  if (t.dataset.ver) { $('#modalHist').classList.remove('on'); abrirOrden(t.dataset.ver); }
+  if (t.dataset.hist) verHistorial(t.dataset.hist);
+  if (t.dataset.quitart) sobreOrden('tarea_borrar', {tarea_id: Number(t.dataset.quitart)});
+  if (t.dataset.quitarr) sobreOrden('repuesto_borrar', {repuesto_id: Number(t.dataset.quitarr)});
+
+  switch (t.id) {
+    case 'agregarTarea': {
+      const detalle = $('#tDetalle').value.trim();
+      if (!detalle) return avisoOrden('Escribí qué se le hizo.');
+      await sobreOrden('tarea_agregar', {detalle, horas: $('#tHoras').value || null,
+        importe: $('#tImporte').value || null});
+      break;
+    }
+    case 'agregarRep': {
+      const codigo = $('#rCodigo').value.trim();
+      const suelto = $('#rSuelto').value.trim();
+      if (!codigo && !suelto)
+        return avisoOrden('Elegí un repuesto del depósito o escribí qué se puso.');
+      const r = await sobreOrden('repuesto_agregar', {
+        codigo, descripcion: suelto || null,
+        cantidad: $('#rCantidad').value || 1, precio: $('#rPrecio').value || null},
+        x => x && x.stock !== null && x.stock !== undefined
+          ? `Descontado del depósito: quedan ${x.stock}.`
+          : 'Cargado a la orden. Sin código no toca el stock.');
+      void r;
+      break;
+    }
+    case 'guardarCab':
+      await sobreOrden('guardar', cabecera(), 'Guardado.');
+      break;
+    case 'cerrarOrden': {
+      if (!confirm('Cerrar la orden. Después no se puede cambiar. ¿Va?')) return;
+      // Lo que quedó escrito en los textos se guarda antes de cerrar: si
+      // no, el diagnóstico que se acaba de tipear se pierde.
+      const campos = cabecera();
+      try {
+        await api('guardar', Object.assign({id: D.orden.orden.id}, campos));
+      } catch (e) { return avisoOrden(e.message); }
+      const r = await sobreOrden('cerrar', {}, null);
+      if (r) {
+        avisoOrden(`Orden ${r.numero} cerrada.`, true);
+        if (confirm('Orden cerrada. ¿La imprimimos?')) imprimir();
+      }
+      break;
+    }
+    case 'reabrir':
+      if (confirm('Reabrir la orden para poder seguir cargándola. ¿Va?'))
+        await sobreOrden('reabrir', {}, 'Abierta de nuevo.');
+      break;
+    case 'anular':
+      if (confirm('Anular la orden. Los repuestos vuelven al stock. ¿Va?'))
+        await sobreOrden('anular', {}, x => x && x.devueltos
+          ? `Anulada. Volvieron ${x.devueltos} repuesto${x.devueltos === 1 ? '' : 's'} al stock.`
+          : 'Anulada.');
+      break;
+    case 'imprimir': imprimir(); break;
+  }
+});
+
+$('#buscar').oninput = () => pintar();
+$('#filtroUnidad').onchange = () => pintar();
+$('#verHistorial').onclick = () => {
+  const id = $('#filtroUnidad').value;
+  if (!id) return alert('Elegí primero una unidad en el filtro de al lado.');
+  verHistorial(id);
+};
+
+$('#nueva').onclick = () => {
+  $('#avisoNueva').innerHTML = '';
+  $('#nFecha').value = hoy();
+  ['nKm','nChofer','nResp','nSolicitado'].forEach(c => $('#' + c).value = '');
+  $('#modalNueva').classList.add('on');
+};
+// Al elegir la unidad se traen el chofer y el kilometraje que ya sabe el
+// maestro: lo que no hay que tipear no se tipea mal.
+$('#nUnidad').onchange = () => {
+  const u = D.datos.unidades.find(x => String(x.id) === $('#nUnidad').value);
+  if (!u) return;
+  if (!$('#nChofer').value) $('#nChofer').value = u.chofer || '';
+  if (!$('#nKm').value && u.km_actual) $('#nKm').value = Math.round(u.km_actual);
+};
+$('#guardarNueva').onclick = async () => {
+  $('#guardarNueva').disabled = true;
+  try {
+    const r = await api('abrir', {
+      unidad_id: Number($('#nUnidad').value) || null,
+      fecha: $('#nFecha').value, km: $('#nKm').value || null,
+      chofer: $('#nChofer').value, responsable: $('#nResp').value,
+      solicitado: $('#nSolicitado').value});
+    $('#modalNueva').classList.remove('on');
+    await cargar();
+    pintar();
+    abrirOrden(r.id);
+  } catch (e) {
+    $('#avisoNueva').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally {
+    $('#guardarNueva').disabled = false;
+  }
+};
+
+$('#nuevaExterna').onclick = () => {
+  $('#avisoExterna').innerHTML = '';
+  $('#xFecha').value = hoy();
+  ['xFactura','xMonto','xKm','xTaller','xDetalle'].forEach(c => $('#' + c).value = '');
+  $('#modalExterna').classList.add('on');
+};
+$('#xUnidad').onchange = () => {
+  const u = D.datos.unidades.find(x => String(x.id) === $('#xUnidad').value);
+  if (u && !$('#xKm').value && u.km_actual) $('#xKm').value = Math.round(u.km_actual);
+};
+$('#guardarExterna').onclick = async () => {
+  $('#guardarExterna').disabled = true;
+  try {
+    const r = await api('externa', {
+      unidad_id: Number($('#xUnidad').value) || null,
+      fecha: $('#xFecha').value, factura: $('#xFactura').value,
+      monto: $('#xMonto').value, km: $('#xKm').value || null,
+      taller: $('#xTaller').value, solicitado: $('#xDetalle').value});
+    $('#modalExterna').classList.remove('on');
+    await cargar();
+    pintar();
+    abrirOrden(r.id);
+  } catch (e) {
+    $('#avisoExterna').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally {
+    $('#guardarExterna').disabled = false;
+  }
+};
+
+(async function () {
+  try {
+    D.usuario = await (await fetch('/api/yo')).json();
+    $('#quien').innerHTML = `${esc(D.usuario.nombre)} <a href="/salir">Salir</a>`;
+  } catch (e) { void e; }
+  try {
+    await cargar();
+    if (!D.datos.puede_gestionar) {
+      $('#nueva').style.display = 'none';
+      $('#nuevaExterna').style.display = 'none';
+    }
+    pintar();
+    // Si se llegó con ?orden=123 (desde otra pantalla), se abre esa.
+    const pedida = new URLSearchParams(location.search).get('orden');
+    if (pedida) abrirOrden(pedida);
+  } catch (e) {
+    $('#filas').innerHTML = `<tr><td colspan="8" class="vacio">${esc(e.message)}</td></tr>`;
+    $('#pie').textContent = '';
+  }
+})();
+</script>
+</body>
+</html>

@@ -90,6 +90,11 @@ def resumen(cx):
         "reponer": _uno(cx, """select count(*) from v_repuestos_stock
                                where estado in ('REPONER','SIN STOCK')"""),
 
+        # Órdenes de trabajo: las que están abiertas son las unidades que
+        # ahora mismo están en el taller.
+        "ordenes_abiertas": _uno(cx, """select count(*) from ordenes_trabajo
+                                        where estado = 'abierta'"""),
+
         # Vencimientos
         "vencidos": _uno(cx, "select count(*) from v_vencimientos_hoy where estado = 'vencido'"),
         "por_vencer": _uno(cx, "select count(*) from v_vencimientos_hoy where estado = 'por_vencer'"),
