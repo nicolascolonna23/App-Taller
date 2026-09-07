@@ -316,7 +316,11 @@ def modelo_3d(unidad):
     # Y el chasis antes que el utilitario: una Daily 70 dice "Daily" pero
     # es un chasis con caja, no un furgón.
     if es_chasis(unidad):
-        return "chasis"
+        # Salvo que el mapa diga que tiene tres ejes. El modelo que hay es
+        # de dos, y un rígido de tres con caja es otra cosa: todavía no
+        # tenemos uno, así que se queda sin dibujo antes que con el
+        # equivocado. El mapa manda por sobre el nombre, como siempre.
+        return None if (unidad.get("posiciones") or 0) >= 9 else "chasis"
     if es_utilitario(unidad):
         return "utilitario"
 

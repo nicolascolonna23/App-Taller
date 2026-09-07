@@ -582,20 +582,23 @@ function armarVisor(clave, archivo, opciones){
       const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
       let alReves;
 
-      if (clave === 'chasis') {
-        /* Un camión de reparto tiene la caja más alta que la cabina, así
-           que la regla de "el frente es lo alto" lo da vuelta. Lo que no
-           falla: el rodado dual va atrás. El eje de atrás es el de las
-           ruedas más anchas. */
-        const cajas = ruedas.map(m => new THREE.Box3().setFromObject(m));
-        const ancho = c => c.max.x - c.min.x;
-        const mitad = cajas.reduce((a, c) =>
-          a + (c.min.z + c.max.z) / 2, 0) / cajas.length;
-        const adelante = cajas.filter(c => (c.min.z + c.max.z) / 2 < mitad);
-        const atras = cajas.filter(c => (c.min.z + c.max.z) / 2 >= mitad);
-        const media = g => g.reduce((a, c) => a + ancho(c), 0) / (g.length || 1);
-        alReves = adelante.length && atras.length &&
-                  media(adelante) > media(atras) * 1.15;
+      if (clave === 'chasis' || clave === 'auto' || clave === 'utilitario') {
+        /* En estos tres la regla de "el frente es la parte alta" no sirve.
+           En un camión de reparto la caja es más alta que la cabina; en un
+           auto el techo está sobre el habitáculo, que va atrás; en un
+           furgón el bulto es toda la caja. Y el ancho de la goma tampoco
+           alcanza: el dual de atrás y la simple de adelante terminan
+           midiendo casi lo mismo una vez que se les suma la llanta.
+
+           Lo que sí, en los tres: el eje de adelante va más pegado a la
+           punta que el de atrás a la cola. Adelante hay una trompa; atrás
+           sobra caja, o baúl. El eje con menos voladizo es el delantero. */
+        const zs = ruedas.map(m => {
+          const c = new THREE.Box3().setFromObject(m);
+          return (c.min.z + c.max.z) / 2;
+        });
+        const punta = Math.min(...zs), cola = Math.max(...zs);
+        alReves = (punta - cajaGiro.min.z) > (cajaGiro.max.z - cola);
 
       } else if (clave === 'autoelevador') {
         /* En un autoelevador el frente es donde está el mástil, y ahí van
