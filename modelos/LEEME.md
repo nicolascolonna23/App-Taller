@@ -136,3 +136,37 @@ de la empresa, conviene reemplazarlo por uno propio o con licencia.
    directo desde GitHub: **Add file → Upload files**, dentro de `modelos/`.
 3. Agregar la clave a `MODELOS_3D` en `gomeria/unidades.py`.
 4. Sumar la opción al `<select>` de **Modelo 3D** en `unidades.html`.
+
+## Los modelos que hay
+
+| Archivo | Para qué | Cómo se elige |
+|---|---|---|
+| `iveco-4x2.obj` | tractor de dos ejes | por el mapa de cubiertas o el código |
+| `iveco-6x2.glb` | tractor de tres ejes | por el mapa de cubiertas o el código |
+| `trailer.obj` | semirremolque | por el uso: SEMIRREMOLQUE |
+| `forklift.fbx` | autoelevador | por el tipo: equipo |
+| `utilitario.glb` | furgón o van | por la marca y el modelo |
+| `auto.glb` | auto | por la marca y el modelo, o uso PARTICULAR |
+
+Siempre se puede forzar cuál va desde el campo **Modelo 3D** de la ficha
+de la unidad, en Flota.
+
+## Si el archivo viene pesado
+
+Los modelos que se bajan de internet vienen de doce y veinte megas, y eso
+se descarga cada vez que alguien abre una unidad. Lo que se hace con ellos
+antes de subirlos:
+
+1. **Separar las ruedas y pegar el resto.** La aplicación solo necesita
+   las gomas sueltas —son lo único que se toca— así que la carrocería se
+   junta en una sola pieza y cada rueda queda en su nodo, con nombre
+   `rueda_1`, `rueda_2`… Así se reconocen solas y no hay que buscarlas.
+2. **Sacar las texturas y las coordenadas de textura.** La aplicación le
+   pone su propio material; lo que viaja de más solo hace más lenta la
+   carga.
+3. **Bajarle los triángulos a la carrocería**, no a las ruedas. Ojo con
+   pasarse: el auto quedó con manchas negras al sacarle el 30% y hubo que
+   dejarlo entero.
+
+Las normales se pueden sacar tranquilas: si el archivo no las trae, la
+aplicación las calcula al abrirlo.

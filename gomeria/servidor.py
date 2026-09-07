@@ -493,5 +493,10 @@ def _modelo_3d(unidad, mapa):
         "modelo_3d": quiere if archivo else None,
         "modelo_3d_archivo": archivo,
         "modelo_3d_version": version,
-        "modelo_3d_por": "mano" if (unidad.get("modelo_3d") or "").strip() else por,
+        # De dónde salió, con la misma regla que la ficha de Flota: a un
+        # equipo, a un auto y a un utilitario no se les cuentan ejes.
+        "modelo_3d_por": ("mano" if (unidad.get("modelo_3d") or "").strip()
+                          else "equipo" if quiere == "autoelevador"
+                          else "modelo" if quiere in ("auto", "utilitario")
+                          else por),
     }

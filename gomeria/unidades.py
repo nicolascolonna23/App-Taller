@@ -84,12 +84,27 @@ MODELOS_3D = (
     ("4x2", "Tractor 4x2"),
     ("semi", "Semirremolque"),
     ("autoelevador", "Autoelevador"),
+    ("utilitario", "Utilitario / furgón"),
+    ("auto", "Auto"),
 )
 # El archivo de cada uno. Los dos tractores se bajaron de un Iveco y les
 # quedó el nombre; el semi no, y no vale la pena renombrar un archivo que
 # ya está subido para que entre en un molde.
 ARCHIVO_3D = {"6x2": "iveco-6x2", "4x2": "iveco-4x2", "semi": "trailer",
-              "autoelevador": "forklift"}
+              "autoelevador": "forklift", "utilitario": "utilitario",
+              "auto": "auto"}
+
+# Las familias de utilitario que hay en la flota y las que se le parecen.
+# Se mira la familia y no la versión: una Sprinter 313 y una 515 se
+# dibujan igual, y la que venga el año que viene también.
+UTILITARIOS = ("SPRINTER", "MASTER", "BOXER", "TRANSIT", "DAILY", "HIACE",
+               "DUCATO", "JUMPER", "TRAFIC", "KANGOO", "PARTNER", "BERLINGO",
+               "VITO", "EXPRESS", "H100", "COMBO")
+
+# Los autos. La lista es corta a propósito: son dos en toda la flota, y
+# poner familias que no están es adivinar. Se agrega la que aparezca.
+AUTOS = ("207 COMPACT", "GRAND VITARA", "COROLLA", "ETIOS", "CRONOS",
+         "ONIX", "GOL ", "CLIO", "PALIO", "SIENA", "FIESTA")
 # Los nombres que se usaron antes, por si alguna unidad quedó con uno
 # elegido a mano.
 ALIAS_3D = {"hiway": "4x2", "sway": "6x2"}
@@ -221,6 +236,23 @@ def es_autoelevador(unidad):
                ("AUTOELEVADOR", "MONTACARGA", "FORKLIFT", "CLARK", "HYSTER"))
 
 
+def _texto_de(unidad):
+    return " ".join(str(unidad.get(c) or "") for c in
+                    ("marca", "modelo", "nota")).upper()
+
+
+def es_utilitario(unidad):
+    """Un furgón o una van: caja cerrada sobre un chasis liviano."""
+    return any(f in _texto_de(unidad) for f in UTILITARIOS)
+
+
+def es_auto(unidad):
+    """Un auto. También lo es el que está cargado para uso particular."""
+    if (unidad.get("uso") or "").upper().strip() == "PARTICULAR":
+        return True
+    return any(f in _texto_de(unidad) for f in AUTOS)
+
+
 def es_semi(unidad):
     """Si la unidad es un semirremolque.
 
@@ -253,6 +285,12 @@ def modelo_3d(unidad):
     # ejes, es otra cosa, y contarle ejes le da un camión.
     if es_semi(unidad):
         return "semi"
+    # El auto antes que el utilitario: hay familias que suenan a las dos
+    # cosas, y un auto nunca es un furgón.
+    if es_auto(unidad):
+        return "auto"
+    if es_utilitario(unidad):
+        return "utilitario"
 
     ejes, _ = ejes_de(unidad)
     if ejes >= 3:
@@ -480,7 +518,12 @@ def ficha(cx, unidad_id):
               # ejes: sale de que está cargado como equipo, y eso es lo que
               # tiene que decir.
               "modelo_3d_por": ("mano" if (unidad.get("modelo_3d") or "").strip()
-                                else "equipo" if quiere == "autoelevador" else por),
+                                else "equipo" if quiere == "autoelevador"
+                                # Al auto y al utilitario no se les cuentan
+                                # ejes: se los reconoce por lo que dice la
+                                # chapa, y eso es lo que hay que decir.
+                                else "modelo" if quiere in ("auto", "utilitario")
+                                else por),
               # Qué medida lleva esta unidad. La pantalla lo usa para no
               # ofrecer una cubierta que no va.
               "medida_clase": clase_de_gomas(contada),
