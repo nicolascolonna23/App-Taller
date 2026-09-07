@@ -389,7 +389,8 @@ function ejeMasCerca(z){
 let VISOR = {};
 
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null, ejes:[] };
+            anim:null, modelo:null, esquina:null, ejes:[],
+            medida:null, tocado:false };
 
 function apagarVisor(){
   if (V.anim) cancelAnimationFrame(V.anim);
@@ -397,7 +398,8 @@ function apagarVisor(){
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null, ejes:[] });
+                     ruedas:[], modelo:null, esquina:null, ejes:[],
+                     medida:null, tocado:false });
 }
 
 function visorVacio(texto){
@@ -420,7 +422,9 @@ function armarVisor(clave, archivo, opciones){
                 equipo:'está cargado como equipo',
                 'no se sabe':'sin datos' };
   const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
-                   semi:'Semirremolque', autoelevador:'Autoelevador' };
+                   semi:'Semirremolque', autoelevador:'Autoelevador',
+                   utilitario:'Utilitario / furgón', auto:'Auto',
+                   chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
   nodo('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
@@ -507,6 +511,14 @@ function armarVisor(clave, archivo, opciones){
        el camión entero y falsean el tamaño, el centro y el enderezado. */
     obj.traverse(o => { if (o.isMesh && esSobra(o)) o.visible = false; });
 
+    /* Sin normales no hay luz que valga: el modelo sale todo negro. Hay
+       archivos que no las traen —se sacan para que pesen menos, y son la
+       mitad del archivo— así que se calculan acá, que es gratis. */
+    obj.traverse(m => {
+      if (m.isMesh && m.geometry && !m.geometry.attributes.normal)
+        m.geometry.computeVertexNormals();
+    });
+
     /* Y hay modelos que vienen como una sola malla, todo soldado en un
        archivo: el autoelevador es uno. Ahí no hay ruedas que buscar
        porque no hay piezas. Se lo parte antes de mirar nada. */
@@ -570,7 +582,22 @@ function armarVisor(clave, archivo, opciones){
       const medio = cajaGiro.getCenter(new THREE.Vector3()).z;
       let alReves;
 
-      if (clave === 'autoelevador') {
+      if (clave === 'chasis') {
+        /* Un camión de reparto tiene la caja más alta que la cabina, así
+           que la regla de "el frente es lo alto" lo da vuelta. Lo que no
+           falla: el rodado dual va atrás. El eje de atrás es el de las
+           ruedas más anchas. */
+        const cajas = ruedas.map(m => new THREE.Box3().setFromObject(m));
+        const ancho = c => c.max.x - c.min.x;
+        const mitad = cajas.reduce((a, c) =>
+          a + (c.min.z + c.max.z) / 2, 0) / cajas.length;
+        const adelante = cajas.filter(c => (c.min.z + c.max.z) / 2 < mitad);
+        const atras = cajas.filter(c => (c.min.z + c.max.z) / 2 >= mitad);
+        const media = g => g.reduce((a, c) => a + ancho(c), 0) / (g.length || 1);
+        alReves = adelante.length && atras.length &&
+                  media(adelante) > media(atras) * 1.15;
+
+      } else if (clave === 'autoelevador') {
         /* En un autoelevador el frente es donde está el mástil, y ahí van
            las ruedas grandes: son las que traccionan y las que aguantan la
            carga. Atrás van las chicas, las que doblan.
@@ -667,25 +694,8 @@ function armarVisor(clave, archivo, opciones){
 
     /* La cámara se acomoda al camión y no al revés: el S-Way y el Hi-Way
        no miden lo mismo, y el que venga después tampoco. */
-    const medida = caja3.getSize(new THREE.Vector3());
-    const mayor = Math.max(medida.x, medida.y, medida.z);
-    /* La distancia a la que el camión entra justo en el encuadre, más un
-       margen para poder girarlo sin que se salga. Hay que mirar los dos
-       lados del cuadro y no solo el alto: la ficha es más ancha que alta,
-       y encuadrar por el vertical deja el camión chiquito en el medio de
-       un panel vacío. Se mira desde una esquina y un poco desde arriba,
-       que es como se le ve el techo y las cuatro ruedas de una. */
-    const medioV = (cam.fov * Math.PI / 180) / 2;
-    const medioH = Math.atan(Math.tan(medioV) * Math.max(cam.aspect, .5));
-    const lejos = Math.max(mayor / (2 * Math.tan(medioH)),
-                           medida.y / (2 * Math.tan(medioV))) * 1.4;
-    cam.position.copy(new THREE.Vector3(1, .42, 1).normalize().multiplyScalar(lejos));
-    /* Al centro del camión, no al de la escena: si mira más abajo, el
-       camión se va para arriba y queda medio panel de piso vacío. */
-    ctrl.target.set(0, medida.y / 2, 0);
-    ctrl.minDistance = lejos * .5;
-    ctrl.maxDistance = lejos * 2.2;
-    ctrl.update();
+    V.medida = caja3.getSize(new THREE.Vector3());
+    encuadrar();
     V.modelo = obj;
     pintarRuedas();
   }, undefined, error => {
@@ -715,7 +725,11 @@ function armarVisor(clave, archivo, opciones){
   /* Se distingue el clic del arrastre: girar el camión no tiene que abrir
      el panel de una rueda cada vez. */
   let desde = null;
-  ren.domElement.addEventListener('pointerdown', e => desde = [e.clientX, e.clientY]);
+  ren.domElement.addEventListener('pointerdown', e => {
+    desde = [e.clientX, e.clientY];
+    V.tocado = true;
+  });
+  ren.domElement.addEventListener('wheel', () => V.tocado = true, { passive:true });
   ren.domElement.addEventListener('pointerup', e => {
     if (!desde) return;
     const lejos = Math.hypot(e.clientX - desde[0], e.clientY - desde[1]) > 6;
@@ -728,11 +742,71 @@ function armarVisor(clave, archivo, opciones){
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
   });
 
+  /* Poner la cámara a la distancia justa para que el vehículo entre.
+
+     Hay que mirar los dos lados del cuadro y no solo el alto: el recuadro
+     es más ancho que alto, y encuadrar por el vertical deja el camión
+     chiquito en el medio de un panel vacío. Se mira desde una esquina y un
+     poco desde arriba, que es como se le ven el techo y las cuatro ruedas
+     de una sola vez. */
+  function encuadrar(){
+    const m = V.medida;
+    if (!m) return;
+
+    /* Al centro del vehículo, no al de la escena: si mira más abajo, el
+       camión se va para arriba y queda medio panel de piso vacío. */
+    const centro = new THREE.Vector3(0, m.y / 2, 0);
+    ctrl.target.copy(centro);
+
+    /* La cuenta con la caja y el ángulo de la cámara no sirve: mirando
+       desde una esquina y desde arriba, el largo del camión también se
+       proyecta hacia arriba y hacia abajo de la pantalla, y encuadrar por
+       el alto lo deja cortado. Así que en vez de calcularlo se prueba: se
+       pone la cámara, se proyectan las ocho esquinas de la caja, y se
+       corrige la distancia por lo que se salió. Converge en dos o tres
+       vueltas y anda con cualquier modelo y cualquier recuadro. */
+    const dir = new THREE.Vector3(1, .42, 1).normalize();
+    const caja = new THREE.Box3(new THREE.Vector3(-m.x / 2, 0, -m.z / 2),
+                                new THREE.Vector3(m.x / 2, m.y, m.z / 2));
+    const esquinas = [];
+    for (const x of [caja.min.x, caja.max.x])
+      for (const y of [caja.min.y, caja.max.y])
+        for (const z of [caja.min.z, caja.max.z])
+          esquinas.push(new THREE.Vector3(x, y, z));
+
+    /* Cuánto del cuadro ocupa el vehículo. El resto es el aire que hace
+       falta para poder girarlo sin que se salga. */
+    const LLENA = 0.86;
+    let lejos = Math.max(m.x, m.y, m.z) * 1.5;
+    const v = new THREE.Vector3();
+    for (let vuelta = 0; vuelta < 8; vuelta++) {
+      cam.position.copy(centro).addScaledVector(dir, lejos);
+      cam.lookAt(centro);
+      cam.updateMatrixWorld(true);
+      let peor = 0;
+      for (const e of esquinas) {
+        v.copy(e).project(cam);
+        peor = Math.max(peor, Math.abs(v.x), Math.abs(v.y));
+      }
+      if (!(peor > 0) || Math.abs(peor - LLENA) < 0.01) break;
+      lejos *= peor / LLENA;
+    }
+
+    ctrl.minDistance = lejos * .45;
+    ctrl.maxDistance = lejos * 2.4;
+    ctrl.update();
+  }
+
   const medir = () => {
     if (!V.render) return;
     cam.aspect = caja.clientWidth / caja.clientHeight;
     cam.updateProjectionMatrix();
     ren.setSize(caja.clientWidth, caja.clientHeight);
+    /* Y volver a encuadrar: el recuadro suele terminar de acomodarse
+       después de que el modelo ya cargó, y la distancia calculada con el
+       ancho de antes deja el vehículo cortado. Se deja de hacer en cuanto
+       el usuario gira o acerca: a partir de ahí la cámara es suya. */
+    if (!V.tocado) encuadrar();
   };
   new ResizeObserver(medir).observe(caja);
 
