@@ -75,6 +75,34 @@ def _kilometros(cx):
             for f in filas}
 
 
+def _combustible(cx):
+    """Los dos últimos meses cerrados de combustible, de la base.
+
+    Hasta acá este número salía de la planilla de Google por CSV público,
+    porque los litros nunca habían entrado a Supabase. Ahora entran por el
+    módulo de combustible, así que sale de la misma base que todo lo demás
+    y la portada deja de depender de que una planilla siga compartida.
+
+    El mes que está corriendo queda afuera: está a medio cargar, y contra
+    un mes entero da siempre una caída que no existe.
+    """
+    try:
+        filas = cx.execute("""
+            select mes, litros, importe, km, litros_100km, pesos_km,
+                   cargas, unidades
+            from v_combustible_mes
+            where mes < date_trunc('month', current_date)
+            order by mes desc limit 2
+        """).fetchall()
+    except Exception:
+        cx.rollback()
+        return None
+    if not filas:
+        return None
+    return {"mes": dict(filas[0]),
+            "previo": dict(filas[1]) if len(filas) > 1 else None}
+
+
 def resumen(cx):
     """Lo que se dibuja en la portada. Todo lo que falte viene en None."""
     datos = {
@@ -106,4 +134,5 @@ def resumen(cx):
                                    where fecha = (select max(fecha) from odometros)"""),
     }
     datos["recorrido"] = _kilometros(cx)
+    datos["combustible"] = _combustible(cx)
     return datos

@@ -36,11 +36,12 @@ muestra "Sin acceso a las planillas" en lugar de datos.
 
 Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
 
-La portada muestra los **kilómetros** desde la base (tabla `odometros`, ver
-`gomeria/ODOMETROS.md`) y el **consumo en L/100 km** desde la planilla, porque
-los litros nunca entraron a Supabase. Si la planilla deja de estar compartida,
-la tarjeta de consumo simplemente no aparece y el resto de la portada sigue
-andando.
+La portada muestra los **kilómetros** y el **consumo en L/100 km** desde la
+base: los kilómetros de la tabla `odometros` (ver `gomeria/ODOMETROS.md`) y
+los litros del módulo de combustible (ver `gomeria/COMBUSTIBLE.md`). Los
+litros entraban antes solo a la planilla de Google; desde que se cargan los
+tickets en `/combustible`, la portada no depende de ninguna planilla
+compartida.
 
 ## Stock de repuestos: dónde se guardan los datos
 
