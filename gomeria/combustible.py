@@ -75,8 +75,19 @@ def _remito(valor):
     return re.sub(r"[^0-9]", "", texto).lstrip("0") or ""
 
 
+# Lo que escribe la planilla cuando no se pudo leer la patente del ticket.
+# Sin esto entran como si fueran una unidad más y "NOENCONTRADO" termina
+# encabezando el ranking de la que más combustible cargó, que es una unidad
+# que no existe.
+SIN_PATENTE = {"NOENCONTRADO", "SD", "SN", "NA", "NN", "SINPATENTE",
+               "NOENCONTRADA", "NOFIGURA", "NOSABE", "NOLEGIBLE"}
+
+
 def _patente(valor):
-    return re.sub(r"[^A-Z0-9]", "", str(valor or "").upper()) or None
+    limpia = re.sub(r"[^A-Z0-9]", "", str(valor or "").upper())
+    if not limpia or limpia in SIN_PATENTE:
+        return None
+    return limpia
 
 
 def _separador(valores):
