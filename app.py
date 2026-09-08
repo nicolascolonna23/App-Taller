@@ -32,7 +32,7 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
-import auth, base, combustible as comb, etiquetas, inicio, repuestos
+import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import ordenes as ots
 import preferencias as prefs
 import unidades as uni
@@ -532,6 +532,12 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la orden: {e}", 500)
 
+        # La foto de la factura de un servicio externo. Va por su propia
+        # dirección y no por /api/ordenes porque una foto de celular no
+        # entra en los 256 KB que alcanzan para el resto.
+        if ruta == "/api/factura":
+            return self._leer_factura()
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -599,6 +605,47 @@ class App(gom.Handler):
         if ruta == "/api/combustible":
             return self._combustible(borrar=True)
         return self._error("No existe", 404)
+
+    def _leer_factura(self):
+        """Lee la factura de un servicio externo y propone los campos.
+
+        No guarda nada: devuelve lo que entendió para que el encargado lo
+        revise en el mismo formulario de siempre. Una factura mal leída que
+        entra sola al historial de una unidad es peor que no tener la foto.
+        """
+        if not self._exigir_sesion():
+            return
+        if self.usuario["rol"] not in ("encargado", "admin"):
+            return self._error("Solo un encargado o administrador puede cargar "
+                               "un servicio externo.", 403)
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            # Cuatro hojas del tamaño máximo, más lo que agrega el base64.
+            if largo > 68 * 1024 * 1024:
+                return self._error("Las fotos pesan demasiado. Sacalas de nuevo "
+                                   "con menos calidad.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+        except Exception:
+            return self._error("El pedido llegó cortado. Probá de nuevo.")
+
+        try:
+            with base.conectar() as cx:
+                # El listado de patentes de la flota viaja con la foto: es lo
+                # que evita que una patente escrita a mano se lea al revés.
+                patentes = [f["patente"] for f in cx.execute(
+                    "select patente from unidades where activa").fetchall()]
+            leido = facturas.leer(datos.get("archivos") or [], patentes=patentes)
+            return self._responder(gom.jstr({"ok": True, "factura": leido}))
+        except ValueError as e:
+            return self._error(str(e))
+        except anthropic.APIStatusError as e:
+            return self._error(f"La API respondió {e.status_code}. Revisá la clave "
+                               f"o el saldo.", 502)
+        except anthropic.APIConnectionError:
+            return self._error("No se pudo conectar con la API de Claude.", 502)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo leer la factura: {e}", 500)
 
     def _combustible(self, borrar=False):
         if not self._exigir_sesion():

@@ -82,6 +82,35 @@ table.datos .flojo{color:var(--m)}
 .vida .nums b{color:var(--t)}
 @media(max-width:780px){table.datos th:nth-child(4),table.datos td:nth-child(4),
   table.datos th:nth-child(5),table.datos td:nth-child(5){display:none}}
+/* EL HISTORIAL DE LA UNIDAD. Un renglón por parte, no por cubierta: una
+   rotación de cuatro gomas es un solo movimiento y se deshace entero. */
+/* El color del tipo de movimiento: verde lo que entra, rojo lo que sale,
+   ámbar lo que se va a arreglar. */
+.status.montaje{color:var(--ok)}
+.status.desmontaje,.status.baja{color:var(--bad)}
+.status.rotacion{color:#65b6ff}
+.status.medicion{color:var(--m)}
+.status.alta{color:var(--o)}
+.mov{border-top:1px solid var(--l);padding:12px 0;display:flex;gap:12px;
+  align-items:flex-start;flex-wrap:wrap}
+.mov:first-child{border-top:0}
+.mov .cuando{width:120px;flex:0 0 auto;font-size:12px;color:var(--m);
+  line-height:1.5}
+.mov .cuerpo{flex:1 1 260px;min-width:0}
+.mov .tipos{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.mov .linea{font-size:12.5px;padding:2px 0}
+.mov .linea b{font-weight:800}
+.mov .linea .pos{color:var(--o);font-weight:800}
+.mov .pie{font-size:11.5px;color:var(--m);margin-top:5px}
+.mov .pie q{font-style:italic}
+.mov.anulado{opacity:.55}
+.mov.anulado .linea{text-decoration:line-through}
+.mov .btnmov{flex:0 0 auto}
+.mov .porque{font-size:11px;color:var(--m);max-width:190px;text-align:right;
+  line-height:1.45}
+.verdeshechos{background:none;border:0;color:var(--m);font:inherit;font-size:12px;
+  cursor:pointer;text-decoration:underline;padding:0}
+@media(max-width:780px){.mov .cuando{width:100%}.mov .porque{text-align:left;max-width:none}}
 @media(max-width:780px){.visor3d{height:290px}
   table.puestas th:nth-child(3),table.puestas td:nth-child(3){display:none}}
 </style>
@@ -106,7 +135,7 @@ table.datos .flojo{color:var(--m)}
 <script>
 "use strict";const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtPat=p=>{let m=String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(m)return`${m[1]} ${m[2]} ${m[3]}`;m=String(p||'').match(/^([A-Z]{3})(\d{3})$/);return m?`${m[1]} ${m[2]}`:p},fmtDate=v=>v?new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
-let D={units:[],configs:[],tires:[],summary:{},user:null,selected:null,parte:null,wear:null,alertaDe:{},tocada:null};async function api(url,body){let r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||`Error ${r.status}`);return d}
+let D={units:[],configs:[],tires:[],summary:{},user:null,selected:null,parte:null,wear:null,alertaDe:{},tocada:null,unidadId:null,movimientos:[],historial:[],verDeshechos:false};async function api(url,body){let r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||`Error ${r.status}`);return d}
 function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(n==='wear'&&!D.wear)loadWear();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
 /* La solapa vive en la direccion: /gomeria#register abre directo la carga de
    texto, que es a donde apunta el QR del taller. Volver atras la respeta. */
@@ -125,6 +154,103 @@ function claseDibujo(cubierta_id,mm){
 function tire(p){let mm=p.remanente_mm,c=!p.cubierta_id?'empty':claseDibujo(p.cubierta_id,mm);return`<button class="tire ${c}" data-tire="${p.cubierta_id||''}"><span class="pos">${esc(p.posicion)}</span><div class="code">${p.cubierta?esc(p.cubierta):'Vacía'}</div><div class="mm">${mm!=null?esc(mm)+' mm':''}</div></button>`}
 function mapHtml(a){let e=new Map,aux=null;a.forEach(p=>{if(p.es_auxilio){aux=p;return}if(!e.has(p.eje))e.set(p.eje,[]);e.get(p.eje).push(p)});let h='';[...e].sort((x,y)=>x[0]-y[0]).forEach(([n,p])=>{p.sort((x,y)=>x.orden-y.orden);let m=Math.ceil(p.length/2);h+=`<div class="ax"><span class="axn">E${n}</span>${p.slice(0,m).map(tire).join('')}<span class="bar"></span>${p.slice(m).map(tire).join('')}</div>`});if(aux)h+=`<div class="spare"><b>Auxilio</b>${tire(aux)}</div>`;return`<div class="map">${h||'<div class="emptymsg">Esta unidad no tiene mapa configurado.</div>'}</div>`}
 function desc(e){let a=[];if(e.desde_posicion)a.push('desde '+e.desde_posicion);if(e.hasta_posicion)a.push('a '+e.hasta_posicion);if(e.remanente_mm!=null)a.push(e.remanente_mm+' mm');if(e.km_unidad!=null)a.push(Number(e.km_unidad).toLocaleString('es-AR')+' km');return a.join(' · ')}function listaEventos(a){return a.length?a.map(e=>`<div class="event"><span class="date">${fmtDate(e.fecha)}</span><span class="type">${esc(e.tipo)}</span><div><b>${esc(e.cubierta||'Movimiento')}</b> ${esc(desc(e))}<div class="note">${esc(e.nota||e.texto_original||e.usuario||'')}</div></div></div>`).join(''):'<div class="emptymsg">Todavía no hay movimientos.</div>'}
+
+/* =====================================================================
+   EL HISTORIAL DE LA UNIDAD
+   ---------------------------------------------------------------------
+   Un renglón por parte y no por cubierta: una rotación de cuatro gomas
+   es un solo movimiento, y el botón de deshacer lo revierte entero.
+   Deshacer media rotación no es deshacer nada.
+
+   Deshacer no borra: la fila queda marcada con quién la deshizo. Por eso
+   está el «ver los deshechos», que es donde aparece lo que se corrigió.
+   ===================================================================== */
+const TIPOS={montaje:'Montaje',desmontaje:'Desmontaje',rotacion:'Rotación',
+  medicion:'Medición',recapado:'A recapar',reparacion:'A reparar',baja:'Baja',alta:'Alta'};
+
+function lineaMov(d){
+  const pos=[d.desde_posicion&&`<span class="pos">${esc(d.desde_posicion)}</span>`,
+             d.hasta_posicion&&`<span class="pos">${esc(d.hasta_posicion)}</span>`]
+            .filter(Boolean).join(' → ');
+  const dato=[d.remanente_mm!=null&&esc(d.remanente_mm)+' mm',
+              d.km_unidad!=null&&nfmt(d.km_unidad)+' km'].filter(Boolean).join(' · ');
+  return `<div class="linea">${esc(TIPOS[d.tipo]||d.tipo)} ${d.cubierta?'<b>'+esc(d.cubierta)+'</b>':''}`+
+         `${pos?' '+pos:''}${dato?' <span class="flojo">· '+dato+'</span>':''}</div>`;
+}
+
+function movHtml(g,admin){
+  const f=new Date(g.fecha);
+  const cuando=`${f.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'})}`+
+               `<br>${f.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`;
+  const pie=[g.usuario&&('Lo cargó '+esc(g.usuario)),
+             g.texto_original&&('<q>'+esc(g.texto_original)+'</q>')].filter(Boolean).join(' · ');
+  /* Deshacer cambia dónde está una cubierta, igual que haberlo cargado:
+     lo firma un encargado. */
+  const boton=g.deshecho_flag
+    ? `<span class="porque">Deshecho${g.deshecho_por?' por '+esc(g.deshecho_por):''}${g.deshecho_motivo?': '+esc(g.deshecho_motivo):''}</span>`
+    : admin
+      ? (g.se_puede_deshacer
+          ? `<button class="btn alt btnmov" data-deshacer="${esc(g.grupo_id)}">Deshacer</button>`
+          : `<span class="porque">${esc(g.motivo_bloqueo||'')}</span>`)
+      : '';
+  return `<div class="mov ${g.deshecho_flag?'anulado':''}"><div class="cuando">${cuando}</div>`+
+         `<div class="cuerpo"><div class="tipos">${(g.tipos||[]).map(t=>`<span class="status ${esc(t)}">${esc(TIPOS[t]||t)}</span>`).join('')}</div>`+
+         `${(g.detalle||[]).map(lineaMov).join('')}`+
+         `${pie?`<div class="pie">${pie}</div>`:''}</div>${boton}</div>`;
+}
+
+function listaMovimientos(movs,admin){
+  if(!movs.length)return '<div class="emptymsg">Todavía no hay movimientos.</div>';
+  return movs.map(g=>movHtml(g,admin)).join('');
+}
+
+/* Lo deshecho no se borra, pero tampoco puede estar a la vista todo el
+   tiempo: se muestra a pedido. */
+function engancharVerDeshechos(){
+  const b=$('#verDeshechos'); if(!b)return;
+  b.hidden=false;
+  b.textContent=D.verDeshechos?'ocultar los deshechos':'ver los deshechos';
+  b.onclick=async()=>{
+    D.verDeshechos=!D.verDeshechos;
+    const d=await api(`/api/movimientos-unidad?unidad_id=${D.unidadId}`+
+                      (D.verDeshechos?'&deshechos=1':''));
+    D.movimientos=d.movimientos||[];
+    pintarHistorial();engancharVerDeshechos();
+  };
+}
+
+async function pintarHistorial(){
+  const caja=$('#histBody'); if(!caja)return;
+  const admin=!!D.user?.puede_administrar;
+  /* Sin 19_historial.sql corrido no hay historial agrupado. Antes que
+     decir "no hay movimientos" —que sería mentira— se muestra la lista de
+     siempre, sin el botón de deshacer. */
+  if(!(D.movimientos||[]).length&&(D.historial||[]).length){
+    caja.innerHTML=listaEventos(D.historial);
+    const b=$('#verDeshechos'); if(b)b.hidden=true;
+    return;
+  }
+  caja.innerHTML=listaMovimientos(D.movimientos||[],admin);
+  $$('#histBody [data-deshacer]').forEach(b=>b.onclick=()=>deshacer(b.dataset.deshacer,b));
+}
+
+async function deshacer(grupo,boton){
+  const motivo=prompt('¿Por qué se deshace? (queda anotado)','');
+  if(motivo===null)return;
+  boton.disabled=true;boton.textContent='Deshaciendo…';
+  try{
+    const d=await api('/api/movimientos',{op:'deshacer',grupo_id:grupo,
+                                          unidad_id:D.unidadId,motivo});
+    D.movimientos=d.movimientos||[];
+    /* Deshacer mueve cubiertas: el mapa, el stock y las alertas de
+       desgaste hablan de lo mismo y tienen que quedar de acuerdo. */
+    if(D.selected)await selectUnit(D.selected);
+    await loadStock();if(D.wear)await loadWear();
+  }catch(e){
+    boton.disabled=false;boton.textContent='Deshacer';
+    $('#histBody').insertAdjacentHTML('afterbegin',`<p class="error">${esc(e.message)}</p>`);
+  }
+}
 /* EL CAMIÓN EN 3D. Reemplaza a la grilla cuando hay modelo para la unidad.
    El visor es el mismo de Flota —vive en camion3d.js— y lo único que pide
    son estos cuatro elementos y la función elegirEsquina de más abajo. */
@@ -179,8 +305,11 @@ async function selectUnit(pat){D.selected=pat;renderUnits();apagarVisor();$('#un
   /* Con modelo, el camión; sin modelo, la grilla de toda la vida. */
   const con3d=d.modelo_3d&&typeof THREE!=='undefined';
   const dibujo=con3d?visorHtml()+'<div class="elegida" id="elegida"></div>'+auxilioHtml(d.mapa):mapHtml(d.mapa);
-  $('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${dibujo}</div>${no}${puestasHtml(d.mapa)}<div class="card section"><h3>Historial de cambios de la unidad</h3>${listaEventos(d.historial||[])}</div>`;
+  $('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${dibujo}</div>${no}${puestasHtml(d.mapa)}<div class="card section"><h3>Historial de cambios de la unidad <button class="verdeshechos" id="verDeshechos" hidden></button></h3><div id="histBody"></div></div>`;
   engancharCubiertas();
+  D.unidadId=u.id;D.movimientos=d.movimientos||[];D.historial=d.historial||[];D.verDeshechos=false;
+  pintarHistorial();
+  engancharVerDeshechos();
   if(con3d){armarVisor(d.modelo_3d,d.modelo_3d_archivo,{por:d.modelo_3d_por,version:d.modelo_3d_version,mapa:d.mapa});elegirEsquina(null)}
   if($('#saveMap'))$('#saveMap').onclick=async()=>{let c=+$('#mapChoice').value;if(!c)return;await api('/api/unidades',{op:'asignar_mapa',unidad_id:u.id,configuracion_id:c});await dashboard();await selectUnit(pat)}}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}
 const labs={stock:'En stock',montada:'Montadas',reparacion:'Reparación',recapado:'Recapado',baja:'De baja'};function metrics(){$('#metrics').innerHTML=Object.keys(labs).map(k=>`<div class="metric"><b>${D.summary[k]||0}</b><span>${labs[k]}</span></div>`).join('')}async function loadStock(){try{let d=await api('/api/inventario-cubiertas');D.tires=d.cubiertas;D.summary=d.resumen;metrics();renderStock()}catch(e){$('#stockRows').innerHTML=`<tr><td colspan="6" class="error">${esc(e.message)}</td></tr>`}}function renderStock(){let q=$('#stockSearch').value.toLowerCase().trim(),s=$('#stockState').value,a=D.tires.filter(t=>(!s||t.estado===s)&&[t.codigo,t.marca,t.modelo,t.medida,t.patente].join(' ').toLowerCase().includes(q));$('#stockRows').innerHTML=a.length?a.map(t=>`<tr data-id="${t.id}"><td><b>${esc(t.codigo)}</b></td><td><span class="status ${esc(t.estado)}">${esc(t.estado)}</span></td><td>${esc([t.marca,t.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(t.medida||'—')}</td><td>${t.remanente_mm!=null?esc(t.remanente_mm)+' mm':'—'}</td><td>${t.patente?esc(fmtPat(t.patente)+' · '+t.posicion):'Depósito'}</td></tr>`).join(''):'<tr><td colspan="6" class="emptymsg">No hay cubiertas.</td></tr>';$$('#stockRows tr[data-id]').forEach(x=>x.onclick=()=>openTire(x.dataset.id))}$('#stockSearch').oninput=renderStock;$('#stockState').onchange=renderStock;

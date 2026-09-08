@@ -141,6 +141,23 @@ class Handler(BaseHTTPRequestHandler):
                 traceback.print_exc()
                 return self._error(str(e), 500)
 
+        if ruta == "/api/movimientos-unidad":
+            # El mismo historial que ya viene con el mapa, pero pidiéndolo
+            # aparte: es lo que hace falta para poder mostrar también los
+            # deshechos sin recargar la unidad entera.
+            try:
+                unidad_id = int((params.get("unidad_id") or ["0"])[0])
+                deshechos = (params.get("deshechos") or ["0"])[0] in ("1", "true", "si")
+                with base.conectar() as cx:
+                    return self._responder(jstr({
+                        "movimientos": base.movimientos_unidad(
+                            cx, unidad_id, con_deshechos=deshechos)}))
+            except ValueError:
+                return self._error("Unidad inválida.")
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
         if ruta == "/api/desgaste":
             try:
                 with base.conectar() as cx:
@@ -194,6 +211,9 @@ class Handler(BaseHTTPRequestHandler):
                         "unidad": unidad,
                         "mapa": mapa,
                         "historial": base.historial_unidad(cx, unidad["id"]),
+                        # El mismo historial pero por parte, que es como se
+                        # deshace: de a un movimiento entero.
+                        "movimientos": base.movimientos_unidad(cx, unidad["id"]),
                         # El modelo 3D, para dibujar el camión en vez de la
                         # grilla. Sale de lo mismo que en Flota: el que
                         # manda es el mapa, y las gomas se cuentan de acá.
@@ -276,6 +296,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self._cubiertas(datos)
             if ruta == "/api/unidades":
                 return self._unidades(datos)
+            if ruta == "/api/movimientos":
+                return self._movimientos(datos)
         except anthropic.APIStatusError as e:
             return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
         except anthropic.APIConnectionError:
@@ -373,6 +395,30 @@ class Handler(BaseHTTPRequestHandler):
                 "cubiertas": base.inventario_cubiertas(cx),
                 "resumen": base.resumen_cubiertas(cx),
             }))
+
+    def _movimientos(self, datos):
+        """Deshacer un movimiento de gomería.
+
+        Lo firma un encargado: revertir un movimiento cambia dónde está una
+        cubierta, igual que haberlo cargado.
+        """
+        self._exigir_encargado()
+        if (datos.get("op") or "").strip() != "deshacer":
+            raise ValueError("Operación de movimiento inválida.")
+        grupo = str(datos.get("grupo_id") or "").strip()
+        if not grupo:
+            raise ValueError("Falta el movimiento a deshacer.")
+        with base.conectar() as cx:
+            hecho = base.deshacer_grupo(
+                cx, grupo, usuario=self.usuario["nombre"],
+                motivo=str(datos.get("motivo") or "").strip() or None)
+            unidad_id = int(datos.get("unidad_id") or 0)
+            salida = {"ok": True, "hecho": hecho}
+            if unidad_id:
+                salida["mapa"] = base.mapa_unidad(cx, unidad_id)
+                salida["movimientos"] = base.movimientos_unidad(cx, unidad_id)
+            cx.commit()
+            return self._responder(jstr(salida))
 
     def _unidades(self, datos):
         self._exigir_encargado()

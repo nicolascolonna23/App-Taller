@@ -80,6 +80,19 @@
   .marca.cerrada{color:var(--ok);background:rgba(49,189,101,.12)}
   .marca.anulada{color:var(--ink-muted);background:rgba(255,255,255,.06)}
   .marca.externa{color:#7db3ef;background:rgba(125,179,239,.13)}
+
+  /* EL LECTOR DE FACTURAS. Va arriba del formulario porque es el camino
+     corto: el largo —tipear los seis campos— queda igual, abajo. */
+  .lector{border:1px dashed var(--hairline-2);border-radius:12px;padding:13px;
+    margin:0 0 14px;background:rgba(255,122,26,.04)}
+  .lector-cab b{display:block;font-size:13px;margin-bottom:2px}
+  .lector-acciones{display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+    margin-top:10px}
+  .lector .pista{font-size:12px}
+  .lector-dudas{margin-top:10px;font-size:12.5px;line-height:1.6}
+  .lector-dudas b{display:block;margin-bottom:3px}
+  .lector-dudas ul{margin:0;padding-left:18px}
+  .campo-leido{outline:1px solid rgba(255,122,26,.55)}
   .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
     font-size:12px;text-decoration:underline;padding:0}
   .accion:hover{color:var(--brand)}
@@ -255,6 +268,23 @@
     <button class="cerrar" data-cerrar="modalExterna">×</button></div>
   <p class="pista" style="margin:0 0 12px">El trabajo lo hizo un tercero y de eso quedó
     una factura. Se guarda como una orden más, así aparece en el historial de la unidad.</p>
+
+  <!-- Leer la factura en vez de tipearla. Lo que sale de acá NO se guarda
+       solo: llena el formulario de abajo para que se revise. Una factura
+       mal leída que entra sola al historial es peor que no tener la foto. -->
+  <div class="lector">
+    <div class="lector-cab">
+      <b>¿Tenés la factura a mano?</b>
+      <span class="pista">Sacale una foto o subí el PDF y se completa solo. Revisalo antes de guardar.</span>
+    </div>
+    <div class="lector-acciones">
+      <input type="file" id="xArchivo" accept="image/*,application/pdf" multiple hidden>
+      <button class="btn alt" id="xElegir">Elegir foto o PDF</button>
+      <button class="btn" id="xLeer" hidden>Leer factura</button>
+      <span class="pista" id="xArchivoNombre"></span>
+    </div>
+  </div>
+
   <div class="campos">
     <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
     <div><label>Fecha</label><input id="xFecha" type="date"></div>
@@ -294,7 +324,7 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const D = { datos:null, filtro:'', usuario:null, orden:null };
+const D = { datos:null, filtro:'', usuario:null, orden:null, facturaArchivos:[] };
 
 const nfm = new Intl.NumberFormat('es-AR');
 const money = n => Number(n || 0).toLocaleString('es-AR',
@@ -818,8 +848,140 @@ $('#nuevaExterna').onclick = () => {
   $('#avisoExterna').innerHTML = '';
   $('#xFecha').value = hoy();
   ['xFactura','xMonto','xKm','xTaller','xDetalle'].forEach(c => $('#' + c).value = '');
+  limpiarLector();
   $('#modalExterna').classList.add('on');
 };
+
+/* =====================================================================
+   LEER LA FACTURA EN VEZ DE TIPEARLA
+   ---------------------------------------------------------------------
+   La foto va al servidor, Claude la lee y devuelve los campos. Se
+   COMPLETAN, no se guardan: quien carga tiene la factura en la mano y es
+   el único que puede confirmar que el número y el total están bien.
+
+   Las fotos se achican acá antes de mandarlas. Una foto de celular son
+   4 MB de los cuales sobra el 90%: para leer un número de factura no
+   hace falta resolución de imprenta, y subirla entera desde el taller
+   con media barra de señal es la diferencia entre que ande y que no.
+   ===================================================================== */
+const LADO_MAXIMO = 2200;   // píxeles del lado más largo
+
+function limpiarLector() {
+  D.facturaArchivos = [];
+  $('#xArchivo').value = '';
+  $('#xArchivoNombre').textContent = '';
+  $('#xLeer').hidden = true;
+  const d = $('#lectorDudas'); if (d) d.remove();
+  document.querySelectorAll('.campo-leido').forEach(x => x.classList.remove('campo-leido'));
+}
+
+function achicar(file) {
+  /* Los PDF van tal cual: no son una imagen y el que los lee es el
+     servidor. */
+  if (file.type === 'application/pdf') return leerBase64(file, file.type);
+  return new Promise((resolve, reject) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const escala = Math.min(1, LADO_MAXIMO / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * escala);
+      c.height = Math.round(img.height * escala);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/jpeg', 0.85);
+      resolve({tipo: 'image/jpeg', contenido: dataUrl.split(',')[1], nombre: file.name});
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo abrir ' + file.name)); };
+    img.src = url;
+  });
+}
+
+function leerBase64(file, tipo) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve({tipo, contenido: String(fr.result).split(',')[1], nombre: file.name});
+    fr.onerror = () => reject(new Error('No se pudo leer ' + file.name));
+    fr.readAsDataURL(file);
+  });
+}
+
+$('#xElegir').onclick = () => $('#xArchivo').click();
+
+$('#xArchivo').onchange = async () => {
+  const files = Array.from($('#xArchivo').files || []).slice(0, 4);
+  if (!files.length) return limpiarLector();
+  $('#avisoExterna').innerHTML = '';
+  $('#xArchivoNombre').textContent = 'Preparando…';
+  try {
+    D.facturaArchivos = await Promise.all(files.map(achicar));
+    const peso = D.facturaArchivos.reduce((n, a) => n + a.contenido.length * 0.75, 0);
+    $('#xArchivoNombre').textContent =
+      `${files.length} archivo${files.length > 1 ? 's' : ''} · ${(peso / 1024 / 1024).toFixed(1)} MB`;
+    $('#xLeer').hidden = false;
+  } catch (e) {
+    limpiarLector();
+    $('#avisoExterna').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+};
+
+$('#xLeer').onclick = async () => {
+  const b = $('#xLeer');
+  b.disabled = true; b.textContent = 'Leyendo…';
+  $('#avisoExterna').innerHTML = '';
+  const viejo = $('#lectorDudas'); if (viejo) viejo.remove();
+  try {
+    const r = await fetch('/api/factura', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({archivos: D.facturaArchivos})});
+    const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+    if (!r.ok) throw new Error(d.error || 'No se pudo leer la factura.');
+    volcarFactura(d.factura || {});
+  } catch (e) {
+    $('#avisoExterna').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally {
+    b.disabled = false; b.textContent = 'Leer factura';
+  }
+};
+
+/* Lo leído entra en los campos y se marca con un borde: así se ve de un
+   vistazo qué puso la máquina y qué escribió una persona. */
+function volcarFactura(f) {
+  const poner = (id, valor) => {
+    if (valor === null || valor === undefined || valor === '') return false;
+    const e = $('#' + id);
+    e.value = valor;
+    e.classList.add('campo-leido');
+    return true;
+  };
+  poner('xTaller', f.taller);
+  poner('xFactura', f.factura);
+  poner('xFecha', f.fecha);
+  poner('xMonto', f.monto);
+  poner('xKm', f.km);
+  poner('xDetalle', f.detalle);
+
+  /* La patente ya viene validada contra la flota: si el servidor no la
+     reconoció, viene en null y la elige la persona. */
+  if (f.patente) {
+    const u = (D.datos?.unidades || []).find(x => x.patente === f.patente);
+    if (u) { $('#xUnidad').value = String(u.id); $('#xUnidad').classList.add('campo-leido'); }
+  }
+
+  const faltan = [['la unidad', !$('#xUnidad').value], ['el número de factura', !$('#xFactura').value],
+                  ['el monto', !$('#xMonto').value]].filter(x => x[1]).map(x => x[0]);
+  const dudas = (f.dudas || []).slice();
+  if (faltan.length) dudas.unshift('No se pudo leer ' + faltan.join(', ') + '.');
+  if (f.moneda && f.moneda !== 'ARS') dudas.unshift(`La factura está en ${esc(f.moneda)}, no en pesos.`);
+
+  const caja = document.createElement('div');
+  caja.id = 'lectorDudas';
+  caja.className = 'aviso ' + (dudas.length ? 'mal' : 'bien');
+  caja.innerHTML = dudas.length
+    ? `<div class="lector-dudas"><b>Revisá esto antes de guardar</b><ul>${
+        dudas.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`
+    : 'Se leyó la factura entera. Igual conviene mirar el número y el total antes de guardar.';
+  $('#avisoExterna').appendChild(caja);
+}
 $('#xUnidad').onchange = () => {
   const u = D.datos.unidades.find(x => String(x.id) === $('#xUnidad').value);
   if (u && !$('#xKm').value && u.km_actual) $('#xKm').value = Math.round(u.km_actual);
