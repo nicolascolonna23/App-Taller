@@ -203,6 +203,27 @@ camión con el mismo remito dos veces sí es un duplicado: se avisa y queda la
 Cada archivo subido es un lote y se borra entero, con sus remitos. No toca
 los del otro archivo. Subir y borrar pide ser encargado o administrador.
 
+### Si ya cargaste antes del arreglo de la coma decimal
+
+Hubo una versión que leía `52,019` como 52.019 litros en vez de 52 litros
+con 19 milésimas. Si cargaste la planilla con esa versión, los litros que
+están guardados son mil veces más grandes.
+
+**No alcanza con volver a subir el archivo encima.** Además de los litros,
+cambió qué se hace con `no encontrado` en la columna de patente: antes
+entraba como si fuera una patente y ahora entra vacía. Como la clave de un
+remito incluye la patente, esas filas no se pisan: quedan las viejas *y*
+las nuevas.
+
+El camino es **Borrar** la carga en *Archivos cargados* y subir el archivo
+de nuevo. Sobre la planilla de 1.189 tickets, medido:
+
+| | Filas | Litros |
+|---|---|---|
+| Cargado con la versión vieja | 1.050 | 81.474.616 |
+| Subiendo encima, sin borrar | 1.105 | 4.412.233 |
+| Borrando y volviendo a subir | 1.050 | 209.761 |
+
 ## Lo que todavía no hace
 
 - No lee PDF. Si la estación manda el listado en PDF hay que pasarlo a Excel.

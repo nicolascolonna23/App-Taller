@@ -1,0 +1,12 @@
+# Lo que Python escribe solo al correr la app. No es código: se regenera en
+# cada máquina y con cada versión del intérprete, así que versionarlo era
+# ensuciar el repo con un binario distinto por cada uno que corriera app.py.
+__pycache__/
+*.py[cod]
+
+# Entornos virtuales
+.venv/
+venv/
+
+# Archivos que deja el sistema
+.DS_Store
