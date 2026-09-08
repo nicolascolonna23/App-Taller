@@ -10,3 +10,12 @@ venv/
 
 # Archivos que deja el sistema
 .DS_Store
+
+# Credenciales y datos locales: nunca publicar en GitHub
+.env
+.env.*
+!.env.example
+**/clave.txt
+**/conexion.txt
+chat/config.json
+chat/datos.db*

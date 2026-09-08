@@ -71,3 +71,11 @@ como aplicación web y que la página le pegue por `fetch`, igual que hace
 El botón "Registrar service" de `control_flota.html` escribe en la planilla a
 través de la aplicación web de Apps Script configurada en `CFG.webapp`. Si esa
 URL deja de existir, el botón no aparece y el tablero queda de sólo lectura.
+
+## Asistente interno y combustible
+
+El asistente de consultas está en `/asistente`, detrás del login. Consultá [la guía de configuración y mejora](docs/ASISTENTE.md) para activar la API, entender sus fuentes y ampliar capacidades.
+
+Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
+
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Ambas pruebas usan datos simulados, no credenciales ni la base de producción.

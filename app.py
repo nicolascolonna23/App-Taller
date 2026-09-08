@@ -33,6 +33,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
+import asistente
 import ordenes as ots
 import preferencias as prefs
 import unidades as uni
@@ -52,6 +53,8 @@ PANTALLAS = {
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
+    "/asistente": ("asistente.html", "text/html; charset=utf-8"),
+    "/asistente/guia": ("docs/ASISTENTE.md", "text/plain; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
@@ -104,6 +107,11 @@ class App(gom.Handler):
 
     def do_GET(self):
         ruta = urlparse(self.path).path
+
+        if ruta == "/api/asistente":
+            if not self._exigir_sesion():
+                return
+            return self._responder(gom.jstr({"habilitado": asistente.habilitado()}))
 
         if ruta == "/api/repuestos":
             if not self._exigir_sesion():
@@ -432,6 +440,32 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        if ruta == "/api/asistente":
+            if not self._exigir_sesion():
+                return
+            # El navegador sólo puede iniciar consultas desde el mismo origen.
+            origen = self.headers.get("Origin")
+            if origen and urlparse(origen).netloc != self.headers.get("Host"):
+                return self._error("Origen de consulta no permitido.", 403)
+            if self.headers.get("Content-Type", "").split(";")[0].strip() != "application/json":
+                return self._error("Se requiere JSON.", 415)
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if not 0 < largo <= 100000:
+                    return self._error("La consulta es demasiado grande o está vacía.", 413)
+                datos = json.loads(self.rfile.read(largo))
+                return self._responder(gom.jstr(asistente.responder(datos, self.usuario)))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except asistente.Ocupado as e:
+                return self._error(str(e), 429)
+            except asistente.NoDisponible as e:
+                return self._error(str(e), 503)
+            except (ValueError, UnicodeError) as e:
+                return self._error("Consulta inválida. Revisá el texto y su longitud.", 400)
+            except Exception:
+                return self._error("No se pudo completar la consulta. Intentá nuevamente.", 500)
+
 
         # Cómo quiere ver la aplicación este usuario.
         if ruta == "/api/preferencias":
