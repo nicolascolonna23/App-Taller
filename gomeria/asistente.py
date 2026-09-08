@@ -6,8 +6,9 @@ from pathlib import Path
 import re
 import threading
 import time
-from urllib import request, error
 from zoneinfo import ZoneInfo
+
+import anthropic
 
 import base
 
@@ -21,13 +22,13 @@ FUENTES = {
     'combustible': ('Combustible · tickets propios', '/combustible#tickets'),
 }
 HERRAMIENTAS = [{
-    'type': 'function', 'name': 'consultar_sistema', 'strict': True,
+    'name': 'consultar_sistema',
     'description': ('Consulta datos actuales. Cubiertas: buscar por código exacto o patente; '
                     'repuestos: texto parcial de código/descripcion/rubro (usar singular, p.ej. acople); '
                     'unidades: patente, interno o texto; vencimientos: patente o nombre del tipo '
                     '(VTV/RTO); combustible: patente o remito. Vacío busca todos. '
                     'Incluye agregados completos y hasta 50 registros; jamás contar solo la muestra.'),
-    'parameters': {'type': 'object', 'additionalProperties': False,
+    'input_schema': {'type': 'object', 'additionalProperties': False,
                    'properties': {
                        'dominio': {'type': 'string', 'enum': DOMINIOS},
                        'buscar': {'type': 'string', 'description': 'Texto de búsqueda; vacío para todos.'},
@@ -47,7 +48,7 @@ class Ocupado(Exception):
 
 
 def habilitado():
-    return bool(os.environ.get('OPENAI_API_KEY', '').strip())
+    return bool(os.environ.get('ANTHROPIC_API_KEY', '').strip())
 
 
 def validar_mensajes(datos):
@@ -172,20 +173,20 @@ def consultar(args):
 
 
 def llamar_modelo(payload):
-    req = request.Request('https://api.openai.com/v1/responses',
-        data=json.dumps(payload).encode(), method='POST', headers={
-            'Authorization': 'Bearer ' + os.environ['OPENAI_API_KEY'], 'Content-Type': 'application/json'})
     try:
-        with request.urlopen(req, timeout=35) as r:
-            return json.load(r)
-    except error.HTTPError as e:
-        if e.code in (401, 403):
-            raise NoDisponible('El administrador debe revisar la clave y el acceso al modelo.') from None
-        if e.code == 429:
-            raise NoDisponible('El proveedor alcanzó su límite de uso. Intentá más tarde.') from None
-        raise NoDisponible('El proveedor de IA no pudo responder. Intentá más tarde.') from None
-    except (error.URLError, TimeoutError, OSError, ValueError):
-        raise NoDisponible('No se pudo conectar con el proveedor de IA. Intentá nuevamente.') from None
+        # Reutiliza la clave de Render y la dependencia del resto del sistema.
+        # Sin reintentos automáticos para no multiplicar latencia/costos por ronda.
+        with anthropic.Anthropic(api_key=os.environ['ANTHROPIC_API_KEY'].strip(),
+                                 timeout=35.0, max_retries=0) as cliente:
+            return cliente.messages.create(**payload).model_dump(mode='json', exclude_none=True)
+    except anthropic.APIStatusError as e:
+        if e.status_code in (401, 403):
+            raise NoDisponible('El administrador debe revisar ANTHROPIC_API_KEY y el acceso al modelo.') from None
+        if e.status_code == 429:
+            raise NoDisponible('Anthropic alcanzó su límite de uso. Intentá más tarde.') from None
+        raise NoDisponible('Anthropic no pudo responder. Revisá el modelo configurado o intentá más tarde.') from None
+    except (anthropic.APIConnectionError, anthropic.APIResponseValidationError):
+        raise NoDisponible('No se pudo obtener una respuesta válida de Anthropic. Intentá nuevamente.') from None
 
 
 # Limita costo/concurrencia en este proceso. No se guardan preguntas ni resultados.
@@ -200,7 +201,7 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
         raise PermissionError('Necesitás una sesión autorizada para consultar.')
     mensajes = validar_mensajes(datos)
     if not habilitado():
-        raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar OPENAI_API_KEY en el servidor.')
+        raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar ANTHROPIC_API_KEY en el servidor.')
     uid = usuario['id']
     with _lock:
         ahora = time.monotonic()
@@ -228,21 +229,23 @@ def _responder(mensajes, modelo_call, consulta_call):
     fuentes, llamadas = [], 0
     # Hasta 4 rondas y 8 consultas. Los resultados nunca habilitan herramientas nuevas.
     for ronda in range(4):
-        respuesta = modelo_call({'model': os.environ.get('OPENAI_MODEL', 'gpt-5.4-mini'),
-            'instructions': instrucciones, 'input': contexto, 'tools': HERRAMIENTAS,
-            'tool_choice': 'required' if ronda == 0 else ('none' if ronda == 3 or llamadas >= 8 else 'auto'),
-            'parallel_tool_calls': False, 'store': False, 'max_output_tokens': 2400})
-        if respuesta.get('status') != 'completed':
+        eleccion = {'type': 'any' if ronda == 0 else ('none' if ronda == 3 or llamadas >= 8 else 'auto')}
+        if eleccion['type'] != 'none':
+            eleccion['disable_parallel_tool_use'] = True
+        respuesta = modelo_call({'model': os.environ.get('ANTHROPIC_CHAT_MODEL', '').strip() or 'claude-opus-5',
+            'system': instrucciones, 'messages': list(contexto), 'tools': HERRAMIENTAS,
+            'tool_choice': eleccion, 'max_tokens': 2400})
+        if respuesta.get('stop_reason') not in ('end_turn', 'tool_use'):
             raise NoDisponible('La respuesta quedó incompleta. Probá con una pregunta más específica.')
-        output = respuesta.get('output', [])
-        calls = [o for o in output if o.get('type') == 'function_call']
+        output = respuesta.get('content', [])
+        calls = [o for o in output if o.get('type') == 'tool_use']
         if not calls:
-            texto = '\n'.join(c['text'] for o in output if o.get('type') == 'message'
-                              for c in o.get('content', []) if c.get('type') == 'output_text')
+            texto = '\n'.join(c['text'] for c in output if c.get('type') == 'text')
             if not texto or not fuentes:
                 raise NoDisponible('No fue posible obtener una respuesta respaldada por datos. Reformulá la consulta.')
             return {'respuesta': texto, 'fuentes': fuentes}
-        contexto.extend(output)
+        contexto.append({'role': 'assistant', 'content': output})
+        resultados = []
         for call in calls:
             llamadas += 1
             if llamadas > 8:
@@ -250,7 +253,7 @@ def _responder(mensajes, modelo_call, consulta_call):
             try:
                 if call.get('name') != 'consultar_sistema':
                     raise ValueError('Herramienta no permitida.')
-                args = json.loads(call['arguments'])
+                args = call['input']
                 consulta_sql(args)  # valida incluso con transporte de consulta inyectado en tests
                 resultado = consulta_call(args)
                 fuentes.append({k: resultado[k] for k in ('fuente', 'url', 'consultado', 'filtros', 'resumen', 'truncado')})
@@ -259,6 +262,8 @@ def _responder(mensajes, modelo_call, consulta_call):
             except Exception:
                 # No filtrar SQL, DSN, secretos ni errores internos al modelo o navegador.
                 resultado = {'error': 'Esta fuente no está disponible. No equivale a cero registros. Informá la limitación.'}
-            contexto.append({'type': 'function_call_output', 'call_id': call['call_id'],
-                             'output': json.dumps(resultado, default=str, ensure_ascii=False)})
+            resultados.append({'type': 'tool_result', 'tool_use_id': call['id'],
+                               'content': json.dumps(resultado, default=str, ensure_ascii=False),
+                               'is_error': 'error' in resultado})
+        contexto.append({'role': 'user', 'content': resultados})
     raise NoDisponible('No se pudo completar la consulta en el límite de pasos.')

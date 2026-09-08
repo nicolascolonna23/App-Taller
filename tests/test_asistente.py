@@ -22,12 +22,12 @@ def source(params):
 
 
 def tool(params=None, name='consultar_sistema'):
-    return dict(status='completed', output=[dict(type='function_call', name=name,
-            arguments=json.dumps(params or args()), call_id='call_1')])
+    return dict(stop_reason='tool_use', content=[dict(type='tool_use', name=name,
+            input=params or args(), id='call_1')])
 
 
 def answer():
-    return dict(status='completed', output=[dict(type='message', content=[dict(type='output_text', text='Hay 70 cubiertas.')])])
+    return dict(stop_reason='end_turn', content=[dict(type='text', text='Hay 70 cubiertas.')])
 
 
 class Queries(unittest.TestCase):
@@ -102,18 +102,24 @@ class Queries(unittest.TestCase):
 class Agent(unittest.TestCase):
     def setUp(self):
         a._ultimos.clear();a._activos.clear()
-        self.env=patch.dict(os.environ,{'OPENAI_API_KEY':'test-only-not-real'})
+        self.env=patch.dict(os.environ,{'ANTHROPIC_API_KEY':'test-only-not-real'})
         self.env.start()
     def tearDown(self): self.env.stop()
 
-    def test_tool_round_trip_sources_and_no_store(self):
+    def test_claude_tool_round_trip_and_sources(self):
         model=MagicMock(side_effect=[tool(),answer()])
         result=a.responder({'mensajes':[{'role':'user','content':'stock'}]}, {'id':1,'rol':'operario'},model,source)
         self.assertEqual(result['fuentes'][0]['resumen']['cantidad'],70)
         payload=model.call_args_list[0].args[0]
-        self.assertFalse(payload['store'])
-        self.assertEqual(payload['tool_choice'],'required')
-        self.assertIn('function_call_output',str(model.call_args_list[1].args[0]['input']))
+        self.assertNotIn('store',payload)
+        self.assertEqual(payload['tool_choice'],{'type':'any','disable_parallel_tool_use':True})
+        messages=model.call_args_list[1].args[0]['messages']
+        self.assertEqual(messages[-2]['role'],'assistant')
+        self.assertEqual(messages[-2]['content'][0]['type'],'tool_use')
+        self.assertEqual(messages[-1]['role'],'user')
+        self.assertEqual(messages[-1]['content'][0]['tool_use_id'],'call_1')
+        self.assertEqual(messages[-1]['content'][0]['type'],'tool_result')
+        self.assertFalse(messages[-1]['content'][0]['is_error'])
 
     def test_answer_without_evidence_rejected(self):
         with self.assertRaises(a.NoDisponible): a._responder([{'role':'user','content':'stock'}],lambda p:answer(),source)
@@ -134,7 +140,7 @@ class Agent(unittest.TestCase):
             with self.assertRaises(ValueError): a.validar_mensajes({'mensajes':messages})
 
     def test_missing_key_and_permission(self):
-        with patch.dict(os.environ,{'OPENAI_API_KEY':''}):
+        with patch.dict(os.environ,{'ANTHROPIC_API_KEY':''}):
             with self.assertRaises(a.NoDisponible): a.responder({'mensajes':[{'role':'user','content':'stock'}]}, {'id':1,'rol':'admin'})
         with self.assertRaises(PermissionError): a.responder({},None)
 
@@ -148,7 +154,67 @@ class Agent(unittest.TestCase):
         model=MagicMock(return_value=tool())
         with self.assertRaises(a.NoDisponible): a._responder([{'role':'user','content':'stock'}],model,source)
         self.assertEqual(model.call_count,4)
-        self.assertEqual(model.call_args.args[0]['tool_choice'],'none')
+        self.assertEqual(model.call_args.args[0]['tool_choice'],{'type':'none'})
+
+
+class AnthropicTransport(unittest.TestCase):
+    def test_native_sdk_round_trip_uses_existing_key(self):
+        import anthropic
+        from anthropic import _base_client
+        # Use the transport version installed with the SDK (httpx/httpx2).
+        httpx = getattr(_base_client, 'httpx2', None) or _base_client.httpx
+        requests = []
+        responses = [tool(args(estado='stock')), answer()]
+        def handle(req):
+            requests.append(req)
+            body = responses.pop(0)
+            return httpx.Response(200, json={
+                'id':'msg_test', 'type':'message', 'role':'assistant',
+                'model':'claude-opus-5', 'stop_sequence':None,
+                'usage':{'input_tokens':10,'output_tokens':10}, **body})
+        factory = anthropic.Anthropic
+        def client(**kwargs):
+            return factory(**kwargs, http_client=httpx.Client(transport=httpx.MockTransport(handle)))
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY':'test-anthropic-key', 'ANTHROPIC_CHAT_MODEL':''}):
+            with patch.object(a.anthropic, 'Anthropic', side_effect=client):
+                result=a._responder([{'role':'user','content':'stock'}],a.llamar_modelo,source)
+        self.assertEqual(result['fuentes'][0]['resumen']['cantidad'],70)
+        self.assertEqual(len(requests),2)
+        self.assertEqual(str(requests[0].url),'https://api.anthropic.com/v1/messages')
+        self.assertEqual(requests[0].headers['x-api-key'],'test-anthropic-key')
+        payload=json.loads(requests[0].content)
+        self.assertIn('input_schema',payload['tools'][0])
+        self.assertNotIn('parameters',payload['tools'][0])
+        self.assertEqual(payload['model'],'claude-opus-5')
+        self.assertEqual(json.loads(requests[1].content)['messages'][-1]['content'][0]['type'],'tool_result')
+
+    def test_timeout_and_auth_errors_are_sanitized(self):
+        import anthropic
+        from anthropic import _base_client
+        # Use the transport version installed with the SDK (httpx/httpx2).
+        httpx = getattr(_base_client, 'httpx2', None) or _base_client.httpx
+        req=httpx.Request('POST','https://api.anthropic.com/v1/messages')
+        failures=[anthropic.AuthenticationError('secret-provider-body',response=httpx.Response(401,request=req),body=None),
+                  anthropic.RateLimitError('secret-provider-body',response=httpx.Response(429,request=req),body=None),
+                  anthropic.APITimeoutError(request=req)]
+        for failure in failures:
+            client=MagicMock();client.__enter__.return_value=client
+            client.messages.create.side_effect=failure
+            with patch.dict(os.environ,{'ANTHROPIC_API_KEY':'test-only'}), patch.object(a.anthropic,'Anthropic',return_value=client):
+                with self.assertRaises(a.NoDisponible) as caught: a.llamar_modelo({})
+            self.assertNotIn('secret-provider-body',str(caught.exception))
+
+    def test_model_override_and_truncation(self):
+        model=MagicMock(side_effect=[tool(),answer()])
+        with patch.dict(os.environ,{'ANTHROPIC_CHAT_MODEL':'claude-custom-test'}):
+            a._responder([{'role':'user','content':'stock'}],model,source)
+        self.assertEqual(model.call_args.args[0]['model'],'claude-custom-test')
+        with self.assertRaises(a.NoDisponible):
+            a._responder([{'role':'user','content':'stock'}],lambda p:dict(stop_reason='max_tokens',content=[]),source)
+
+    def test_openai_key_does_not_enable_chat(self):
+        with patch.dict(os.environ,{'ANTHROPIC_API_KEY':'', 'OPENAI_API_KEY':'unrelated-test-key'}):
+            self.assertFalse(a.habilitado())
 
 
 class HTTP(unittest.TestCase):
