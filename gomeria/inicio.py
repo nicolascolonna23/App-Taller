@@ -25,82 +25,93 @@ def _uno(cx, consulta, valores=()):
     return list(fila.values())[0] if isinstance(fila, dict) else fila[0]
 
 
+def _resumir_km(filas, hoy):
+    """Diferencias diarias de Hawk. Nunca inventa km para días sin lectura."""
+    from datetime import timedelta
+    ventanas = {
+        "ayer": (hoy - timedelta(days=1), hoy - timedelta(days=1)),
+        "semana": (hoy - timedelta(days=7), hoy - timedelta(days=1)),
+        "mes": (hoy - timedelta(days=30), hoy - timedelta(days=1)),
+        "ayer_previo": (hoy - timedelta(days=2), hoy - timedelta(days=2)),
+        "semana_previa": (hoy - timedelta(days=14), hoy - timedelta(days=8)),
+        "mes_previo": (hoy - timedelta(days=60), hoy - timedelta(days=31)),
+    }
+    # La consulta entrega una lectura por unidad/fecha, siempre de Hawk.
+    anteriores, tramos = {}, []
+    for fila in sorted(filas, key=lambda f: (f["unidad_id"], f["fecha"])):
+        unidad, fecha, km = fila["unidad_id"], fila["fecha"], fila["km"]
+        anterior = anteriores.get(unidad)
+        if anterior:
+            dias = (fecha - anterior["fecha"]).days
+            delta = km - anterior["km"]
+            if dias == 1 and 0 <= delta <= 1200:
+                tramos.append((unidad, fecha, delta))
+        anteriores[unidad] = fila
+    salida, coberturas = {}, {}
+    for periodo, (desde, hasta) in ventanas.items():
+        seleccion = [(u, f, km) for u, f, km in tramos if desde <= f <= hasta]
+        cobertura = {}
+        for unidad, fecha, _ in seleccion:
+            cobertura.setdefault(unidad, set()).add(fecha)
+        dias = (hasta - desde).days + 1
+        completas = {u for u, fechas in cobertura.items() if len(fechas) == dias}
+        coberturas[periodo] = (completas, set(cobertura))
+        salida[periodo] = {
+            "km": float(sum(km for _, _, km in seleccion)) if seleccion else None,
+            "unidades": len(cobertura),
+            "dias": len({f for _, f, _ in seleccion}),
+            "dias_esperados": dias,
+            "unidades_completas": len(completas),
+            "desde": desde.isoformat(), "hasta": hasta.isoformat(),
+            "comparar": False,
+        }
+    for actual, previo in (("ayer", "ayer_previo"), ("semana", "semana_previa"), ("mes", "mes_previo")):
+        completas, unidades = coberturas[actual]
+        anteriores_completas, anteriores_unidades = coberturas[previo]
+        salida[actual]["comparar"] = bool(unidades and completas == unidades ==
+                                         anteriores_completas == anteriores_unidades)
+    return salida
+
+
 def _kilometros(cx):
-    """Lo que recorrió la flota entera: ayer, la semana y el mes.
-
-    Sale de la serie diaria del satelital. Por unidad se toma la diferencia
-    entre la primera y la última lectura del período, que es más robusto que
-    sumar día contra día: si un equipo no reportó un día, el tramo se cierra
-    igual con la lectura siguiente en vez de perderse.
-
-    Se descartan los retrocesos, que son cambios de módulo GPS y no viajes.
-    """
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
     try:
         filas = cx.execute("""
-            -- Cada ventana arranca un día antes del período: para saber cuánto
-            -- se recorrió ayer hace falta la lectura de anteayer, que es
-            -- contra la que se resta.
-            with ventanas as (
-              select 'ayer'          as periodo, current_date - 2  as desde, current_date - 1 as hasta
-              union all select 'semana',         current_date - 8,  current_date - 1
-              union all select 'mes',            current_date - 31, current_date - 1
-              union all select 'ayer_previo',    current_date - 3,  current_date - 2
-              union all select 'semana_previa',  current_date - 15, current_date - 8
-              union all select 'mes_previo',     current_date - 61, current_date - 31
-            ),
-            tramos as (
-              select v.periodo, o.unidad_id,
-                     max(o.km) - min(o.km) as recorrido,
-                     count(*) as lecturas,
-                     count(distinct o.fecha) as dias
-              from ventanas v
-              join odometros o on o.unidad_id is not null
-                              and o.fecha >= v.desde and o.fecha <= v.hasta
-              group by v.periodo, o.unidad_id
-            )
-            select periodo,
-                   round(sum(recorrido) filter (where recorrido >= 0))::bigint as km,
-                   count(*) filter (where lecturas > 1)::int as unidades,
-                   max(dias)::int as dias
-            from tramos group by periodo
-        """).fetchall()
+            select distinct on (unidad_id, fecha) unidad_id, fecha, km
+            from odometros
+            where unidad_id is not null and fuente = 'hawk'
+              and fecha >= %s and fecha < %s
+            order by unidad_id, fecha, leido desc, id desc
+        """, (hoy - timedelta(days=61), hoy)).fetchall()
     except Exception:
         cx.rollback()
         return {}
-    # Los días con lecturas se devuelven para poder decidir arriba si tiene
-    # sentido comparar: la serie arranca el 29 de julio, así que contra un
-    # mes previo con dos días cargados cualquier variación es un espejismo.
-    return {f["periodo"]: {"km": int(f["km"] or 0), "unidades": f["unidades"],
-                          "dias": f["dias"]}
-            for f in filas}
+    return _resumir_km(filas, hoy)
 
 
 def _combustible(cx):
-    """Los dos últimos meses cerrados de combustible, de la base.
-
-    Hasta acá este número salía de la planilla de Google por CSV público,
-    porque los litros nunca habían entrado a Supabase. Ahora entran por el
-    módulo de combustible, así que sale de la misma base que todo lo demás
-    y la portada deja de depender de que una planilla siga compartida.
-
-    El mes que está corriendo queda afuera: está a medio cargar, y contra
-    un mes entero da siempre una caída que no existe.
-    """
+    """Último mes calendario cerrado y el inmediatamente anterior."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    primero = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date().replace(day=1)
+    ultimo = (primero - timedelta(days=1)).replace(day=1)
+    previo = (ultimo - timedelta(days=1)).replace(day=1)
     try:
         filas = cx.execute("""
             select mes, litros, importe, km, litros_100km, pesos_km,
-                   cargas, unidades
-            from v_combustible_mes
-            where mes < date_trunc('month', current_date)
-            order by mes desc limit 2
-        """).fetchall()
+                   cargas, unidades, sin_consumo, litros_sin_consumo
+            from v_combustible_mes where mes in (%s, %s)
+            order by mes desc
+        """, (ultimo, previo)).fetchall()
     except Exception:
         cx.rollback()
         return None
-    if not filas:
-        return None
-    return {"mes": dict(filas[0]),
-            "previo": dict(filas[1]) if len(filas) > 1 else None}
+    por_mes = {str(f["mes"])[:10]: dict(f) for f in filas}
+    return {"mes": por_mes.get(ultimo.isoformat()),
+            "previo": por_mes.get(previo.isoformat()),
+            "esperado": ultimo.isoformat()}
 
 
 def resumen(cx):

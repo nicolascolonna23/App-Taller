@@ -1,0 +1,40 @@
+/* La misma lectura visual que Combustible, conservando cada módulo. */
+body{background:var(--plane);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+body :is(.card,.caja,.zona,.tarjeta,.gr,.kpi,.metric,.modal,.dialog){background:var(--surface-1);border-color:var(--hairline);border-radius:8px;box-shadow:0 2px 4px #14263805}
+body :is(.top,.topbar){background:#142638;color:#edf3f9;border-color:#2c4154}
+body :is(.top,.topbar) :is(.who,.marca,.brand,.context,.sub,.nav-link,.back,.person){color:#d4dfe9}
+body .topbar .context span{color:#b8c8d7}
+body .topbar .context b{color:#edf3f9}
+body .sidebar{background:#142638;border-color:#2c4154;color:#d4dfe9;padding-bottom:116px}
+body .sidebar :is(a,.brand,.nav-label,.side-footer,.ajustes){color:#c7d5e2}
+body .sidebar .nav a.primary{background:#ed890020;color:#ffbd60;border-color:#ed890060}
+body .sidebar .nav a:hover{background:#ffffff0d;color:white}
+body :is(.tabs,.toolbar,.filters){background:var(--surface-1);border-color:var(--hairline)}
+body :is(.tab,.km-tabs button){border-radius:5px;font-family:inherit}
+body :is(.tab.on,.tab.active,.km-tabs button.on){background:var(--brand-soft);color:var(--brand);border-color:var(--brand)}
+body :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),select,textarea){background:var(--surface-1);color:var(--ink);border-color:var(--hairline-2);border-radius:5px;font-family:inherit}
+body :is(button,.btn){font-family:inherit}
+body :is(.btn,.button){border-radius:5px}
+body th{background:var(--surface-2);color:var(--ink-muted);border-color:var(--hairline);font-size:10px;letter-spacing:.5px}
+body td{border-color:var(--hairline)}body tbody tr:hover{background:var(--surface-2)}
+body :is(h1,h2,h3){letter-spacing:-.025em}body :is(.muted,.help,.sub){color:var(--ink-muted)}
+body :is(.km-num b,.kpi b,.tarjeta b){font-variant-numeric:tabular-nums}
+:focus-visible{outline:3px solid #3185cf;outline-offset:3px}body .side-footer{border-color:#ffffff1c}
+@media(max-width:980px){body .sidebar{padding-bottom:12px;min-width:0;max-width:100vw}body .sidebar .nav{min-width:0;overflow:auto}body .shell>main{min-width:0}body .topbar{flex-wrap:wrap;gap:10px;height:auto;padding-bottom:12px}body .person{max-width:100%;flex-wrap:wrap}body{padding-bottom:86px}}
+@media print{body{padding-bottom:0}}
+@media(max-width:600px){body .workspace{padding-inline:16px}body .workspace .visual{margin-inline:-16px}}
+/* Chat compacto dentro de Pengui, con el mismo formulario y permisos. */
+.embedded body{padding:0;height:100dvh;overflow:hidden}
+.embedded header,.embedded .eyebrow,.embedded h1,.embedded .sub,.embedded .scope{display:none}
+.embedded main{padding:0;height:100%;max-width:none;display:flex;flex-direction:column}
+.embedded .panel{border:0;border-radius:0;flex:1;display:flex;flex-direction:column;min-height:0;background:var(--surface-1)}
+.embedded .panel-head{padding:10px 14px}.embedded .panel-head>strong{display:none}
+.embedded #messages{min-height:0;max-height:none;flex:1;padding:14px}
+.embedded .empty{padding:16px 0}.embedded .empty strong{font-size:17px}
+.embedded .examples{grid-template-columns:1fr;gap:7px;margin:14px 0}
+.embedded .examples button{padding:10px}.embedded .message{padding:12px;margin-bottom:12px}
+.embedded form{padding:12px;margin:0;background:var(--surface-2)}
+.embedded .composer{flex-wrap:nowrap;align-items:stretch;gap:8px}
+.embedded textarea{min-height:58px;max-height:110px;flex:1;flex-basis:auto}
+.embedded #send{width:auto;padding:10px}.embedded .hint{font-size:10px}
+.embedded #error{margin:6px 12px}.embedded .message.user{margin-left:16px}

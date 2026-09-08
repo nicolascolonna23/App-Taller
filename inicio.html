@@ -167,14 +167,16 @@ let RECORRIDO=null,PERIODO='ayer';
 function pintarKm(){
   const valor=document.getElementById('km-valor'),pie=document.getElementById('km-sub');
   const a=RECORRIDO&&RECORRIDO[PERIODO];
-  if(!a||!a.km){valor.textContent='—';pie.textContent='Todavía no hay lecturas para '+ROTULO[PERIODO]+'.';return}
+  if(!a||a.km==null){valor.textContent='—';pie.textContent='Sin lecturas suficientes para '+ROTULO[PERIODO]+'.';return}
   valor.textContent=nfm.format(a.km);
-  let txt=`${a.unidades} unidad${a.unidades===1?'':'es'} en movimiento`;
+  let txt=`${a.unidades} unidad${a.unidades===1?'':'es'} con lecturas · ${a.desde} a ${a.hasta}`;
+  if(a.unidades_completas<a.unidades)txt+=' · cobertura parcial';
+  txt+=' · diferencias entre lecturas diarias de Hawk';
   const b=RECORRIDO[PREVIO[PERIODO]];
   /* Solo se compara si el período anterior tiene una cobertura parecida: la
      serie arranca el 29 de julio, así que contra un mes con cuatro días
      cargados cualquier variación sería un espejismo. */
-  if(b&&b.km&&b.dias>=a.dias*0.8){
+  if(b&&b.km&&a.comparar){
     const p=Math.round((a.km-b.km)/b.km*100);
     txt+=` · <span class="${p>=0?'sube':'baja'}">${p>=0?'+':''}${p}%</span> vs. ${CONTRA[PERIODO]}`;
   }
@@ -243,7 +245,7 @@ const mesLabel=m=>{const p=String(m).split('-');
   return p.length===2?`${MESES_AR[+p[1]-1]} ${p[0].slice(2)}`:m};
 
 function pintarConsumo(c){
-  if(!c||!c.mes)return;
+  if(!c||!c.mes){document.getElementById('consumo').hidden=false;document.getElementById('cons-sub').textContent='Sin datos del último mes cerrado'+(c&&c.esperado?' · '+mesLabel(c.esperado.slice(0,7)):'');return;}
   const m=c.mes,b=c.previo;
   const caja=document.getElementById('consumo');
   if(m.litros_100km==null&&!m.litros)return;
@@ -260,6 +262,7 @@ function pintarConsumo(c){
      el gasto es un dato por sí solo y no depende del satelital. */
   if(m.litros)txt+=` · ${nfm.format(Math.round(m.litros))} litros`;
   if(m.pesos_km)txt+=` · $ ${nfm.format(Math.round(m.pesos_km))} por km`;
+  if(m.sin_consumo)txt+=` · parcial: ${m.sin_consumo} unidades sin km para calcular consumo`;
   document.getElementById('cons-sub').innerHTML=txt;
   caja.hidden=false;
 }

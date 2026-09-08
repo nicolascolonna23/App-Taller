@@ -19,7 +19,7 @@
 
   /* El color de cada paleta. Lo demás sale de él. */
   const PALETAS = {
-    diemar:'#ff7a1a', azul:'#3d8bfd', verde:'#22a06b',
+    diemar:'#ed8900', azul:'#3d8bfd', verde:'#22a06b',
     violeta:'#8b7bf7', rojo:'#e5484d', grafito:'#8a94a0'
   };
 
@@ -39,9 +39,9 @@
     },
     claro: {
       esquema:'light',
-      fondo:'#f4f6f8', panel:'#ffffff', panel2:'#f0f3f6', panel3:'#e6ebf0',
+      fondo:'#f3f5f7', panel:'#ffffff', panel2:'#f7f9fb', panel3:'#edf1f5',
       linea:'rgba(16,24,32,.10)', linea2:'rgba(16,24,32,.18)',
-      texto:'#111820', texto2:'#39434e', apagado:'#68727e',
+      texto:'#172b40', texto2:'#42566b', apagado:'#617387',
       sombra:'0 12px 30px rgba(16,24,32,.10)',
       ok:'#1a8f4c', atencion:'#a5730a', mal:'#c0353a', dato:'#2f6fb0',
       velo:'rgba(244,246,248,.62)', velo2:'rgba(244,246,248,.18)', velo3:'rgba(244,246,248,.94)',
@@ -128,14 +128,14 @@
     /* El logo. El de la aplicación es blanco y sobre fondo claro no se ve;
        el azul de las etiquetas sí. Es la misma marca en dos tintas. */
     for (const img of document.querySelectorAll('img[src^="/logo"]'))
-      img.src = claro ? '/logo-cedula.png' : '/logo.png';
+      img.src = claro && !img.closest('.top,.sidebar,header') ? '/logo-cedula.png' : '/logo.png';
   }
 
   /* Lo último que se vio, para que la pantalla no arranque de un color y
      cambie al otro medio segundo después. Se guarda en el navegador y se
      refresca con lo que diga el servidor, que es el que manda. */
   const GUARDADO = 'taller.tema';
-  let prefs = { tema:'oscuro', paleta:'diemar', tiene_fondo:false, fondo_propio:true };
+  let prefs = { tema:'claro', paleta:'diemar', tiene_fondo:false, fondo_propio:true };
   try {
     const antes = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
     if (antes) prefs = Object.assign(prefs, antes);

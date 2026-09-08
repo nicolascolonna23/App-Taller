@@ -42,6 +42,8 @@ import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/sistema.css": ("sistema.css", "text/css; charset=utf-8"),
+    "/pengui.js": ("pengui.js", "text/javascript; charset=utf-8"),
     "/":           ("inicio.html",             "text/html; charset=utf-8"),
     # La foto responde por los dos nombres: el del archivo y el corto. Que
     # una pantalla la pida por el nombre que no era es un 404 silencioso —
@@ -104,6 +106,21 @@ VERSION = _version()
 
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
+
+    def _responder(self, cuerpo, tipo="application/json; charset=utf-8", codigo=200, cookie=None):
+        # Incluye las pantallas servidas por el manejador de Gomería.
+        if tipo.startswith("text/html") and getattr(self, "usuario", None):
+            html = cuerpo.decode("utf-8") if isinstance(cuerpo, bytes) else cuerpo
+            tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
+            estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
+            html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
+            script = '<script src="/pengui.js"></script>'
+            if '</body>' in html:
+                antes, despues = html.rsplit('</body>', 1)
+                cuerpo = antes + script + '</body>' + despues
+            else:
+                cuerpo = html + script
+        return super()._responder(cuerpo, tipo, codigo, cookie)
 
     def do_GET(self):
         ruta = urlparse(self.path).path

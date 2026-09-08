@@ -4,11 +4,18 @@
 </style></head><body><header><img src="/logo.png" alt="Diemar"><a href="/">‹ Inicio</a><a href="/combustible">Combustible</a><span id="who"></span></header><main><div class="eyebrow">OPERACIONES / ASISTENTE IA</div><h1>Preguntale al sistema</h1><p class="sub">Consultá stock, cubiertas, unidades, vencimientos y tickets en lenguaje natural.</p><section class="panel" aria-label="Chat interno"><div class="panel-head"><strong>Asistente Diemar</strong><span id="status" class="status" role="status">Comprobando disponibilidad…</span><button id="reset" type="button">Nueva consulta</button></div><div id="messages" role="log" aria-label="Conversación" aria-live="polite"><div class="empty" id="welcome"><strong>¿Qué necesitás saber?</strong><p>Respuestas con información registrada y fuentes para verificarla.</p><div class="examples"><button>¿Cuántas gomas tengo en stock?</button><button>¿La goma 300 en qué camión está?</button><button>¿Cuántos acoples tengo en stock?</button><button>¿Qué VTV están por vencer?</button></div></div></div><p id="error" role="alert" hidden></p><form id="form"><label for="question">Tu pregunta</label><div class="composer"><textarea id="question" maxlength="2000" required placeholder="Ej. ¿Cuándo vence la VTV de AB 123 CD?"></textarea><button id="send" disabled>Enviar ↗</button></div><p class="hint">Enter para enviar · Shift + Enter para nueva línea. La conversación se borra al recargar o iniciar una nueva consulta.</p></form></section><p class="scope">Solo consulta: el asistente no modifica el sistema. Los mensajes y resultados necesarios se envían al proveedor de IA para responder. Puede cometer errores; verificá las fuentes. <a href="/asistente/guia">Configuración y mejora del agente</a></p></main>
 <script>
 'use strict';
+const embedded=new URLSearchParams(location.search).get('embed')==='1';
+if(embedded){document.documentElement.classList.add('embedded');document.addEventListener('keydown',e=>{if(e.key==='Escape')parent.postMessage('pengui:close',location.origin);});}
+document.title='Pengui | Diemar';
+document.querySelector('h1').textContent='Pengui, el asistente de IA';
+document.querySelector('.panel-head strong').textContent='Pengui';
+document.querySelector('#welcome strong').textContent='¡Hola! Soy Pengui, el asistente de IA.';
+document.querySelector('#welcome p').textContent='Te ayudo a consultar la información del taller. ¿Qué necesitás saber?';
 const $=s=>document.querySelector(s);let history=[],busy=false,ready=false;
 const links=new Set(['/gomeria','/repuestos','/unidades','/vencimientos','/combustible#tickets']);
 function message(role,text,fuentes=[]){
   $('#welcome').hidden=true;const article=document.createElement('article');article.className='message '+role;
-  const label=document.createElement('div');label.className='role';label.textContent=role==='user'?'VOS':'ASISTENTE';
+  const label=document.createElement('div');label.className='role';label.textContent=role==='user'?'VOS':'PENGUI';
   const content=document.createElement('div');content.className='answer';content.textContent=text;article.append(label,content);
   if(fuentes.length){const box=document.createElement('div');box.className='sources';box.append(document.createTextNode('FUENTES CONSULTADAS'));
     for(const source of fuentes){if(!links.has(source.url))continue;const link=document.createElement('a');link.href=source.url;link.textContent=source.fuente;const detail=document.createElement('small');const when=new Date(source.consultado);detail.textContent='Consultado: '+(isNaN(when)?'fecha no disponible':when.toLocaleString('es-AR'))+' · '+source.resumen.cantidad+' registros coincidentes'+(source.truncado?' · muestra de hasta 50':'');const filters=document.createElement('small');filters.textContent='Filtros: '+Object.entries(source.filtros||{}).filter(([k,v])=>k!=='dominio'&&v).map(([k,v])=>k+': '+v).join(' · ');box.append(link,detail,filters);}article.append(box);}
