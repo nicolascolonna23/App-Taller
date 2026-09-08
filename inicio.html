@@ -148,7 +148,7 @@ main{padding:0;max-width:none}
           <p class="km-sub" id="cons-sub"></p>
         </div>
         <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a><a class="card stat ancho" href="/ordenes" id="st-caja-ordenes" hidden style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg></span><span><b id="st-ordenes">—</b><small>en el taller con orden abierta</small></span></a></div>
-        <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Stock para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
+        <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>
     <p class="sello" id="sello"></p>
@@ -197,9 +197,20 @@ fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
     'última lectura '+d.km_fecha.slice(8,10)+'/'+d.km_fecha.slice(5,7);
   /* El aviso arranca oculto y solo aparece si de verdad falta algo: un
      cartel naranja fijo deja de leerse a la semana. */
-  if(d.reponer){
-    document.getElementById('aviso-txt').textContent=
-      `Hay ${nfm.format(d.reponer)} artículo${d.reponer===1?'':'s'} para reponer. Entrá a Repuestos para verlos.`;
+  const avisos=[];
+  if(d.cubiertas_al_limite)avisos.push(
+    `${nfm.format(d.cubiertas_al_limite)} cubierta${d.cubiertas_al_limite===1?'':'s'} llegó al mínimo de dibujo y hay que bajarla${d.cubiertas_al_limite===1?'':'s'}.`);
+  else if(d.cubiertas_cerca)avisos.push(
+    `${nfm.format(d.cubiertas_cerca)} cubierta${d.cubiertas_cerca===1?' está cerca':'s están cerca'} del mínimo de dibujo.`);
+  if(d.reponer)avisos.push(
+    `Hay ${nfm.format(d.reponer)} artículo${d.reponer===1?'':'s'} para reponer.`);
+  if(avisos.length){
+    /* La goma va primera y con su enlace: es la que puede dejar una
+       unidad parada en la ruta, y el repuesto no. */
+    document.getElementById('aviso-txt').innerHTML=avisos.join(' ')+
+      (d.cubiertas_al_limite||d.cubiertas_cerca
+        ? ' <a href="/gomeria#wear" style="color:inherit">Ver en Gomería</a>.'
+        : ' Entrá a Repuestos para verlos.');
     document.getElementById('aviso').hidden=false;
   }
 }).catch(()=>{});

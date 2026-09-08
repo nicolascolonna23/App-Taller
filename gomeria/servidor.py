@@ -18,7 +18,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 
 import anthropic
-import auth, base, interpretar, mapas
+import auth, base, desgaste, interpretar, mapas
 
 
 def jstr(d):
@@ -141,6 +141,23 @@ class Handler(BaseHTTPRequestHandler):
                 traceback.print_exc()
                 return self._error(str(e), 500)
 
+        if ruta == "/api/desgaste":
+            try:
+                with base.conectar() as cx:
+                    if not desgaste.instalado(cx):
+                        return self._responder(jstr({
+                            "instalado": False,
+                            "aviso": "Falta correr gomeria/18_desgaste.sql en Supabase."}))
+                    return self._responder(jstr({
+                        "instalado": True,
+                        **desgaste.alertas(cx),
+                        **desgaste.rendimiento(cx),
+                        "dibujos": desgaste.dibujos(cx),
+                    }))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
         if ruta == "/api/cubierta":
             try:
                 cubierta_id = int((params.get("id") or ["0"])[0])
@@ -148,6 +165,9 @@ class Handler(BaseHTTPRequestHandler):
                     ficha = base.ficha_cubierta(cx, cubierta_id)
                     if not ficha:
                         return self._error("No encontré esa cubierta.", 404)
+                    # Las vidas: la original y cada recapado, con lo que
+                    # rindió y lo que costó cada una.
+                    ficha["vidas"] = desgaste.vidas_de(cx, cubierta_id)
                     return self._responder(jstr(ficha))
             except ValueError:
                 return self._error("Cubierta inválida.")
@@ -307,6 +327,44 @@ class Handler(BaseHTTPRequestHandler):
                     cx, cubierta_id, str(datos.get("estado") or ""),
                     usuario=self.usuario["nombre"],
                     nota=str(datos.get("nota") or "").strip() or None)
+            elif op == "medir":
+                # El remanente que se carga a mano, desde la ficha. Es el
+                # dato del que cuelga toda la alerta: sin medición no hay
+                # desgaste, y sin desgaste no hay aviso ni costo por
+                # milímetro.
+                cubierta_id = int(datos.get("id") or 0)
+                remanente = datos.get("remanente_mm")
+                if remanente in (None, ""):
+                    raise ValueError("Escribí cuántos milímetros le quedan.")
+                remanente = float(remanente)
+                if not 0 <= remanente <= 40:
+                    raise ValueError("Ese remanente no es de una cubierta. Revisá el número.")
+                base.medir(cx, cubierta_id, remanente,
+                           usuario=self.usuario["nombre"])
+            elif op == "recapado":
+                # Volvió del recapador: se cierra la vida anterior con todo
+                # lo que rindió y se abre la nueva con su banda y su costo.
+                cubierta_id = int(datos.get("id") or 0)
+                desgaste.recapar(
+                    cx, cubierta_id,
+                    marca=datos.get("marca"), banda=datos.get("banda"),
+                    proveedor=datos.get("proveedor"), costo=datos.get("costo"),
+                    inicial_mm=datos.get("inicial_mm"),
+                    usuario=self.usuario["nombre"],
+                    nota=str(datos.get("nota") or "").strip() or None)
+            elif op == "criterio":
+                cubierta_id = None
+                desgaste.guardar_criterio(cx, str(datos.get("funcion") or ""),
+                                          datos.get("minimo_mm"), datos.get("aviso_mm"))
+            elif op == "dibujo":
+                cubierta_id = None
+                desgaste.guardar_dibujo(
+                    cx, datos.get("mm"), medida=datos.get("medida"),
+                    marca=datos.get("marca"), dibujo=datos.get("dibujo"),
+                    nota=datos.get("nota"))
+            elif op == "borrar_dibujo":
+                cubierta_id = None
+                desgaste.borrar_dibujo(cx, int(datos.get("id") or 0))
             else:
                 raise ValueError("Operación de cubierta inválida.")
             cx.commit()

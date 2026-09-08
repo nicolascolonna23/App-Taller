@@ -377,7 +377,42 @@ def alta_cubierta(cx, codigo, **datos):
     cx.execute("""insert into movimientos (tipo, cubierta_id, nota, usuario)
                   values ('alta', %s, %s, %s)""",
                (fila["id"], datos.get("nota"), datos.get("usuario")))
+    _abrir_primera_vida(cx, fila["id"], datos)
     return fila["id"]
+
+
+def _hay_vidas(cx):
+    """Si ya se corrió el SQL de desgaste.
+
+    Se pregunta en vez de intentar y atajar el error: en PostgreSQL una
+    consulta que falla ensucia la transacción entera, y deshacerla acá se
+    llevaría puesta el alta de la cubierta sin que nadie se entere.
+    """
+    fila = cx.execute("select to_regclass('public.vidas_cubierta') as t").fetchone()
+    return bool(fila and fila["t"])
+
+
+def _abrir_primera_vida(cx, cubierta_id, datos):
+    """Le abre la vida 0 a la cubierta recién dada de alta.
+
+    Una cubierta sin vida abierta queda afuera del cálculo de costo y
+    rendimiento sin que nadie se entere: aparece en el inventario y no
+    aparece en el tablero. Por eso el alta la abre sola.
+
+    Si el SQL de desgaste todavía no se corrió, no hace nada: que falte no
+    puede impedir dar de alta una goma. Cuando se corra, el propio archivo
+    les abre la vida a todas las que ya estén.
+    """
+    if not _hay_vidas(cx):
+        return
+    cx.execute("""
+        insert into vidas_cubierta (cubierta_id, numero, tipo, marca, banda,
+                                    inicial_mm, costo, desde, nota)
+        select %s, 0, 'original', %s, %s, %s, %s, current_date, %s
+        where not exists (select 1 from vidas_cubierta where cubierta_id = %s)
+    """, (cubierta_id, datos.get("marca"), datos.get("modelo"),
+          datos.get("remanente_mm"), datos.get("costo_compra"),
+          datos.get("nota"), cubierta_id))
 
 
 def asignar_configuracion(cx, unidad_id, configuracion_id):
@@ -420,6 +455,25 @@ def cambiar_estado_cubierta(cx, cubierta_id, estado, usuario=None, nota=None):
             'baja': 'baja'}.get(estado, 'desmontaje')
     _log(cx, uuid.uuid4(), tipo, cubierta_id=cubierta_id,
          usuario=usuario, nota=nota)
+    if estado == 'baja':
+        _cerrar_vida(cx, cubierta_id, nota or 'baja')
+
+
+def _cerrar_vida(cx, cubierta_id, motivo):
+    """Cierra la vida que corría cuando la cubierta se da de baja.
+
+    Sin esto la última vida queda abierta para siempre y sigue sumando
+    kilómetros de montajes que ya no existen. El remanente con el que
+    terminó se guarda ahora, que es cuando todavía se sabe."""
+    if not _hay_vidas(cx):
+        return
+    cx.execute("""
+        update vidas_cubierta v
+           set hasta = current_date, motivo_fin = %s,
+               remanente_fin_mm = c.remanente_mm
+          from cubiertas c
+         where c.id = v.cubierta_id and v.cubierta_id = %s and v.hasta is null
+    """, (motivo, cubierta_id))
 
 
 # =====================================================================
