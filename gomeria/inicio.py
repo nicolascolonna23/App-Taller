@@ -113,6 +113,14 @@ def resumen(cx):
         "montadas": _uno(cx, "select count(*) from montajes where hasta is null"),
         "en_stock": _uno(cx, "select count(*) from v_stock"),
 
+        # Cubiertas al límite: las que hay que bajar y las que están por
+        # llegar. Es el aviso que no se puede esperar a que alguien entre
+        # a Gomería a buscarlo.
+        "cubiertas_al_limite": _uno(cx, """select count(*) from v_alertas_cubiertas
+                                           where alerta = 'al_limite'"""),
+        "cubiertas_cerca": _uno(cx, """select count(*) from v_alertas_cubiertas
+                                       where alerta = 'cerca'"""),
+
         # Repuestos
         "articulos": _uno(cx, "select count(*) from repuestos_articulos where activo"),
         "reponer": _uno(cx, """select count(*) from v_repuestos_stock

@@ -166,10 +166,18 @@ medida —que es lo que se pregunta el gomero antes de salir a comprar—, y aba
 la lista completa con dónde está cada una. Se busca por código, marca, modelo o
 patente, y se filtra por estado y medida.
 
-El dibujo se colorea solo: en rojo por debajo de 4 mm y en amarillo por debajo
-de 8.
+El dibujo se colorea solo, con el mínimo que le toca a cada goma según dónde
+está puesta: no es el mismo para el eje direccional que para el de arrastre.
+Ver `DESGASTE.md`.
 
-## 7. Imprimir el QR
+## 7. Desgaste, costo y rendimiento
+
+Corriendo `18_desgaste.sql` se prende la solapa **Desgaste y costos**, que
+avisa cuándo una goma llega al mínimo de dibujo y calcula el costo por
+kilómetro y por milímetro gastado, marca contra marca y banda contra banda.
+Está explicado entero en **`DESGASTE.md`**.
+
+## 8. Imprimir el QR
 
 Hay dos formas, según cómo quieras trabajar.
 
@@ -208,6 +216,9 @@ fija antes de imprimir 53 etiquetas.
 | `partes` | lo que escribió el gomero, tal cual, más lo que entendió Claude |
 | `movimientos` | el libro mayor: todo lo que le pasó a cada cubierta |
 | `mediciones` | profundidad de dibujo a lo largo del tiempo |
+| `vidas_cubierta` | cada vuelta de una cubierta: la original y cada recapado, con su banda y su costo |
+| `criterios_desgaste` | con cuántos milímetros hay que bajar una goma, según la función del eje |
+| `dibujos_nuevos` | con cuántos milímetros sale de fábrica cada medida y cada banda |
 
 Dos reglas las hace cumplir la base misma, no el código: **una posición no puede
 tener dos cubiertas al mismo tiempo**, y **una cubierta no puede estar montada en
@@ -230,5 +241,7 @@ directa, entra a los datos. Por eso `conexion.txt` no va al repo.
   con las posiciones vacías. Hay que hacer un inventario inicial: recorrer la
   flota anotando qué cubierta hay en cada posición. Se puede hacer desde la
   pantalla, o con un CSV si preferís cargarlo de una.
-- **Reportes**: costo por kilómetro por marca, cubiertas por vencer, ranking de
-  rendimiento. Con la base así armada salen de una consulta.
+- **Cargar el dibujo de goma nueva de cada medida.** Las medidas de la flota
+  vienen con un valor típico de la industria, marcado como estimado. Medir una
+  goma nueva y corregirlo es lo que convierte el costo por milímetro en un dato
+  y no en una aproximación.

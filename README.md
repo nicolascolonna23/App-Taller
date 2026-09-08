@@ -36,6 +36,10 @@ muestra "Sin acceso a las planillas" en lugar de datos.
 
 Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
 
+La portada avisa además cuántas **cubiertas llegaron al mínimo de dibujo**
+(ver `gomeria/DESGASTE.md`), que es lo que puede dejar una unidad parada en
+la ruta.
+
 La portada muestra los **kilómetros** y el **consumo en L/100 km** desde la
 base: los kilómetros de la tabla `odometros` (ver `gomeria/ODOMETROS.md`) y
 los litros del módulo de combustible (ver `gomeria/COMBUSTIBLE.md`). Los
