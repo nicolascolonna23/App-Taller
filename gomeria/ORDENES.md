@@ -24,6 +24,32 @@ puede correr las veces que haga falta: no borra nada.
 Hasta que no se corra, la pantalla `/ordenes` avisa que falta el script en
 lugar de romper, y el resto de la aplicación sigue andando igual.
 
+## Cargar un servicio externo sacándole una foto a la factura
+
+En el formulario de servicio externo hay un botón para subir la factura
+—una foto del celular o el PDF que mandó el taller, hasta cuatro hojas— y
+que se complete sola: taller, número, fecha, monto, kilómetros, qué se
+hizo y de qué unidad es.
+
+**Lo que lee no se guarda solo.** Llena el formulario de siempre, marca en
+naranja los campos que completó y avisa arriba qué no pudo leer con
+seguridad. Después hay que mirarlo y apretar Guardar. Una factura mal
+leída que entra sola al historial de una unidad es peor que no tener la
+foto: nadie sabe después si el número está bien.
+
+Dos cosas que hace y conviene saber:
+
+- **La patente se valida contra la flota.** Claude recibe el listado de
+  patentes y elige entre esas. Si lo que está escrito en la factura no se
+  parece a ninguna, el campo queda vacío y lo elige la persona: puede ser
+  el auto de otro cliente del taller.
+- **Las fotos se achican en el navegador** antes de subirlas. Una foto de
+  celular son 4 MB de los cuales sobra el 90%, y subirla entera desde el
+  taller con media barra de señal es la diferencia entre que ande y que no.
+
+Necesita `ANTHROPIC_API_KEY` configurada. Si no está, el botón lo dice y
+la carga a mano sigue funcionando igual.
+
 ## El enganche con el stock
 
 Es lo único delicado del módulo, así que conviene tenerlo claro.

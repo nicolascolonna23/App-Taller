@@ -139,11 +139,13 @@ def configuraciones(cx):
     """).fetchall()
 
 
-def historial_unidad(cx, unidad_id, limite=120):
+def historial_unidad(cx, unidad_id, limite=120, con_deshechos=False):
     return cx.execute("""
-        select mv.id, mv.fecha, mv.tipo, mv.cubierta_id, c.codigo as cubierta,
+        select mv.id, mv.grupo_id, mv.fecha, mv.tipo, mv.cubierta_id,
+               c.codigo as cubierta,
                po.codigo as desde_posicion, pd.codigo as hasta_posicion,
                mv.km_unidad, mv.remanente_mm, mv.usuario, mv.nota,
+               mv.deshecho, mv.deshecho_por,
                pa.texto as texto_original
         from movimientos mv
         left join cubiertas c on c.id = mv.cubierta_id
@@ -151,8 +153,189 @@ def historial_unidad(cx, unidad_id, limite=120):
         left join configuracion_posiciones pd on pd.id = mv.posicion_destino_id
         left join partes pa on pa.id = mv.parte_id
         where mv.unidad_id = %s
+          and (%s or mv.deshecho is null)
         order by mv.fecha desc limit %s
-    """, (unidad_id, limite)).fetchall()
+    """, (unidad_id, bool(con_deshechos), limite)).fetchall()
+
+
+# =====================================================================
+# EL HISTORIAL, Y CÓMO SE DESHACE UN MOVIMIENTO
+# =====================================================================
+# Un parte es un grupo. Una rotación de cuatro cubiertas son cuatro filas
+# de un mismo grupo, y en pantalla tienen que ser un solo renglón con un
+# solo botón: deshacer media rotación no es deshacer nada.
+#
+# Todo lo que escribe un grupo se escribe en una sola transacción, y en
+# PostgreSQL now() vale lo mismo durante toda la transacción. Por eso el
+# montaje que abrió el grupo, el que cerró y la medición que tomó llevan
+# los tres exactamente la misma marca de tiempo que sus movimientos: esa
+# marca es la que permite encontrarlos después para revertirlos, sin
+# tener que haber guardado un puntero en cada tabla.
+
+def _historial_soporta_deshacer(cx):
+    fila = cx.execute("""
+        select count(*) as n from information_schema.columns
+        where table_name = 'movimientos' and column_name = 'deshecho'
+    """).fetchone()
+    return bool(fila and fila["n"])
+
+
+def movimientos_unidad(cx, unidad_id, limite=60, con_deshechos=False):
+    """El historial de la unidad, un renglón por parte.
+
+    Cada renglón trae el detalle de lo que se hizo y si se puede deshacer.
+    No se puede cuando después pasó algo más sobre las mismas cubiertas:
+    revertir el anteúltimo movimiento dejaría el mapa peor de lo que está.
+    """
+    if not _historial_soporta_deshacer(cx):
+        # Sin el SQL corrido no hay historial agrupado; la pantalla se
+        # arregla con la lista de siempre.
+        return []
+
+    grupos = cx.execute("""
+        select g.*,
+               pa.texto as texto_original,
+               exists (
+                 select 1 from movimientos m2
+                 where m2.cubierta_id = any(g.cubiertas)
+                   and m2.deshecho is null
+                   and m2.grupo_id <> g.grupo_id
+                   and m2.id > g.ultimo_id
+               ) as hay_posteriores
+        from v_grupos_movimiento g
+        left join partes pa on pa.id = g.parte_id
+        where g.unidad_id = %s
+          and (%s or not g.deshecho_flag)
+        order by g.fecha desc, g.ultimo_id desc
+        limit %s
+    """, (unidad_id, bool(con_deshechos), limite)).fetchall()
+    if not grupos:
+        return []
+
+    detalle = cx.execute("""
+        select mv.grupo_id, mv.id, mv.tipo, mv.fecha,
+               c.codigo as cubierta, c.marca,
+               po.codigo as desde_posicion, pd.codigo as hasta_posicion,
+               mv.km_unidad, mv.remanente_mm, mv.nota
+        from movimientos mv
+        left join cubiertas c on c.id = mv.cubierta_id
+        left join configuracion_posiciones po on po.id = mv.posicion_origen_id
+        left join configuracion_posiciones pd on pd.id = mv.posicion_destino_id
+        where mv.grupo_id = any(%s)
+        order by mv.id
+    """, ([g["grupo_id"] for g in grupos],)).fetchall()
+
+    por_grupo = {}
+    for fila in detalle:
+        por_grupo.setdefault(fila["grupo_id"], []).append(fila)
+
+    for g in grupos:
+        g["detalle"] = por_grupo.get(g["grupo_id"], [])
+        g["deshecho_flag"] = bool(g["deshecho_flag"])
+        g["motivo_bloqueo"] = _por_que_no_se_deshace(g)
+        g["se_puede_deshacer"] = g["motivo_bloqueo"] is None
+    return grupos
+
+
+def _por_que_no_se_deshace(grupo):
+    """El motivo, en castellano, o None si se puede deshacer."""
+    if grupo["deshecho_flag"]:
+        return "Ya está deshecho."
+    if "alta" in (grupo["tipos"] or []):
+        return ("Es el alta de una cubierta. Para sacarla del sistema hay que "
+                "darla de baja desde su ficha.")
+    if grupo["hay_posteriores"]:
+        return ("Después de este movimiento hubo otros sobre las mismas "
+                "cubiertas. Deshacé primero el último.")
+    return None
+
+
+def deshacer_grupo(cx, grupo_id, usuario=None, motivo=None):
+    """Revierte un movimiento entero y lo deja marcado como deshecho.
+
+    Devuelve un resumen de lo que se revirtió. La cubierta vuelve a donde
+    estaba, la medición se borra y el remanente vuelve a la medición
+    anterior. Lo único que no se puede reconstruir es de qué estado venía
+    una cubierta que no estaba montada —si estaba en reparación o en el
+    estante—: esas vuelven al estante, que es donde no molestan.
+    """
+    if not _historial_soporta_deshacer(cx):
+        raise ValueError("Falta correr gomeria/19_historial.sql en Supabase.")
+
+    movs = cx.execute("""
+        select * from movimientos where grupo_id = %s order by id
+    """, (grupo_id,)).fetchall()
+    if not movs:
+        raise ValueError("Ese movimiento no existe.")
+
+    grupo = cx.execute("""
+        select g.*, exists (
+                 select 1 from movimientos m2
+                 where m2.cubierta_id = any(g.cubiertas)
+                   and m2.deshecho is null
+                   and m2.grupo_id <> g.grupo_id
+                   and m2.id > g.ultimo_id
+               ) as hay_posteriores
+        from v_grupos_movimiento g where g.grupo_id = %s
+    """, (grupo_id,)).fetchone()
+    grupo["deshecho_flag"] = bool(grupo["deshecho_flag"])
+    impedimento = _por_que_no_se_deshace(grupo)
+    if impedimento:
+        raise ValueError(impedimento)
+
+    cubiertas = grupo["cubiertas"] or []
+    fecha = movs[0]["fecha"]
+
+    # Los montajes que abrió este grupo se van; los que cerró vuelven a
+    # abrirse. Los dos se reconocen por la marca de tiempo de la
+    # transacción que los escribió.
+    abiertos = cx.execute("""
+        delete from montajes
+        where cubierta_id = any(%s) and desde = %s
+        returning id""", (cubiertas, fecha)).fetchall()
+    cerrados = cx.execute("""
+        update montajes set hasta = null, km_unidad_desmontaje = null
+        where cubierta_id = any(%s) and hasta = %s
+        returning id""", (cubiertas, fecha)).fetchall()
+
+    # Las mediciones que tomó, y el remanente vuelve al valor anterior.
+    cx.execute("delete from mediciones where cubierta_id = any(%s) and fecha = %s",
+               (cubiertas, fecha))
+
+    for cubierta_id in cubiertas:
+        anterior = cx.execute("""
+            select remanente_mm from mediciones
+            where cubierta_id = %s order by fecha desc, id desc limit 1
+        """, (cubierta_id,)).fetchone()
+        montada = cx.execute("""
+            select 1 from montajes where cubierta_id = %s and hasta is null
+        """, (cubierta_id,)).fetchone()
+        cx.execute("""
+            update cubiertas
+               set remanente_mm = %s,
+                   estado = %s,
+                   fecha_baja = null,
+                   motivo_baja = null
+             where id = %s
+        """, (anterior["remanente_mm"] if anterior else None,
+              "montada" if montada else "stock", cubierta_id))
+
+    cx.execute("""
+        update movimientos set deshecho = now(), deshecho_por = %s, deshecho_motivo = %s
+        where grupo_id = %s
+    """, (usuario, (str(motivo).strip() or None) if motivo else None, grupo_id))
+
+    # El parte del que salió vuelve a quedar sin aplicar, con el texto
+    # original intacto: es la prueba de qué se había escrito.
+    if grupo["parte_id"]:
+        cx.execute("""
+            update partes set estado = 'descartado', resuelto = now(), resuelto_por = %s
+            where id = %s""", (usuario, grupo["parte_id"]))
+
+    return {"montajes_borrados": len(abiertos),
+            "montajes_reabiertos": len(cerrados),
+            "cubiertas": len(cubiertas),
+            "renglones": len(movs)}
 
 
 def posicion_por_codigo(cx, unidad_id, codigo):
@@ -636,10 +819,21 @@ def rotar(cx, unidad_id, pares, km=None, grupo=None, **kw):
 
 
 def medir(cx, cubierta_id, remanente_mm, km=None, usuario=None, grupo=None):
+    """Anota el dibujo que le quedó a una cubierta.
+
+    Si está montada, la medición queda también a nombre de la unidad: es
+    algo que pasó sobre ese camión y tiene que verse en su historial, que
+    es donde se mira cuando hay que deshacer una carga equivocada.
+    """
     grupo = grupo or uuid.uuid4()
+    puesta = cx.execute("""
+        select unidad_id, posicion_id from montajes
+        where cubierta_id = %s and hasta is null""", (cubierta_id,)).fetchone()
     cx.execute("""insert into mediciones (cubierta_id, remanente_mm, km_unidad, usuario)
                   values (%s,%s,%s,%s)""", (cubierta_id, remanente_mm, km, usuario))
     cx.execute("update cubiertas set remanente_mm = %s where id = %s", (remanente_mm, cubierta_id))
     _log(cx, grupo, "medicion", cubierta_id=cubierta_id, km=km,
-         remanente_mm=remanente_mm, usuario=usuario)
+         remanente_mm=remanente_mm, usuario=usuario,
+         unidad_id=puesta["unidad_id"] if puesta else None,
+         origen_id=puesta["posicion_id"] if puesta else None)
     return grupo

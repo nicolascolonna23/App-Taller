@@ -36,6 +36,10 @@ muestra "Sin acceso a las planillas" en lugar de datos.
 
 Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
 
+**Vencimientos vive adentro de Flota**, como su segunda solapa: la unidad y
+sus papeles son lo mismo, y el inicio no puede ser una lista de todo. Lo que
+sí queda en la portada es el número: cuántos documentos están vencidos.
+
 La portada avisa además cuántas **cubiertas llegaron al mínimo de dibujo**
 (ver `gomeria/DESGASTE.md`), que es lo que puede dejar una unidad parada en
 la ruta.

@@ -177,7 +177,38 @@ avisa cuándo una goma llega al mínimo de dibujo y calcula el costo por
 kilómetro y por milímetro gastado, marca contra marca y banda contra banda.
 Está explicado entero en **`DESGASTE.md`**.
 
-## 8. Imprimir el QR
+## 8. Deshacer un movimiento
+
+El gomero carga un parte, lo confirma, y recién ahí se da cuenta de que
+puso el número de fuego cambiado. Corriendo `19_historial.sql`, el
+historial de cada unidad pasa a mostrarse **por parte y no por cubierta**
+—una rotación de cuatro gomas es un solo renglón— y cada uno tiene su
+botón de **Deshacer**.
+
+Deshacer revierte el efecto entero: la cubierta vuelve a la posición
+donde estaba, la medición se borra y el remanente vuelve al valor
+anterior. Lo firma un encargado, igual que haberlo cargado.
+
+**Lo deshecho no se borra.** Desaparece de la lista, pero la fila queda
+con quién lo deshizo, cuándo y por qué, y se puede mirar con *ver los
+deshechos*. El libro mayor de una flota no puede tener renglones que se
+evaporan: la diferencia entre «esto no pasó» y «esto se cargó mal y lo
+corrigió Ramón el martes» es toda la diferencia cuando hay que discutir
+una goma con un proveedor.
+
+Dos límites, a propósito:
+
+- **Se deshace de atrás para adelante.** Si después de ese movimiento
+  hubo otro sobre las mismas cubiertas, el botón lo dice y no deja:
+  revertir el anteúltimo dejaría el mapa peor de lo que está.
+- **El alta de una cubierta no se deshace desde acá.** Para sacarla del
+  sistema se la da de baja desde su ficha, que es lo que deja el rastro.
+
+Lo único que no se puede reconstruir es de qué estado venía una cubierta
+que no estaba montada —si estaba en reparación o en el estante—: esas
+vuelven al estante.
+
+## 9. Imprimir el QR
 
 Hay dos formas, según cómo quieras trabajar.
 

@@ -32,6 +32,18 @@
     color:var(--ink-muted);font-weight:800}
   .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
 
+  /* LAS DOS MITADES DE FLOTA. El maestro de unidades y los vencimientos son
+     el mismo módulo: la unidad y sus papeles. Estaban en dos entradas
+     distintas del inicio, y el inicio no puede ser una lista de todo. */
+  .solapas{display:flex;gap:2px;padding:0 20px;background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);position:sticky;top:58px;z-index:9}
+  .solapas a{padding:11px 15px;font-size:13px;font-weight:700;
+    color:var(--ink-muted);text-decoration:none;border-bottom:2px solid transparent;
+    margin-bottom:-1px}
+  .solapas a:hover{color:var(--ink)}
+  .solapas a.on{color:var(--brand);border-bottom-color:var(--brand)}
+  @media(max-width:640px){.solapas{padding:0 8px;overflow-x:auto}}
+
   main{max-width:1400px;margin:auto;padding:20px}
   h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
   .sub{color:var(--ink-muted);margin:5px 0 18px}
@@ -240,6 +252,8 @@
   <span class="marca">Flota</span>
   <span class="who" id="quien"></span>
 </header>
+
+<nav class="solapas"><a href="/unidades" class="on">Unidades</a><a href="/vencimientos">Vencimientos</a></nav>
 
 <main>
   <h1>Flota</h1>
