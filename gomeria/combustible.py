@@ -1,5 +1,20 @@
 """
-Cruce de remitos de combustible.  MÓDULO EN PRUEBA.
+Combustible: lo que gasta la flota, y el control de lo que nos facturan.
+
+Dos cosas que salen del mismo archivo:
+
+  El combustible de la flota. Nuestra planilla de cargas es el registro
+  de cuánto combustible se puso y cuánto costó. Cruzada con la serie de
+  odómetros del satelital sale el consumo real —litros cada 100 km— por
+  unidad y por mes, que hasta acá había que ir a buscar a una planilla
+  de Google y copiar a mano.
+
+  El cruce de remitos, que es el control de la factura y sigue igual que
+  siempre.
+
+Un archivo, dos usos: lo que se sube para pagarle a la estación es lo
+mismo que dice cuánto gasta la flota. Cargarlo dos veces sería garantía
+de que un día los dos números no den lo mismo.
 
 La estación de servicio manda un listado de remitos y después la factura.
 Nosotros tenemos nuestra planilla de cargas. Hoy alguien compara las dos a
@@ -298,6 +313,41 @@ def _uno(cx, consulta, valores=()):
     except Exception:
         cx.rollback()
         return []
+
+
+def flota(cx, mes=None, limite=400):
+    """El combustible de la flota: el total del mes y unidad por unidad.
+
+    Sale de lo mismo que se sube como "nuestra planilla". El archivo es
+    uno solo y sirve para las dos cosas: acá dice cuánto gastó la flota,
+    y en el cruce sirve para validar la factura de la estación.
+
+    Sin `mes` se toma el último que tenga cargas, que es el que se está
+    mirando el 99% de las veces.
+    """
+    # Sin _uno a propósito: si la vista todavía no existe tiene que
+    # reventar para que la pantalla diga que falta correr el SQL. Tragarse
+    # el error acá deja una pantalla vacía que parece "no hay cargas".
+    meses = cx.execute(
+        "select * from v_combustible_mes order by mes desc limit 36").fetchall()
+    if not meses:
+        return {"meses": [], "mes": None, "total": None, "unidades": []}
+
+    # El mes que se pidió, si existe; si no, el último cargado.
+    elegido = next((dict(m) for m in meses if str(m["mes"])[:7] == str(mes or "")[:7]),
+                   dict(meses[0]))
+
+    return {
+        "meses": [dict(m) for m in meses],
+        "mes": str(elegido["mes"]),
+        "total": elegido,
+        "unidades": _uno(cx, """
+            select * from v_combustible_flota
+            where mes = %s
+            -- Primero el que más gastó: es por donde se empieza a mirar.
+            order by importe desc nulls last, litros desc nulls last
+            limit %s""", (elegido["mes"], limite)),
+    }
 
 
 def panel(cx, estado=None, limite=400):

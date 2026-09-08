@@ -90,6 +90,21 @@
   .tarjeta.solo_planilla b{color:var(--warn)}
   .tarjeta.difiere_litros b,.tarjeta.difiere_importe b{color:var(--info)}
   .tarjeta.fuera_de_periodo b{color:var(--ink-muted)}
+
+  /* Las dos vistas del módulo. Es una sola pantalla porque salen del mismo
+     archivo: separarlas en dos direcciones sería fingir que son dos cosas. */
+  .solapas{display:flex;gap:5px;margin:0 0 16px;border-bottom:1px solid var(--hairline)}
+  .solapas button{border:0;background:none;color:var(--ink-muted);font:inherit;
+    font-weight:700;padding:10px 14px;cursor:pointer;border-bottom:2px solid transparent;
+    margin-bottom:-1px}
+  .solapas button:hover{color:var(--ink)}
+  .solapas button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  .mes{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .mes select{background:var(--surface-2);color:var(--ink);border:1px solid var(--hairline-2);
+    border-radius:10px;padding:9px 12px;font:inherit;outline:none}
+  .mes .nota{color:var(--ink-muted);font-size:12px}
+  .tarjeta.dato b{color:var(--ink)}
+  .tarjeta.consumo b{color:var(--brand)}
   .pastilla.fuera_de_periodo{background:rgba(255,255,255,.06);color:var(--ink-muted)}
 
   /* Elegir a mano qué columna es cada cosa. */
@@ -148,14 +163,19 @@
 </header>
 
 <main>
-  <h1>Cruce de remitos</h1>
-  <p class="sub">El listado de la estación contra nuestra planilla, por número de remito.</p>
+  <h1>Combustible</h1>
+  <p class="sub" id="sub">Lo que gasta la flota, y el control de lo que nos facturan.</p>
+
+  <div class="solapas">
+    <button data-vista="flota" class="on">Combustible de la flota</button>
+    <button data-vista="cruce">Cruce de remitos</button>
+  </div>
 
   <div class="prueba">
     <span class="tag">En prueba</span>
-    <p><b>Este módulo todavía no reemplaza a nada.</b> Se usa en paralelo con
-       lo de siempre hasta que los números den. Nada de lo que se cargue acá
-       afecta al resto del sistema: vive en su propia tabla y cada carga se
+    <p><b>Se usa en paralelo con la planilla de siempre hasta que los números
+       den.</b> Un mismo archivo alimenta las dos vistas: dice cuánto gastó la
+       flota y sirve para controlar la factura de la estación. Cada carga se
        puede borrar entera.</p>
   </div>
 
@@ -176,9 +196,10 @@
     </div>
 
     <div class="zona" id="z-planilla" data-origen="planilla">
-      <h2>Nuestra planilla</h2>
-      <p class="que">La de combustible, exportada como Excel o CSV. Se usa la
-         primera hoja.</p>
+      <h2>Nuestras cargas</h2>
+      <p class="que">La planilla de combustible, exportada como Excel o CSV. Se
+         usa la primera hoja. De acá sale <b>lo que gastó la flota</b> y, además,
+         con qué se controla la factura de la estación.</p>
       <div class="fila">
         <input type="file" accept=".xlsx,.xlsm,.csv" id="f-planilla">
         <button class="btn gris" data-elegir="f-planilla">Elegir archivo</button>
@@ -188,23 +209,56 @@
     </div>
   </div>
 
-  <div class="tarjetas" id="tarjetas"></div>
+  <!-- ------------------------------------------- combustible de la flota -->
+  <section id="vista-flota">
+    <div class="mes">
+      <label for="mes" style="color:var(--ink-muted);font-size:12px">Mes</label>
+      <select id="mes"></select>
+      <span class="nota" id="mes-nota"></span>
+    </div>
 
-  <p class="leyenda" id="leyenda" hidden></p>
+    <div class="tarjetas" id="totales"></div>
 
-  <div class="caja">
-    <table class="datos">
-      <thead><tr>
-        <th>Remito</th><th>Fecha</th><th>Unidad</th><th>Estado</th>
-        <th style="text-align:right">Litros est.</th><th style="text-align:right">Litros pla.</th>
-        <th style="text-align:right">Dif. litros</th>
-        <th style="text-align:right">Importe est.</th><th style="text-align:right">Importe pla.</th>
-        <th style="text-align:right">Dif. importe</th>
-      </tr></thead>
-      <tbody id="cuerpo"></tbody>
-    </table>
-    <p class="vacio" id="vacio">Todavía no se subió ningún archivo.</p>
-  </div>
+    <p class="leyenda" id="aviso-flota" hidden></p>
+
+    <div class="caja">
+      <table class="datos">
+        <thead><tr>
+          <th>Unidad</th><th>Chofer</th>
+          <th style="text-align:right">Cargas</th>
+          <th style="text-align:right">Litros</th>
+          <th style="text-align:right">Gastado $</th>
+          <th style="text-align:right">$ / litro</th>
+          <th style="text-align:right">Km</th>
+          <th style="text-align:right">L / 100 km</th>
+          <th style="text-align:right">$ / km</th>
+        </tr></thead>
+        <tbody id="cuerpo-flota"></tbody>
+      </table>
+      <p class="vacio" id="vacio-flota">Todavía no se subió ninguna planilla de cargas.</p>
+    </div>
+  </section>
+
+  <!-- --------------------------------------------------- cruce de remitos -->
+  <section id="vista-cruce" hidden>
+    <div class="tarjetas" id="tarjetas"></div>
+
+    <p class="leyenda" id="leyenda" hidden></p>
+
+    <div class="caja">
+      <table class="datos">
+        <thead><tr>
+          <th>Remito</th><th>Fecha</th><th>Unidad</th><th>Estado</th>
+          <th style="text-align:right">Litros est.</th><th style="text-align:right">Litros pla.</th>
+          <th style="text-align:right">Dif. litros</th>
+          <th style="text-align:right">Importe est.</th><th style="text-align:right">Importe pla.</th>
+          <th style="text-align:right">Dif. importe</th>
+        </tr></thead>
+        <tbody id="cuerpo"></tbody>
+      </table>
+      <p class="vacio" id="vacio">Todavía no se subió ningún archivo.</p>
+    </div>
+  </section>
 
   <div class="caja lotes" id="caja-lotes" hidden>
     <div style="padding:12px 12px 0"><h2>Archivos cargados</h2></div>
@@ -239,7 +293,19 @@ const ORDEN = ['solo_estacion','difiere_importe','difiere_litros','solo_planilla
                'ok','fuera_de_periodo'];
 
 let DATOS = { resumen: [], cruce: [], lotes: [] };
-let FILTRO = null, PUEDE = false;
+let FLOTA = { meses: [], mes: null, total: null, unidades: [] };
+let FILTRO = null, PUEDE = false, VISTA = 'flota';
+
+/* Las dos vistas del módulo. La de la flota es la que se mira todos los
+   meses; la del cruce, solo cuando llega la factura. Por eso arranca en la
+   primera. */
+document.querySelectorAll('.solapas button').forEach(b => b.onclick = () => {
+  VISTA = b.dataset.vista;
+  document.querySelectorAll('.solapas button').forEach(x =>
+    x.classList.toggle('on', x.dataset.vista === VISTA));
+  $('#vista-flota').hidden = VISTA !== 'flota';
+  $('#vista-cruce').hidden = VISTA !== 'cruce';
+});
 
 /* ------------------------------------------------------------------ */
 /* Subir un archivo. Primero se lee y se muestra qué entraría; recién
@@ -310,6 +376,7 @@ async function mandar(origen, archivo, confirmar){
       $('#f-' + origen).value = '';
       COLUMNAS[origen] = null;
       cargar();
+      cargarFlota($('#mes').value);
     }
   } catch (err){
     caja.hidden = true;
@@ -361,6 +428,86 @@ function vistaPrevia(origen, nombre, d){
     `<div class="acciones">` +
     `<button class="btn chico guardar">Guardar estos ${d.leidas}</button>` +
     `<button class="btn chico gris cancelar">Cancelar</button></div>`;
+}
+
+/* ------------------------------------------------------------------ */
+/* EL COMBUSTIBLE DE LA FLOTA
+   Los litros salen de nuestra planilla y los kilómetros de la serie del
+   satelital, que ya está en la base. Cruzarlos es la única forma de saber
+   si un camión está consumiendo de más: los litros solos no dicen nada,
+   porque el que más carga puede ser sencillamente el que más anda. */
+const plata  = v => v == null ? '—' : '$ ' + nf0.format(v);
+const litros = v => v == null ? '—' : nf0.format(v) + ' l';
+
+function pintarFlota(){
+  const t = FLOTA.total;
+
+  $('#mes').innerHTML = FLOTA.meses.map(m => `<option value="${esc(String(m.mes))}"${
+    String(m.mes) === String(FLOTA.mes) ? ' selected' : ''}>${esc(nombreMes(m.mes))}</option>`).join('');
+  $('#mes').disabled = FLOTA.meses.length < 2;
+  $('#mes-nota').textContent = t
+    ? `${t.unidades} unidad${t.unidades === 1 ? '' : 'es'} · ${t.cargas} carga${t.cargas === 1 ? '' : 's'}`
+    : '';
+
+  const tarjeta = (clase, valor, rotulo, pie) => `<div class="tarjeta ${clase}">
+    <b>${valor}</b><span>${esc(rotulo)}</span><small>${pie || ''}</small></div>`;
+
+  $('#totales').innerHTML = !t ? '' : [
+    tarjeta('dato', litros(t.litros), 'Cargado en el mes'),
+    tarjeta('dato', plata(t.importe), 'Gastado en el mes'),
+    tarjeta('dato', t.precio_litro == null ? '—' : '$ ' + nf.format(t.precio_litro),
+            'Precio por litro', 'promedio de lo cargado'),
+    tarjeta('dato', t.km == null ? '—' : nf0.format(t.km) + ' km', 'Recorrido', 'del satelital'),
+    tarjeta('consumo', t.litros_100km == null ? '—' : nf.format(t.litros_100km),
+            'Litros cada 100 km', 'de la flota entera'),
+    tarjeta('dato', t.pesos_km == null ? '—' : '$ ' + nf.format(t.pesos_km), 'Por kilómetro'),
+  ].join('');
+
+  /* Las unidades sin kilómetros quedan fuera del consumo, y eso hay que
+     decirlo: si no, el número parece el de toda la flota y no lo es. */
+  const fuera = t && t.sin_consumo;
+  $('#aviso-flota').hidden = !fuera;
+  if (fuera) $('#aviso-flota').innerHTML =
+    `<b>${fuera}</b> unidad${fuera === 1 ? '' : 'es'} quedó fuera del consumo por no tener ` +
+    `kilómetros del satelital ese mes${t.litros_sin_consumo
+      ? ` — son ${nf0.format(t.litros_sin_consumo)} litros` : ''}. ` +
+    `El gasto sí está contado; el <b>L/100 km</b> se calcula solo sobre las que ` +
+    `tienen kilómetros, porque mezclarlas daría un consumo inventado.`;
+
+  const filas = FLOTA.unidades;
+  $('#vacio-flota').hidden = filas.length > 0;
+  const num = (v, dec) => `<td class="num">${v == null ? '—'
+    : (dec ? nf : nf0).format(v)}</td>`;
+
+  $('#cuerpo-flota').innerHTML = filas.map(f => `<tr>
+      <td><b>${esc(fmtPat(f.patente))}</b>${
+        f.interno ? ` <span style="color:var(--ink-muted)">· ${esc(f.interno)}</span>` : ''}
+        ${f.sin_consumo ? `<div style="color:var(--ink-muted);font-size:11px">${esc(f.sin_consumo)}</div>` : ''}</td>
+      <td style="color:var(--ink-muted)">${esc(f.chofer || '')}</td>
+      ${num(f.cargas)}${num(f.litros)}${num(f.importe)}${num(f.precio_litro, true)}
+      ${num(f.km)}
+      <td class="num"><b>${f.litros_100km == null ? '—' : nf.format(f.litros_100km)}</b></td>
+      ${num(f.pesos_km, true)}
+    </tr>`).join('');
+}
+
+const MESES_AR = ['enero','febrero','marzo','abril','mayo','junio','julio',
+                  'agosto','septiembre','octubre','noviembre','diciembre'];
+function nombreMes(m){
+  const p = String(m || '').split('-');
+  return p.length >= 2 ? `${MESES_AR[+p[1] - 1]} de ${p[0]}` : String(m || '');
+}
+
+async function cargarFlota(mes){
+  const r = await fetch('/api/combustible?vista=flota' + (mes ? '&mes=' + mes : ''));
+  if (!r.ok){
+    const d = await r.json().catch(() => ({}));
+    $('#error').textContent = d.error || 'No se pudo leer el combustible de la flota.';
+    $('#error').hidden = false;
+    return;
+  }
+  FLOTA = await r.json();
+  pintarFlota();
 }
 
 /* ------------------------------------------------------------------ */
@@ -434,9 +581,12 @@ function pintar(){
       });
       if (!r.ok) throw new Error((await r.json().catch(()=>({}))).error || 'No se pudo borrar.');
       cargar();
+      cargarFlota($('#mes').value);
     } catch (err){ $('#error').textContent = err.message; $('#error').hidden = false; b.disabled = false; }
   });
 }
+
+$('#mes').onchange = () => cargarFlota($('#mes').value);
 
 async function cargar(){
   const r = await fetch('/api/combustible' + (FILTRO ? '?estado=' + FILTRO : ''));
@@ -461,6 +611,7 @@ fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
 }).catch(() => {});
 
 cargar();
+cargarFlota();
 </script>
 </body>
 </html>
