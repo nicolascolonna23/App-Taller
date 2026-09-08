@@ -33,10 +33,10 @@ TIPOS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 def _limpiar(prefs):
     """Deja solo lo que se entiende, con lo de siempre para el resto."""
     prefs = prefs if isinstance(prefs, dict) else {}
-    tema = str(prefs.get("tema") or "oscuro").lower()
+    tema = str(prefs.get("tema") or "claro").lower()
     paleta = str(prefs.get("paleta") or "diemar").lower()
     return {
-        "tema": tema if tema in {t[0] for t in TEMAS} else "oscuro",
+        "tema": tema if tema in {t[0] for t in TEMAS} else "claro",
         "paleta": paleta if paleta in {p[0] for p in PALETAS} else "diemar",
         # Si subió una foto, se usa; el interruptor es para volver a la de
         # la empresa sin tener que borrarla.

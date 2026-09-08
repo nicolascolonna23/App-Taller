@@ -199,6 +199,12 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
     if not usuario or usuario.get('rol') not in ROLES:
         raise PermissionError('Necesitás una sesión autorizada para consultar.')
     mensajes = validar_mensajes(datos)
+    # La identidad no es un dato operativo ni requiere consultar la base.
+    import unicodedata
+    saludo = ''.join(c for c in unicodedata.normalize('NFD', mensajes[-1]['content'].lower())
+                     if c.isalnum() or c.isspace()).strip()
+    if saludo in {'hola', 'hola pengui', 'buen dia', 'buenas', 'quien sos', 'como te llamas'}:
+        return {'respuesta': '¡Hola! Soy Pengui, el asistente de IA de Diemar. Te ayudo a consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué necesitás saber?', 'fuentes': []}
     if not habilitado():
         raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar OPENAI_API_KEY en el servidor.')
     uid = usuario['id']
