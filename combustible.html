@@ -48,15 +48,20 @@
   .prueba p{margin:0;font-size:12.5px;color:#e8d9ae;line-height:1.55}
   .prueba b{color:#fff}
 
-  .cargar{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-bottom:18px}
-  @media(max-width:820px){ .cargar{grid-template-columns:1fr} }
-  .zona{background:var(--surface-1);border:1px dashed var(--hairline-2);
-    border-radius:13px;padding:16px}
+  /* Subir un archivo es algo que se hace una vez por mes; mirar los
+     números, todos los días. Por eso la zona de carga es un renglón y no
+     dos cajones enormes arriba de todo, que era lo primero que se veía al
+     entrar y lo último que hacía falta. */
+  .zona{border:1px dashed var(--hairline-2);border-radius:11px;
+    padding:10px 13px;margin-bottom:16px;
+    display:flex;gap:11px;align-items:center;flex-wrap:wrap}
   .zona.encima{border-color:var(--brand);background:var(--brand-soft)}
-  .zona h2{margin:0 0 3px;font-size:14px}
-  .zona .que{color:var(--ink-muted);font-size:11.5px;margin:0 0 12px;line-height:1.5}
+  .zona h2{margin:0;font-size:13px;font-weight:700;white-space:nowrap}
+  .zona .que{color:var(--ink-muted);font-size:11.5px;margin:0;line-height:1.45;
+    flex:1 1 220px;min-width:0}
   .zona input[type=file]{display:none}
   .zona .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .zona .previo{flex-basis:100%;margin-top:0}
   .btn{background:var(--brand);color:#fff;border:0;border-radius:9px;
     padding:9px 14px;font:inherit;font-weight:700;cursor:pointer}
   .btn.gris{background:var(--surface-3);color:var(--ink)}
@@ -174,43 +179,27 @@
   <div class="prueba">
     <span class="tag">En prueba</span>
     <p><b>Se usa en paralelo con la planilla de siempre hasta que los números
-       den.</b> Un mismo archivo alimenta las dos vistas: dice cuánto gastó la
-       flota y sirve para controlar la factura de la estación. Cada carga se
-       puede borrar entera.</p>
+       den.</b> Los tickets que se cargan acá son los que después se cruzan
+       contra la factura de la estación. Cada carga se puede borrar entera.</p>
   </div>
 
   <div id="error" class="error" hidden></div>
 
-  <div class="cargar">
-    <div class="zona" id="z-estacion" data-origen="estacion">
-      <h2>Listado de la estación</h2>
-      <p class="que">El que mandan con la factura. Excel o CSV. Alcanza con que
-         tenga una columna de remito; si trae fecha, patente, litros e importe,
-         se cruza todo.</p>
-      <div class="fila">
-        <input type="file" accept=".xlsx,.xlsm,.csv" id="f-estacion">
-        <button class="btn" data-elegir="f-estacion">Elegir archivo</button>
-        <input type="text" id="e-estacion" placeholder="Estación (opcional)">
-      </div>
-      <div class="previo" id="p-estacion" hidden></div>
-    </div>
-
+  <!-- ------------------------------------------- combustible de la flota -->
+  <section id="vista-flota">
     <div class="zona" id="z-planilla" data-origen="planilla">
-      <h2>Nuestras cargas</h2>
-      <p class="que">La planilla de combustible, exportada como Excel o CSV. Se
-         usa la primera hoja. De acá sale <b>lo que gastó la flota</b> y, además,
-         con qué se controla la factura de la estación.</p>
+      <h2>Cargar tickets</h2>
+      <p class="que">La planilla de remitos de combustible, en Excel o CSV. Se
+         puede subir las veces que haga falta: un remito que ya estaba se pisa,
+         no se duplica.</p>
       <div class="fila">
         <input type="file" accept=".xlsx,.xlsm,.csv" id="f-planilla">
-        <button class="btn gris" data-elegir="f-planilla">Elegir archivo</button>
+        <button class="btn" data-elegir="f-planilla">Elegir archivo</button>
         <input type="text" id="e-planilla" placeholder="Período (opcional)">
       </div>
       <div class="previo" id="p-planilla" hidden></div>
     </div>
-  </div>
 
-  <!-- ------------------------------------------- combustible de la flota -->
-  <section id="vista-flota">
     <div class="mes">
       <label for="mes" style="color:var(--ink-muted);font-size:12px">Mes</label>
       <select id="mes"></select>
@@ -241,6 +230,19 @@
 
   <!-- --------------------------------------------------- cruce de remitos -->
   <section id="vista-cruce" hidden>
+    <div class="zona" id="z-estacion" data-origen="estacion">
+      <h2>Listado de la estación</h2>
+      <p class="que">El que mandan con la factura. Excel o CSV. Alcanza con que
+         tenga una columna de remito; si trae fecha, patente, litros e importe,
+         se cruza todo contra los tickets ya cargados.</p>
+      <div class="fila">
+        <input type="file" accept=".xlsx,.xlsm,.csv" id="f-estacion">
+        <button class="btn" data-elegir="f-estacion">Elegir archivo</button>
+        <input type="text" id="e-estacion" placeholder="Estación (opcional)">
+      </div>
+      <div class="previo" id="p-estacion" hidden></div>
+    </div>
+
     <div class="tarjetas" id="tarjetas"></div>
 
     <p class="leyenda" id="leyenda" hidden></p>
@@ -341,7 +343,8 @@ async function mandar(origen, archivo, confirmar){
   const caja = $('#p-' + origen);
   $('#error').hidden = true;
   caja.hidden = false;
-  caja.innerHTML = `<span style="color:var(--ink-muted)">Leyendo ${esc(archivo.name)}…</span>`;
+  caja.innerHTML = `<span style="color:var(--ink-muted)">${
+    confirmar ? 'Guardando' : 'Leyendo'} ${esc(archivo.name)}…</span>`;
   try {
     const cuerpo = {
       origen, confirmar,
@@ -370,9 +373,13 @@ async function mandar(origen, archivo, confirmar){
         mandar(origen, archivo, false);
       });
     } else {
+      const repetidas = d.leidas - d.guardadas;
       caja.innerHTML = `<b style="color:var(--ok)">Guardado.</b> ` +
         `${d.nuevas} remito${d.nuevas === 1 ? '' : 's'} nuevo${d.nuevas === 1 ? '' : 's'}` +
-        `${d.actualizadas ? `, ${d.actualizadas} actualizado${d.actualizadas === 1 ? '' : 's'}` : ''}.`;
+        `${d.actualizadas ? `, ${d.actualizadas} actualizado${d.actualizadas === 1 ? '' : 's'}` : ''}.` +
+        (repetidas > 0 ? ` <span style="color:var(--ink-muted)">De ${d.leidas} filas leídas,
+          ${repetidas} eran el mismo remito de la misma patente repetido: quedó la última
+          de cada una.</span>` : '');
       $('#f-' + origen).value = '';
       COLUMNAS[origen] = null;
       cargar();
