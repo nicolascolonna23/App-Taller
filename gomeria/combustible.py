@@ -75,25 +75,82 @@ def _remito(valor):
     return re.sub(r"[^0-9]", "", texto).lstrip("0") or ""
 
 
+# Lo que escribe la planilla cuando no se pudo leer la patente del ticket.
+# Sin esto entran como si fueran una unidad más y "NOENCONTRADO" termina
+# encabezando el ranking de la que más combustible cargó, que es una unidad
+# que no existe.
+SIN_PATENTE = {"NOENCONTRADO", "SD", "SN", "NA", "NN", "SINPATENTE",
+               "NOENCONTRADA", "NOFIGURA", "NOSABE", "NOLEGIBLE"}
+
+
 def _patente(valor):
-    return re.sub(r"[^A-Z0-9]", "", str(valor or "").upper()) or None
+    limpia = re.sub(r"[^A-Z0-9]", "", str(valor or "").upper())
+    if not limpia or limpia in SIN_PATENTE:
+        return None
+    return limpia
 
 
-def _numero(valor):
-    """Números en formato argentino y en el crudo del Excel."""
+def _separador(valores):
+    """Si en esta columna la coma separa decimales o miles.
+
+    Celda por celda no se puede decidir: "52,019" es cincuenta y dos mil
+    diecinueve en un archivo y cincuenta y dos litros con diecinueve
+    milésimas en otro, y las dos lecturas son igual de válidas mirando
+    solo ese número. Adivinar mal no da un error: da un litraje mil veces
+    más grande que el real, y eso después es un consumo inventado.
+
+    Lo que sí decide es la columna entera. Alcanza con que UNA celda tenga
+    la coma seguida de algo que no sean exactamente tres dígitos —"37,09",
+    "66,7"— para saber que en este archivo la coma separa decimales, y
+    entonces los separa en todas, "52,019" incluida.
+
+    Devuelve ',' o '.' cuando la columna se delata, y None cuando de verdad
+    no hay con qué decidir.
+    """
+    coma = punto = False
+    for v in valores:
+        s = re.sub(r"[\s$]", "", str(v or ""))
+        if not s or not re.fullmatch(r"[\d.,-]+", s):
+            continue
+        # Con los dos signos presentes el de más a la derecha es el decimal
+        # y no hace falta ninguna estadística.
+        if "," in s and "." in s:
+            return "," if s.rfind(",") > s.rfind(".") else "."
+        if re.search(r",\d{1,2}$|,\d{4,}$", s):
+            coma = True
+        if re.search(r"\.\d{1,2}$|\.\d{4,}$", s):
+            punto = True
+    # Si las dos cosas aparecen, el archivo está mezclado y no hay regla
+    # que valga: se cae en la lectura de a una celda.
+    if coma != punto:
+        return "," if coma else "."
+    return None
+
+
+def _numero(valor, dec=None):
+    """Números en formato argentino y en el crudo del Excel.
+
+    `dec` es cuál signo separa los decimales en esta columna, si se pudo
+    saber mirándola entera. Sin eso se decide por la celda, que es lo que
+    se puede hacer cuando no hay más información.
+    """
     if isinstance(valor, (int, float)):
         return None if valor != valor else float(valor)
     s = re.sub(r"[\s$]", "", str(valor or ""))
     if not s or not re.fullmatch(r"[\d.,-]+", s):
         return None
-    coma, punto = s.rfind(","), s.rfind(".")
-    if coma >= 0 and punto >= 0:
-        dec = "," if coma > punto else "."
-        s = s.replace("." if dec == "," else ",", "").replace(dec, ".")
-    elif coma >= 0:
-        s = s.replace(",", "") if re.fullmatch(r"\d{1,3}(,\d{3})+", s) else s.replace(",", ".")
-    elif punto >= 0 and re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
-        s = s.replace(".", "")
+    if dec in (",", "."):
+        miles = "." if dec == "," else ","
+        s = s.replace(miles, "").replace(dec, ".")
+    else:
+        coma, punto = s.rfind(","), s.rfind(".")
+        if coma >= 0 and punto >= 0:
+            d = "," if coma > punto else "."
+            s = s.replace("." if d == "," else ",", "").replace(d, ".")
+        elif coma >= 0:
+            s = s.replace(",", "") if re.fullmatch(r"\d{1,3}(,\d{3})+", s) else s.replace(",", ".")
+        elif punto >= 0 and re.fullmatch(r"\d{1,3}(\.\d{3})+", s):
+            s = s.replace(".", "")
     try:
         return float(s)
     except ValueError:
@@ -190,8 +247,15 @@ def leer(nombre, crudo, elegidas=None):
         j = indice.get(campo)
         return fila[j] if j is not None and j < len(fila) else None
 
+    # Cómo escribe los decimales este archivo. Se mira la columna entera
+    # una vez, antes de leer ninguna fila: la respuesta es del archivo, no
+    # de cada celda.
+    datos = filas[fila_titulos + 1:]
+    decimal = {c: _separador(celda(f, c) for f in datos)
+               for c in ("litros", "importe")}
+
     salida, descartadas = [], 0
-    for fila in filas[fila_titulos + 1:]:
+    for fila in datos:
         remito = _remito(celda(fila, "remito"))
         if not remito:
             descartadas += 1          # totales, subtotales, filas en blanco
@@ -201,8 +265,8 @@ def leer(nombre, crudo, elegidas=None):
             "remito_bruto": str(celda(fila, "remito") or "").strip()[:40],
             "fecha": _fecha(celda(fila, "fecha")),
             "patente": _patente(celda(fila, "patente")),
-            "litros": _numero(celda(fila, "litros")),
-            "importe": _numero(celda(fila, "importe")),
+            "litros": _numero(celda(fila, "litros"), decimal["litros"]),
+            "importe": _numero(celda(fila, "importe"), decimal["importe"]),
             "estacion": (str(celda(fila, "estacion") or "").strip() or None),
             "chofer": (str(celda(fila, "chofer") or "").strip().upper() or None),
         })
@@ -216,6 +280,7 @@ def leer(nombre, crudo, elegidas=None):
 
     return {"filas": salida, "descartadas": descartadas, "repetidos": repetidos,
             "columnas": sorted(indice),
+            "decimal": decimal,
             # Qué columna terminó siendo cada cosa, y todas las que hay:
             # con eso la pantalla arma los selectores para corregirlo.
             "usadas": {campo: titulos[j] for campo, j in indice.items()},
@@ -253,6 +318,7 @@ def subir(cx, datos, usuario=None):
                 "descartadas": leido["descartadas"],
                 "repetidos": leido["repetidos"],
                 "columnas": leido["columnas"],
+                "decimal": leido["decimal"],
                 "usadas": leido["usadas"],
                 "cabeceras": leido["cabeceras"],
                 "muestra": filas[:8]}
@@ -269,29 +335,56 @@ def subir(cx, datos, usuario=None):
     # tiene que dejar la última versión, no dos.
     antes = cx.execute("select count(*) as n from combustible_cargas where origen = %s",
                        (origen,)).fetchone()["n"]
+
+    # Los repetidos se resuelven acá y no en la base. Postgres no deja que
+    # un mismo INSERT toque dos veces la misma fila —"ON CONFLICT DO UPDATE
+    # command cannot affect row a second time"— y una planilla de un año
+    # trae el mismo remito repetido de a decenas. Queda el último, que es
+    # lo que hace falta y lo que ya decía la documentación.
+    unicas = {}
     for f in filas:
+        unicas[(f["remito"], f["patente"] or "")] = f
+
+    # De a montones y no de a uno. Una fila por vez son mil idas y vueltas
+    # contra Supabase para un archivo de mil remitos: con la base del otro
+    # lado de internet eso es un minuto largo de pantalla colgada, y el
+    # que sube la planilla del año se cansa antes de que termine.
+    porrada = 500
+    valores = list(unicas.values())
+    for desde in range(0, len(valores), porrada):
+        tanda = valores[desde:desde + porrada]
         cx.execute("""
             insert into combustible_cargas
               (lote_id, origen, remito, remito_bruto, fecha, patente,
                litros, importe, estacion, chofer)
-            values (%(lote)s,%(origen)s,%(remito)s,%(bruto)s,%(fecha)s,%(patente)s,
-                    %(litros)s,%(importe)s,%(estacion)s,%(chofer)s)
+            select %s, %s, f.remito, f.bruto, f.fecha, f.patente,
+                   f.litros, f.importe, f.estacion, f.chofer
+            from unnest(%s::text[], %s::text[], %s::date[], %s::text[],
+                        %s::numeric[], %s::numeric[], %s::text[], %s::text[])
+                 as f(remito, bruto, fecha, patente, litros, importe, estacion, chofer)
             on conflict (origen, remito, coalesce(patente, '')) do update set
               lote_id = excluded.lote_id, fecha = excluded.fecha,
               patente = excluded.patente, litros = excluded.litros,
               importe = excluded.importe, estacion = excluded.estacion,
               chofer = excluded.chofer, remito_bruto = excluded.remito_bruto""",
-            {"lote": lote, "origen": origen, "remito": f["remito"],
-             "bruto": f["remito_bruto"], "fecha": f["fecha"], "patente": f["patente"],
-             "litros": f["litros"], "importe": f["importe"],
-             "estacion": f["estacion"] or (datos.get("estacion") or None),
-             "chofer": f["chofer"]})
+            (lote, origen,
+             [f["remito"] for f in tanda],
+             [f["remito_bruto"] for f in tanda],
+             [f["fecha"] for f in tanda],
+             [f["patente"] for f in tanda],
+             [f["litros"] for f in tanda],
+             [f["importe"] for f in tanda],
+             [f["estacion"] or (datos.get("estacion") or None) for f in tanda],
+             [f["chofer"] for f in tanda]))
+
     despues = cx.execute("select count(*) as n from combustible_cargas where origen = %s",
                          (origen,)).fetchone()["n"]
 
     return {"previo": False, "lote": lote, "leidas": len(filas),
+            "guardadas": len(unicas),
             "repetidos": leido["repetidos"],
-            "nuevas": despues - antes, "actualizadas": len(filas) - (despues - antes),
+            "nuevas": despues - antes,
+            "actualizadas": len(unicas) - (despues - antes),
             "descartadas": leido["descartadas"]}
 
 
@@ -333,9 +426,18 @@ def flota(cx, mes=None, limite=400):
     if not meses:
         return {"meses": [], "mes": None, "total": None, "unidades": []}
 
-    # El mes que se pidió, si existe; si no, el último cargado.
-    elegido = next((dict(m) for m in meses if str(m["mes"])[:7] == str(mes or "")[:7]),
-                   dict(meses[0]))
+    # El mes que se pidió, si existe.
+    elegido = next((dict(m) for m in meses if str(m["mes"])[:7] == str(mes or "")[:7]), None)
+
+    # Si no se pidió ninguno, el último que ya pasó. No el último de la
+    # lista: una fecha tipeada mal —2027 en vez de 2026— es del futuro, y
+    # abrir ahí muestra una pantalla con dos cargas y el resto vacío, que
+    # parece que no se cargó nada. El mes de un dedazo existe igual y se
+    # puede elegir a mano; lo que no puede es ser lo primero que se ve.
+    if elegido is None:
+        este_mes = datetime.date.today().replace(day=1)
+        elegido = next((dict(m) for m in meses if m["mes"] <= este_mes),
+                       dict(meses[0]))
 
     return {
         "meses": [dict(m) for m in meses],

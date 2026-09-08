@@ -52,6 +52,9 @@ El consumo de la flota se calcula sobre los totales y no promediando el de
 cada unidad: un utilitario que hizo 200 km no puede pesar lo mismo que un
 tractor que hizo 12.000.
 
+La portada del sistema muestra este mismo número: lo lee de acá, no de
+ninguna planilla.
+
 ## Cruce de remitos
 
 La estación manda un listado de remitos y después la factura. Nosotros
@@ -207,8 +210,7 @@ los del otro archivo. Subir y borrar pide ser encargado o administrador.
   sube a mano. Automatizarlo es el paso siguiente, igual que se hizo con
   los odómetros. Los litros **ya están en la base**, así que lo que falta
   es el enganche, no el dato.
-- La portada sigue leyendo el L/100 km de la planilla de Google. Pasarla a
-  leer `v_combustible_mes` es un cambio chico, pero conviene hacerlo recién
-  cuando haya unos meses cargados y los dos números se puedan comparar.
+- No guarda la foto del ticket. La planilla trae el enlace a Drive de cada
+  uno y por ahora se ignora.
 - No guarda la factura ni marca "pagado". Valida y muestra; la decisión
   sigue siendo de una persona.
