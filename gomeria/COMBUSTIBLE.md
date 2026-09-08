@@ -1,8 +1,58 @@
-# Combustible — cruce de remitos
+# Combustible
 
-> **Módulo en prueba.** Se usa en paralelo con lo de siempre hasta que los
-> números den. Nada de lo que se carga acá afecta al resto del sistema:
-> vive en sus propias tablas y cada carga se borra entera.
+> **Módulo en prueba.** Se usa en paralelo con la planilla de siempre hasta
+> que los números den. Cada carga se puede borrar entera.
+
+Dos vistas, un solo archivo:
+
+| Solapa | Para qué |
+|---|---|
+| **Combustible de la flota** | cuánto se cargó, cuánto costó y cuánto consume cada unidad |
+| **Cruce de remitos** | el control de la factura de la estación |
+
+Las dos salen de lo mismo: la planilla de cargas que se sube en *Nuestras
+cargas*. Cargarla dos veces sería garantía de que un día los dos números no
+den lo mismo.
+
+## Combustible de la flota
+
+Hasta acá el módulo era solo un control de facturación. Los litros de la
+flota vivían en la planilla de Google, y por eso el consumo de la portada
+se leía de ahí y no de la base.
+
+Ahora el consumo se calcula cruzando dos cosas que ya están en Supabase:
+
+    los litros   de la planilla de cargas
+    los km       de la serie diaria del satelital (tabla odometros)
+
+Es la primera vez que sale **por unidad y por mes sin que nadie copie un
+número a mano**.
+
+Se ve el total del mes —litros, gastado, precio por litro, kilómetros,
+L/100 km y $/km— y abajo la misma cuenta unidad por unidad, ordenada por lo
+que más gastó.
+
+### Cuándo no hay consumo
+
+Los litros se cuentan siempre; el consumo, solo cuando se sabe cuántos
+kilómetros hizo esa unidad. Cuando no se sabe, la fila dice por qué:
+
+| Dice | Qué pasó |
+|---|---|
+| *la patente no está en el maestro* | la carga se anotó con una patente que no es de ninguna unidad |
+| *sin lecturas del satelital ese mes* | el equipo no reportó |
+| *el satelital no le contó kilómetros* | reportó, pero todas las lecturas quedaron descartadas |
+
+**Esas unidades quedan fuera del L/100 km de la flota**, y el número de
+arriba avisa cuántas son y cuántos litros representan. Sumar litros cuyos
+kilómetros no están abajo daría un consumo inventado: más alto cuanto más
+combustible haya cargado justo esa unidad.
+
+El consumo de la flota se calcula sobre los totales y no promediando el de
+cada unidad: un utilitario que hizo 200 km no puede pesar lo mismo que un
+tractor que hizo 12.000.
+
+## Cruce de remitos
 
 La estación manda un listado de remitos y después la factura. Nosotros
 tenemos nuestra planilla de cargas. Hoy alguien compara las dos a ojo antes
@@ -11,8 +61,13 @@ coincide.
 
 ## Paso 1 — la base
 
-En Supabase → **SQL Editor** → correr `gomeria/10_combustible.sql`. Se puede
-correr las veces que haga falta.
+En Supabase → **SQL Editor** → correr los dos, en orden:
+
+    gomeria/10_combustible.sql          las tablas y el cruce
+    gomeria/17_combustible_flota.sql    el combustible de la flota
+
+Se pueden correr las veces que haga falta. El segundo son solo vistas: no
+toca ni un dato.
 
 ## Paso 2 — subir los dos archivos
 
@@ -148,8 +203,12 @@ los del otro archivo. Subir y borrar pide ser encargado o administrador.
 ## Lo que todavía no hace
 
 - No lee PDF. Si la estación manda el listado en PDF hay que pasarlo a Excel.
-- No engancha con la planilla de COMBUSTIBLE de Google: se sube el archivo
-  a mano. Automatizarlo es el paso siguiente, igual que se hizo con los
-  odómetros.
+- No engancha solo con la planilla de COMBUSTIBLE de Google: el archivo se
+  sube a mano. Automatizarlo es el paso siguiente, igual que se hizo con
+  los odómetros. Los litros **ya están en la base**, así que lo que falta
+  es el enganche, no el dato.
+- La portada sigue leyendo el L/100 km de la planilla de Google. Pasarla a
+  leer `v_combustible_mes` es un cambio chico, pero conviene hacerlo recién
+  cuando haya unos meses cargados y los dos números se puedan comparar.
 - No guarda la factura ni marca "pagado". Valida y muestra; la decisión
   sigue siendo de una persona.

@@ -323,17 +323,31 @@ class App(gom.Handler):
         if ruta == "/api/combustible":
             if not self._exigir_sesion():
                 return
-            estado = (parse_qs(urlparse(self.path).query).get("estado") or [None])[0]
+            params = parse_qs(urlparse(self.path).query)
+            estado = (params.get("estado") or [None])[0]
+            # La misma dirección sirve las dos vistas del módulo: lo que
+            # gastó la flota y el control de la factura. Salen de la misma
+            # tabla, así que separarlas en dos direcciones sería fingir que
+            # son dos módulos.
+            vista = (params.get("vista") or [""])[0]
             try:
                 with base.conectar() as cx:
+                    if vista == "flota":
+                        mes = (params.get("mes") or [None])[0]
+                        return self._responder(gom.jstr(comb.flota(cx, mes)))
                     return self._responder(gom.jstr(comb.panel(cx, estado)))
             except psycopg.errors.UndefinedTable:
+                # Cuál de los dos SQL falta depende de qué se estaba
+                # mirando: las vistas de la flota son de un archivo
+                # posterior, y mandar a correr el que ya se corrió deja a
+                # cualquiera dando vueltas.
+                falta = ("gomeria/17_combustible_flota.sql" if vista == "flota"
+                         else "gomeria/10_combustible.sql")
                 return self._error(
-                    "Falta crear las tablas de combustible. Corré "
-                    "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
+                    f"Falta correr {falta} en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
-                return self._error(f"No se pudo leer el cruce: {e}", 500)
+                return self._error(f"No se pudo leer el combustible: {e}", 500)
 
         # El maestro de unidades. De acá sale la información de cada vehículo
         # para el resto del sistema, así que la pantalla lee la vista entera.
