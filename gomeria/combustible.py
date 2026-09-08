@@ -460,6 +460,11 @@ def panel(cx, estado=None, limite=400):
         valores.append(estado)
     valores.append(limite)
     return {
+        "tickets": _uno(cx, """
+            select c.*, u.interno from combustible_cargas c
+            left join unidades u on u.id = c.unidad_id
+            where c.origen = 'planilla'
+            order by c.fecha desc nulls last, c.id desc"""),
         "resumen": _uno(cx, "select * from v_combustible_resumen order by estado"),
         "cruce": _uno(cx, f"""
             select c.*, u.interno, u.chofer as chofer_unidad
