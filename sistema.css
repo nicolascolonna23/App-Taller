@@ -1,17 +1,23 @@
-/* La misma lectura visual que Combustible, conservando cada módulo. */
+/* Identidad Pengui: papel blanco, navegación negra y amarillo como acento. */
+:root{--brand:#ffd400;--orange:#ffd400;--o:#ffd400;--acc:#ffd400;--kpi-accent:#ffd400;--brand-soft:#fff8bf;--orange-soft:#fff8bf;--os:#fff8bf;--acc-soft:#fff8bf;--acc-line:#e0b900;--brand-deep:#1a1a1a;--acc-hi:#1a1a1a}
 body{background:var(--plane);color:var(--ink);font-family:Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
-body :is(.card,.caja,.zona,.tarjeta,.gr,.kpi,.metric,.modal,.dialog){background:var(--surface-1);border-color:var(--hairline);border-radius:8px;box-shadow:0 2px 4px #14263805}
-body :is(.top,.topbar){background:#142638;color:#edf3f9;border-color:#2c4154}
-body :is(.top,.topbar) :is(.who,.marca,.brand,.context,.sub,.nav-link,.back,.person){color:#d4dfe9}
-body .topbar .context span{color:#b8c8d7}
-body .topbar .context b{color:#edf3f9}
-body .sidebar{background:#142638;border-color:#2c4154;color:#d4dfe9;padding-bottom:116px}
-body .sidebar :is(a,.brand,.nav-label,.side-footer,.ajustes){color:#c7d5e2}
-body .sidebar .nav a.primary{background:#ed890020;color:#ffbd60;border-color:#ed890060}
-body .sidebar .nav a:hover{background:#ffffff0d;color:white}
+body :is(.card,.caja,.zona,.tarjeta,.gr,.kpi,.metric,.modal,.dialog){background:var(--surface-1);border-color:var(--hairline);border-radius:8px;box-shadow:0 2px 4px #0000000d}
+body :is(.top,.topbar){background:#0b0b0b;color:#fff;border-color:#292929}
+body>header{background:#0b0b0b;color:#fff;border-color:#292929}
+body :is(.top,.topbar) :is(.who,.marca,.brand,.context,.sub,.nav-link,.back,.person){color:#e8e8e8}
+body .topbar .context span{color:#bebebe}
+body .topbar .context b{color:#fff}
+body .sidebar{background:#0b0b0b;border-color:#292929;color:#fff;padding-bottom:116px}
+body .sidebar :is(a,.brand,.nav-label,.side-footer,.ajustes){color:#d4d4d4}
+body .sidebar .nav a.primary{background:#ffd400;color:#111;border-color:#ffd400}
+body .sidebar .nav a:hover{background:#242424;color:#fff}
+body :is(.top>img,header.top>img,.sidebar .brand img){box-sizing:border-box;background:#fff;border-radius:8px;padding:3px;object-fit:contain}
+body>header>img{box-sizing:border-box;background:#fff;border-radius:8px;padding:3px;object-fit:contain}
+body :is(.top>img,header.top>img){height:43px;max-width:48px}
+body .sidebar .brand img{width:48px;max-height:52px;height:52px}
 body :is(.tabs,.toolbar,.filters){background:var(--surface-1);border-color:var(--hairline)}
 body :is(.tab,.km-tabs button){border-radius:5px;font-family:inherit}
-body :is(.tab.on,.tab.active,.km-tabs button.on){background:var(--brand-soft);color:var(--brand);border-color:var(--brand)}
+body :is(.tab.on,.tab.active,.km-tabs button.on){background:#ffd400;color:#111;border-color:#d8b400}
 body :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),select,textarea){background:var(--surface-1);color:var(--ink);border-color:var(--hairline-2);border-radius:5px;font-family:inherit}
 body :is(button,.btn){font-family:inherit}
 body :is(.btn,.button){border-radius:5px}
@@ -19,7 +25,7 @@ body th{background:var(--surface-2);color:var(--ink-muted);border-color:var(--ha
 body td{border-color:var(--hairline)}body tbody tr:hover{background:var(--surface-2)}
 body :is(h1,h2,h3){letter-spacing:-.025em}body :is(.muted,.help,.sub){color:var(--ink-muted)}
 body :is(.km-num b,.kpi b,.tarjeta b){font-variant-numeric:tabular-nums}
-:focus-visible{outline:3px solid #3185cf;outline-offset:3px}body .side-footer{border-color:#ffffff1c}
+:focus-visible{outline:3px solid #ffd400;outline-offset:3px}body .side-footer{border-color:#ffffff24}
 @media(max-width:980px){body .sidebar{padding-bottom:12px;min-width:0;max-width:100vw}body .sidebar .nav{min-width:0;overflow:auto}body .shell>main{min-width:0}body .topbar{flex-wrap:wrap;gap:10px;height:auto;padding-bottom:12px}body .person{max-width:100%;flex-wrap:wrap}body{padding-bottom:86px}}
 @media print{body{padding-bottom:0}}
 @media(max-width:600px){body .workspace{padding-inline:16px}body .workspace .visual{margin-inline:-16px}}

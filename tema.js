@@ -19,8 +19,8 @@
 
   /* El color de cada paleta. Lo demás sale de él. */
   const PALETAS = {
-    diemar:'#ed8900', azul:'#3d8bfd', verde:'#22a06b',
-    violeta:'#8b7bf7', rojo:'#e5484d', grafito:'#8a94a0'
+    diemar:'#ffd400', azul:'#ffd400', verde:'#ffd400',
+    violeta:'#ffd400', rojo:'#ffd400', grafito:'#ffd400'
   };
 
   /* Los dos temas, en roles. El claro no es el oscuro dado vuelta: el
@@ -28,9 +28,9 @@
   const TEMAS = {
     oscuro: {
       esquema:'dark',
-      fondo:'#090b0e', panel:'#12171c', panel2:'#171e24', panel3:'#20262c',
+      fondo:'#080808', panel:'#111111', panel2:'#191919', panel3:'#242424',
       linea:'rgba(255,255,255,.08)', linea2:'rgba(255,255,255,.14)',
-      texto:'#f3f5f6', texto2:'#c5cbd0', apagado:'#9099a4',
+      texto:'#ffffff', texto2:'#e4e4e4', apagado:'#a5a5a5',
       sombra:'0 18px 40px rgba(0,0,0,.45)',
       ok:'#31bd65', atencion:'#f0b429', mal:'#e35d62', dato:'#7db3ef',
       velo:'rgba(9,11,14,.55)', velo2:'rgba(9,11,14,.14)', velo3:'rgba(9,11,14,.90)',
@@ -39,12 +39,12 @@
     },
     claro: {
       esquema:'light',
-      fondo:'#f3f5f7', panel:'#ffffff', panel2:'#f7f9fb', panel3:'#edf1f5',
-      linea:'rgba(16,24,32,.10)', linea2:'rgba(16,24,32,.18)',
-      texto:'#172b40', texto2:'#42566b', apagado:'#617387',
-      sombra:'0 12px 30px rgba(16,24,32,.10)',
-      ok:'#1a8f4c', atencion:'#a5730a', mal:'#c0353a', dato:'#2f6fb0',
-      velo:'rgba(244,246,248,.62)', velo2:'rgba(244,246,248,.18)', velo3:'rgba(244,246,248,.94)',
+      fondo:'#f5f5f2', panel:'#ffffff', panel2:'#faf9f4', panel3:'#f1f0e9',
+      linea:'rgba(0,0,0,.10)', linea2:'rgba(0,0,0,.20)',
+      texto:'#121212', texto2:'#343434', apagado:'#666666',
+      sombra:'0 12px 30px rgba(0,0,0,.10)',
+      ok:'#16834a', atencion:'#8a6800', mal:'#bd3038', dato:'#574a00',
+      velo:'rgba(255,255,255,.60)', velo2:'rgba(255,255,255,.16)', velo3:'rgba(245,245,242,.94)',
       vidrio:'rgba(255,255,255,.82)', vidrioLinea:'rgba(16,24,32,.14)',
       sombraTexto:'0 1px 8px rgba(255,255,255,.75)'
     }
