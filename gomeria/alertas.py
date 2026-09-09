@@ -192,13 +192,41 @@ def _vencimientos(cx):
 def _services(cx):
     filas = _tabla(cx, """
         select * from v_services_hoy
-        where estado in ('vencido', 'urgente', 'proximo')
+        where estado in ('vencido', 'urgente', 'proximo', 'km_dudoso')
         order by km_restantes
     """)
     if filas is None:
         return None
     salida = []
     for f in filas:
+        base_alerta = {
+            "fuente": "service",
+            "clave": str(f["unidad_id"]),
+            "titulo": f"Service{' ' + f['tipo'] if f['tipo'] else ''}",
+            "patente": f["patente"],
+            "interno": f["interno"],
+            "sucursal": f["sucursal"],
+            "de_quien": None,
+            "fecha": f["ultimo_fecha"],
+        }
+
+        if f["estado"] == "km_dudoso":
+            # No se puede saber si le toca: el satelital marca menos
+            # kilómetros de los que tenía en su último service. Se avisa
+            # igual, porque una unidad de la que no se sabe si está pasada
+            # de service no puede desaparecer de la lista.
+            salida.append({
+                **base_alerta,
+                "severidad": "leve",
+                "titulo": "No se sabe cuándo le toca el service",
+                "detalle": (f"el satelital marca {_miles(f['km_actual'])} km y su "
+                            f"último service fue a los {_miles(f['ultimo_km'])}"),
+                "orden": 0,
+                "extra": ("le cambiaron el equipo de GPS, o dejó de reportar. "
+                          "Hasta que no se arregle, esta unidad no avisa."),
+            })
+            continue
+
         faltan = float(f["km_restantes"])
         dias = f["dias_restantes"]
         detalle = (f"pasado por {_miles(abs(faltan))} km" if faltan < 0
@@ -206,17 +234,10 @@ def _services(cx):
         if faltan >= 0 and dias is not None:
             detalle += f" · unos {int(dias)} días"
         salida.append({
-            "fuente": "service",
-            "clave": str(f["unidad_id"]),
+            **base_alerta,
             "severidad": "grave" if f["estado"] == "vencido"
                          else "media" if f["estado"] == "urgente" else "leve",
-            "titulo": f"Service{' ' + f['tipo'] if f['tipo'] else ''}",
             "detalle": detalle,
-            "patente": f["patente"],
-            "interno": f["interno"],
-            "sucursal": f["sucursal"],
-            "de_quien": None,
-            "fecha": f["ultimo_fecha"],
             "orden": faltan,
             "extra": (f"último a los {_miles(f['ultimo_km'])} km, "
                       f"cada {_miles(f['cada_km'])}"),

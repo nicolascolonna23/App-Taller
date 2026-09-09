@@ -110,6 +110,13 @@ select b.*,
        case
          when b.ultimo_km   is null then 'sin_plan'
          when b.km_actual   is null then 'sin_odometro'
+         -- El satelital marca menos kilómetros de los que la unidad tenía
+         -- en su último service. Eso no pasa en la realidad: o le cambiaron
+         -- el equipo de GPS y el contador arrancó de nuevo, o la unidad no
+         -- está reportando. Sea cual sea, los dos números no se pueden
+         -- restar, y decir 'ok' sería pintar de verde una unidad que puede
+         -- estar pasada de service. Se dice que no se sabe.
+         when b.km_actual < b.ultimo_km then 'km_dudoso'
          when b.km_restantes < 0                        then 'vencido'
          when b.km_restantes < b.service_urgente_km     then 'urgente'
          when b.km_restantes < b.service_aviso_km       then 'proximo'
@@ -121,7 +128,8 @@ select b.*,
        -- Solo hacia adelante: «faltan -518 días» no es una cuenta, es un
        -- número que hay que interpretar. Lo que está pasado se dice en
        -- kilómetros, que es como se mide un service.
-       case when b.km_restantes >= 0 and b.km_dia > 0
+       case when b.km_restantes >= 0 and b.km_restantes <= b.cada_km
+                 and b.km_dia > 0
             then round(b.km_restantes / b.km_dia) end as dias_restantes
 from (
   select u.id as unidad_id, u.patente, u.interno, u.sucursal, u.uso,
@@ -196,5 +204,11 @@ select litros_maximos as "carga máxima (L)",
 from alertas_reglas;
 
 select estado, count(*) as unidades from v_services_hoy group by estado order by 2 desc;
+
+-- Las que no se pueden calcular: el satelital marca menos kilómetros que
+-- su último service. Si esta lista no está vacía, hay equipos de GPS que
+-- se cambiaron o unidades que dejaron de reportar.
+select patente, ultimo_km as "km del último service", km_actual as "km del satelital"
+from v_services_hoy where estado = 'km_dudoso' order by patente;
 
 select count(*) as cargas_grandes from v_cargas_grandes;

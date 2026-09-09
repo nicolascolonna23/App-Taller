@@ -72,7 +72,7 @@ def base_con(**cambios):
             "unidad_id": 3, "patente": "AF533SB", "interno": "12",
             "sucursal": "LAD", "tipo": "M6", "estado": "urgente",
             "km_restantes": 2700, "dias_restantes": 7, "ultimo_fecha": None,
-            "ultimo_km": 395000, "cada_km": 20000}],
+            "ultimo_km": 395000, "cada_km": 20000, "km_actual": 412300}],
         "from v_cargas_grandes": [{
             "carga_id": 11, "remito": "9001", "remito_bruto": "9001",
             "fecha": None, "patente": "AD247MQ", "unidad_id": 1, "interno": "2",
@@ -104,6 +104,46 @@ class Orden(unittest.TestCase):
         self.assertEqual(salida["alertas"][0]["severidad"], "grave")
         self.assertEqual(salida["alertas"][0]["detalle"], "venció hace 3 días")
         self.assertEqual(salida["resumen"]["grave"], 1)
+
+
+class OdometroQueNoCierra(unittest.TestCase):
+    """El satelital marca menos kilómetros que el último service.
+
+    Pasó de verdad en nueve unidades de la flota: les cambiaron el equipo de
+    GPS y el contador arrancó de nuevo, o dejaron de reportar. La cuenta
+    «próximo menos hoy» deja de tener sentido, y la primera versión las
+    mostraba en verde: una unidad que puede estar pasada de service pintada
+    de «al día» es peor que no tener la pantalla.
+    """
+
+    def _base(self):
+        cx = base_con()
+        cx.respuestas["from v_services_hoy"] = [{
+            "unidad_id": 9, "patente": "AF577BD", "interno": "7",
+            "sucursal": "LAD", "tipo": None, "estado": "km_dudoso",
+            "km_restantes": 885034, "dias_restantes": None, "ultimo_fecha": None,
+            "ultimo_km": 845034, "cada_km": 40000, "km_actual": 0}]
+        return cx
+
+    def test_avisa_en_vez_de_desaparecer(self):
+        alerta = next(a for a in alertas.listar(self._base())["alertas"]
+                      if a["fuente"] == "service")
+        self.assertEqual(alerta["severidad"], "leve")
+        self.assertIn("No se sabe", alerta["titulo"])
+
+    def test_no_muestra_los_kilometros_que_faltan(self):
+        """885.034 km para un service que se hace cada 40.000 es un número
+        que no significa nada. Se dice qué pasó, no el resultado de la resta."""
+        alerta = next(a for a in alertas.listar(self._base())["alertas"]
+                      if a["fuente"] == "service")
+        self.assertNotIn("885.034", alerta["detalle"])
+        self.assertIn("0 km", alerta["detalle"])
+        self.assertIn("845.034", alerta["detalle"])
+
+    def test_se_puede_silenciar_como_cualquier_otra(self):
+        cx = self._base()
+        alertas.silenciar(cx, "service", "9", "le cambiamos el GPS, se arregla el lunes")
+        self.assertTrue(cx.escrituras)
 
 
 class Silencio(unittest.TestCase):
