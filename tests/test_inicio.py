@@ -56,5 +56,37 @@ class Inicio(unittest.TestCase):
             handler._responder('login', 'text/html')
             self.assertEqual(send.call_args.args[0],'login')
 
+    def test_pengui_not_on_gomeria_despite_the_rewritten_path(self):
+        """/gomeria le cambia self.path a "/" para que el manejador de
+        Gomería sirva su pantalla. Mirar self.path hacía aparecer al muñeco
+        justo encima del mapa de cubiertas."""
+        handler=object.__new__(app.App)
+        handler.usuario={'id':1}
+        handler.ruta_original='/gomeria'
+        handler.path='/'                      # como queda después de reescribirla
+        with patch.object(app.gom.Handler, '_responder') as send:
+            handler._responder(b'<html><head></head><body></body></html>', 'text/html')
+            self.assertNotIn('/pengui.js',send.call_args.args[0])
+
+    def test_company_logo_in_every_browser_tab(self):
+        """Gomería y Configuración no declaraban el icono y en la solapa se
+        veía el globo gris del navegador. Se inyecta como el resto de lo
+        compartido, así la pantalla que se agregue mañana no se lo olvida."""
+        handler=object.__new__(app.App)
+        handler.usuario={'id':1}
+        handler.path='/gomeria'
+        with patch.object(app.gom.Handler, '_responder') as send:
+            handler._responder(b'<html><head></head><body></body></html>', 'text/html')
+            self.assertIn('rel="icon" href="/favicon.png"',send.call_args.args[0])
+
+    def test_the_screen_that_already_declares_it_keeps_only_one(self):
+        handler=object.__new__(app.App)
+        handler.usuario={'id':1}
+        handler.path='/alertas'
+        propio='<html><head><link rel="icon" href="/favicon.png"></head><body></body></html>'
+        with patch.object(app.gom.Handler, '_responder') as send:
+            handler._responder(propio.encode(), 'text/html')
+            self.assertEqual(send.call_args.args[0].count('rel="icon"'), 1)
+
 if __name__=='__main__':
     unittest.main()

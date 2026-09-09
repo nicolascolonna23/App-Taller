@@ -79,17 +79,33 @@ PANTALLAS = {
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
 
+    def _ruta_pedida(self):
+        """La dirección que escribió el navegador, antes de reescribirla.
+
+        /gomeria le cambia self.path a "/" para que el manejador de Gomería
+        sirva su pantalla. Cualquier decisión que dependa de en qué pantalla
+        estamos tiene que mirar esto y no self.path, que para entonces ya
+        dice otra cosa.
+        """
+        return getattr(self, "ruta_original", None) or urlparse(self.path).path
+
     def _responder(self, cuerpo, tipo="application/json; charset=utf-8", codigo=200, cookie=None):
         # Incluye las pantallas servidas por el manejador de Gomería.
         if tipo.startswith("text/html") and getattr(self, "usuario", None):
             html = cuerpo.decode("utf-8") if isinstance(cuerpo, bytes) else cuerpo
             tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
             estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
+            # El logo de la empresa en la solapa del navegador. Va acá y no
+            # en cada archivo porque cada pantalla que se agregue se lo iba
+            # a olvidar: Gomería y Configuración no lo tenían, y en la
+            # solapa se veía el globo gris del navegador.
+            if 'rel="icon"' not in html:
+                estilos += '<link rel="icon" href="/favicon.png" type="image/png">'
             html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
             # Pengui vive en la portada. Inyectarlo en todas las pantallas
             # lo dejaba encima de formularios, tablas y botones de trabajo.
             script = ('<script src="/pengui.js"></script>'
-                      if urlparse(self.path).path == "/" else "")
+                      if self._ruta_pedida() == "/" else "")
             if '</body>' in html:
                 antes, despues = html.rsplit('</body>', 1)
                 cuerpo = antes + script + '</body>' + despues
@@ -99,6 +115,7 @@ class App(gom.Handler):
 
     def do_GET(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
 
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
@@ -464,6 +481,7 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
                 return
@@ -665,6 +683,7 @@ class App(gom.Handler):
 
     def do_DELETE(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
         if ruta == "/api/unidades":
             return self._unidad_escribir(borrar=True)
         if ruta == "/api/combustible":
