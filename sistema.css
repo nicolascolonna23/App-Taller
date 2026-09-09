@@ -18,6 +18,11 @@ body .sidebar .brand img{width:48px;max-height:52px;height:52px}
 body :is(.tabs,.toolbar,.filters){background:var(--surface-1);border-color:var(--hairline)}
 body :is(.tab,.km-tabs button){border-radius:5px;font-family:inherit}
 body :is(.tab.on,.tab.active,.km-tabs button.on){background:#ffd400;color:#111;border-color:#d8b400}
+body .tab[aria-selected="true"]{background:#ffd400;color:#111;border-color:#d8b400;box-shadow:none}
+body .tab[aria-selected="true"] .count{color:#111;background:rgba(0,0,0,.08)}
+body :is(.btn-refresh,.nav-link){background:#fff;color:#111;border-color:#b8b8b2}
+body .btn-refresh{background:#ffd400;color:#111;border-color:#d8b400}
+body :is(.btn-refresh,.nav-link):hover{background:#111;color:#fff;border-color:#111}
 body :is(input:not([type=checkbox]):not([type=radio]):not([type=color]):not([type=range]),select,textarea){background:var(--surface-1);color:var(--ink);border-color:var(--hairline-2);border-radius:5px;font-family:inherit}
 body :is(button,.btn){font-family:inherit}
 body :is(.btn,.button){border-radius:5px}
@@ -29,6 +34,10 @@ body :is(.km-num b,.kpi b,.tarjeta b){font-variant-numeric:tabular-nums}
 @media(max-width:980px){body .sidebar{padding-bottom:12px;min-width:0;max-width:100vw}body .sidebar .nav{min-width:0;overflow:auto}body .shell>main{min-width:0}body .topbar{flex-wrap:wrap;gap:10px;height:auto;padding-bottom:12px}body .person{max-width:100%;flex-wrap:wrap}body{padding-bottom:86px}}
 @media print{body{padding-bottom:0}}
 @media(max-width:600px){body .workspace{padding-inline:16px}body .workspace .visual{margin-inline:-16px}}
+/* Los modelos claros se perdían sobre el papel blanco. El visor es una
+   superficie de trabajo oscura en ambos temas, como una mesa de dibujo. */
+body :is(.visor3d,.visor){background:#11161b!important;border-color:#343a40!important;color:#e9ecef}
+body :is(.visor3d,.visor) :is(.rot,.pista){color:#aeb6bf}
 /* Chat compacto dentro de Pengui, con el mismo formulario y permisos. */
 .embedded body{padding:0;height:100dvh;overflow:hidden}
 .embedded header,.embedded .eyebrow,.embedded h1,.embedded .sub,.embedded .scope{display:none}

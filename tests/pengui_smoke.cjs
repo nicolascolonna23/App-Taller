@@ -34,11 +34,23 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
     console.log('Checking',url);
     await page.goto('http://taller.test'+url);
     assert.equal(await page.locator('#pengui').count(),url==='/'?1:0);
+    if(url==='/gomeria'){
+     const visorColor=await page.evaluate(()=>{const d=document.createElement('div');d.className='visor3d';document.body.appendChild(d);return getComputedStyle(d).backgroundColor;});
+     assert.equal(visorColor,'rgb(17, 22, 27)');
+    }
+    if(url==='/repuestos'){
+     assert((await page.locator('.brand').evaluate(e=>getComputedStyle(e,'::before').backgroundImage)).includes('/logo.png'));
+     const ghostColor=await page.evaluate(()=>{const bar=document.createElement('div'),b=document.createElement('button');bar.className='bar';b.className='btn ghost';bar.appendChild(b);document.body.appendChild(bar);return getComputedStyle(b).color;});
+     assert.equal(ghostColor,'rgb(255, 255, 255)');
+    }
     if(url==='/control'){
+     assert.equal(await page.locator('#tab-general').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
+     assert.equal(await page.locator('#btn-refresh').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
      await page.locator('#tab-unidad').click();
      await page.waitForFunction(()=>document.body.innerText.includes('41.259'));
      assert((await page.locator('body').innerText()).includes('01/09/26'));
     }
+    if(url==='/combustible')assert(!(await page.locator('body').innerText()).includes('EN PRUEBA'));
     assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(245, 245, 242)');
     if(url==='/'){
      assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);

@@ -439,11 +439,11 @@ function armarVisor(clave, archivo, opciones){
   ren.setSize(caja.clientWidth, caja.clientHeight);
   caja.appendChild(ren.domElement);
 
-  /* El piso y el rebote siguen al tema de la pantalla: en claro un piso
-     negro debajo del camión se ve como un agujero. El color sale del
-     recuadro del visor, que ya está pintado por el tema. */
-  const suelo = colorDeLaCaja(caja);
-  const claro = suelo.r + suelo.g + suelo.b > 1.5;
+  /* El visor es deliberadamente oscuro también en el tema claro. Los
+     modelos tienen carrocerías blancas y sobre papel blanco desaparecían. */
+  const suelo = new THREE.Color(0x11161b);
+  const claro = false;
+  ren.setClearColor(suelo, 1);
 
   /* Sobre piso claro la carrocería se baja un punto: un camión blanco
      sobre fondo blanco no se ve. */
