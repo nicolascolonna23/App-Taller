@@ -115,6 +115,7 @@
     }
     hoja.textContent = css(prefs);
     document.documentElement.dataset.tema = prefs.tema;
+    document.documentElement.dataset.modo = claro ? 'claro' : 'oscuro';
     document.documentElement.dataset.paleta = prefs.paleta;
 
     /* La portada. Es una variable de la hoja, así que no hay que pisar
