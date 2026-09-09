@@ -59,6 +59,16 @@ lo que se había silenciado del anterior ya no aplica.
 
 ## Los services
 
+Los services terminados se guardan en la tabla `services` de Supabase. Una
+orden de trabajo o reparación externa marcada como **preventiva** genera además
+una fila vinculada en esa tabla; una correctiva queda solamente en el historial
+de órdenes. La vinculación se instala con `21_ordenes_preventivas.sql`.
+
+`odometros` es otra cosa: conserva una lectura diaria por unidad que llega de
+Hawk. `v_services_hoy` cruza el último registro de `services` con la lectura más
+reciente de `odometros` para calcular cuántos kilómetros faltan. Una orden nunca
+inventa ni reemplaza una lectura de Hawk.
+
 Hasta ahora vivían en la planilla de Google. Ahora están en la base, así
 las alertas no dependen de que una planilla siga compartida.
 

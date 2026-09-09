@@ -40,10 +40,13 @@ create table if not exists services (
   taller      text,
   observaciones text,
   usuario     text,
+  orden_id    bigint references ordenes_trabajo(id) on delete cascade,
   creado      timestamptz not null default now()
 );
 
 create index if not exists ix_services_unidad on services (unidad_id, km desc);
+create unique index if not exists ux_services_orden on services (orden_id)
+  where orden_id is not null;
 
 comment on table services is
   'Los services hechos. El último de cada unidad, más cada_km, dice cuándo toca el siguiente.';

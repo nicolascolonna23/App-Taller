@@ -17,6 +17,8 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 """
 from datetime import date
 
+import alertas
+
 GESTORES = {"admin", "encargado"}
 
 # Lo que se puede escribir en la cabecera de una orden abierta. Está en un
@@ -68,6 +70,48 @@ def _numero(valor, campo, entero=False):
     if n < 0:
         raise ValueError(f"{campo} no puede ser negativo.")
     return n
+
+
+def _mantenimiento(valor):
+    clase = str(valor or "").strip().lower()
+    if clase not in ("preventivo", "correctivo"):
+        raise ValueError("Elegí si el mantenimiento es preventivo o correctivo.")
+    return clase
+
+
+def _fecha_requerida(valor, campo):
+    fecha = _fecha(valor, campo)
+    if fecha is None:
+        raise ValueError(f"Falta {campo}.")
+    return fecha
+
+
+def _km_requeridos(valor):
+    km = _numero(valor, "El kilometraje")
+    if km is None:
+        raise ValueError("Falta el kilometraje.")
+    return km
+
+
+def _registrar_preventivo(cx, orden, usuario):
+    """Hace que una orden preventiva cerrada sea también el último service."""
+    if orden.get("mantenimiento") != "preventivo":
+        return None
+    if not orden.get("unidad_id"):
+        raise ValueError("Un mantenimiento preventivo necesita una unidad del maestro.")
+
+    detalle = (_texto(orden.get("solicitado"), 500)
+               or _texto(orden.get("diagnostico"), 500)
+               or "Mantenimiento preventivo")
+    return alertas.guardar_service(cx, {
+        "unidad_id": orden["unidad_id"],
+        "fecha": orden["fecha"],
+        "km": orden["km"],
+        "tipo": detalle,
+        "taller": orden.get("taller"),
+        "observaciones": f"Registrado desde la orden Nº {orden['numero']}.",
+        "orden_id": orden["id"],
+    }, usuario=(usuario or {}).get("nombre"))
 
 
 def _orden(cx, orden_id, abierta=False):
@@ -215,7 +259,13 @@ def _unidad(cx, datos):
 def abrir(cx, datos, usuario):
     """Abre una orden interna. La unidad entró al taller."""
     _exigir_gestor(usuario, "abrir una orden de trabajo")
+    mantenimiento = _mantenimiento(datos.get("mantenimiento"))
+    fecha = _fecha_requerida(datos.get("fecha"), "la fecha de entrada")
+    km = _km_requeridos(datos.get("km"))
     unidad_id, patente, unidad = _unidad(cx, datos)
+
+    if mantenimiento == "preventivo" and not unidad_id:
+        raise ValueError("Un mantenimiento preventivo necesita una unidad del maestro.")
 
     # Una unidad con una orden abierta no puede tener otra: si no, los
     # repuestos de un mismo trabajo terminan repartidos en dos hojas.
@@ -227,18 +277,13 @@ def abrir(cx, datos, usuario):
         raise ValueError(f"{patente} ya tiene la orden {abierta['numero']} abierta. "
                          "Cerrala antes de abrir otra.")
 
-    km = _numero(datos.get("km"), "El kilometraje")
-    if km is None and unidad:
-        km = unidad["km_actual"]
-
     fila = cx.execute("""
         insert into ordenes_trabajo
-          (tipo, estado, unidad_id, patente, km, fecha, chofer, responsable,
+          (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, chofer, responsable,
            solicitado, observaciones, usuario_id, usuario)
-        values ('interna','abierta',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        values ('interna','abierta',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         returning id, numero
-    """, (unidad_id, patente, km,
-          _fecha(datos.get("fecha"), "la fecha de entrada") or date.today(),
+    """, (mantenimiento, unidad_id, patente, km, fecha,
           _texto(datos.get("chofer"), 120) or (unidad and unidad["chofer"]),
           _texto(datos.get("responsable"), 120),
           _texto(datos.get("solicitado")),
@@ -308,7 +353,10 @@ def cerrar(cx, datos, usuario):
             where id = %s and (km_actual is null or km_actual < %s)
         """, (orden["km"], orden["unidad_id"], orden["km"]))
 
-    return {"ok": True, "numero": orden["numero"], "fecha_cierre": cierre.isoformat()}
+    service_id = _registrar_preventivo(cx, orden, usuario)
+
+    return {"ok": True, "numero": orden["numero"],
+            "fecha_cierre": cierre.isoformat(), "service_id": service_id}
 
 
 def reabrir(cx, datos, usuario):
@@ -320,6 +368,7 @@ def reabrir(cx, datos, usuario):
         raise ValueError("Un servicio externo no se reabre: se anula y se carga de nuevo.")
     if orden["estado"] != "cerrada":
         raise ValueError("Esa orden no está cerrada.")
+    cx.execute("delete from services where orden_id = %s", (orden["id"],))
     cx.execute("""update ordenes_trabajo
                   set estado = 'abierta', fecha_cierre = null, cerrada_por = null
                   where id = %s""", (orden["id"],))
@@ -336,6 +385,7 @@ def anular(cx, datos, usuario):
     # Anular sin devolver el stock dejaría repuestos descontados por un
     # trabajo que no existió.
     devueltos = _devolver_stock(cx, orden["id"])
+    cx.execute("delete from services where orden_id = %s", (orden["id"],))
     cx.execute("""update ordenes_trabajo set estado = 'anulada',
                   observaciones = coalesce(observaciones || ' · ', '') || %s
                   where id = %s""",
@@ -350,6 +400,7 @@ def borrar(cx, datos, usuario):
         raise PermissionError("Solo un administrador puede borrar una orden.")
     orden = _orden(cx, datos.get("id"))
     _devolver_stock(cx, orden["id"])
+    cx.execute("delete from services where orden_id = %s", (orden["id"],))
     cx.execute("delete from ordenes_trabajo where id = %s", (orden["id"],))
     return {"ok": True}
 
@@ -484,9 +535,14 @@ def externa(cx, datos, usuario):
     lo único que importa es que quede en la historia de la unidad.
     """
     _exigir_gestor(usuario, "cargar un servicio externo")
+    mantenimiento = _mantenimiento(datos.get("mantenimiento"))
+    fecha = _fecha_requerida(datos.get("fecha"), "la fecha del servicio")
+    km = _km_requeridos(datos.get("km"))
     unidad_id, patente, unidad = _unidad(cx, datos)
 
-    fecha = _fecha(datos.get("fecha"), "la fecha del servicio") or date.today()
+    if mantenimiento == "preventivo" and not unidad_id:
+        raise ValueError("Un mantenimiento preventivo necesita una unidad del maestro.")
+
     monto = _numero(datos.get("monto"), "El monto")
     if monto is None:
         raise ValueError("Falta el monto de la factura.")
@@ -503,23 +559,28 @@ def externa(cx, datos, usuario):
         raise ValueError(f"La factura {factura} de {patente} ya está cargada "
                          f"en la orden {repetida['numero']}.")
 
-    km = _numero(datos.get("km"), "El kilometraje")
-    if km is None and unidad:
-        km = unidad["km_actual"]
-
     fila = cx.execute("""
         insert into ordenes_trabajo
-          (tipo, estado, unidad_id, patente, km, fecha, fecha_cierre,
+          (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, fecha_cierre,
            taller, factura, monto, solicitado, observaciones,
            usuario_id, usuario, cerrada_por)
-        values ('externa','cerrada',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        values ('externa','cerrada',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         returning id, numero
-    """, (unidad_id, patente, km, fecha, fecha,
+    """, (mantenimiento, unidad_id, patente, km, fecha, fecha,
           _texto(datos.get("taller"), 120), factura, monto,
           _texto(datos.get("solicitado")), _texto(datos.get("observaciones")),
           (usuario or {}).get("id"), (usuario or {}).get("nombre"),
           (usuario or {}).get("nombre"))).fetchone()
-    return {"ok": True, "id": fila["id"], "numero": fila["numero"]}
+
+    orden = {
+        "id": fila["id"], "numero": fila["numero"], "mantenimiento": mantenimiento,
+        "unidad_id": unidad_id, "fecha": fecha, "km": km,
+        "solicitado": _texto(datos.get("solicitado")), "diagnostico": None,
+        "taller": _texto(datos.get("taller"), 120),
+    }
+    service_id = _registrar_preventivo(cx, orden, usuario)
+    return {"ok": True, "id": fila["id"], "numero": fila["numero"],
+            "service_id": service_id}
 
 
 # =====================================================================

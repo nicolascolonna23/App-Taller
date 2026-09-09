@@ -248,8 +248,13 @@
     <button class="cerrar" data-cerrar="modalNueva">×</button></div>
   <div class="campos">
     <div class="ancho"><label>Unidad</label><select id="nUnidad"></select></div>
-    <div><label>Fecha de entrada</label><input id="nFecha" type="date"></div>
-    <div><label>Kilómetros</label><input id="nKm" type="number" min="0" step="1"></div>
+    <div><label>Tipo de mantenimiento</label><select id="nMantenimiento">
+      <option value="">Elegí una opción</option>
+      <option value="preventivo">Preventivo</option>
+      <option value="correctivo">Correctivo</option>
+    </select></div>
+    <div><label>Fecha de entrada</label><input id="nFecha" type="date" required></div>
+    <div><label>Kilómetros</label><input id="nKm" type="number" min="0" step="1" required></div>
     <div><label>Chofer</label><input id="nChofer"></div>
     <div><label>Responsable</label><input id="nResp" placeholder="Quién la lleva"></div>
     <div class="ancho"><label>Lo que se pidió</label>
@@ -287,10 +292,15 @@
 
   <div class="campos">
     <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
-    <div><label>Fecha</label><input id="xFecha" type="date"></div>
+    <div><label>Tipo de mantenimiento</label><select id="xMantenimiento">
+      <option value="">Elegí una opción</option>
+      <option value="preventivo">Preventivo</option>
+      <option value="correctivo">Correctivo</option>
+    </select></div>
+    <div><label>Fecha</label><input id="xFecha" type="date" required></div>
     <div><label>Nº de factura</label><input id="xFactura" placeholder="0001-00012345"></div>
     <div><label>Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
-    <div><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1"></div>
+    <div><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1" required></div>
     <div class="ancho"><label>Taller o proveedor</label><input id="xTaller" placeholder="Nextruck, Iveco Catamarca…"></div>
     <div class="ancho"><label>Qué se hizo</label>
       <textarea id="xDetalle" placeholder="Service M6, cambio de filtros, reparación de caja…"></textarea></div>
@@ -380,7 +390,8 @@ function pintar() {
         <div class="chico">${esc(o.interno ? 'Interno ' + o.interno : '')}
           ${esc([o.marca, o.modelo].filter(Boolean).join(' '))}</div></td>
       <td>${fecha(o.fecha)}<div class="chico">${o.fecha_cierre ? 'cerró ' + fecha(o.fecha_cierre) : ''}</div></td>
-      <td>${trabajo}</td>
+      <td>${trabajo}<div class="chico">${o.mantenimiento === 'preventivo' ? 'Preventivo'
+        : o.mantenimiento === 'correctivo' ? 'Correctivo' : 'Sin clasificar'}</div></td>
       <td class="chico">${o.tipo === 'externa' ? '—'
         : `${o.cuantas_tareas} trabajo${o.cuantas_tareas === 1 ? '' : 's'} ·
            ${o.cuantos_repuestos} repuesto${o.cuantos_repuestos === 1 ? '' : 's'}`}</td>
@@ -451,6 +462,8 @@ function dibujarOrden() {
       ${dato('Interno', o.interno)}
       ${dato('Marca y modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
       ${dato('Kilómetros', o.km ? nfm.format(o.km) : '')}
+      ${dato('Mantenimiento', o.mantenimiento === 'preventivo' ? 'Preventivo'
+             : o.mantenimiento === 'correctivo' ? 'Correctivo' : 'Sin clasificar')}
       ${dato('Entró', fecha(o.fecha))}
       ${dato(o.tipo === 'externa' ? 'Facturado' : 'Cerró', fecha(o.fecha_cierre))}
       ${dato(o.tipo === 'externa' ? 'Taller' : 'Responsable',
@@ -602,6 +615,8 @@ async function verHistorial(patente) {
       <td>${esc((o.tipo === 'externa'
             ? [o.taller, o.solicitado].filter(Boolean).join(' · ')
             : (o.solicitado || o.diagnostico || '')).slice(0, 110) || '—')}
+        <div class="chico">${o.mantenimiento === 'preventivo' ? 'Preventivo'
+          : o.mantenimiento === 'correctivo' ? 'Correctivo' : 'Sin clasificar'}</div>
         ${o.factura ? `<div class="chico">Factura ${esc(o.factura)}</div>` : ''}</td>
       <td class="num chico">${o.km ? nfm.format(o.km) + ' km' : ''}</td>
       <td class="num">${Number(o.total) ? '$ ' + money(o.total) : '—'}</td>
@@ -661,6 +676,8 @@ function imprimir() {
       ${dato('Marca y modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
       ${dato('Chasis', o.chasis)}
       ${dato('Kilómetros', o.km ? nfm.format(o.km) : '')}
+      ${dato('Mantenimiento', o.mantenimiento === 'preventivo' ? 'Preventivo'
+             : o.mantenimiento === 'correctivo' ? 'Correctivo' : 'Sin clasificar')}
       ${dato('Chofer', o.chofer)}
       ${dato('Sucursal', o.sucursal)}
       ${dato('Responsable', o.tipo === 'externa' ? o.taller : o.responsable)}
@@ -814,6 +831,7 @@ $('#verHistorial').onclick = () => {
 $('#nueva').onclick = () => {
   $('#avisoNueva').innerHTML = '';
   $('#nFecha').value = hoy();
+  $('#nMantenimiento').value = '';
   ['nKm','nChofer','nResp','nSolicitado'].forEach(c => $('#' + c).value = '');
   $('#modalNueva').classList.add('on');
 };
@@ -831,6 +849,7 @@ $('#guardarNueva').onclick = async () => {
     const r = await api('abrir', {
       unidad_id: Number($('#nUnidad').value) || null,
       fecha: $('#nFecha').value, km: $('#nKm').value || null,
+      mantenimiento: $('#nMantenimiento').value,
       chofer: $('#nChofer').value, responsable: $('#nResp').value,
       solicitado: $('#nSolicitado').value});
     $('#modalNueva').classList.remove('on');
@@ -847,6 +866,7 @@ $('#guardarNueva').onclick = async () => {
 $('#nuevaExterna').onclick = () => {
   $('#avisoExterna').innerHTML = '';
   $('#xFecha').value = hoy();
+  $('#xMantenimiento').value = '';
   ['xFactura','xMonto','xKm','xTaller','xDetalle'].forEach(c => $('#' + c).value = '');
   limpiarLector();
   $('#modalExterna').classList.add('on');
@@ -993,6 +1013,7 @@ $('#guardarExterna').onclick = async () => {
       unidad_id: Number($('#xUnidad').value) || null,
       fecha: $('#xFecha').value, factura: $('#xFactura').value,
       monto: $('#xMonto').value, km: $('#xKm').value || null,
+      mantenimiento: $('#xMantenimiento').value,
       taller: $('#xTaller').value, solicitado: $('#xDetalle').value});
     $('#modalExterna').classList.remove('on');
     await cargar();

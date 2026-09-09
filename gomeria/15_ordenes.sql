@@ -33,6 +33,7 @@ create table if not exists ordenes_trabajo (
                 check (tipo in ('interna', 'externa')),
   estado        text not null default 'abierta'
                 check (estado in ('abierta', 'cerrada', 'anulada')),
+  mantenimiento text check (mantenimiento in ('preventivo', 'correctivo')),
 
   -- La unidad. La patente se guarda además del id porque una orden vieja
   -- tiene que poder leerse aunque la unidad se haya dado de baja, y porque
@@ -140,7 +141,8 @@ select
   case when o.tipo = 'externa' then coalesce(o.monto, 0)
        else coalesce(t.importe, 0) + coalesce(r.importe, 0) end::numeric as total,
   case when o.estado = 'abierta'
-       then (current_date - o.fecha)::integer end as dias_abierta
+       then (current_date - o.fecha)::integer end as dias_abierta,
+  o.mantenimiento
 from ordenes_trabajo o
 left join unidades u on u.id = o.unidad_id
 left join lateral (
