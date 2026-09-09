@@ -102,7 +102,7 @@ class Queries(unittest.TestCase):
 class Agent(unittest.TestCase):
     def setUp(self):
         a._ultimos.clear();a._activos.clear()
-        self.env=patch.dict(os.environ,{'OPENAI_API_KEY':'test-only-not-real'})
+        self.env=patch.dict(os.environ,{'ANTHROPIC_API_KEY':'test-only-not-real'})
         self.env.start()
     def tearDown(self): self.env.stop()
 
@@ -114,6 +114,28 @@ class Agent(unittest.TestCase):
         self.assertFalse(payload['store'])
         self.assertEqual(payload['tool_choice'],'required')
         self.assertIn('function_call_output',str(model.call_args_list[1].args[0]['input']))
+
+    def test_context_is_converted_to_claude_tool_blocks(self):
+        converted=a._mensajes_claude([
+            {'role':'user','content':'stock'},
+            {'type':'function_call','name':'consultar_sistema','arguments':json.dumps(args()),'call_id':'tool_1'},
+            {'type':'function_call_output','call_id':'tool_1','output':'{"cantidad": 70}'},
+        ])
+        self.assertEqual([m['role'] for m in converted],['user','assistant','user'])
+        self.assertEqual(converted[1]['content'][0]['type'],'tool_use')
+        self.assertEqual(converted[2]['content'][0]['tool_use_id'],'tool_1')
+
+    def test_anthropic_transport_normalizes_tool_use(self):
+        bloque=MagicMock(type='tool_use',name='consultar_sistema',input=args(),id='tool_1')
+        respuesta=MagicMock(content=[bloque],stop_reason='tool_use')
+        cliente=MagicMock();cliente.messages.create.return_value=respuesta
+        payload={'model':'claude-opus-5','instructions':'reglas','input':[{'role':'user','content':'stock'}],
+                 'tools':a.HERRAMIENTAS,'tool_choice':'required','max_output_tokens':2400}
+        with patch.object(a.anthropic,'Anthropic',return_value=cliente): salida=a.llamar_modelo(payload)
+        self.assertEqual(salida['output'][0]['type'],'function_call')
+        opciones=cliente.messages.create.call_args.kwargs
+        self.assertEqual(opciones['tool_choice'],{'type':'any'})
+        self.assertEqual(opciones['tools'][0]['input_schema']['type'],'object')
 
     def test_answer_without_evidence_rejected(self):
         with self.assertRaises(a.NoDisponible): a._responder([{'role':'user','content':'stock'}],lambda p:answer(),source)
@@ -134,7 +156,7 @@ class Agent(unittest.TestCase):
             with self.assertRaises(ValueError): a.validar_mensajes({'mensajes':messages})
 
     def test_missing_key_and_permission(self):
-        with patch.dict(os.environ,{'OPENAI_API_KEY':''}):
+        with patch.dict(os.environ,{'ANTHROPIC_API_KEY':''}):
             with self.assertRaises(a.NoDisponible): a.responder({'mensajes':[{'role':'user','content':'stock'}]}, {'id':1,'rol':'admin'})
         with self.assertRaises(PermissionError): a.responder({},None)
 
