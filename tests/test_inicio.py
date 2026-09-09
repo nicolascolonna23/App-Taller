@@ -38,12 +38,18 @@ class Inicio(unittest.TestCase):
         rows.append(dict(unidad_id=2,fecha=hoy-timedelta(days=1),km=150))
         self.assertFalse(_resumir_km(rows,hoy)['semana']['comparar'])
 
-    def test_shared_assets_only_on_authenticated_html(self):
+    def test_pengui_only_on_authenticated_home(self):
         handler=object.__new__(app.App)
         handler.usuario={'id':1}
+        handler.path='/'
         with patch.object(app.gom.Handler, '_responder') as send:
             handler._responder(b'<html><head></head><body></body></html>', 'text/html')
             self.assertIn('/pengui.js',send.call_args.args[0])
+            self.assertIn('/sistema.css',send.call_args.args[0])
+        handler.path='/ordenes'
+        with patch.object(app.gom.Handler, '_responder') as send:
+            handler._responder(b'<html><head></head><body></body></html>', 'text/html')
+            self.assertNotIn('/pengui.js',send.call_args.args[0])
             self.assertIn('/sistema.css',send.call_args.args[0])
         handler.usuario=None
         with patch.object(app.gom.Handler, '_responder') as send:

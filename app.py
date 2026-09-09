@@ -86,7 +86,10 @@ class App(gom.Handler):
             tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
             estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
             html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
-            script = '<script src="/pengui.js"></script>'
+            # Pengui vive en la portada. Inyectarlo en todas las pantallas
+            # lo dejaba encima de formularios, tablas y botones de trabajo.
+            script = ('<script src="/pengui.js"></script>'
+                      if urlparse(self.path).path == "/" else "")
             if '</body>' in html:
                 antes, despues = html.rsplit('</body>', 1)
                 cuerpo = antes + script + '</body>' + despues
@@ -221,6 +224,23 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro: {e}", 500)
+
+        # La fuente de verdad del tablero de mantenimiento. La planilla de
+        # Google queda como respaldo del navegador, pero una orden preventiva
+        # tiene que verse apenas se guarda en Supabase.
+        if ruta == "/api/services":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(alr.services(cx)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta actualizar los services. Corré gomeria/20_alertas.sql y "
+                    "gomeria/21_ordenes_preventivas.sql en Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los services: {e}", 500)
 
         # Los logos de las marcas de cubierta. Que falte uno no es un
         # error: la pantalla muestra el nombre en texto y sigue.
