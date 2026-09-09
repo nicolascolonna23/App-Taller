@@ -369,6 +369,13 @@
         </select>
       </div>
       <div class="campo">
+        <label for="c-mantenimiento_plan_id">Plan de mantenimiento</label>
+        <select id="c-mantenimiento_plan_id" name="mantenimiento_plan_id">
+          <option value="">Sin plan asignado</option>
+        </select>
+        <span class="ayuda">Define cada cuántos kilómetros vence el próximo service.</span>
+      </div>
+      <div class="campo">
         <label for="c-modelo_3d">Modelo 3D</label>
         <select id="c-modelo_3d" name="modelo_3d">
           <option value="">Según los ejes</option>
@@ -525,6 +532,7 @@ function abrir(u){
   $('#c-tipo').value = u ? u.tipo : 'vehiculo';
   $('#c-modelo_3d').value = (u && u.modelo_3d) || '';
   $('#c-activa').value = u ? (u.activa ? '1' : '0') : '1';
+  $('#c-mantenimiento_plan_id').value = u && u.mantenimiento_plan_id ? String(u.mantenimiento_plan_id) : '';
 
   /* La cédula sale con lo que ya trae la lista: se ve al instante. */
   $('.dos > div:first-child').hidden = !u;
@@ -933,7 +941,7 @@ $('#ficha').onsubmit = async e => {
   $('#ficha-error').hidden = true;
   const cuerpo = { id: EDITANDO ? EDITANDO.id : null };
   for (const c of ['patente','interno','marca','modelo','chasis','chofer',
-                   'semi','sucursal','uso','nota','tipo','modelo_3d'])
+                   'semi','sucursal','uso','nota','tipo','modelo_3d','mantenimiento_plan_id'])
     cuerpo[c] = $('#c-' + c).value;
   cuerpo.activa = $('#c-activa').value === '1';
   $('#guardar').disabled = true;
@@ -975,6 +983,9 @@ async function cargar(){
   const unicos = k => [...new Set(DATOS.unidades.map(u => u[k]).filter(Boolean))].sort();
   datalist('marcas', unicos('marca'));
   datalist('choferes', unicos('chofer'));
+  const planes = DATOS.planes_mantenimiento || [];
+  $('#c-mantenimiento_plan_id').innerHTML = '<option value="">Sin plan asignado</option>' +
+    planes.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${Number(p.cada_km).toLocaleString('es-AR')} km</option>`).join('');
 
   const rev = DATOS.revisar || [];
   $('#revisar').hidden = rev.length === 0;

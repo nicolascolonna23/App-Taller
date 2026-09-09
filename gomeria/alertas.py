@@ -420,9 +420,14 @@ def guardar_service(cx, datos, usuario=None):
 
     cada = datos.get("cada_km")
     if cada in (None, ""):
-        # El plan que ya tenía. Si es el primero, el que traen las reglas.
-        previo = cx.execute("""select cada_km from services where unidad_id = %s
-                               order by km desc limit 1""", (unidad_id,)).fetchone()
+        # Primero manda el plan asignado. El service conserva una foto de
+        # esa frecuencia para que el historial no cambie si luego se reasigna.
+        previo = cx.execute("""select p.cada_km from unidades u
+            join mantenimiento_planes p on p.id=u.mantenimiento_plan_id and p.activo
+            where u.id=%s""", (unidad_id,)).fetchone()
+        if not previo:
+            previo = cx.execute("""select cada_km from services where unidad_id = %s
+                                   order by km desc limit 1""", (unidad_id,)).fetchone()
         cada = float(previo["cada_km"]) if previo else 15000
     cada = float(cada)
     if cada <= 0:

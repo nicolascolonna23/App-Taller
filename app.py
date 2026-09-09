@@ -37,6 +37,7 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
+import mantenimiento as mant
 import preferencias as prefs
 import unidades as uni
 import vencimientos as venc
@@ -254,10 +255,23 @@ class App(gom.Handler):
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
                 return self._error(
                     "Falta actualizar los services. Corré gomeria/20_alertas.sql y "
-                    "gomeria/21_ordenes_preventivas.sql en Supabase.", 503)
+                    "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
+                    "en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los services: {e}", 500)
+
+        if ruta == "/api/mantenimiento":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(mant.listar(cx)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer la parametrización: {e}", 500)
 
         # Los logos de las marcas de cubierta. Que falte uno no es un
         # error: la pantalla muestra el nombre en texto y sigue.
@@ -620,6 +634,28 @@ class App(gom.Handler):
 
         if ruta == "/api/alertas":
             return self._alertas()
+
+        if ruta == "/api/mantenimiento":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    salida = mant.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(salida))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except psycopg.errors.UniqueViolation:
+                return self._error("Ya existe un plan con ese nombre.")
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar la parametrización: {e}", 500)
 
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
