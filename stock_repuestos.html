@@ -45,6 +45,8 @@ input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 .brand{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:16px 0 12px;
        border-bottom:1px solid var(--rule)}
 .brand img{height:34px;width:auto;display:block}
+.brand>img{display:none}
+.brand::before{content:"";width:38px;height:42px;flex:0 0 38px;background:url('/logo.png?v=penguin-20260909') center/contain no-repeat}
 .brand .divider{width:1px;height:30px;background:var(--rule2)}
 .brand h1{font-family:var(--disp);font-weight:600;font-size:21px;letter-spacing:.16em;text-transform:uppercase;
           margin:0;color:var(--ink)}
@@ -234,6 +236,10 @@ tr.baja .code{color:#4E5F70}
             text-transform:uppercase;color:var(--muted);margin-right:7px}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+html[data-modo="claro"] body::before{background:none}
+html[data-modo="claro"] .wrap{background:#f5f5f2}
+html[data-modo="claro"] .bar .btn.ghost{background:#111;color:#fff;border-color:#111}
+html[data-modo="claro"] .bar .btn.ghost:hover{background:#ffd400;color:#111;border-color:#d8b400}
 </style>
 <script src="/tema.js"></script>
 
