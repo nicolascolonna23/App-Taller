@@ -370,6 +370,10 @@ class App(gom.Handler):
                 return self._error(
                     "Falta crear las tablas de órdenes de trabajo. Corré "
                     "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
+            except psycopg.errors.UndefinedColumn:
+                return self._error(
+                    "Falta actualizar las órdenes preventivas. Corré "
+                    "gomeria/21_ordenes_preventivas.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las órdenes: {e}", 500)
@@ -562,6 +566,10 @@ class App(gom.Handler):
                 return self._error(
                     "Falta crear las tablas de órdenes de trabajo. Corré "
                     "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
+            except psycopg.errors.UndefinedColumn:
+                return self._error(
+                    "Falta actualizar las órdenes preventivas. Corré "
+                    "gomeria/21_ordenes_preventivas.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la orden: {e}", 500)

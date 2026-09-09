@@ -430,14 +430,35 @@ def guardar_service(cx, datos, usuario=None):
 
     fecha = str(datos.get("fecha") or "").strip() or None
     limpio = lambda x, n=200: (str(x).strip()[:n] or None) if x else None
-    fila = cx.execute("""
-        insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
-                              observaciones, usuario)
-        values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s)
-        returning id
-    """, (unidad_id, fecha, km, limpio(datos.get("tipo"), 60), cada,
-          limpio(datos.get("taller"), 120), limpio(datos.get("observaciones"), 500),
-          usuario)).fetchone()
+    orden_id = int(datos.get("orden_id") or 0) or None
+    valores = (unidad_id, fecha, km, limpio(datos.get("tipo"), 60), cada,
+               limpio(datos.get("taller"), 120),
+               limpio(datos.get("observaciones"), 500), usuario)
+    if orden_id:
+        existente = cx.execute("select id from services where orden_id = %s",
+                               (orden_id,)).fetchone()
+        if existente:
+            cx.execute("""
+                update services set unidad_id = %s, fecha = coalesce(%s::date, current_date),
+                    km = %s, tipo = %s, cada_km = %s, taller = %s,
+                    observaciones = %s, usuario = %s
+                where id = %s
+            """, (*valores, existente["id"]))
+            fila = existente
+        else:
+            fila = cx.execute("""
+                insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
+                                      observaciones, usuario, orden_id)
+                values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s, %s)
+                returning id
+            """, (*valores, orden_id)).fetchone()
+    else:
+        fila = cx.execute("""
+            insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
+                                  observaciones, usuario)
+            values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s)
+            returning id
+        """, valores).fetchone()
 
     # Un service nuevo es una alerta nueva: lo que se había silenciado del
     # anterior ya no aplica.

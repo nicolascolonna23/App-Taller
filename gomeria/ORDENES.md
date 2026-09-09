@@ -21,8 +21,24 @@ que se hace de verdad: *¿qué le hicimos a este camión y cuánto nos costó?*
 En Supabase, **SQL Editor**, pegar y correr `gomeria/15_ordenes.sql`. Se
 puede correr las veces que haga falta: no borra nada.
 
+En una base que ya tenía órdenes y services, correr además
+`gomeria/21_ordenes_preventivas.sql`. Agrega la clasificación y vincula la
+orden con su registro de service sin modificar los datos anteriores.
+
 Hasta que no se corra, la pantalla `/ordenes` avisa que falta el script en
 lugar de romper, y el resto de la aplicación sigue andando igual.
+
+## Preventivo o correctivo
+
+Toda orden nueva y todo servicio externo pide la clasificación, la fecha y
+los kilómetros. Una orden interna preventiva se registra también en `services`
+cuando se cierra; un servicio externo preventivo lo hace al guardarse porque
+nace cerrado. Los correctivos quedan en el historial de órdenes, pero no
+reemplazan el último service programado.
+
+La tabla `odometros` no guarda services: contiene las lecturas diarias de Hawk.
+La vista `v_services_hoy` combina el último `services` con el odómetro más
+reciente para calcular cuándo toca el próximo mantenimiento.
 
 ## Cargar un servicio externo sacándole una foto a la factura
 
