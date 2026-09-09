@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Alertas | Diemar</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ff7a1a; --brand-soft:rgba(255,122,26,.13);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+  .who a{color:var(--ink-muted);margin-left:10px;text-decoration:none}
+
+  .solapas{display:flex;gap:2px;padding:0 20px;background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);position:sticky;top:58px;z-index:9}
+  .solapas button{padding:11px 15px;font-size:13px;font-weight:700;background:none;
+    border:0;border-bottom:2px solid transparent;color:var(--ink-muted);
+    cursor:pointer;font-family:inherit;margin-bottom:-1px}
+  .solapas button:hover{color:var(--ink)}
+  .solapas button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  @media(max-width:640px){.solapas{padding:0 8px;overflow-x:auto}}
+
+  main{max-width:1320px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  h2{margin:0 0 3px;font-size:16px;font-weight:600}
+  .sub{color:var(--ink-muted);margin:5px 0 18px}
+
+  .tarjetas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .tarjeta{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;padding:15px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+  .tarjeta:hover{border-color:var(--hairline-2)}
+  .tarjeta.on{border-color:var(--brand);background:var(--brand-soft)}
+  .tarjeta b{display:block;font-size:26px;line-height:1.1}
+  .tarjeta span{color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.9px;font-weight:700}
+  .tarjeta.grave b{color:var(--bad)}
+  .tarjeta.media b{color:var(--warn)}
+  .tarjeta.leve b{color:var(--ink-2)}
+  .tarjeta.calladas b{color:var(--ink-muted)}
+  @media(max-width:760px){.tarjetas{grid-template-columns:repeat(2,1fr)}}
+
+  .barra{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
+    font:inherit;outline:none;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:rgba(255,122,26,.6)}
+  .barra input{max-width:320px}
+  .barra select{max-width:200px}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .espacio{margin-left:auto}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0}
+  .accion:hover{color:var(--brand)}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:15px;overflow:auto;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
+    white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:middle}
+  tbody tr:hover{background:rgba(255,122,26,.06)}
+  .num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .chico{color:var(--ink-muted);font-size:11.5px}
+  .vacio{text-align:center;color:var(--ink-muted);padding:34px}
+
+  /* LA LISTA DE ALERTAS. Una franja de color a la izquierda por gravedad:
+     de un vistazo se ve cuánto rojo hay antes de leer una sola palabra. */
+  .alerta{display:flex;gap:13px;align-items:flex-start;padding:13px 14px;
+    background:var(--surface-1);border:1px solid var(--hairline);
+    border-left:4px solid var(--ink-muted);border-radius:11px;margin-bottom:8px}
+  .alerta.grave{border-left-color:var(--bad)}
+  .alerta.media{border-left-color:var(--warn)}
+  .alerta.leve{border-left-color:var(--ink-2)}
+  .alerta.callada{opacity:.6;border-left-color:var(--hairline-2)}
+  .alerta .cuerpo{flex:1;min-width:0}
+  .alerta .linea1{display:flex;gap:9px;align-items:baseline;flex-wrap:wrap}
+  .alerta .titulo{font-weight:700;font-size:14px}
+  .alerta .patente{font-weight:800;letter-spacing:.5px;color:var(--brand)}
+  .alerta .detalle{color:var(--ink-2);font-size:13px;margin-top:3px}
+  .alerta .extra{color:var(--ink-muted);font-size:11.5px;margin-top:3px}
+  .alerta .acciones{display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap}
+  .marca{display:inline-block;border-radius:99px;padding:3px 8px;font-size:10px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;
+    background:var(--surface-3);color:var(--ink-muted)}
+  .marca.vencimiento{color:#7db3ef;background:rgba(125,179,239,.13)}
+  .marca.service{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.combustible{color:#c48cf0;background:rgba(196,140,240,.13)}
+  .marca.cubierta{color:var(--ok);background:rgba(49,189,101,.12)}
+  .ir{color:var(--ink-muted);text-decoration:none;font-size:12px;white-space:nowrap}
+  .ir:hover{color:var(--brand)}
+  @media(max-width:700px){.alerta{flex-direction:column}.alerta .acciones{width:100%}}
+
+  .estado{display:inline-block;border-radius:99px;padding:3px 8px;font-size:10px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .estado.vencido{color:var(--bad);background:rgba(227,93,98,.13)}
+  .estado.urgente{color:#ff9b4a;background:rgba(255,155,74,.13)}
+  .estado.proximo{color:var(--warn);background:rgba(240,180,41,.13)}
+  .estado.ok{color:var(--ok);background:rgba(49,189,101,.12)}
+  .estado.sin_plan,.estado.sin_odometro{color:var(--ink-muted);background:var(--surface-3)}
+
+  .aviso{margin-bottom:14px;padding:12px 14px;border-radius:11px;font-size:13px}
+  .aviso.mal{color:#ffb3b6;background:rgba(227,93,98,.12)}
+  .aviso.dato{color:var(--ink-2);background:var(--surface-2);border:1px solid var(--hairline)}
+
+  .fondo{position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:30;
+    display:none;align-items:center;justify-content:center;padding:18px}
+  .fondo.on{display:flex}
+  .modal{width:min(560px,100%);max-height:90vh;overflow:auto;background:var(--surface-1);
+    border:1px solid var(--hairline-2);border-radius:16px;padding:20px}
+  .modal h2{margin:0;font-size:19px}
+  .cerrar{border:0;background:none;color:var(--ink-muted);font-size:25px;cursor:pointer}
+  .cabecera{display:flex;justify-content:space-between;align-items:center}
+  .campos{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-top:14px}
+  label{display:block;color:var(--ink-muted);font-size:10px;font-weight:800;
+    text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+  .ancho{grid-column:1/-1}
+  .pista{color:var(--ink-muted);font-size:12px;margin:4px 0 0}
+</style>
+<script src="/tema.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Alertas</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<nav class="solapas">
+  <button class="on" data-solapa="lista">Alertas</button>
+  <button data-solapa="services">Services</button>
+  <button data-solapa="reglas" id="tabReglas" hidden>Cuándo avisar</button>
+</nav>
+
+<main>
+  <div id="error" class="aviso mal" hidden></div>
+
+  <!-- ------------------------------------------------------- alertas -->
+  <section id="lista">
+    <h1>Alertas</h1>
+    <p class="sub" id="pie">Cargando…</p>
+
+    <div id="apagadas" class="aviso dato" hidden></div>
+
+    <div class="tarjetas">
+      <button class="tarjeta grave"    data-filtro="grave"><b id="n-grave">–</b><span>Graves</span></button>
+      <button class="tarjeta media"    data-filtro="media"><b id="n-media">–</b><span>Para esta semana</span></button>
+      <button class="tarjeta leve"     data-filtro="leve"><b id="n-leve">–</b><span>Para tener en cuenta</span></button>
+      <button class="tarjeta calladas" data-filtro="calladas"><b id="n-calladas">–</b><span>Silenciadas</span></button>
+    </div>
+
+    <div class="barra">
+      <input id="buscar" placeholder="Buscar patente, interno o texto">
+      <select id="filtroFuente">
+        <option value="">Todas las fuentes</option>
+        <option value="vencimiento">Vencimientos</option>
+        <option value="service">Services</option>
+        <option value="combustible">Combustible</option>
+        <option value="cubierta">Cubiertas</option>
+      </select>
+      <button class="accion espacio" id="verCalladas">ver las silenciadas</button>
+    </div>
+
+    <div id="filas"></div>
+  </section>
+
+  <!-- ------------------------------------------------------ services -->
+  <section id="services" hidden>
+    <h1>Services</h1>
+    <p class="sub">Cuándo se le hizo el último a cada unidad y cuánto le falta
+      para el próximo. Los kilómetros de hoy salen del satelital.</p>
+    <div class="barra">
+      <input id="buscarSrv" placeholder="Buscar patente o interno">
+      <button class="btn espacio" id="nuevoService" hidden>+ Registrar service</button>
+    </div>
+    <div class="caja">
+      <table>
+        <thead><tr>
+          <th>Unidad</th><th>Último service</th><th class="num">A los</th>
+          <th class="num">Cada</th><th class="num">Próximo</th>
+          <th class="num">Km de hoy</th><th class="num">Faltan</th><th>Estado</th><th></th>
+        </tr></thead>
+        <tbody id="filasSrv"><tr><td colspan="9" class="vacio">Cargando…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- -------------------------------------------------------- reglas -->
+  <section id="reglas" hidden>
+    <h1>Cuándo avisar</h1>
+    <p class="sub">Los números que definen qué es una alerta. Los de service son
+      los mismos que usa el tablero de Services, para que las dos pantallas no
+      digan cosas distintas del mismo camión.</p>
+    <div class="caja">
+      <div class="campos">
+        <div>
+          <label>Carga de combustible máxima (litros)</label>
+          <input id="rLitros" type="number" min="1" step="1">
+          <p class="pista">Una carga más grande que esto se avisa. Un tanque
+            entero y medio es un error de carga, dos unidades con un remito, o
+            combustible que se fue.</p>
+        </div>
+        <div>
+          <label>Días de combustible que se miran</label>
+          <input id="rDias" type="number" min="1" step="1">
+          <p class="pista">Una carga rara de hace dos años no es una alerta.</p>
+        </div>
+        <div>
+          <label>Service urgente (km)</label>
+          <input id="rUrgente" type="number" min="1" step="500">
+          <p class="pista">Menos que esto para el próximo service es rojo.</p>
+        </div>
+        <div>
+          <label>Aviso de service (km)</label>
+          <input id="rAviso" type="number" min="1" step="500">
+          <p class="pista">Desde acá se empieza a avisar, en amarillo.</p>
+        </div>
+      </div>
+      <div class="barra" style="margin:14px 0 0"><button class="btn" id="guardarReglas">Guardar</button></div>
+    </div>
+  </section>
+</main>
+
+<!-- ------------------------------------------------------- modales -->
+<div class="fondo" id="modalCallar"><div class="modal">
+  <div class="cabecera"><h2>Silenciar la alerta</h2>
+    <button class="cerrar" data-cerrar="modalCallar">×</button></div>
+  <p class="pista" id="callarQue"></p>
+  <div class="campos">
+    <div class="ancho"><label>¿Por qué se silencia?</label>
+      <textarea id="cMotivo" rows="3" placeholder="El tanque de este camión es de 600 litros, la carga estaba bien"></textarea>
+      <p class="pista">Queda anotado con tu nombre. Dentro de seis meses, «alguien
+        la ocultó» no le sirve a nadie.</p></div>
+    <div class="ancho"><label>Volver a avisar el día (opcional)</label>
+      <input id="cHasta" type="date">
+      <p class="pista">En blanco, se silencia para siempre.</p></div>
+  </div>
+  <div id="errorCallar"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarCallar">Silenciar</button>
+    <button class="btn alt" data-cerrar="modalCallar">Cancelar</button>
+  </div>
+</div></div>
+
+<div class="fondo" id="modalService"><div class="modal">
+  <div class="cabecera"><h2>Registrar service</h2>
+    <button class="cerrar" data-cerrar="modalService">×</button></div>
+  <p class="pista">No pisa al anterior: se suma al historial de esa unidad.</p>
+  <div class="campos">
+    <div class="ancho"><label>Unidad</label><select id="sUnidad"></select></div>
+    <div><label>Fecha</label><input id="sFecha" type="date"></div>
+    <div><label>Kilómetros</label><input id="sKm" type="number" min="0" step="1"></div>
+    <div><label>Qué se hizo</label><input id="sTipo" placeholder="M6, aceite y filtros…"></div>
+    <div><label>Cada cuántos km</label><input id="sCada" type="number" min="1" step="500"></div>
+    <div class="ancho"><label>Taller</label><input id="sTaller" placeholder="Taller propio, Nextruck…"></div>
+    <div class="ancho"><label>Observaciones</label><input id="sObs"></div>
+  </div>
+  <div id="errorService"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarService">Guardar service</button>
+    <button class="btn alt" data-cerrar="modalService">Cancelar</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+/* =====================================================================
+   ALERTAS
+   ---------------------------------------------------------------------
+   Cuatro fuentes en una sola lista, ordenada por urgencia y no por
+   fuente. Al que abre esto a la mañana no le importa si lo que tiene
+   encima es una VTV o un service: le importa cuál lo deja tirado primero.
+   ===================================================================== */
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+const esc = s => String(s == null ? '' : s)
+  .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nfm = new Intl.NumberFormat('es-AR');
+const num = n => n == null ? '—' : nfm.format(Math.round(Number(n)));
+const pat = p => {
+  const t = String(p || '').toUpperCase();
+  return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(t) ? `${t.slice(0,2)} ${t.slice(2,5)} ${t.slice(5)}`
+       : /^[A-Z]{3}\d{3}$/.test(t) ? `${t.slice(0,3)} ${t.slice(3)}` : t;
+};
+const fecha = f => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-AR',
+  {day:'2-digit', month:'2-digit', year:'2-digit'}) : '—';
+
+const D = {datos:null, filtro:'', usuario:null, callando:null, verCalladas:false};
+const FUENTES = {vencimiento:'Vencimiento', service:'Service',
+                 combustible:'Combustible', cubierta:'Cubierta'};
+
+async function api(cuerpo) {
+  const r = await fetch('/api/alertas', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(cuerpo)});
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+async function cargar() {
+  const r = await fetch('/api/alertas' + (D.verCalladas ? '?silenciadas=1' : ''));
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudieron leer las alertas.');
+  D.datos = d;
+}
+
+/* ------------------------------------------------------------ solapas */
+$$('.solapas button').forEach(b => b.onclick = () => {
+  $$('.solapas button').forEach(x => x.classList.toggle('on', x === b));
+  ['lista','services','reglas'].forEach(id => $('#' + id).hidden = id !== b.dataset.solapa);
+  if (location.hash.slice(1) !== b.dataset.solapa)
+    history.replaceState(null, '', '#' + b.dataset.solapa);
+});
+function solapaDeLaUrl() {
+  const h = location.hash.slice(1);
+  if (!['lista','services','reglas'].includes(h)) return;
+  const b = $(`.solapas button[data-solapa="${h}"]`);
+  if (b && !b.hidden) b.click();
+}
+/* «Ir a Services» de una alerta apunta a esta misma pantalla: sin esto el
+   enlace cambia la dirección y no pasa nada. */
+addEventListener('hashchange', solapaDeLaUrl);
+
+/* ------------------------------------------------------- las alertas */
+function alertaHtml(a, callada) {
+  const donde = [a.patente && `<span class="patente">${esc(pat(a.patente))}</span>`,
+                 a.interno && `<span class="chico">int. ${esc(a.interno)}</span>`,
+                 a.de_quien && !a.patente && `<span class="chico">${esc(a.de_quien)}</span>`]
+                .filter(Boolean).join(' ');
+  const silenciada = callada
+    ? `<div class="extra">Silenciada por ${esc(a.silenciada.usuario || 'alguien')}: ${esc(a.silenciada.motivo)}${
+        a.silenciada.hasta ? ` · vuelve el ${esc(fecha(a.silenciada.hasta))}` : ''}</div>` : '';
+  const acciones = callada
+    ? (D.usuario?.puede_administrar
+        ? `<button class="btn alt" data-reactivar="${esc(a.fuente)}|${esc(a.clave)}">Volver a avisar</button>` : '')
+    : `${D.usuario?.puede_administrar
+        ? `<button class="btn alt" data-callar="${esc(a.fuente)}|${esc(a.clave)}">Silenciar</button>` : ''}
+       <a class="ir" href="${esc(a.enlace)}">Ir a ${esc(a.modulo)} ›</a>`;
+  return `<div class="alerta ${esc(a.severidad)}${callada ? ' callada' : ''}">
+    <div class="cuerpo">
+      <div class="linea1">
+        <span class="marca ${esc(a.fuente)}">${esc(FUENTES[a.fuente] || a.fuente)}</span>
+        <span class="titulo">${esc(a.titulo)}</span>${donde}
+      </div>
+      <div class="detalle">${esc(a.detalle)}</div>
+      ${a.extra ? `<div class="extra">${esc(a.extra)}</div>` : ''}
+      ${silenciada}
+    </div>
+    <div class="acciones">${acciones}</div>
+  </div>`;
+}
+
+function pintar() {
+  const d = D.datos;
+  if (!d.instalado) {
+    $('#pie').textContent = d.aviso || '';
+    $('#filas').innerHTML = `<div class="caja"><div class="vacio">${esc(d.aviso || '')}<br>
+      <span class="chico">Es un archivo que se pega en Supabase → SQL Editor → Run.</span></div></div>`;
+    return;
+  }
+  const r = d.resumen;
+  $('#n-grave').textContent = r.grave;
+  $('#n-media').textContent = r.media;
+  $('#n-leve').textContent = r.leve;
+  $('#n-calladas').textContent = r.silenciadas;
+  $('#pie').textContent = r.total
+    ? `${r.total} cosa${r.total === 1 ? '' : 's'} para mirar hoy.`
+    : 'No hay nada para mirar. Todo al día.';
+
+  $('#apagadas').hidden = !d.fuentes_apagadas.length;
+  if (d.fuentes_apagadas.length)
+    $('#apagadas').innerHTML = `<b>Faltan fuentes.</b> No se están mirando: ${
+      esc(d.fuentes_apagadas.join(', '))}. Falta correr el SQL de esos módulos en Supabase.`;
+
+  $$('.tarjeta').forEach(t => t.classList.toggle('on', t.dataset.filtro === D.filtro));
+  $('#verCalladas').textContent = D.verCalladas ? 'ocultar las silenciadas' : 'ver las silenciadas';
+
+  const q = $('#buscar').value.trim().toLowerCase();
+  const fuente = $('#filtroFuente').value;
+  const coincide = a => (!fuente || a.fuente === fuente) &&
+    (!q || [a.patente, a.interno, a.titulo, a.detalle, a.extra, a.de_quien]
+            .filter(Boolean).join(' ').toLowerCase().includes(q));
+
+  const calladas = D.filtro === 'calladas';
+  let lista = (calladas ? d.silenciadas : d.alertas).filter(coincide);
+  if (!calladas && D.filtro) lista = lista.filter(a => a.severidad === D.filtro);
+
+  const extra = (!calladas && D.verCalladas && d.silenciadas.length)
+    ? `<h2 style="margin:22px 0 8px">Silenciadas</h2>` +
+      d.silenciadas.filter(coincide).map(a => alertaHtml(a, true)).join('')
+    : '';
+
+  $('#filas').innerHTML = (lista.length
+      ? lista.map(a => alertaHtml(a, calladas)).join('')
+      : `<div class="caja"><div class="vacio">${
+          d.resumen.total ? 'Ninguna alerta con ese filtro.' : 'No hay nada para mirar. Todo al día.'
+        }</div></div>`) + extra;
+
+  $$('[data-callar]').forEach(b => b.onclick = () => abrirCallar(b.dataset.callar));
+  $$('[data-reactivar]').forEach(b => b.onclick = () => reactivar(b.dataset.reactivar));
+  pintarServices();
+}
+
+$('#buscar').oninput = () => pintar();
+$('#filtroFuente').onchange = () => pintar();
+$$('.tarjeta').forEach(t => t.onclick = async () => {
+  D.filtro = D.filtro === t.dataset.filtro ? '' : t.dataset.filtro;
+  if (D.filtro === 'calladas' && !D.verCalladas) { D.verCalladas = true; await recargar(); }
+  else pintar();
+});
+$('#verCalladas').onclick = async () => { D.verCalladas = !D.verCalladas; await recargar(); };
+
+async function recargar() { try { await cargar(); pintar(); } catch (e) { falla(e); } }
+function falla(e) { $('#error').textContent = e.message; $('#error').hidden = false; }
+
+/* ------------------------------------------------------- silenciar */
+function abrirCallar(clave) {
+  const [fuente, id] = clave.split('|');
+  const a = (D.datos.alertas || []).find(x => x.fuente === fuente && x.clave === id);
+  D.callando = {fuente, clave: id};
+  $('#callarQue').textContent = a ? `${a.titulo}${a.patente ? ' · ' + pat(a.patente) : ''} — ${a.detalle}` : '';
+  $('#cMotivo').value = ''; $('#cHasta').value = '';
+  $('#errorCallar').innerHTML = '';
+  $('#modalCallar').classList.add('on');
+  $('#cMotivo').focus();
+}
+$('#guardarCallar').onclick = async () => {
+  const b = $('#guardarCallar'); b.disabled = true;
+  try {
+    D.datos = await api({op:'silenciar', ...D.callando, motivo:$('#cMotivo').value,
+                         hasta:$('#cHasta').value || null, ver_silenciadas:D.verCalladas});
+    $('#modalCallar').classList.remove('on');
+    pintar();
+  } catch (e) {
+    $('#errorCallar').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally { b.disabled = false; }
+};
+async function reactivar(clave) {
+  const [fuente, id] = clave.split('|');
+  try {
+    D.datos = await api({op:'reactivar', fuente, clave:id, ver_silenciadas:D.verCalladas});
+    pintar();
+  } catch (e) { falla(e); }
+}
+
+/* -------------------------------------------------------- services */
+function pintarServices() {
+  const q = $('#buscarSrv').value.trim().toLowerCase();
+  const lista = (D.datos.services || []).filter(s =>
+    !q || [s.patente, s.interno, s.tipo, s.sucursal].filter(Boolean).join(' ').toLowerCase().includes(q));
+  const ESTADOS = {vencido:'Vencido', urgente:'Urgente', proximo:'Próximo', ok:'Al día',
+                   sin_plan:'Sin cargar', sin_odometro:'Sin satelital'};
+  $('#filasSrv').innerHTML = lista.length ? lista.map(s => `<tr>
+      <td><b>${esc(pat(s.patente))}</b>${s.interno ? ` <span class="chico">int. ${esc(s.interno)}</span>` : ''}</td>
+      <td>${esc(fecha(s.ultimo_fecha))}${s.tipo ? ` <span class="chico">${esc(s.tipo)}</span>` : ''}</td>
+      <td class="num">${num(s.ultimo_km)}</td>
+      <td class="num">${num(s.cada_km)}</td>
+      <td class="num">${num(s.proximo_km)}</td>
+      <td class="num">${num(s.km_actual)}</td>
+      <td class="num">${s.km_restantes == null ? '—' : num(s.km_restantes) +
+          (s.dias_restantes != null ? ` <span class="chico">· ${num(s.dias_restantes)} d</span>` : '')}</td>
+      <td><span class="estado ${esc(s.estado)}">${esc(ESTADOS[s.estado] || s.estado)}</span></td>
+      <td class="num">${D.usuario?.puede_administrar
+        ? `<button class="accion" data-service="${s.unidad_id}">registrar</button>` : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="9" class="vacio">No hay unidades.</td></tr>';
+  $$('[data-service]').forEach(b => b.onclick = () => abrirService(b.dataset.service));
+}
+$('#buscarSrv').oninput = () => pintarServices();
+
+function abrirService(unidadId) {
+  const u = (D.datos.unidades || []).find(x => String(x.id) === String(unidadId));
+  const s = (D.datos.services || []).find(x => String(x.unidad_id) === String(unidadId));
+  $('#sUnidad').innerHTML = (D.datos.unidades || []).map(x =>
+    `<option value="${x.id}">${esc(pat(x.patente))}${x.interno ? ' · int. ' + esc(x.interno) : ''}</option>`).join('');
+  if (unidadId) $('#sUnidad').value = String(unidadId);
+  $('#sFecha').value = new Date().toISOString().slice(0, 10);
+  /* Los kilómetros de hoy vienen del satelital: es el número que el que
+     carga el service tendría que ir a buscar a otra pantalla. */
+  $('#sKm').value = s?.km_actual != null ? Math.round(s.km_actual)
+                  : (u?.km_actual != null ? Math.round(u.km_actual) : '');
+  $('#sCada').value = s?.cada_km != null ? Math.round(s.cada_km) : 15000;
+  ['sTipo','sTaller','sObs'].forEach(x => $('#' + x).value = '');
+  if (s?.tipo) $('#sTipo').value = s.tipo;
+  $('#errorService').innerHTML = '';
+  $('#modalService').classList.add('on');
+}
+$('#nuevoService').onclick = () => abrirService($('#buscarSrv').value ? null : null);
+$('#sUnidad').onchange = () => {
+  const s = (D.datos.services || []).find(x => String(x.unidad_id) === $('#sUnidad').value);
+  if (s?.km_actual != null) $('#sKm').value = Math.round(s.km_actual);
+  if (s?.cada_km != null) $('#sCada').value = Math.round(s.cada_km);
+};
+$('#guardarService').onclick = async () => {
+  const b = $('#guardarService'); b.disabled = true;
+  try {
+    D.datos = await api({op:'service_guardar', unidad_id:$('#sUnidad').value,
+      fecha:$('#sFecha').value, km:$('#sKm').value, tipo:$('#sTipo').value,
+      cada_km:$('#sCada').value, taller:$('#sTaller').value,
+      observaciones:$('#sObs').value, ver_silenciadas:D.verCalladas});
+    $('#modalService').classList.remove('on');
+    pintar();
+  } catch (e) {
+    $('#errorService').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally { b.disabled = false; }
+};
+
+/* ---------------------------------------------------------- reglas */
+function pintarReglas() {
+  const r = D.datos.reglas; if (!r) return;
+  $('#rLitros').value = Math.round(r.litros_maximos);
+  $('#rDias').value = r.combustible_dias;
+  $('#rUrgente').value = Math.round(r.service_urgente_km);
+  $('#rAviso').value = Math.round(r.service_aviso_km);
+}
+$('#guardarReglas').onclick = async () => {
+  const b = $('#guardarReglas'); b.disabled = true;
+  $('#error').hidden = true;
+  try {
+    D.datos = await api({op:'reglas', litros_maximos:$('#rLitros').value,
+      combustible_dias:$('#rDias').value, service_urgente_km:$('#rUrgente').value,
+      service_aviso_km:$('#rAviso').value, ver_silenciadas:D.verCalladas});
+    pintar(); pintarReglas();
+  } catch (e) { falla(e); } finally { b.disabled = false; }
+};
+
+/* ----------------------------------------------------------- arranque */
+$$('[data-cerrar]').forEach(x => x.onclick = () => $('#' + x.dataset.cerrar).classList.remove('on'));
+$$('.fondo').forEach(f => f.onclick = e => { if (e.target === f) f.classList.remove('on'); });
+addEventListener('keydown', e => {
+  if (e.key === 'Escape') $$('.fondo.on').forEach(f => f.classList.remove('on'));
+});
+
+(async () => {
+  try {
+    D.usuario = await fetch('/api/yo').then(r => r.ok ? r.json() : null);
+    if (D.usuario) $('#quien').innerHTML =
+      `${esc(D.usuario.nombre)} <a href="/salir">Salir</a>`;
+    if (D.usuario?.puede_administrar) {
+      $('#tabReglas').hidden = false;
+      $('#nuevoService').hidden = false;
+    }
+    await cargar();
+    pintar();
+    pintarReglas();
+    solapaDeLaUrl();
+  } catch (e) { falla(e); }
+})();
+</script>
+</body>
+</html>

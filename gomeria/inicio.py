@@ -154,4 +154,19 @@ def resumen(cx):
     }
     datos["recorrido"] = _kilometros(cx)
     datos["combustible"] = _combustible(cx)
+    datos["alertas"] = _alertas(cx)
     return datos
+
+
+def _alertas(cx):
+    """Cuántas cosas hay para mirar hoy, de las cuatro fuentes juntas.
+
+    Se importa acá adentro y no arriba: si el módulo de alertas todavía no
+    está —o le falta el SQL—, la portada tiene que seguir dibujándose.
+    """
+    try:
+        import alertas
+        return alertas.resumen(cx)
+    except Exception:
+        cx.rollback()
+        return None

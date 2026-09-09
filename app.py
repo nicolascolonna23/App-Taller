@@ -12,6 +12,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
     /combustible cruce de remitos contra el listado de la estación (en prueba)
     /ordenes     órdenes de trabajo del taller y servicios externos
+    /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
 
 Configuración, toda por variables de entorno:
 
@@ -32,6 +33,7 @@ import anthropic
 AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
+import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
@@ -54,6 +56,7 @@ PANTALLAS = {
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
+    "/alertas":     ("alertas.html",           "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
     "/asistente": ("asistente.html", "text/html; charset=utf-8"),
     "/asistente/guia": ("docs/ASISTENTE.md", "text/plain; charset=utf-8"),
@@ -409,6 +412,24 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las órdenes: {e}", 500)
 
+        if ruta == "/api/alertas":
+            if not self._exigir_sesion():
+                return
+            try:
+                ver = (parse_qs(urlparse(self.path).query).get("silenciadas")
+                       or ["0"])[0] in ("1", "true", "si")
+                with base.conectar() as cx:
+                    salida = alr.listar(cx, incluir_silenciadas=ver)
+                    if salida.get("instalado"):
+                        salida["services"] = alr.services(cx)
+                        salida["unidades"] = cx.execute("""
+                            select id, patente, interno, marca, modelo, km_actual
+                            from unidades where activa order by patente""").fetchall()
+                    return self._responder(gom.jstr(salida))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las alertas: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -589,6 +610,9 @@ class App(gom.Handler):
         if ruta == "/api/factura":
             return self._leer_factura()
 
+        if ruta == "/api/alertas":
+            return self._alertas()
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -656,6 +680,53 @@ class App(gom.Handler):
         if ruta == "/api/combustible":
             return self._combustible(borrar=True)
         return self._error("No existe", 404)
+
+    def _alertas(self):
+        """Silenciar una alerta, cambiar un umbral o anotar un service.
+
+        Las tres cambian lo que ve todo el mundo —una alerta silenciada
+        deja de verse para todos—, así que las firma un encargado.
+        """
+        if not self._exigir_sesion():
+            return
+        if self.usuario["rol"] not in ("encargado", "admin"):
+            return self._error("Solo un encargado o administrador puede tocar "
+                               "las alertas.", 403)
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 256 * 1024:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            op = (datos.get("op") or "").strip()
+            with base.conectar() as cx:
+                if op == "silenciar":
+                    alr.silenciar(cx, datos.get("fuente"), datos.get("clave"),
+                                  datos.get("motivo"), usuario=self.usuario["nombre"],
+                                  hasta=datos.get("hasta") or None)
+                elif op == "reactivar":
+                    alr.reactivar(cx, datos.get("fuente"), datos.get("clave"))
+                elif op == "reglas":
+                    alr.guardar_reglas(cx, datos)
+                elif op == "service_guardar":
+                    alr.guardar_service(cx, datos, usuario=self.usuario["nombre"])
+                elif op == "service_borrar":
+                    alr.borrar_service(cx, datos.get("id"))
+                else:
+                    return self._error("No entiendo qué hay que hacer con la alerta.")
+                cx.commit()
+                salida = alr.listar(cx, incluir_silenciadas=bool(datos.get("ver_silenciadas")))
+                salida["services"] = alr.services(cx)
+                return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except ValueError as e:
+            return self._error(str(e))
+        except psycopg.errors.UndefinedTable:
+            return self._error("Falta crear las tablas de alertas. Corré "
+                               "gomeria/20_alertas.sql en el SQL Editor de Supabase.", 503)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo guardar: {e}", 500)
 
     def _leer_factura(self):
         """Lee la factura de un servicio externo y propone los campos.
