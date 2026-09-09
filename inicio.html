@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Centro operativo | Diemar</title>
+<title>Penguin Fleet Management</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -74,9 +74,6 @@ main{padding:0;max-width:none}
   .workspace{padding:0 14px 18px}
   .visual{min-height:300px}
 }
-/* El sello de versión: qué código está corriendo. Va apagado y al pie —
-   no se mira todos los días, pero cuando hace falta tiene que estar. */
-.sello{margin:12px 2px 0;font-size:10.5px;color:var(--muted);letter-spacing:.3px}
 /* TODO EN UNA PANTALLA. En el escritorio la portada no se scrollea: se
    mira de un vistazo y se entra a lo que haga falta. La altura la manda la
    ventana y la foto ocupa lo que sobre, en vez de pedir 100vh por su
@@ -92,7 +89,6 @@ main{padding:0;max-width:none}
   /* Si algún día no entra —una pantalla muy baja— que ceda la columna de
      la derecha y no que se corte la portada. */
   .summary{overflow:auto;scrollbar-width:thin}
-  .sello{flex:none}
 }
 
 /* El acceso a configuración: al pie, separado de los módulos. No es un
@@ -101,20 +97,49 @@ main{padding:0;max-width:none}
   color:var(--muted);text-decoration:none;border-radius:11px;font-size:13px;font-weight:500}
 .ajustes:hover{color:var(--ink);background:var(--panel-2)}
 .ajustes svg{width:18px;height:18px;flex:none;stroke:currentColor}
-.side-footer{margin-top:12px}
 @media(max-width:980px){.ajustes{margin:0;padding:9px}.ajustes span{display:none}}
+
+/* Marca horizontal y acciones operativas del encabezado. */
+.brand-copy{min-width:0;line-height:1.12;text-transform:uppercase}
+.brand-copy strong,.brand-copy small{display:block}
+.brand-copy strong{font-size:11px;letter-spacing:.8px;color:var(--ink);white-space:nowrap}
+.brand-copy small{margin-top:3px;font-size:8.5px;letter-spacing:2.1px;color:var(--muted)}
+.top-actions{display:flex;align-items:center;gap:10px}
+.alerts-menu{position:relative}
+.alerts-button{position:relative;width:38px;height:38px;display:grid;place-items:center;border:1px solid var(--line);
+  border-radius:10px;background:var(--panel);color:var(--ink);cursor:pointer}
+.alerts-button:hover,.alerts-button[aria-expanded="true"]{background:var(--panel-2);border-color:var(--orange)}
+.alerts-button svg{width:19px;height:19px;stroke:currentColor}
+.alerts-badge{position:absolute;right:-5px;top:-6px;min-width:19px;height:19px;padding:0 5px;display:grid;
+  place-items:center;border:2px solid var(--panel);border-radius:10px;background:var(--orange);color:#111;
+  font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.alerts-popover{position:absolute;right:0;top:calc(100% + 10px);z-index:20;width:min(370px,calc(100vw - 32px));
+  overflow:hidden;border:1px solid var(--line);border-radius:12px;background:var(--panel);box-shadow:var(--shadow)}
+.alerts-popover-head{display:flex;align-items:center;justify-content:space-between;padding:14px 15px;border-bottom:1px solid var(--line)}
+.alerts-popover-head strong{font-size:13px}.alerts-popover-head span{font-size:10px;color:var(--muted)}
+.alerts-list{max-height:330px;overflow:auto;padding:7px}
+.alert-item{display:block;padding:10px;border-radius:8px;color:var(--ink);text-decoration:none}
+.alert-item:hover{background:var(--panel-2)}
+.alert-item b{display:block;font-size:12px}.alert-item small{display:block;margin-top:3px;color:var(--muted);line-height:1.35}
+.alert-item.grave{border-left:3px solid var(--bad)}.alert-item.media{border-left:3px solid var(--orange)}
+.alerts-empty{padding:24px 15px;text-align:center;color:var(--muted);font-size:12px}
+.alerts-all{display:block;padding:12px 15px;border-top:1px solid var(--line);color:var(--ink);text-align:center;
+  text-decoration:none;font-size:11px;font-weight:700}.alerts-all:hover{background:var(--panel-2)}
+/* En tema claro la portada conserva sus colores reales, sin velo blanco. */
+html[data-modo="claro"] .workspace::after{display:none}
+@media(max-width:980px){.brand-copy{display:none}.alerts-popover{position:fixed;right:16px;top:76px}}
+@media(max-width:980px){html[data-modo="claro"] .visual::before{background:var(--portada) 62% center/cover no-repeat}}
 </style>
 <script src="/tema.js"></script>
 </head>
 <body>
 <div class="shell">
   <aside class="sidebar">
-    <div class="brand"><img src="/logo.png" alt="Diemar" onerror="this.style.display='none'"><span>Centro operativo</span></div>
+    <div class="brand"><img src="/logo.png" alt="Penguin Fleet Management" onerror="this.style.display='none'"><div class="brand-copy"><strong>Penguin Fleet</strong><small>Management</small></div></div>
     <p class="nav-label">Módulos</p>
     <nav class="nav" aria-label="Módulos principales">
       <a class="primary" href="/"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z"/><path d="M9 21v-7h6v7"/></svg><span>Inicio</span></a>
       <a href="/unidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="9" width="13" height="7" rx="1"/><path d="M16 11h3l2 3v2h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>Flota</span></a>
-      <a href="/alertas"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span>Alertas</span></a>
       <a href="/gomeria"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Gomería</span></a>
       <a href="/repuestos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Repuestos</span></a>
       <a href="/ordenes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg><span>Órdenes</span></a>
@@ -122,10 +147,9 @@ main{padding:0;max-width:none}
       <a href="/control"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Services</span></a>
     </nav>
     <a class="ajustes" href="/configuracion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span>Configuración</span></a>
-    <div class="side-footer"><strong>App Taller Diemar</strong>Gestión de operaciones</div>
   </aside>
   <main>
-    <header class="topbar"><div class="context"><b>Operación de hoy</b><span id="fecha">Cargando fecha…</span></div><div class="person" id="quien"><span class="avatar">DN</span></div></header>
+    <header class="topbar"><div class="context"><b>Operación de hoy</b><span id="fecha">Cargando fecha…</span></div><div class="top-actions"><div class="alerts-menu" id="alertas-menu"><button class="alerts-button" id="alertas-btn" type="button" aria-label="Abrir alertas" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="alerts-badge" id="alertas-badge" hidden>0</span></button><section class="alerts-popover" id="alertas-popover" hidden aria-label="Alertas operativas"><div class="alerts-popover-head"><strong>Alertas</strong><span id="alertas-resumen">En vivo</span></div><div class="alerts-list" id="alertas-list"><div class="alerts-empty">Cargando…</div></div><a class="alerts-all" href="/alertas">Ver todas las alertas</a></section></div><div class="person" id="quien"><span class="avatar">DN</span></div></div></header>
     <div class="workspace">
       <section class="visual" aria-hidden="true"></section>
       <section class="summary" aria-label="Resumen operativo">
@@ -151,7 +175,6 @@ main{padding:0;max-width:none}
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>
-    <p class="sello" id="sello"></p>
   </main>
 </div>
 <script>
@@ -190,6 +213,12 @@ document.querySelectorAll('.km-tabs button').forEach(b=>b.addEventListener('clic
 fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
   if(!d)return;
   RECORRIDO=d.recorrido||null;pintarKm();
+  const totalAlertas=d.alertas&&d.alertas.total||0;
+  const badge=document.getElementById('alertas-badge');
+  badge.textContent=totalAlertas>99?'99+':String(totalAlertas);
+  badge.hidden=!totalAlertas;
+  document.getElementById('alertas-btn').setAttribute('aria-label',
+    totalAlertas?`Abrir ${totalAlertas} alerta${totalAlertas===1?'':'s'}`:'Abrir alertas');
   const poner=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null)e.textContent=nfm.format(v)};
   poner('st-unidades',d.unidades);poner('st-reponer',d.reponer);
   pintarConsumo(d.combustible);
@@ -261,17 +290,30 @@ function pintarConsumo(c){
   document.getElementById('cons-sub').innerHTML=txt;
   caja.hidden=false;
 }
-/* Qué versión está arriba. Un cambio aceptado tarda unos minutos en
-   desplegarse: hasta que no cambia este número, lo que se ve es el código
-   de antes. */
-fetch('/api/version').then(r=>r.ok?r.json():null).then(v=>{
-  if(!v)return;
-  const d=new Date(v.desde);
-  document.getElementById('sello').textContent =
-    `versión ${v.commit} · arriba desde el ` +
-    (isNaN(d) ? v.desde : d.toLocaleString('es-AR',
-      {day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'}));
-}).catch(()=>{});
+/* Alertas rápidas: el detalle se pide recién cuando se abre la campana. */
+const alertasMenu=document.getElementById('alertas-menu');
+const alertasBtn=document.getElementById('alertas-btn');
+const alertasPopover=document.getElementById('alertas-popover');
+let alertasCargadas=false;
+async function cargarAlertas(){
+  const lista=document.getElementById('alertas-list');
+  try{
+    const r=await fetch('/api/alertas');const d=await r.json();
+    if(!r.ok)throw Error(d.error||'No se pudieron cargar las alertas.');
+    if(!d.instalado){lista.innerHTML=`<div class="alerts-empty">${esc(d.aviso||'Alertas no configuradas.')}</div>`;return}
+    const filas=(d.alertas||[]).slice(0,6);
+    const resumen=d.resumen||{};
+    document.getElementById('alertas-resumen').textContent=`${resumen.total||0} activas`;
+    lista.innerHTML=filas.length?filas.map(a=>`<a class="alert-item ${esc(a.severidad||'')}" href="${esc(a.enlace||'/alertas')}"><b>${esc(a.titulo||a.modulo||'Alerta')}</b><small>${esc(a.detalle||a.modulo||'Requiere revisión')}</small></a>`).join(''):'<div class="alerts-empty">No hay alertas activas.</div>';
+  }catch(e){lista.innerHTML=`<div class="alerts-empty">${esc(e.message)}</div>`}
+}
+alertasBtn.addEventListener('click',async()=>{
+  const abrir=alertasPopover.hidden;alertasPopover.hidden=!abrir;
+  alertasBtn.setAttribute('aria-expanded',String(abrir));
+  if(abrir&&!alertasCargadas){alertasCargadas=true;await cargarAlertas()}
+});
+document.addEventListener('click',e=>{if(!alertasMenu.contains(e.target)){alertasPopover.hidden=true;alertasBtn.setAttribute('aria-expanded','false')}});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!alertasPopover.hidden){alertasPopover.hidden=true;alertasBtn.setAttribute('aria-expanded','false');alertasBtn.focus()}});
 </script>
 </body>
 </html>
