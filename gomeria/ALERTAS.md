@@ -76,18 +76,40 @@ actualiza solo todas las mañanas sin que nadie toque nada.
 
 ### La carga inicial
 
-Para arrancar con la historia que ya está en la planilla:
+Para arrancar con la historia que ya está en las planillas. Se le pasan
+todas juntas —una por residencia es lo normal— porque validarlas de a una
+obliga a acordarse de cuál ya se cargó:
 
 ```bash
-python3 gomeria/cargar_services.py services.csv --simular   # muestra qué haría
-python3 gomeria/cargar_services.py services.csv             # lo hace
+python3 gomeria/cargar_services.py ServicesLAD.csv ServicesBUE.csv --simular
+python3 gomeria/cargar_services.py ServicesLAD.csv ServicesBUE.csv
 ```
 
-Reconoce los nombres de columna como suelen venir ("Dominio", "Km del
-service", "Cada cuántos km"), sin importar mayúsculas ni acentos, y las
-fechas en cualquiera de las formas que usa una planilla argentina. Antes
-de escribir nada valida el archivo entero: si hay una patente que no
-existe o un kilometraje que no se entiende, lo dice y no carga nada.
+Está hecho para leer las planillas **como son**, no como habría que
+escribirlas:
+
+- **La tabla no arranca en la primera fila.** Las planillas traen arriba un
+  título, la fecha de la última carga y filas en blanco. Busca dónde
+  empieza la tabla en vez de pedir que la limpien.
+- **Hay encabezados repetidos.** La de larga distancia tiene dos columnas
+  que se llaman PATENTE, porque Google mete un salto de línea adentro de
+  una celda; la segunda son los kilómetros de hoy. Gana la primera.
+- **Los números vienen a la argentina.** `1.719.118` y `"281.964,00"`.
+- **Las fechas también**, y de un solo dígito: `20/7/26`, `28/8/2026`.
+
+**De dónde sale el «cada cuántos km».** Ninguna planilla lo tiene como
+columna, pero todas tienen el próximo service: el intervalo se saca de
+*próximo menos último*. En las planillas de Diemar eso da 40.000 y 45.000
+km según el camión, y 10.000, 20.000 o 30.000 en los de distribución —
+justo lo que un valor fijo por defecto se comería.
+
+Una unidad que está en la planilla pero todavía no tiene service se
+saltea y se cuenta aparte: no es un error del archivo, es una unidad sin
+service.
+
+Antes de escribir nada valida **todos** los archivos. Si una patente no
+existe en el maestro no carga nada de ninguno: una patente que no está es
+señal de que el maestro quedó viejo, y cargar el resto lo taparía.
 
 Se puede correr dos veces sin duplicar: se saltea el service que ya esté
 con la misma unidad, la misma fecha y el mismo kilometraje.
