@@ -55,6 +55,8 @@ class BaseService:
         self.consultas.append((sql, valores))
         if sql.startswith("select id, patente, km_actual from unidades"):
             return Resultado({"id": 7, "patente": "AD247MQ", "km_actual": 123000})
+        if sql.startswith("select p.cada_km from unidades"):
+            return Resultado(None)
         if sql.startswith("select cada_km from services"):
             return Resultado({"cada_km": 20000})
         if sql.startswith("select id from services where orden_id"):

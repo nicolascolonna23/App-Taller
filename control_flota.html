@@ -479,10 +479,8 @@
     <div class="meta">
       <a class="nav-link" href="/">‹ Inicio</a>
       <a class="nav-link" href="/flota">Panel de flota</a>
-      <span class="chip" id="chip-fuente" title="Origen de los datos"><span class="dot off"></span><span id="fuente-txt">Sincronizando</span></span>
-      <span class="chip" id="chip-update"><span id="update-txt">--:--</span></span>
+      <button class="btn-refresh" id="btn-planes" type="button">Parametrización</button>
       <button class="btn-refresh" id="btn-service" type="button" hidden>Registrar service</button>
-      <button class="btn-refresh" id="btn-refresh" type="button">Actualizar</button>
     </div>
   </div>
 
@@ -643,6 +641,25 @@
 
 </div>
 
+<div class="modal-bg" id="modal-planes" role="dialog" aria-modal="true">
+  <div class="modal" style="max-width:760px">
+    <h2>Parametrización de services</h2>
+    <div class="hint">Creá M1, M2, M3 o cualquier plan y asignalo a las patentes.</div>
+    <div class="row">
+      <div><label>Nombre</label><input class="inp" id="pl-nombre" placeholder="Ej: M1 Hi-Way"></div>
+      <div><label>Cada cuántos km</label><input class="inp" id="pl-km" type="number" min="1" placeholder="40000"></div>
+    </div>
+    <label>Descripción</label><input class="inp" id="pl-desc" placeholder="Aceite, filtros y controles incluidos">
+    <input type="hidden" id="pl-id">
+    <div class="modal-acciones"><button class="btn-plano" id="pl-cancel-edit" type="button">Limpiar</button><button class="btn-ok" id="pl-save" type="button">Guardar plan</button></div>
+    <div id="planes-lista" style="margin:16px 0"></div>
+    <h3>Asignar a una patente</h3>
+    <div class="row"><select class="sel" id="as-unidad"></select><select class="sel" id="as-plan"></select></div>
+    <div class="modal-msg" id="pl-msg"></div>
+    <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button><button class="btn-ok" id="as-save" type="button">Asignar</button></div>
+  </div>
+</div>
+
 <footer class="shell">
   <div>Fuentes: <b>Supabase</b> (flota y services), planilla <b>SERVICES</b> (prefiltros y respaldo) y planilla <b>COMBUSTIBLE</b> (telemetría, emisiones y ralentí).</div>
   <div>Si una planilla no responde en vivo, el tablero usa el respaldo local en <code>data/flota.json</code> y <code>data/telemetria.json</code>.</div>
@@ -671,7 +688,7 @@
     <div class="modal-ref" id="sv-ref"></div>
 
     <label for="sv-tipo">Tipo de service</label>
-    <input class="inp" type="text" id="sv-tipo" placeholder="Ej: Cambio de aceite y filtros">
+    <select class="sel" id="sv-tipo"><option value="">Sin parametrización</option></select>
 
     <div class="modal-msg" id="sv-msg"></div>
 
@@ -866,7 +883,8 @@ const APP = {
   meses: [],
   fuentes: { flota: null, servicios: null, telemetria: null },
   seleccion: null,
-  filtroGrupo: ''
+  filtroGrupo: '',
+  planes: [], asignaciones: []
 };
 
 /* =====================================================================
@@ -892,7 +910,8 @@ async function cargarFlota() {
     APP.fuentes.flota = 'base';
     return base.map(u => ({ id:u.id, modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
                             patente:u.patente||'', interno:u.interno||'', semi:u.semi||'',
-                            sucursal:u.sucursal||'', uso:u.uso||'' }));
+                            sucursal:u.sucursal||'', uso:u.uso||'', planId:u.mantenimiento_plan_id||null,
+                            planNombre:u.mantenimiento_plan||'', planCada:u.mantenimiento_cada_km||null }));
   }
 
   const rows = await fetchCSV([pub(CFG.gid.flota), gviz(CFG.idServices, CFG.gid.flota)]);
@@ -938,6 +957,7 @@ async function cargarServicios() {
         return {
           patente: normPat(s.patente), marca:'', chofer:'',
           residencia: s.sucursal || '',
+          planId: s.mantenimiento_plan_id || null, planNombre: s.plan_nombre || '',
           fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
           kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
           kmAct: num(s.km_actual), falta: num(s.km_restantes)
@@ -1110,6 +1130,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
       modelo: f.modelo, marca: f.marca, chofer: f.chofer,
       interno: f.interno, semi: f.semi,
       sucursal: (f.sucursal || '').trim(), uso: f.uso,
+      planId: f.planId || null, planNombre: f.planNombre || '', planCada: num(f.planCada),
       grupo: esLAD ? 'LAD' : 'DIS',
       fechaUlt: '', kmUlt: null, kmProx: null, kmAct: null, falta: null,
       estado: 'sindato', serie: [], enFlota: true
@@ -1126,6 +1147,8 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     }
     u.fechaUlt = s.fechaUlt; u.kmUlt = s.kmUlt; u.kmProx = s.kmProx;
     u.kmAct = s.kmAct; u.falta = s.falta;
+    if (s.planId) u.planId = s.planId;
+    if (s.planNombre) u.planNombre = s.planNombre;
     // Sin lectura de odometro no se puede afirmar nada del service
     u.estado = (s.kmAct === null || !isFinite(s.kmAct)) ? 'sindato' : estadoDe(s.falta);
     if (!u.marca)  u.marca  = s.marca;
@@ -1893,6 +1916,7 @@ function renderFicha() {
           <div class="spec"><div class="s-label">Semi asociado</div><div class="s-value">${esc(u.semi ? fmtPat(u.semi) : '—')}</div></div>
           <div class="spec"><div class="s-label">Uso</div><div class="s-value">${esc(u.uso || (u.grupo === 'LAD' ? 'LARGA DISTANCIA' : '—'))}</div></div>
           <div class="spec"><div class="s-label">Último service</div><div class="s-value">${esc(u.fechaUlt || '—')}</div></div>
+          <div class="spec"><div class="s-label">Plan asignado</div><div class="s-value">${esc(u.planNombre || 'Sin parametrización')}</div></div>
         </div>
       </div>
       <div class="card-body">
@@ -2029,8 +2053,6 @@ $$('#seg-grupo button').forEach(b => b.addEventListener('click', () => {
   $$('#seg-grupo button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
   renderChips();
 }));
-$('#btn-refresh').addEventListener('click', () => { telemCache = { t: 0, data: null }; cargarTodo(true); });
-
 let resizeT;
 window.addEventListener('resize', () => {
   clearTimeout(resizeT);
@@ -2042,10 +2064,8 @@ window.addEventListener('resize', () => {
 /* =====================================================================
    REGISTRAR SERVICE
    ---------------------------------------------------------------------
-   El navegador no puede escribir en la planilla: le pasa los datos a la
-   aplicacion web de Apps Script (CFG.webapp) y esa los graba.
-   El Content-Type de texto plano no es casual, evita que el navegador
-   mande un preflight que Apps Script no sabe responder.
+   La aplicación guarda el registro directamente en Supabase. Cuando la
+   unidad tiene un plan asignado, usa ese intervalo para el próximo service.
    ===================================================================== */
 const MODAL = $('#modal-service');
 
@@ -2073,7 +2093,10 @@ function abrirFormService(patente) {
   $('#sv-fecha').value = hoyAR();
   $('#sv-km').value    = '';
   kmAuto = null;
-  $('#sv-tipo').value  = '';
+  $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
+    .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
+  const elegida = APP.asignaciones.find(a => String(a.unidad_id) === String((APP.unidades.get(sel.value)||{}).id));
+  $('#sv-tipo').value = elegida && elegida.plan_id ? String(elegida.plan_id) : '';
   svMensaje('');
   sugerirKm();
 
@@ -2174,6 +2197,10 @@ function aplicarServiceLocal(patente, fecha, km) {
 $('#btn-service').addEventListener('click', () => abrirFormService(APP.seleccion));
 $('#sv-cancelar').addEventListener('click', cerrarFormService);
 $('#sv-patente').addEventListener('change', sugerirKm);
+$('#sv-patente').addEventListener('change', () => {
+  const u=APP.unidades.get($('#sv-patente').value), a=APP.asignaciones.find(x=>u&&String(x.unidad_id)===String(u.id));
+  $('#sv-tipo').value=a&&a.plan_id?String(a.plan_id):'';
+});
 $('#sv-fecha').addEventListener('change', sugerirKm);
 $('#sv-fecha').addEventListener('blur', sugerirKm);
 MODAL.addEventListener('mousedown', ev => { if (ev.target === MODAL) cerrarFormService(); });
@@ -2209,7 +2236,9 @@ $('#form-service').addEventListener('submit', async ev => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         op: 'service_guardar', unidad_id: u.id, fecha: iso,
-        km: km, tipo: $('#sv-tipo').value.trim()
+        km: km,
+        tipo: ($('#sv-tipo').selectedOptions[0]||{}).textContent?.split(' · ')[0] || '',
+        cada_km: (APP.planes.find(p=>String(p.id)===$('#sv-tipo').value)||{}).cada_km || null
       })
     });
     const res = await r.json();
@@ -2228,29 +2257,51 @@ $('#form-service').addEventListener('submit', async ev => {
 });
 
 /* =====================================================================
+   PARAMETRIZACION DE SERVICES
+   ===================================================================== */
+const PLAN_MODAL = $('#modal-planes');
+const planMensaje = t => $('#pl-msg').textContent = t || '';
+async function cargarPlanes(){
+  const r=await fetch('/api/mantenimiento',{cache:'no-store'});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok) throw new Error(d.error||'No se pudo leer la parametrización.');
+  APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[];
+  pintarPlanes();
+}
+function pintarPlanes(){
+  const unidadElegida=$('#as-unidad').value;
+  $('#planes-lista').innerHTML=APP.planes.map(p=>`<div class="filterbar" style="margin:6px 0">
+    <b>${esc(p.nombre)}</b><span>${fmt0(p.cada_km)} km · ${p.unidades||0} unidades</span>
+    <span class="spacer"></span><button class="btn-plano" data-edit="${p.id}">Editar</button>
+    <button class="btn-plano" data-del="${p.id}">Eliminar</button></div>`).join('')||'<p class="hint">Todavía no hay planes.</p>';
+  const opciones='<option value="">Sin plan</option>'+APP.planes.filter(p=>p.activo).map(p=>`<option value="${p.id}">${esc(p.nombre)} · ${fmt0(p.cada_km)} km</option>`).join('');
+  $('#as-plan').innerHTML=opciones;
+  $('#as-unidad').innerHTML=APP.asignaciones.map(a=>`<option value="${a.unidad_id}">${esc(a.patente)}${a.interno?' · '+esc(a.interno):''}${a.plan_nombre?' — '+esc(a.plan_nombre):''}</option>`).join('');
+  if([...$('#as-unidad').options].some(o=>o.value===unidadElegida)) $('#as-unidad').value=unidadElegida;
+  const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value); $('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';
+}
+function seleccionarAsignacion(){const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value);$('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';}
+async function guardarPlan(cuerpo){
+  const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
+  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo guardar.');
+  APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes(); planMensaje('Guardado.');
+}
+function limpiarPlan(){ $('#pl-id').value=''; $('#pl-nombre').value=''; $('#pl-km').value=''; $('#pl-desc').value=''; }
+$('#btn-planes').onclick=async()=>{ PLAN_MODAL.setAttribute('open',''); planMensaje(''); try{await cargarPlanes();}catch(e){planMensaje(e.message);} };
+$('#pl-cerrar').onclick=()=>PLAN_MODAL.removeAttribute('open'); $('#pl-cancel-edit').onclick=limpiarPlan;
+$('#as-unidad').onchange=seleccionarAsignacion;
+$('#pl-save').onclick=async()=>{try{await guardarPlan({op:'plan_guardar',id:$('#pl-id').value,nombre:$('#pl-nombre').value,cada_km:$('#pl-km').value,descripcion:$('#pl-desc').value});limpiarPlan();}catch(e){planMensaje(e.message);}};
+$('#as-save').onclick=async()=>{try{await guardarPlan({op:'asignar',unidad_id:$('#as-unidad').value,plan_id:$('#as-plan').value});await cargarTodo(false);}catch(e){planMensaje(e.message);}};
+$('#planes-lista').onclick=async e=>{const p=APP.planes.find(x=>String(x.id)===String(e.target.dataset.edit||e.target.dataset.del));if(!p)return;if(e.target.dataset.edit){$('#pl-id').value=p.id;$('#pl-nombre').value=p.nombre;$('#pl-km').value=p.cada_km;$('#pl-desc').value=p.descripcion||'';}else if(confirm(`Eliminar ${p.nombre}? Las unidades quedarán sin plan.`)){try{await guardarPlan({op:'plan_borrar',id:p.id});}catch(x){planMensaje(x.message);}}};
+PLAN_MODAL.addEventListener('mousedown',e=>{if(e.target===PLAN_MODAL)PLAN_MODAL.removeAttribute('open');});
+
+/* =====================================================================
    ORQUESTACION
    ===================================================================== */
-function marcarFuente() {
-  const f = APP.fuentes;
-  // 'base' es el maestro leído de Supabase: cuenta como fuente viva igual
-  // que la planilla, o mejor, porque es la que se edita.
-  const viva = v => v === 'vivo' || v === 'base';
-  const vivas = ['servicios', 'flota', 'telemetria'].filter(k => viva(f[k]));
-  const chip = $('#chip-fuente'), dot = chip.querySelector('.dot');
-  dot.className = 'dot ' + (vivas.length === 3 ? 'live' : vivas.length ? 'warn' : 'off');
-  $('#fuente-txt').textContent = vivas.length === 3 ? 'Datos en vivo'
-    : vivas.length ? `Datos parciales (${vivas.length}/3)`
-    : 'Sin acceso a las planillas';
-  chip.title = `Services: ${f.servicios || '—'} · Flota: ${f.flota || '—'} · Telemetría: ${f.telemetria || '—'}`;
-}
-
 let cargando = false;
 async function cargarTodo(manual) {
   if (cargando) return;
   cargando = true;
-  const btn = $('#btn-refresh');
-  btn.disabled = true;
-  btn.textContent = 'Actualizando…';
   document.querySelectorAll('.panel').forEach(p => p.style.opacity = manual ? '0.55' : '1');
 
   try {
@@ -2266,20 +2317,14 @@ async function cargarTodo(manual) {
 
     $('#btn-service').hidden = !APP.unidades.size;
 
-    marcarFuente();
-    $('#update-txt').textContent = 'Actualizado ' +
-      new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    try { await cargarPlanes(); } catch (e) { console.warn(e); }
   } catch (err) {
     console.error('Error de carga:', err);
     // El motivo va en el chip: casi siempre es la planilla sin compartir, y
     // decirlo ahorra tener que abrir la consola del navegador para enterarse.
-    $('#fuente-txt').textContent = 'Sin acceso a las planillas';
-    $('#chip-fuente').title = err && err.message ? err.message : 'Error al cargar los datos';
-    $('#chip-fuente').querySelector('.dot').className = 'dot off';
+    console.warn(err && err.message ? err.message : 'Error al cargar los datos');
   } finally {
     document.querySelectorAll('.panel').forEach(p => p.style.opacity = '1');
-    btn.disabled = false;
-    btn.textContent = 'Actualizar';
     cargando = false;
   }
 }

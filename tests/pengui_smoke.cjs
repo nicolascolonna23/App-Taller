@@ -13,8 +13,9 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
    if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba local',rol:'admin',puede_administrar:true}});
    if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Pengui, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
    if(p==='/api/inicio')return route.fulfill({json:{recorrido:{ayer:{km:12345,unidades:50,unidades_completas:50,desde:'2026-09-07',hasta:'2026-09-07'}},combustible:{mes:{mes:'2026-08-01',litros_100km:31.2,litros:10000},previo:{mes:'2026-07-01',litros_100km:32.1}},unidades:87,alertas:{total:2,graves:1}}});
-   if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION'}]});
-   if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:40000,proximo_km:81259,km_actual:41833,km_restantes:39426,estado:'ok'}]});
+   if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION',mantenimiento_plan_id:1,mantenimiento_plan:'Autos 10K',mantenimiento_cada_km:10000}]});
+   if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',mantenimiento_plan_id:1,plan_nombre:'Autos 10K',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:10000,proximo_km:51259,km_actual:41833,km_restantes:9426,estado:'proximo'}]});
+   if(p==='/api/mantenimiento')return route.fulfill({json:{planes:[{id:1,nombre:'Autos 10K',descripcion:'Autos',cada_km:10000,activo:true,unidades:1}],asignaciones:[{unidad_id:7,patente:'AG797NJ',interno:'102',plan_id:1,plan_nombre:'Autos 10K',cada_km:10000}]}});
    if(p==='/api/alertas')return route.fulfill({json:{instalado:true,resumen:{total:2,grave:1},alertas:[{severidad:'grave',titulo:'VTV vencida',detalle:'AD 247 MQ · venció hace 3 días',enlace:'/alertas'},{severidad:'media',titulo:'Service próximo',detalle:'faltan 2.700 km',enlace:'/control'}]}});
    if(p.startsWith('/api/'))return route.fulfill({status:503,json:{error:'Datos no conectados en esta prueba visual'}});
    if(files[p]){
@@ -45,7 +46,11 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
     }
     if(url==='/control'){
      assert.equal(await page.locator('#tab-general').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
-     assert.equal(await page.locator('#btn-refresh').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
+     assert.equal(await page.locator('#btn-planes').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
+     assert.equal(await page.locator('#btn-refresh').count(),0);
+     await page.locator('#btn-planes').click();
+     await page.locator('#planes-lista', {hasText:'Autos 10K'}).waitFor();
+     await page.locator('#pl-cerrar').click();
      await page.locator('#tab-unidad').click();
      await page.waitForFunction(()=>document.body.innerText.includes('41.259'));
      assert((await page.locator('body').innerText()).includes('01/09/26'));
