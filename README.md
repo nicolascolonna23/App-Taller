@@ -36,6 +36,11 @@ muestra "Sin acceso a las planillas" en lugar de datos.
 
 Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
 
+**Alertas** junta en una sola pantalla lo que hay que mirar hoy: documentos
+vencidos, services pasados de kilómetros, cargas de combustible más grandes
+de lo normal y cubiertas en el mínimo de dibujo. Ordenado por urgencia y no
+por módulo. Ver `gomeria/ALERTAS.md`.
+
 **Vencimientos vive adentro de Flota**, como su segunda solapa: la unidad y
 sus papeles son lo mismo, y el inicio no puede ser una lista de todo. Lo que
 sí queda en la portada es el número: cuántos documentos están vencidos.

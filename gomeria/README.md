@@ -236,6 +236,14 @@ con Ctrl+P.
 Si la IP del servidor cambia, hay que reimprimir. Por eso conviene pedir una IP
 fija antes de imprimir 53 etiquetas.
 
+## Alertas
+
+Corriendo `20_alertas.sql` se prende `/alertas`: los vencimientos, los
+services, las cargas de combustible más grandes de lo normal y las gomas al
+mínimo, juntos y ordenados por urgencia. Ahí también viven los services, que
+hasta ahora estaban en una planilla de Google. Está explicado entero en
+**`ALERTAS.md`**.
+
 ## Cómo está guardada la información
 
 | Tabla | Qué guarda |
@@ -250,6 +258,9 @@ fija antes de imprimir 53 etiquetas.
 | `vidas_cubierta` | cada vuelta de una cubierta: la original y cada recapado, con su banda y su costo |
 | `criterios_desgaste` | con cuántos milímetros hay que bajar una goma, según la función del eje |
 | `dibujos_nuevos` | con cuántos milímetros sale de fábrica cada medida y cada banda |
+| `services` | los services hechos: cuándo, con cuántos km y cada cuánto toca el próximo |
+| `alertas_reglas` | los números que definen qué es una alerta |
+| `alertas_silenciadas` | qué alerta se ocultó, por quién y por qué |
 
 Dos reglas las hace cumplir la base misma, no el código: **una posición no puede
 tener dos cubiertas al mismo tiempo**, y **una cubierta no puede estar montada en
