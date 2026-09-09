@@ -123,6 +123,9 @@
   .estado.proximo{color:var(--warn);background:rgba(240,180,41,.13)}
   .estado.ok{color:var(--ok);background:rgba(49,189,101,.12)}
   .estado.sin_plan,.estado.sin_odometro{color:var(--ink-muted);background:var(--surface-3)}
+  /* El satelital marca menos km que su último service: no se puede
+     calcular, y pintarlo de verde sería peor que no decir nada. */
+  .estado.km_dudoso{color:#c48cf0;background:rgba(196,140,240,.13)}
 
   .aviso{margin-bottom:14px;padding:12px 14px;border-radius:11px;font-size:13px}
   .aviso.mal{color:#ffb3b6;background:rgba(227,93,98,.12)}
@@ -476,7 +479,8 @@ function pintarServices() {
   const lista = (D.datos.services || []).filter(s =>
     !q || [s.patente, s.interno, s.tipo, s.sucursal].filter(Boolean).join(' ').toLowerCase().includes(q));
   const ESTADOS = {vencido:'Vencido', urgente:'Urgente', proximo:'Próximo', ok:'Al día',
-                   sin_plan:'Sin cargar', sin_odometro:'Sin satelital'};
+                   sin_plan:'Sin cargar', sin_odometro:'Sin satelital',
+                   km_dudoso:'Km no coinciden'};
   $('#filasSrv').innerHTML = lista.length ? lista.map(s => `<tr>
       <td><b>${esc(pat(s.patente))}</b>${s.interno ? ` <span class="chico">int. ${esc(s.interno)}</span>` : ''}</td>
       <td>${esc(fecha(s.ultimo_fecha))}${s.tipo ? ` <span class="chico">${esc(s.tipo)}</span>` : ''}</td>

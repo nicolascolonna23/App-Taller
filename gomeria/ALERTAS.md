@@ -74,6 +74,21 @@ registrado desde cuándo rige el nuevo.
 Los kilómetros de hoy salen del satelital, así que el "faltan X km" se
 actualiza solo todas las mañanas sin que nadie toque nada.
 
+### Cuando los kilómetros no cierran
+
+Si el satelital marca **menos** kilómetros de los que la unidad tenía en su
+último service, la resta no significa nada: o le cambiaron el equipo de GPS
+y el contador arrancó de nuevo, o la unidad dejó de reportar.
+
+Esas unidades quedan en estado **«Km no coinciden»** y avisan como alerta
+leve, diciendo los dos números. No se las pinta de «al día»: una unidad que
+puede estar pasada de service mostrada en verde es peor que no tener la
+pantalla. Y no se las esconde: mientras el odómetro no se arregle, esa
+unidad no puede avisar de su service, y eso hay que saberlo.
+
+En la carga inicial de la flota aparecieron nueve así, con diferencias de
+hasta 870.000 km contra la planilla.
+
 ### La carga inicial
 
 Para arrancar con la historia que ya está en las planillas. Se le pasan
