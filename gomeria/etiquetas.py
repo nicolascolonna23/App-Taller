@@ -126,7 +126,7 @@ def hoja(cx, base, rubro=None, codigos=None):
   .barra {{ position: sticky; top: 0; z-index: 5; display: flex; gap: 14px;
     align-items: center; padding: 12px 20px; background: #12161a; color: #edf0f2; }}
   .barra b {{ font-size: 14px; }}
-  .barra a, .barra button {{ color: #edf0f2; background: #ff7a1a; border: 0;
+  .barra a, .barra button {{ color: #edf0f2; background: #ffd400; border: 0;
     border-radius: 9px; padding: 9px 15px; font: inherit; font-weight: 700;
     text-decoration: none; cursor: pointer; }}
   .barra .volver {{ background: #20262c; }}

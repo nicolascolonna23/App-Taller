@@ -206,26 +206,26 @@ def crear_admin_inicial(cx, spec):
 # =====================================================================
 LOGIN = """<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Ingresar | Diemar</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='12' y='7' width='8' height='18' fill='%23ff7a1a'/%3E%3C/svg%3E">
+<title>Ingresar | Pengui</title>
+<link rel="icon" href="/favicon.png">
 <style>
-  :root{color-scheme:dark;--plane:#08090b;--surface-1:#12161a;--surface-2:#171c21;
-        --hairline:rgba(255,255,255,.07);--hairline-2:rgba(255,255,255,.12);
-        --ink:#e9ecef;--ink-2:#a9b0b8;--ink-muted:#7b828b;--brand:#ff7a1a;--mal:#d03b3b}
+  :root{color-scheme:light;--plane:#f5f5f2;--surface-1:#fff;--surface-2:#faf9f4;
+        --hairline:rgba(0,0,0,.10);--hairline-2:rgba(0,0,0,.20);
+        --ink:#121212;--ink-2:#343434;--ink-muted:#666;--brand:#ffd400;--mal:#bd3038}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0}
   body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--plane);
        color:var(--ink);font-size:16px;display:grid;place-items:center;padding:24px}
-  .caja{width:100%;max-width:360px}
+  .caja{width:100%;max-width:380px;background:var(--surface-1);border:1px solid var(--hairline);border-radius:16px;padding:32px;box-shadow:0 18px 48px #0002}
   .marca{text-align:center;margin-bottom:26px}
-  .marca img{height:34px;margin-bottom:14px}
+  .marca img{height:104px;max-width:150px;object-fit:contain;margin-bottom:14px}
   .marca .t{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
   label{display:block;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
         color:var(--ink-muted);font-weight:600;margin:16px 0 7px}
   input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface-2);
-        border:1px solid var(--hairline-2);border-radius:12px;padding:13px 14px;outline:none}
-  input:focus{border-color:rgba(255,122,26,.55)}
-  button{width:100%;font:inherit;font-size:16px;font-weight:600;color:#fff;background:var(--brand);
+        border:1px solid var(--hairline-2);border-radius:8px;padding:13px 14px;outline:none}
+  input:focus{border-color:#d1ae00;box-shadow:0 0 0 3px #fff3a3}
+  button{width:100%;font:inherit;font-size:16px;font-weight:700;color:#111;background:var(--brand);
          border:none;border-radius:12px;padding:15px;margin-top:22px;cursor:pointer}
   button:disabled{opacity:.5;cursor:default}
   .error{margin-top:16px;border-left:2px solid var(--mal);padding-left:12px;color:#f0a8a8;font-size:14.5px}
@@ -234,7 +234,7 @@ LOGIN = """<!DOCTYPE html><html lang="es"><head>
 <form class="caja" method="POST" action="/login">
   <div class="marca">
     <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
-    <div class="t">Taller Diemar</div>
+    <div class="t">Pengui · Taller Diemar</div>
   </div>
   <label for="usuario">Usuario</label>
   <input id="usuario" name="usuario" autocapitalize="none" autocorrect="off" autofocus required>
