@@ -25,7 +25,14 @@ create index if not exists ix_unidades_mantenimiento_plan
 
 -- La periodicidad asignada hoy manda para el próximo vencimiento. El valor
 -- guardado en services queda como foto histórica del criterio usado entonces.
-create or replace view v_services_hoy as
+--
+-- Se tira la vista antes de crearla: «create or replace» exige que las
+-- columnas se llamen igual que antes y en el mismo orden, y esta versión
+-- agrega mantenimiento_plan_id en el medio. Postgres contesta «cannot change
+-- name of view column». Tirarla no pierde nada, es una vista: se vuelve a
+-- armar acá abajo con los mismos datos.
+drop view if exists v_services_hoy;
+create view v_services_hoy as
 select b.*,
        case
          when b.ultimo_km is null then 'sin_plan'
