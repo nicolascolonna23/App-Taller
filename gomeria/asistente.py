@@ -6,9 +6,9 @@ from pathlib import Path
 import re
 import threading
 import time
-from urllib import request, error
 from zoneinfo import ZoneInfo
 
+import anthropic
 import base
 
 ROLES = {'admin', 'encargado', 'operario'}
@@ -47,7 +47,7 @@ class Ocupado(Exception):
 
 
 def habilitado():
-    return bool(os.environ.get('OPENAI_API_KEY', '').strip())
+    return bool(os.environ.get('ANTHROPIC_API_KEY', '').strip())
 
 
 def validar_mensajes(datos):
@@ -171,20 +171,61 @@ def consultar(args):
             'nota': 'Datos registrados en el sistema. Sin coincidencias no prueba que no exista el bien o documento.'}
 
 
+def _mensajes_claude(items):
+    """Convierte el contexto interno a bloques de la API Messages de Claude."""
+    salida = []
+
+    def agregar(rol, bloques):
+        if salida and salida[-1]['role'] == rol:
+            salida[-1]['content'].extend(bloques)
+        else:
+            salida.append({'role': rol, 'content': bloques})
+
+    for item in items:
+        if item.get('role') in {'user', 'assistant'}:
+            agregar(item['role'], [{'type': 'text', 'text': item['content']}])
+        elif item.get('type') == 'function_call':
+            agregar('assistant', [{'type': 'tool_use', 'id': item['call_id'],
+                    'name': item['name'], 'input': json.loads(item['arguments'])}])
+        elif item.get('type') == 'function_call_output':
+            agregar('user', [{'type': 'tool_result', 'tool_use_id': item['call_id'],
+                    'content': item['output']}])
+    return salida
+
+
 def llamar_modelo(payload):
-    req = request.Request('https://api.openai.com/v1/responses',
-        data=json.dumps(payload).encode(), method='POST', headers={
-            'Authorization': 'Bearer ' + os.environ['OPENAI_API_KEY'], 'Content-Type': 'application/json'})
+    herramientas = [{'name': h['name'], 'description': h['description'],
+                      'input_schema': h['parameters']} for h in payload['tools']]
+    opciones = dict(model=payload['model'], system=payload['instructions'],
+                    messages=_mensajes_claude(payload['input']),
+                    max_tokens=payload['max_output_tokens'])
+    eleccion = payload.get('tool_choice', 'auto')
+    if eleccion != 'none':
+        opciones['tools'] = herramientas
+        opciones['tool_choice'] = {'type': 'any' if eleccion == 'required' else 'auto'}
     try:
-        with request.urlopen(req, timeout=35) as r:
-            return json.load(r)
-    except error.HTTPError as e:
-        if e.code in (401, 403):
+        respuesta = anthropic.Anthropic(
+            api_key=os.environ['ANTHROPIC_API_KEY'], timeout=35.0
+        ).messages.create(**opciones)
+        bloques_texto, salida = [], []
+        for bloque in respuesta.content:
+            if bloque.type == 'text':
+                bloques_texto.append({'type': 'output_text', 'text': bloque.text})
+            elif bloque.type == 'tool_use':
+                salida.append({'type': 'function_call', 'name': bloque.name,
+                               'arguments': json.dumps(bloque.input, ensure_ascii=False),
+                               'call_id': bloque.id})
+        if bloques_texto:
+            salida.insert(0, {'type': 'message', 'content': bloques_texto})
+        estado = 'completed' if respuesta.stop_reason in {'end_turn', 'tool_use'} else 'incomplete'
+        return {'status': estado, 'output': salida}
+    except anthropic.APIStatusError as e:
+        if e.status_code in (401, 403):
             raise NoDisponible('El administrador debe revisar la clave y el acceso al modelo.') from None
-        if e.code == 429:
+        if e.status_code == 429:
             raise NoDisponible('El proveedor alcanzó su límite de uso. Intentá más tarde.') from None
         raise NoDisponible('El proveedor de IA no pudo responder. Intentá más tarde.') from None
-    except (error.URLError, TimeoutError, OSError, ValueError):
+    except (anthropic.APIConnectionError, TimeoutError, OSError, ValueError, KeyError):
         raise NoDisponible('No se pudo conectar con el proveedor de IA. Intentá nuevamente.') from None
 
 
@@ -206,7 +247,7 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
     if saludo in {'hola', 'hola pengui', 'buen dia', 'buenas', 'quien sos', 'como te llamas'}:
         return {'respuesta': '¡Hola! Soy Pengui, el asistente de IA de Diemar. Te ayudo a consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué necesitás saber?', 'fuentes': []}
     if not habilitado():
-        raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar OPENAI_API_KEY en el servidor.')
+        raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar ANTHROPIC_API_KEY en el servidor.')
     uid = usuario['id']
     with _lock:
         ahora = time.monotonic()
@@ -234,7 +275,7 @@ def _responder(mensajes, modelo_call, consulta_call):
     fuentes, llamadas = [], 0
     # Hasta 4 rondas y 8 consultas. Los resultados nunca habilitan herramientas nuevas.
     for ronda in range(4):
-        respuesta = modelo_call({'model': os.environ.get('OPENAI_MODEL', 'gpt-5.4-mini'),
+        respuesta = modelo_call({'model': os.environ.get('ANTHROPIC_MODEL', 'claude-opus-5'),
             'instructions': instrucciones, 'input': contexto, 'tools': HERRAMIENTAS,
             'tool_choice': 'required' if ronda == 0 else ('none' if ronda == 3 or llamadas >= 8 else 'auto'),
             'parallel_tool_calls': False, 'store': False, 'max_output_tokens': 2400})

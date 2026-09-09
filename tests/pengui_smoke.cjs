@@ -32,6 +32,10 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
     await page.goto('http://taller.test'+url);await page.locator('#pengui .launch').waitFor();
     assert.equal(await page.locator('#pengui').count(),1);
     assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(245, 245, 242)');
+    if(url==='/'){
+     assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);
+     assert((await page.locator('#pengui').boundingBox()).x>=230);
+    }
   }
   await page.goto('http://taller.test/');await page.locator('#pengui .launch').click();
   const chat=page.frameLocator('iframe[title="Conversación con Pengui"]');

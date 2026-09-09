@@ -5,7 +5,7 @@
   const host = document.createElement('div'); host.id = 'pengui';
   const root = host.attachShadow({mode:'open'});
   root.innerHTML = `<style>
-    :host{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:max(16px,env(safe-area-inset-left));z-index:900;font:13px system-ui;color:#111}
+    :host{position:fixed;bottom:max(16px,env(safe-area-inset-bottom));left:246px;z-index:900;font:13px system-ui;color:#111}
     *{box-sizing:border-box}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #ffd400;outline-offset:4px}
     .launch{display:flex;align-items:center;gap:3px;background:none;border:0;padding:0;color:inherit}
     svg{width:72px;height:86px;filter:drop-shadow(0 4px 4px #0003);transform-origin:50% 90%}
@@ -15,6 +15,7 @@
     .chat{position:absolute;bottom:98px;left:0;width:min(420px,calc(100vw - 32px));height:min(640px,calc(100dvh - 140px));display:flex;flex-direction:column;border-radius:16px;overflow:hidden;border:1px solid #d4d4d4;box-shadow:0 16px 60px #0005;background:white}
     [hidden]{display:none!important}.head{display:flex;align-items:center;padding:13px 16px;background:#0b0b0b;color:white;gap:12px;border-bottom:3px solid #ffd400}.head div{flex:1}.head small{display:block;color:#cfcfcf;font-size:11px;margin-top:3px}.head button,.head a{border:0;background:transparent;color:white;padding:7px;text-decoration:none;font-size:20px;border-radius:6px}
     iframe{border:0;width:100%;flex:1;min-height:0;background:#f5f5f2}
+    @media(max-width:980px){:host{left:max(16px,env(safe-area-inset-left))}}
     @media(max-width:600px){.name{display:none}svg{width:58px;height:70px}.chat{bottom:82px;height:min(640px,calc(100dvh - 116px))}}
     @media(prefers-reduced-motion:reduce){.jump{animation:none}.launch:hover svg{transform:none}}
     @media print{:host{display:none}}
