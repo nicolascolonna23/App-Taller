@@ -738,7 +738,7 @@ def para_tablero(cx):
     telemetría y entraban al tablero como unidades sin datos.
     """
     filas = cx.execute("""
-        select patente, interno, marca, modelo, chofer, semi, sucursal, uso
+        select id, patente, interno, marca, modelo, chofer, semi, sucursal, uso
         from unidades
         where activa and tipo = 'vehiculo'
         order by patente""").fetchall()

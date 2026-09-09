@@ -13,6 +13,8 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
    if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba local',rol:'admin',puede_administrar:true}});
    if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Pengui, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
    if(p==='/api/inicio')return route.fulfill({json:{recorrido:{ayer:{km:12345,unidades:50,unidades_completas:50,desde:'2026-09-07',hasta:'2026-09-07'}},combustible:{mes:{mes:'2026-08-01',litros_100km:31.2,litros:10000},previo:{mes:'2026-07-01',litros_100km:32.1}},unidades:87,alertas:{total:2,graves:1}}});
+   if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION'}]});
+   if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:40000,proximo_km:81259,km_actual:41833,km_restantes:39426,estado:'ok'}]});
    if(p==='/api/alertas')return route.fulfill({json:{instalado:true,resumen:{total:2,grave:1},alertas:[{severidad:'grave',titulo:'VTV vencida',detalle:'AD 247 MQ · venció hace 3 días',enlace:'/alertas'},{severidad:'media',titulo:'Service próximo',detalle:'faltan 2.700 km',enlace:'/control'}]}});
    if(p.startsWith('/api/'))return route.fulfill({status:503,json:{error:'Datos no conectados en esta prueba visual'}});
    if(files[p]){
@@ -20,7 +22,7 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
     const tema=html.includes('src="/tema.js"')?'':'<script src="/tema.js"></script>';
     const estilos=tema+'<link rel="stylesheet" href="/sistema.css">';
     html=html.includes('</head>')?html.replace('</head>',estilos+'</head>'):html+estilos;
-    const pos=html.lastIndexOf('</body>');html=pos<0?html+'<script src="/pengui.js"></script>':html.slice(0,pos)+'<script src="/pengui.js"></script>'+html.slice(pos);
+    if(p==='/'){const pos=html.lastIndexOf('</body>');html=pos<0?html+'<script src="/pengui.js"></script>':html.slice(0,pos)+'<script src="/pengui.js"></script>'+html.slice(pos);}
     return route.fulfill({body:html,contentType:'text/html'});
    }
    const assets={'/logo.png':'logo_diemar4.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
@@ -30,8 +32,13 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
   });
   for(const url of Object.keys(files).filter(x=>x!=='/asistente')){
     console.log('Checking',url);
-    await page.goto('http://taller.test'+url);await page.locator('#pengui .launch').waitFor();
-    assert.equal(await page.locator('#pengui').count(),1);
+    await page.goto('http://taller.test'+url);
+    assert.equal(await page.locator('#pengui').count(),url==='/'?1:0);
+    if(url==='/control'){
+     await page.locator('#tab-unidad').click();
+     await page.waitForFunction(()=>document.body.innerText.includes('41.259'));
+     assert((await page.locator('body').innerText()).includes('01/09/26'));
+    }
     assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(245, 245, 242)');
     if(url==='/'){
      assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);
@@ -60,6 +67,6 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
   assert(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));
   assert(!await chat.locator('body').evaluate(()=>document.documentElement.scrollWidth>innerWidth));
   await chat.locator('#question').press('Escape');await page.waitForFunction(()=>document.querySelector('#pengui').shadowRoot.querySelector('.launch').getAttribute('aria-expanded')==='false');
-  console.log('PASS: shared theme and launcher on 11 modules; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
+  console.log('PASS: shared theme on 10 modules; Pengui only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

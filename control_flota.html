@@ -644,7 +644,7 @@
 </div>
 
 <footer class="shell">
-  <div>Fuentes: planilla <b>SERVICES</b> (flota, services y prefiltros) y planilla <b>COMBUSTIBLE</b> (telemetría de larga distancia, consumo de toda la flota, emisiones y ralentí).</div>
+  <div>Fuentes: <b>Supabase</b> (flota y services), planilla <b>SERVICES</b> (prefiltros y respaldo) y planilla <b>COMBUSTIBLE</b> (telemetría, emisiones y ralentí).</div>
   <div>Si una planilla no responde en vivo, el tablero usa el respaldo local en <code>data/flota.json</code> y <code>data/telemetria.json</code>.</div>
 </footer>
 
@@ -652,7 +652,7 @@
 <div class="modal-bg" id="modal-service" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
   <form class="modal" id="form-service" autocomplete="off">
     <h2 id="modal-titulo">Registrar service</h2>
-    <div class="hint">Actualiza la planilla y deja el registro en el historial.</div>
+    <div class="hint">Guarda el service en Supabase y actualiza el historial.</div>
 
     <label for="sv-patente">Unidad</label>
     <select class="sel" id="sv-patente" required></select>
@@ -672,9 +672,6 @@
 
     <label for="sv-tipo">Tipo de service</label>
     <input class="inp" type="text" id="sv-tipo" placeholder="Ej: Cambio de aceite y filtros">
-
-    <label for="sv-pin">PIN</label>
-    <input class="inp" type="password" id="sv-pin" required>
 
     <div class="modal-msg" id="sv-msg"></div>
 
@@ -712,9 +709,6 @@ const CFG = {
   },
   refreshMs: 300000,
 
-  // URL /exec de la aplicacion web de Apps Script (apps_script/tablero_webapp.gs).
-  // Vacia = el boton "Registrar service" no aparece y el tablero queda de solo lectura.
-  webapp: "https://script.google.com/macros/s/AKfycby8EyrslziNICIYVKqGUCuxEv0KvCUSqeagn639wTgBDB-O_xz9T-GOC_ecCqFQP9shJg/exec"
 };
 
 const gviz = (id, gid) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
@@ -896,7 +890,7 @@ async function cargarFlota() {
   const base = await maestroDeLaBase();
   if (base) {
     APP.fuentes.flota = 'base';
-    return base.map(u => ({ modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
+    return base.map(u => ({ id:u.id, modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
                             patente:u.patente||'', interno:u.interno||'', semi:u.semi||'',
                             sucursal:u.sucursal||'', uso:u.uso||'' }));
   }
@@ -933,22 +927,52 @@ function parseServicios(rows) {
 }
 
 async function cargarServicios() {
-  const [lad, conj, pref] = await Promise.all([
+  const desdeBase = await (async () => {
+    try {
+      const r = await fetch('/api/services', { cache: 'no-store' });
+      if (!r.ok) return null;
+      const filas = await r.json();
+      if (!Array.isArray(filas) || !filas.length) return null;
+      return filas.map(s => {
+        const f = String(s.ultimo_fecha || '').slice(0, 10).split('-');
+        return {
+          patente: normPat(s.patente), marca:'', chofer:'',
+          residencia: s.sucursal || '',
+          fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
+          kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
+          kmAct: num(s.km_actual), falta: num(s.km_restantes)
+        };
+      });
+    } catch (e) { return null; }
+  })();
+
+  // Los prefiltros todavía viven en la planilla. Que esa hoja no responda
+  // no puede tapar un service que ya está correctamente guardado en la base.
+  const pref = await fetchCSV([pub(CFG.gid.prefiltro), gviz(CFG.idServices, CFG.gid.prefiltro)]);
+  APP.prefiltros = (pref || []).reduce((acc, r) => {
+    if (esPatente(r[0])) {
+      acc.push({ patente: normPat(r[0]), kmUlt: num(r[1]), kmProx: num(r[2]), falta: num(r[3]) });
+    }
+    return acc;
+  }, []);
+
+  if (desdeBase) {
+    APP.fuentes.servicios = 'base';
+    return {
+      servicios: desdeBase,
+      setLAD: new Set(desdeBase.filter(s => /^LAD$/i.test(s.residencia)).map(s => s.patente))
+    };
+  }
+
+  const [lad, conj] = await Promise.all([
     fetchCSV([pub(CFG.gid.lad),       gviz(CFG.idServices, CFG.gid.lad)]),
     fetchCSV([pub(CFG.gid.conjunto),  gviz(CFG.idServices, CFG.gid.conjunto)]),
-    fetchCSV([pub(CFG.gid.prefiltro), gviz(CFG.idServices, CFG.gid.prefiltro)])
   ]);
 
   if (lad || conj) {
     APP.fuentes.servicios = 'vivo';
     // Solo filas con patente real: la primera fila de la hoja es el encabezado
     // ("PREFILTRO") y se colaba como si fuera una unidad sin datos.
-    APP.prefiltros = (pref || []).reduce((acc, r) => {
-      if (esPatente(r[0])) {
-        acc.push({ patente: normPat(r[0]), kmUlt: num(r[1]), kmProx: num(r[2]), falta: num(r[3]) });
-      }
-      return acc;
-    }, []);
     return {
       servicios: parseServicios(conj || lad),
       setLAD: new Set(lad ? parseServicios(lad).map(x => x.patente) : [])
@@ -1082,6 +1106,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     const esLAD = /LARGA/i.test(f.uso) || /^LAD$/i.test((f.sucursal || '').trim());
     map.set(p, {
       patente: p, display: fmtPat(f.patente),
+      id: f.id,
       modelo: f.modelo, marca: f.marca, chofer: f.chofer,
       interno: f.interno, semi: f.semi,
       sucursal: (f.sucursal || '').trim(), uso: f.uso,
@@ -2023,7 +2048,6 @@ window.addEventListener('resize', () => {
    mande un preflight que Apps Script no sabe responder.
    ===================================================================== */
 const MODAL = $('#modal-service');
-let pinRecordado = '';   // solo mientras la pestana siga abierta
 
 function hoyAR() {
   const d = new Date();
@@ -2050,12 +2074,11 @@ function abrirFormService(patente) {
   $('#sv-km').value    = '';
   kmAuto = null;
   $('#sv-tipo').value  = '';
-  $('#sv-pin').value   = pinRecordado;
   svMensaje('');
   sugerirKm();
 
   MODAL.setAttribute('open', '');
-  (pinRecordado ? $('#sv-km') : $('#sv-pin')).focus();
+  $('#sv-km').focus();
 }
 
 function cerrarFormService() {
@@ -2177,23 +2200,23 @@ $('#form-service').addEventListener('submit', async ev => {
   svMensaje('');
 
   try {
-    const r = await fetch(CFG.webapp, {
+    const iso = fechaISO($('#sv-fecha').value.trim());
+    if (!iso) throw new Error('La fecha no es válida. Usá DD/MM/AA.');
+    if (!u || !u.id) throw new Error('La unidad no está vinculada con el maestro de Supabase.');
+
+    const r = await fetch('/api/alertas', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        pin    : $('#sv-pin').value,
-        patente: patente,
-        fecha  : $('#sv-fecha').value.trim(),
-        km     : km,
-        tipo   : $('#sv-tipo').value.trim()
+        op: 'service_guardar', unidad_id: u.id, fecha: iso,
+        km: km, tipo: $('#sv-tipo').value.trim()
       })
     });
     const res = await r.json();
-    if (!res.ok) throw new Error(res.error || 'La planilla rechazó el registro.');
+    if (!r.ok) throw new Error(res.error || 'La base rechazó el registro.');
 
-    pinRecordado = $('#sv-pin').value;
     aplicarServiceLocal(patente, $('#sv-fecha').value.trim(), km);
-    svMensaje(`Guardado en ${res.hoja}. La planilla tarda unos minutos en reflejarlo, la tabla ya está actualizada.`, 'ok');
+    svMensaje('Guardado en Supabase. La tabla ya está actualizada.', 'ok');
     setTimeout(cerrarFormService, 2200);
 
   } catch (err) {
@@ -2241,7 +2264,7 @@ async function cargarTodo(manual) {
     renderPrefiltros();
     renderChips();
 
-    $('#btn-service').hidden = !CFG.webapp || !APP.unidades.size;
+    $('#btn-service').hidden = !APP.unidades.size;
 
     marcarFuente();
     $('#update-txt').textContent = 'Actualizado ' +
