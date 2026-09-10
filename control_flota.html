@@ -508,7 +508,7 @@
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-general"   aria-selected="true"  data-panel="p-general">Control general</button>
     <button class="tab" role="tab" id="tab-lad"       aria-selected="false" data-panel="p-lad">Larga distancia <span class="count" id="cnt-lad">0</span></button>
-    <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución <span class="count" id="cnt-dist">0</span></button>
+    <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución local <span class="count" id="cnt-dist">0</span></button>
     <button class="tab" role="tab" id="tab-unidad"    aria-selected="false" data-panel="p-unidad">Por patente</button>
     <button class="tab" role="tab" id="tab-prefiltro" aria-selected="false" data-panel="p-prefiltro">Prefiltros <span class="count" id="cnt-pref">0</span></button>
   </div>
@@ -596,6 +596,7 @@
     <div class="filterbar" style="margin-top:16px">
       <span class="fl">Filtrar</span>
       <input class="inp" type="search" id="f-lad-txt" placeholder="Patente, chofer, marca, modelo…">
+      <select class="sel" id="f-lad-plan"><option value="">Todos los tipos de service</option></select>
       <select class="sel" id="f-lad-estado">
         <option value="">Todos los estados</option>
         <option value="vencido">Vencido</option>
@@ -616,6 +617,7 @@
     <div class="filterbar" style="margin-top:16px">
       <span class="fl">Filtrar</span>
       <input class="inp" type="search" id="f-dist-txt" placeholder="Patente, chofer, marca, modelo…">
+      <select class="sel" id="f-dist-plan"><option value="">Todos los tipos de service</option></select>
       <select class="sel" id="f-dist-suc"><option value="">Todas las sucursales</option></select>
       <select class="sel" id="f-dist-estado">
         <option value="">Todos los estados</option>
@@ -688,6 +690,11 @@
     <select class="sel" id="as-modelo"></select>
     <div class="planes-check" id="as-planes-modelo"></div>
     <div class="modal-acciones"><button class="btn-ok" id="as-save-modelo" type="button">Asignar al modelo</button></div>
+
+    <h3>Carga masiva desde Excel</h3>
+    <div class="hint">El archivo debe tener las columnas PATENTE y TIPO DE SERVICE. Cada tipo debe coincidir con el nombre de un plan creado arriba.</div>
+    <div class="row"><input class="inp" id="as-archivo" type="file" accept=".xlsx"><button class="btn-ok" id="as-importar" type="button">Importar Excel</button></div>
+    <div class="modal-ref" id="as-resultado"></div>
 
     <div class="modal-msg" id="pl-msg"></div>
     <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button></div>
@@ -1157,7 +1164,10 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
   for (const f of flota) {
     const p = normPat(f.patente);
     if (!p) continue;
-    const esLAD = /LARGA/i.test(f.uso) || /^LAD$/i.test((f.sucursal || '').trim());
+    const uso = String(f.uso || '').toUpperCase();
+    if (uso.replaceAll(' ', '').startsWith('SEMI') || uso.includes('REMOLQUE')) continue;
+    const esLAD = uso.includes('LARGA');
+    const esDistribucion = uso.includes('DISTRIB');
     map.set(p, {
       patente: p, display: fmtPat(f.patente),
       id: f.id,
@@ -1165,7 +1175,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
       interno: f.interno, semi: f.semi,
       sucursal: (f.sucursal || '').trim(), uso: f.uso,
       planes: [],
-      grupo: esLAD ? 'LAD' : 'DIS',
+      grupo: esLAD ? 'LAD' : esDistribucion ? 'DIS' : '',
       fechaUlt: '', kmUlt: null, kmProx: null, kmAct: null, falta: null,
       estado: 'sindato', serie: [], enFlota: true
     });
@@ -1176,7 +1186,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     if (!u) {
       u = { patente: s.patente, display: fmtPat(s.patente), modelo: '', marca: s.marca,
             chofer: s.chofer, interno: '', semi: '', sucursal: (s.residencia || '').trim(),
-            uso: '', grupo: 'DIS', serie: [], enFlota: false };
+            uso: '', grupo: '', serie: [], enFlota: false };
       map.set(s.patente, u);
     }
     // La vista devuelve una fila por unidad y plan: un camion con M1, M2 y
@@ -1201,7 +1211,6 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     if (!u.marca)  u.marca  = s.marca;
     if (!u.chofer) u.chofer = s.chofer;
     if (!u.sucursal) u.sucursal = (s.residencia || '').trim();
-    if (setLAD.has(s.patente) || /^LAD$/i.test((s.residencia || '').trim())) u.grupo = 'LAD';
   }
 
   const meses = new Set();
@@ -1755,6 +1764,7 @@ const COL = {
   marca   : { k:'marca',    t:'Marca' },
   sucursal: { k:'sucursal', t:'Sucursal' },
   chofer  : { k:'chofer',   t:'Chofer' },
+  plan    : { k:'_planes',  t:'Tipo de service' },
   fecha   : { k:'fechaUlt', t:'Últ. serv.' },
   kmUlt   : { k:'kmUlt',    t:'Km últ.',     tipo:'num' },
   kmProx  : { k:'kmProx',   t:'Km próx.',    tipo:'num' },
@@ -1768,9 +1778,9 @@ const COL = {
 // La operacion de larga distancia comparte sucursal (LAD) y tiene telemetria
 // completa (consumo y ralenti); la de distribucion necesita la sucursal y solo
 // tiene consumo (hoja de toda la flota de la planilla COMBUSTIBLE).
-const COLS_LAD  = [COL.patente, COL.modelo, COL.chofer, COL.fecha, COL.kmUlt,
+const COLS_LAD  = [COL.patente, COL.modelo, COL.plan, COL.chofer, COL.fecha, COL.kmUlt,
                    COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100, COL.ralenti];
-const COLS_DIST = [COL.patente, COL.modelo, COL.sucursal, COL.chofer, COL.fecha,
+const COLS_DIST = [COL.patente, COL.modelo, COL.plan, COL.sucursal, COL.chofer, COL.fecha,
                    COL.kmUlt, COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
 
 function filaUnidad(u, cols) {
@@ -1779,6 +1789,7 @@ function filaUnidad(u, cols) {
     if (col.tipo === 'pat')
       return `<td><button class="pat" type="button" data-pat="${esc(u.patente)}">${esc(u.display)}</button></td>`;
     if (col.tipo === 'estado') return `<td>${pillHTML(u.estado)}</td>`;
+    if (col.k === '_planes')   return `<td>${esc(nombresPlanes(u) || 'Sin parametrización')}</td>`;
     if (col.k === '_c100')     return `<td class="num">${c100 ? fmt1(c100.valor) : '—'}</td>`;
     if (col.k === '_ralenti')  return `<td class="num">${ral ? fmt1(ral.valor) : '—'}</td>`;
     if (col.tipo === 'num')    return `<td class="num">${fmt0(u[col.k])}</td>`;
@@ -1836,7 +1847,9 @@ function coincide(u, txt) {
 function renderLAD() {
   const txt = $('#f-lad-txt').value.trim();
   const est = $('#f-lad-estado').value;
-  const lista = unidadesDe('LAD').filter(u => coincide(u, txt) && (!est || u.estado === est));
+  const plan = $('#f-lad-plan').value;
+  const lista = unidadesDe('LAD').filter(u => coincide(u, txt) && coincidePlan(u, plan) && (!est || u.estado === est));
+  renderKpisGrupo('#kpis-lad', lista);
   renderTabla('tbl-lad', lista, COLS_LAD, renderLAD);
 }
 
@@ -1844,9 +1857,34 @@ function renderDist() {
   const txt = $('#f-dist-txt').value.trim();
   const est = $('#f-dist-estado').value;
   const suc = $('#f-dist-suc').value;
+  const plan = $('#f-dist-plan').value;
   const lista = unidadesDe('DIS').filter(u =>
-    coincide(u, txt) && (!est || u.estado === est) && (!suc || u.sucursal === suc));
+    coincide(u, txt) && coincidePlan(u, plan) && (!est || u.estado === est) && (!suc || u.sucursal === suc));
+  renderKpisGrupo('#kpis-dist', lista);
   renderTabla('tbl-dist', lista, COLS_DIST, renderDist);
+}
+
+function nombresPlanes(u) {
+  return Array.from(new Set((u.planes || []).filter(p => p.id && p.nombre).map(p => p.nombre))).join(', ');
+}
+
+function coincidePlan(u, plan) {
+  const nombres = (u.planes || []).filter(p => p.id && p.nombre).map(p => p.nombre);
+  if (!plan) return true;
+  return plan === '__SIN_PLAN__' ? !nombres.length : nombres.includes(plan);
+}
+
+function llenarTiposService() {
+  [['#f-lad-plan', 'LAD'], ['#f-dist-plan', 'DIS']].forEach(([selector, grupo]) => {
+    const sel = $(selector), actual = sel.value, unidades = unidadesDe(grupo);
+    const nombres = Array.from(new Set(unidades.flatMap(u =>
+      (u.planes || []).filter(p => p.id && p.nombre).map(p => p.nombre))))
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    sel.innerHTML = '<option value="">Todos los tipos de service</option>' +
+      nombres.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') +
+      (unidades.some(u => !(u.planes || []).some(p => p.id)) ? '<option value="__SIN_PLAN__">Sin parametrización</option>' : '');
+    if ([...sel.options].some(o => o.value === actual)) sel.value = actual;
+  });
 }
 
 function llenarSucursales() {
@@ -2101,9 +2139,11 @@ document.addEventListener('click', ev => {
 
 $('#f-lad-txt').addEventListener('input', renderLAD);
 $('#f-lad-estado').addEventListener('change', renderLAD);
+$('#f-lad-plan').addEventListener('change', renderLAD);
 $('#f-dist-txt').addEventListener('input', renderDist);
 $('#f-dist-estado').addEventListener('change', renderDist);
 $('#f-dist-suc').addEventListener('change', renderDist);
+$('#f-dist-plan').addEventListener('change', renderDist);
 $('#f-pref-txt').addEventListener('input', renderPrefiltros);
 $('#f-unidad').addEventListener('input', renderChips);
 $$('#seg-grupo button').forEach(b => b.addEventListener('click', () => {
@@ -2441,6 +2481,24 @@ $('#as-save-modelo').onclick = async () => {
   } catch (e) { planMensaje(e.message); }
 };
 
+$('#as-importar').onclick = async () => {
+  const archivo=$('#as-archivo').files[0];
+  if(!archivo) return planMensaje('Elegí un archivo .xlsx.');
+  const boton=$('#as-importar'); boton.disabled=true; planMensaje('Importando…'); $('#as-resultado').textContent='';
+  try {
+    const bytes=new Uint8Array(await archivo.arrayBuffer()); let bin='';
+    for(let i=0;i<bytes.length;i+=32768) bin+=String.fromCharCode(...bytes.subarray(i,i+32768));
+    const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'importar',archivo_b64:btoa(bin)})});
+    const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo importar.');
+    APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; APP.modelos=d.modelos||[]; pintarPlanes();
+    const partes=[`${d.asignadas} de ${d.total} filas asignadas.`];
+    if(d.planes_faltantes?.length) partes.push(`Creá primero estos planes: ${d.planes_faltantes.join(', ')}.`);
+    if(d.patentes_faltantes?.length) partes.push(`Patentes no encontradas: ${d.patentes_faltantes.join(', ')}.`);
+    if(d.sin_datos?.length) partes.push(`Sin datos: ${d.sin_datos.join(', ')}.`);
+    $('#as-resultado').textContent=partes.join(' '); planMensaje('Carga procesada.'); await cargarTodo(false);
+  } catch(e) { planMensaje(e.message); } finally { boton.disabled=false; }
+};
+
 $('#planes-lista').onclick = async e => {
   const p = APP.planes.find(x =>
     String(x.id) === String(e.target.dataset.edit || e.target.dataset.del));
@@ -2471,6 +2529,7 @@ async function cargarTodo(manual) {
     construirUnidades(flota, srv.servicios, srv.setLAD, tel);
 
     llenarSucursales();
+    llenarTiposService();
     renderGeneral();
     renderLAD();
     renderDist();

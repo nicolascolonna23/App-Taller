@@ -123,6 +123,8 @@ from (
     left join unidad_planes up on up.unidad_id = u.id
     left join mantenimiento_planes p on p.id = up.plan_id and p.activo
     where u.activa
+      and upper(replace(coalesce(u.uso,''), ' ', '')) not like 'SEMI%'
+      and upper(coalesce(u.uso,'')) not like '%REMOLQUE%'
   ) a
   cross join alertas_reglas r
   left join lateral (

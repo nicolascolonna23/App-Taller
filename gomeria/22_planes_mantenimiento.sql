@@ -76,4 +76,3 @@ from (
   ) d on true
   where u.activa
 ) b;
-
