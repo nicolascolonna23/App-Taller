@@ -655,6 +655,10 @@
     <div id="planes-lista" style="margin:16px 0"></div>
     <h3>Asignar a una patente</h3>
     <div class="row"><select class="sel" id="as-unidad"></select><select class="sel" id="as-plan"></select></div>
+    <h3 style="margin-top:20px">Carga masiva desde Excel</h3>
+    <div class="hint">El archivo debe tener las columnas PATENTE y TIPO DE SERVICE. Cada tipo debe coincidir con el nombre de un plan creado arriba.</div>
+    <div class="row"><input class="inp" id="as-archivo" type="file" accept=".xlsx"><button class="btn-ok" id="as-importar" type="button">Importar Excel</button></div>
+    <div class="modal-ref" id="as-resultado"></div>
     <div class="modal-msg" id="pl-msg"></div>
     <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button><button class="btn-ok" id="as-save" type="button">Asignar</button></div>
   </div>
@@ -2292,6 +2296,22 @@ $('#pl-cerrar').onclick=()=>PLAN_MODAL.removeAttribute('open'); $('#pl-cancel-ed
 $('#as-unidad').onchange=seleccionarAsignacion;
 $('#pl-save').onclick=async()=>{try{await guardarPlan({op:'plan_guardar',id:$('#pl-id').value,nombre:$('#pl-nombre').value,cada_km:$('#pl-km').value,descripcion:$('#pl-desc').value});limpiarPlan();}catch(e){planMensaje(e.message);}};
 $('#as-save').onclick=async()=>{try{await guardarPlan({op:'asignar',unidad_id:$('#as-unidad').value,plan_id:$('#as-plan').value});await cargarTodo(false);}catch(e){planMensaje(e.message);}};
+$('#as-importar').onclick=async()=>{
+  const archivo=$('#as-archivo').files[0]; if(!archivo){planMensaje('Elegí un archivo .xlsx.');return;}
+  const boton=$('#as-importar'); boton.disabled=true; planMensaje('Importando…'); $('#as-resultado').textContent='';
+  try{
+    const bytes=new Uint8Array(await archivo.arrayBuffer()); let bin='';
+    for(let i=0;i<bytes.length;i+=32768) bin+=String.fromCharCode(...bytes.subarray(i,i+32768));
+    const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'importar',archivo_b64:btoa(bin)})});
+    const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo importar.');
+    APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes();
+    const partes=[`${d.asignadas} de ${d.total} filas asignadas.`];
+    if(d.planes_faltantes?.length) partes.push(`Creá primero estos planes: ${d.planes_faltantes.join(', ')}.`);
+    if(d.patentes_faltantes?.length) partes.push(`Patentes no encontradas: ${d.patentes_faltantes.join(', ')}.`);
+    if(d.sin_datos?.length) partes.push(`Sin datos: ${d.sin_datos.join(', ')}.`);
+    $('#as-resultado').textContent=partes.join(' '); planMensaje('Carga procesada.'); await cargarTodo(false);
+  }catch(e){planMensaje(e.message);}finally{boton.disabled=false;}
+};
 $('#planes-lista').onclick=async e=>{const p=APP.planes.find(x=>String(x.id)===String(e.target.dataset.edit||e.target.dataset.del));if(!p)return;if(e.target.dataset.edit){$('#pl-id').value=p.id;$('#pl-nombre').value=p.nombre;$('#pl-km').value=p.cada_km;$('#pl-desc').value=p.descripcion||'';}else if(confirm(`Eliminar ${p.nombre}? Las unidades quedarán sin plan.`)){try{await guardarPlan({op:'plan_borrar',id:p.id});}catch(x){planMensaje(x.message);}}};
 PLAN_MODAL.addEventListener('mousedown',e=>{if(e.target===PLAN_MODAL)PLAN_MODAL.removeAttribute('open');});
 
