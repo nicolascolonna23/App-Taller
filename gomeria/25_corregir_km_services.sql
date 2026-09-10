@@ -25,16 +25,23 @@
 -- ---------------------------------------------------------------------
 -- AE 988 UW y AH 938 VO no están: la primera está dada de baja y la
 -- segunda vino sin número. Si hay que corregirlas, se agregan acá.
+--
+-- Estos números son la segunda versión del listado. En la primera, los de
+-- AD 247 MQ y AE 423 IV venían cruzados entre sí: casi un millón de
+-- kilómetros a parar a la unidad equivocada. Ninguna de las dos versiones
+-- se notaba a simple vista, y por eso el informe de más abajo compara cada
+-- número contra el odómetro de hoy antes de escribir nada. Si algún día
+-- este listado se rehace, esa comparación es la que avisa.
 drop table if exists _km_service;
 create temp table _km_service (patente text primary key, km numeric not null);
 
 insert into _km_service (patente, km) values
-  ('AD 247 MQ', 735933),
-  ('AE 423 IV', 1652322),
-  ('AE 423 IW', 1295194),
+  ('AD 247 MQ', 1652322),
+  ('AE 423 IV', 736004),
+  ('AE 423 IW', 1295215),
   ('AE 588 MW', 1210648),
-  ('AF 218 HY', 287110),
-  ('AF 470 UT', 525898),
+  ('AF 218 HY', 304894),
+  ('AF 470 UT', 525962),
   ('AF 533 SB', 282700),
   ('AF 577 BD', 34571),
   ('AF 796 IX', 152968),
