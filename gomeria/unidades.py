@@ -13,10 +13,6 @@ Están en el mismo listado que en la planilla, y así se mantiene.
 import os
 import re
 
-import psycopg
-
-import mantenimiento as mant
-
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 GESTORES = {"admin", "encargado"}
@@ -24,7 +20,7 @@ GESTORES = {"admin", "encargado"}
 # Los campos que la pantalla puede tocar. Todo lo que no esté acá se ignora,
 # así un JSON de más no llega nunca a la consulta.
 CAMPOS = ("interno", "tipo", "marca", "modelo", "chasis", "chofer", "semi",
-          "sucursal", "uso", "nota", "activa", "modelo_3d")
+          "sucursal", "uso", "nota", "activa", "modelo_3d", "mantenimiento_plan_id")
 
 
 def _exigir_gestor(usuario, que="tocar el maestro de unidades"):
@@ -54,23 +50,13 @@ def _texto(valor, limite=120):
 def listar(cx):
     """Todo el maestro, más las listas que la pantalla usa en los selectores."""
     filas = cx.execute("""
-        select * from v_unidades
+        select v.*, u.mantenimiento_plan_id, p.nombre as mantenimiento_plan,
+               p.cada_km as mantenimiento_cada_km
+        from v_unidades v join unidades u on u.id=v.id
+        left join mantenimiento_planes p on p.id=u.mantenimiento_plan_id
         -- Los equipos al final: son pocos y no se miran todos los días.
-        order by tipo, coalesce(nullif(interno,'')::text, 'zzz'), patente
+        order by v.tipo, coalesce(nullif(v.interno,'')::text, 'zzz'), v.patente
     """).fetchall()
-
-    # Los planes de mantenimiento se leen aparte y con tolerancia: si
-    # todavía no se corrió su SQL en Supabase, el maestro de unidades tiene
-    # que abrirse igual. Sin esto, una tabla que falta de un módulo
-    # agregado después deja sin flota a todo el taller, y encima con un
-    # cartel que habla de otro archivo.
-    try:
-        planes = cx.execute("""select id, nombre, cada_km, descripcion
-            from mantenimiento_planes where activo order by nombre""").fetchall()
-        de_unidad = mant.planes_por_unidad(cx)
-    except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-        cx.rollback()
-        planes, de_unidad = [], {}
 
     # Los valores de sucursal y uso salen de lo que ya está cargado, no de
     # una lista fija: si mañana abren una sucursal, aparece sola.
@@ -89,10 +75,8 @@ def listar(cx):
                     + medidas_que_no_van(cx)),
         # Qué tipos de vehículo hay y cuáles todavía no tienen 3D.
         "armados": armados(cx),
-        "planes_mantenimiento": planes,
-        # unidad_id → [plan_id, …]. La ficha marca con esto qué planes le
-        # tocan a cada patente.
-        "planes_por_unidad": de_unidad,
+        "planes_mantenimiento": cx.execute("""select id,nombre,cada_km
+            from mantenimiento_planes where activo order by nombre""").fetchall(),
     }
 
 
@@ -643,6 +627,8 @@ def _limpiar(datos):
         valor = datos[campo]
         if campo == "activa":
             limpio[campo] = bool(valor)
+        elif campo == "mantenimiento_plan_id":
+            limpio[campo] = int(valor) if str(valor or "").strip() else None
         elif campo == "tipo":
             limpio[campo] = "equipo" if str(valor).strip().lower() == "equipo" else "vehiculo"
         elif campo == "semi":
@@ -759,9 +745,12 @@ def para_tablero(cx):
     telemetría y entraban al tablero como unidades sin datos.
     """
     filas = cx.execute("""
-        select id, patente, interno, marca, modelo, chofer, semi, sucursal, uso
-        from unidades where activa and tipo = 'vehiculo'
-        order by patente""").fetchall()
+        select u.id, u.patente, u.interno, u.marca, u.modelo, u.chofer, u.semi,
+               u.sucursal, u.uso, u.mantenimiento_plan_id,
+               p.nombre as mantenimiento_plan, p.cada_km as mantenimiento_cada_km
+        from unidades u left join mantenimiento_planes p on p.id=u.mantenimiento_plan_id
+        where u.activa and u.tipo = 'vehiculo'
+        order by u.patente""").fetchall()
     for f in filas:
         f["patente"] = base_fmt(f["patente"])
         f["semi"] = base_fmt(f["semi"]) if f["semi"] else ""

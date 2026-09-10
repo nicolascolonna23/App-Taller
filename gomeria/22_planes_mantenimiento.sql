@@ -25,12 +25,9 @@ create index if not exists ix_unidades_mantenimiento_plan
 
 -- La periodicidad asignada hoy manda para el próximo vencimiento. El valor
 -- guardado en services queda como foto histórica del criterio usado entonces.
---
--- Se tira la vista antes de crearla: «create or replace» exige que las
--- columnas se llamen igual que antes y en el mismo orden, y esta versión
--- agrega mantenimiento_plan_id en el medio. Postgres contesta «cannot change
--- name of view column». Tirarla no pierde nada, es una vista: se vuelve a
--- armar acá abajo con los mismos datos.
+-- Se elimina antes de recrearla porque PostgreSQL no permite insertar columnas
+-- en medio de una vista existente con CREATE OR REPLACE. No hay datos en una
+-- vista: solo se reemplaza la consulta que los calcula.
 drop view if exists v_services_hoy;
 create view v_services_hoy as
 select b.*,
@@ -75,4 +72,6 @@ from (
     having max(od.fecha) > min(od.fecha) and max(od.km) >= min(od.km)
   ) d on true
   where u.activa
+    and upper(replace(coalesce(u.uso,''), ' ', '')) not like 'SEMI%'
+    and upper(coalesce(u.uso,'')) not like '%REMOLQUE%'
 ) b;
