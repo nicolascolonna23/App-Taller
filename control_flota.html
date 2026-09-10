@@ -488,7 +488,7 @@
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" id="tab-general"   aria-selected="true"  data-panel="p-general">Control general</button>
     <button class="tab" role="tab" id="tab-lad"       aria-selected="false" data-panel="p-lad">Larga distancia <span class="count" id="cnt-lad">0</span></button>
-    <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución <span class="count" id="cnt-dist">0</span></button>
+    <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución local <span class="count" id="cnt-dist">0</span></button>
     <button class="tab" role="tab" id="tab-unidad"    aria-selected="false" data-panel="p-unidad">Por patente</button>
     <button class="tab" role="tab" id="tab-prefiltro" aria-selected="false" data-panel="p-prefiltro">Prefiltros <span class="count" id="cnt-pref">0</span></button>
   </div>
@@ -576,6 +576,7 @@
     <div class="filterbar" style="margin-top:16px">
       <span class="fl">Filtrar</span>
       <input class="inp" type="search" id="f-lad-txt" placeholder="Patente, chofer, marca, modelo…">
+      <select class="sel" id="f-lad-plan"><option value="">Todos los tipos de service</option></select>
       <select class="sel" id="f-lad-estado">
         <option value="">Todos los estados</option>
         <option value="vencido">Vencido</option>
@@ -596,6 +597,7 @@
     <div class="filterbar" style="margin-top:16px">
       <span class="fl">Filtrar</span>
       <input class="inp" type="search" id="f-dist-txt" placeholder="Patente, chofer, marca, modelo…">
+      <select class="sel" id="f-dist-plan"><option value="">Todos los tipos de service</option></select>
       <select class="sel" id="f-dist-suc"><option value="">Todas las sucursales</option></select>
       <select class="sel" id="f-dist-estado">
         <option value="">Todos los estados</option>
@@ -1716,6 +1718,7 @@ const COL = {
   marca   : { k:'marca',    t:'Marca' },
   sucursal: { k:'sucursal', t:'Sucursal' },
   chofer  : { k:'chofer',   t:'Chofer' },
+  plan    : { k:'planNombre', t:'Tipo de service' },
   fecha   : { k:'fechaUlt', t:'Últ. serv.' },
   kmUlt   : { k:'kmUlt',    t:'Km últ.',     tipo:'num' },
   kmProx  : { k:'kmProx',   t:'Km próx.',    tipo:'num' },
@@ -1729,9 +1732,9 @@ const COL = {
 // La operacion de larga distancia comparte sucursal (LAD) y tiene telemetria
 // completa (consumo y ralenti); la de distribucion necesita la sucursal y solo
 // tiene consumo (hoja de toda la flota de la planilla COMBUSTIBLE).
-const COLS_LAD  = [COL.patente, COL.modelo, COL.chofer, COL.fecha, COL.kmUlt,
+const COLS_LAD  = [COL.patente, COL.modelo, COL.plan, COL.chofer, COL.fecha, COL.kmUlt,
                    COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100, COL.ralenti];
-const COLS_DIST = [COL.patente, COL.modelo, COL.sucursal, COL.chofer, COL.fecha,
+const COLS_DIST = [COL.patente, COL.modelo, COL.plan, COL.sucursal, COL.chofer, COL.fecha,
                    COL.kmUlt, COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
 
 function filaUnidad(u, cols) {
@@ -1797,7 +1800,10 @@ function coincide(u, txt) {
 function renderLAD() {
   const txt = $('#f-lad-txt').value.trim();
   const est = $('#f-lad-estado').value;
-  const lista = unidadesDe('LAD').filter(u => coincide(u, txt) && (!est || u.estado === est));
+  const plan = $('#f-lad-plan').value;
+  const lista = unidadesDe('LAD').filter(u =>
+    coincide(u, txt) && coincidePlan(u, plan) && (!est || u.estado === est));
+  renderKpisGrupo('#kpis-lad', lista);
   renderTabla('tbl-lad', lista, COLS_LAD, renderLAD);
 }
 
@@ -1805,9 +1811,31 @@ function renderDist() {
   const txt = $('#f-dist-txt').value.trim();
   const est = $('#f-dist-estado').value;
   const suc = $('#f-dist-suc').value;
+  const plan = $('#f-dist-plan').value;
   const lista = unidadesDe('DIS').filter(u =>
-    coincide(u, txt) && (!est || u.estado === est) && (!suc || u.sucursal === suc));
+    coincide(u, txt) && coincidePlan(u, plan) && (!est || u.estado === est) && (!suc || u.sucursal === suc));
+  renderKpisGrupo('#kpis-dist', lista);
   renderTabla('tbl-dist', lista, COLS_DIST, renderDist);
+}
+
+function coincidePlan(u, plan) {
+  if (!plan) return true;
+  if (plan === '__SIN_PLAN__') return !u.planNombre;
+  return u.planNombre === plan;
+}
+
+function llenarTiposService() {
+  [['#f-lad-plan', 'LAD'], ['#f-dist-plan', 'DIS']].forEach(([selector, grupo]) => {
+    const sel = $(selector);
+    const actual = sel.value;
+    const nombres = Array.from(new Set(unidadesDe(grupo).map(u => u.planNombre).filter(Boolean)))
+      .sort((a, b) => a.localeCompare(b, 'es'));
+    const haySinPlan = unidadesDe(grupo).some(u => !u.planNombre);
+    sel.innerHTML = '<option value="">Todos los tipos de service</option>' +
+      nombres.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('') +
+      (haySinPlan ? '<option value="__SIN_PLAN__">Sin parametrización</option>' : '');
+    if ([...sel.options].some(o => o.value === actual)) sel.value = actual;
+  });
 }
 
 function llenarSucursales() {
@@ -2051,9 +2079,11 @@ document.addEventListener('click', ev => {
 
 $('#f-lad-txt').addEventListener('input', renderLAD);
 $('#f-lad-estado').addEventListener('change', renderLAD);
+$('#f-lad-plan').addEventListener('change', renderLAD);
 $('#f-dist-txt').addEventListener('input', renderDist);
 $('#f-dist-estado').addEventListener('change', renderDist);
 $('#f-dist-suc').addEventListener('change', renderDist);
+$('#f-dist-plan').addEventListener('change', renderDist);
 $('#f-pref-txt').addEventListener('input', renderPrefiltros);
 $('#f-unidad').addEventListener('input', renderChips);
 $$('#seg-grupo button').forEach(b => b.addEventListener('click', () => {
@@ -2333,6 +2363,7 @@ async function cargarTodo(manual) {
     construirUnidades(flota, srv.servicios, srv.setLAD, tel);
 
     llenarSucursales();
+    llenarTiposService();
     renderGeneral();
     renderLAD();
     renderDist();
