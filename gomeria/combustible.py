@@ -452,6 +452,69 @@ def flota(cx, mes=None, limite=400):
     }
 
 
+def serie_consumo(cx, limite=36):
+    """El consumo mes a mes, para los tableros de flota.
+
+    Devuelve dos series: la de toda la flota, que es la que se grafica, y
+    la de cada unidad, que es la del ranking de quién consume más.
+
+    Litros cada 100 km de toda la flota y, aparte, de larga distancia.
+    Sale de lo mismo que el resto del módulo: los litros que se cargan en
+    nuestra planilla contra los kilómetros que cuenta el satelital.
+
+    Este número lo traía una planilla de Google con la telemetría de la
+    marca. Se calcula acá porque los dos ingredientes ya estaban en la
+    base y la planilla era una tercera versión de la verdad, que además
+    dejaba de andar cada vez que alguien tocaba los permisos del archivo.
+
+    El consumo se calcula sobre los totales del mes y no promediando el
+    de cada unidad, por lo mismo que ya hace `v_combustible_mes`: un
+    utilitario que hizo 200 km no puede pesar igual que un tractor que
+    hizo 12.000. Y entran solo los litros de las unidades a las que se
+    les conocen los kilómetros; los otros darían un consumo inventado.
+    """
+    filas = _uno(cx, """
+        select mes,
+               sum(km)                                     as km,
+               round(sum(litros) filter (where km > 0), 2)  as litros,
+               count(*) filter (where km > 0)::int          as unidades,
+               case when sum(km) > 0 and sum(litros) filter (where km > 0) > 0
+                    then round(sum(litros) filter (where km > 0) * 100
+                               / sum(km), 2)
+               end as litros_100km,
+               -- Larga distancia va aparte: es la operación que se mira
+               -- con lupa y mezclarla con reparto tapa cualquier
+               -- desvío. Se reconoce por la sucursal, que es como la
+               -- distingue el resto del sistema.
+               case when sum(km) filter (where upper(btrim(sucursal)) = 'LAD') > 0
+                     and sum(litros) filter (where km > 0
+                                               and upper(btrim(sucursal)) = 'LAD') > 0
+                    then round(sum(litros) filter (where km > 0
+                                                     and upper(btrim(sucursal)) = 'LAD') * 100
+                               / sum(km) filter (where upper(btrim(sucursal)) = 'LAD'), 2)
+               end as litros_100km_lad
+        from v_combustible_flota
+        group by mes
+        order by mes desc
+        limit %s""", (limite,))
+    # De vuelta en orden cronológico: los gráficos leen de izquierda a
+    # derecha y el límite tiene que quedarse con los meses más nuevos.
+    flota = list(reversed(filas or []))
+
+    # Y la misma cuenta unidad por unidad, para los rankings. Se acota a
+    # los meses que ya salieron arriba: traer toda la historia por unidad
+    # es un archivo grande para dibujar doce barras.
+    desde = flota[0]["mes"] if flota else None
+    unidades = _uno(cx, """
+        select mes, patente, sucursal, interno, marca, modelo, chofer,
+               km, litros, litros_100km
+        from v_combustible_flota
+        where patente is not null and (%s::date is null or mes >= %s::date)
+        order by mes, patente""", (desde, desde)) or []
+
+    return {"flota": flota, "unidades": unidades}
+
+
 def panel(cx, estado=None, limite=400):
     """El cruce, el resumen y los lotes cargados."""
     filtro, valores = "", []

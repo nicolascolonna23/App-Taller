@@ -19,3 +19,4 @@ venv/
 **/conexion.txt
 chat/config.json
 chat/datos.db*
+node_modules/

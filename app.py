@@ -405,13 +405,19 @@ class App(gom.Handler):
                     if vista == "flota":
                         mes = (params.get("mes") or [None])[0]
                         return self._responder(gom.jstr(comb.flota(cx, mes)))
+                    # El consumo mes a mes que dibujan los tableros de
+                    # flota. Es una sola serie, no la pantalla entera.
+                    if vista == "serie":
+                        return self._responder(
+                            gom.jstr(comb.serie_consumo(cx)))
                     return self._responder(gom.jstr(comb.panel(cx, estado)))
             except psycopg.errors.UndefinedTable:
                 # Cuál de los dos SQL falta depende de qué se estaba
                 # mirando: las vistas de la flota son de un archivo
                 # posterior, y mandar a correr el que ya se corrió deja a
                 # cualquiera dando vueltas.
-                falta = ("gomeria/17_combustible_flota.sql" if vista == "flota"
+                falta = ("gomeria/17_combustible_flota.sql"
+                         if vista in ("flota", "serie")
                          else "gomeria/10_combustible.sql")
                 return self._error(
                     f"Falta correr {falta} en el SQL Editor de Supabase.", 503)

@@ -15,26 +15,28 @@ La información de las unidades —marca, modelo, chasis, chofer, semi,
 residencia y uso— vive en Supabase, en la tabla `unidades`, y se edita desde
 la pantalla `/unidades`. Ver `gomeria/UNIDADES.md`.
 
-Los tableros la piden a `/api/flota`; si la base no contesta, vuelven a leer
-la planilla, que queda como respaldo.
+Los tableros la piden a `/api/flota`.
 
-## Planillas de origen
+## De dónde salen los datos
 
-El panel y el control de flota leen en vivo las dos planillas de Google, y la
-portada lee de COMBUSTIBLE el consumo del mes:
+De Supabase, y de ningún otro lado. Los tableros no leen planillas de Google:
+el maestro de unidades sale de `/api/flota`, los services de `/api/services` y
+el consumo de `/api/combustible`.
 
-- **Services** `10xcMyBI6T4fxLidVu0strLV_tqrKrHJsdPi0y2SP0cU`
-  - `gid=743729287` maestro de unidades · `gid=0` services larga distancia
-  - `gid=1026354276` services de toda la flota · `gid=1669414303` prefiltros
-- **Combustible** `1u7cckay0IJ60bfoKk2OZo-TjCvTbH9O1wKxNFdSKDCQ`
-  - `gid=0` consumo larga distancia · `gid=1044040871` consumo de toda la flota
-  - `gid=882343299` % ralentí y kg de CO2
+**El consumo se calcula, no se copia.** Los litros cada 100 km salen de cruzar
+dos cosas que ya están en la base: los litros que se cargan en el módulo de
+Combustible y los kilómetros que cuenta el satelital, en `v_combustible_flota`.
+Entran solo las unidades a las que se les conocen los kilómetros de ese mes:
+sumar los litros de una patente sin lecturas da un consumo inventado, más alto
+cuanto más combustible haya cargado.
 
-Se leen por CSV público (`gviz`), así que **cada planilla tiene que estar
-compartida como "cualquier persona con el enlace puede ver"**. Si no, la pantalla
-muestra "Sin acceso a las planillas" en lugar de datos.
-
-Los ID y los gid están al principio del `<script>` de cada archivo, en `CFG`.
+Antes esto venía de dos planillas de Google leídas por CSV público. Se sacaron:
+eran una segunda versión de la verdad, dejaban de andar cada vez que alguien
+tocaba los permisos de un archivo, y los dos ingredientes del consumo ya
+estaban en la base. Con las planillas se fueron tres números que no se pueden
+calcular con lo que hay: **% de ralentí**, **kg de CO2** y el seguimiento de
+**prefiltros**, que venían de la telemetría de la marca. El CO2 vuelve cuando
+esté el módulo de emisiones, calculado desde los litros.
 
 **Alertas** junta en una sola pantalla lo que hay que mirar hoy: documentos
 vencidos, services pasados de kilómetros, cargas de combustible más grandes
@@ -67,15 +69,13 @@ compartida.
   comparten entre usuarios ni entre dispositivos. La carga de remitos por foto
   no funciona, porque la clave de la API vivía del lado de Apps Script.
 
-Para que el stock vuelva a ser compartido hay que dejar el Apps Script publicado
-como aplicación web y que la página le pegue por `fetch`, igual que hace
-`control_flota.html` con `CFG.webapp`.
+Para que el stock vuelva a ser compartido hay que llevarlo a Supabase, como el
+resto de los módulos.
 
 ## Registrar services desde el tablero
 
-El botón "Registrar service" de `control_flota.html` escribe en la planilla a
-través de la aplicación web de Apps Script configurada en `CFG.webapp`. Si esa
-URL deja de existir, el botón no aparece y el tablero queda de sólo lectura.
+El botón "Registrar service" de `control_flota.html` guarda en Supabase por
+`/api/alertas`, y la fila aparece en el tablero sin esperar al refresco.
 
 ## Asistente interno y combustible
 
