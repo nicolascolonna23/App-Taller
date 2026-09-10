@@ -1127,7 +1127,10 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
   for (const f of flota) {
     const p = normPat(f.patente);
     if (!p) continue;
-    const esLAD = /LARGA/i.test(f.uso) || /^LAD$/i.test((f.sucursal || '').trim());
+    const uso = String(f.uso || '').toUpperCase();
+    if (uso.replaceAll(' ', '').startsWith('SEMI') || uso.includes('REMOLQUE')) continue;
+    const esLAD = uso.includes('LARGA');
+    const esDistribucion = uso.includes('DISTRIB');
     map.set(p, {
       patente: p, display: fmtPat(f.patente),
       id: f.id,
@@ -1135,7 +1138,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
       interno: f.interno, semi: f.semi,
       sucursal: (f.sucursal || '').trim(), uso: f.uso,
       planId: f.planId || null, planNombre: f.planNombre || '', planCada: num(f.planCada),
-      grupo: esLAD ? 'LAD' : 'DIS',
+      grupo: esLAD ? 'LAD' : esDistribucion ? 'DIS' : '',
       fechaUlt: '', kmUlt: null, kmProx: null, kmAct: null, falta: null,
       estado: 'sindato', serie: [], enFlota: true
     });
@@ -1146,7 +1149,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     if (!u) {
       u = { patente: s.patente, display: fmtPat(s.patente), modelo: '', marca: s.marca,
             chofer: s.chofer, interno: '', semi: '', sucursal: (s.residencia || '').trim(),
-            uso: '', grupo: 'DIS', serie: [], enFlota: false };
+            uso: '', grupo: '', serie: [], enFlota: false };
       map.set(s.patente, u);
     }
     u.fechaUlt = s.fechaUlt; u.kmUlt = s.kmUlt; u.kmProx = s.kmProx;
@@ -1158,7 +1161,8 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
     if (!u.marca)  u.marca  = s.marca;
     if (!u.chofer) u.chofer = s.chofer;
     if (!u.sucursal) u.sucursal = (s.residencia || '').trim();
-    if (setLAD.has(s.patente) || /^LAD$/i.test((s.residencia || '').trim())) u.grupo = 'LAD';
+    // La clasificación pertenece al maestro de unidades. La hoja histórica
+    // de services no debe mover un vehículo entre operaciones.
   }
 
   const meses = new Set();

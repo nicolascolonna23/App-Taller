@@ -72,4 +72,6 @@ from (
     having max(od.fecha) > min(od.fecha) and max(od.km) >= min(od.km)
   ) d on true
   where u.activa
+    and upper(replace(coalesce(u.uso,''), ' ', '')) not like 'SEMI%'
+    and upper(coalesce(u.uso,'')) not like '%REMOLQUE%'
 ) b;
