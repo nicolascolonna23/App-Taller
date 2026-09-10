@@ -47,8 +47,9 @@ class BaseFalsa:
 
 
 class BaseService:
-    def __init__(self):
+    def __init__(self, con_plan=True):
         self.consultas = []
+        self.con_plan = con_plan
 
     def execute(self, consulta, valores=()):
         sql = " ".join(consulta.split())
@@ -56,9 +57,7 @@ class BaseService:
         if sql.startswith("select id, patente, km_actual from unidades"):
             return Resultado({"id": 7, "patente": "AD247MQ", "km_actual": 123000})
         if sql.startswith("select p.cada_km from unidades"):
-            return Resultado(None)
-        if sql.startswith("select cada_km from services"):
-            return Resultado({"cada_km": 20000})
+            return Resultado({"cada_km": 20000} if self.con_plan else None)
         if sql.startswith("select id from services where orden_id"):
             return Resultado(None)
         if sql.startswith("insert into services"):
@@ -116,11 +115,19 @@ class OrdenInterna(unittest.TestCase):
         }, GESTOR)
         self.assertEqual(service_id, 19)
         insercion = next(x for x in cx.consultas if x[0].startswith("insert into services"))
-        # Los valores van en el orden de las columnas: el orden_id es la
-        # anteúltima, porque la última es el plan de mantenimiento.
-        self.assertEqual(insercion[1][-2], 41)
+        self.assertEqual(insercion[1][-1], 41)
         self.assertEqual(insercion[1][1], "2026-09-09")
         self.assertEqual(insercion[1][2], 123000)
+
+    def test_sin_plan_no_permite_registrar_el_service(self):
+        cx = BaseService(con_plan=False)
+        with self.assertRaisesRegex(ValueError, "no tiene un plan"):
+            ordenes._registrar_preventivo(cx, {
+                "id": 41, "numero": 82, "mantenimiento": "preventivo",
+                "unidad_id": 7, "fecha": date(2026, 9, 9), "km": 123000,
+                "solicitado": "Cambio de aceite", "diagnostico": None, "taller": None,
+            }, GESTOR)
+        self.assertFalse(any(sql.startswith("insert into services") for sql, _ in cx.consultas))
 
 
 class ServicioExterno(unittest.TestCase):
