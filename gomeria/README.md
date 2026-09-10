@@ -244,17 +244,6 @@ mínimo, juntos y ordenados por urgencia. Ahí también viven los services, que
 hasta ahora estaban en una planilla de Google. Está explicado entero en
 **`ALERTAS.md`**.
 
-## Planes de service
-
-Cada cuánto le toca el service a una patente no es un número suelto que se
-escribe al cargarlo: es un plan. Se define una vez —M1 cada 45.000, M3 cada
-135.000, service de auto cada 10.000— y se le asigna a las unidades, de a
-una o a todas las de un modelo. Una unidad puede llevar varios: el M1, el M2
-y el M3 de un mismo camión corren en paralelo y cada uno avisa por su
-cuenta. Se prende con `22_planes_mantenimiento.sql` y
-`23_planes_por_unidad.sql`, y está explicado en
-**`PLANES_MANTENIMIENTO.md`**.
-
 ## Cómo está guardada la información
 
 | Tabla | Qué guarda |
@@ -269,9 +258,7 @@ cuenta. Se prende con `22_planes_mantenimiento.sql` y
 | `vidas_cubierta` | cada vuelta de una cubierta: la original y cada recapado, con su banda y su costo |
 | `criterios_desgaste` | con cuántos milímetros hay que bajar una goma, según la función del eje |
 | `dibujos_nuevos` | con cuántos milímetros sale de fábrica cada medida y cada banda |
-| `services` | los services hechos: cuándo, con cuántos km, de qué plan y cada cuánto toca el próximo |
-| `mantenimiento_planes` | los planes: qué service es y cada cuántos km se hace |
-| `unidad_planes` | qué planes le tocan a cada unidad |
+| `services` | los services hechos: cuándo, con cuántos km y cada cuánto toca el próximo |
 | `alertas_reglas` | los números que definen qué es una alerta |
 | `alertas_silenciadas` | qué alerta se ocultó, por quién y por qué |
 

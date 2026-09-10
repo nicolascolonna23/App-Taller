@@ -116,9 +116,7 @@ class OrdenInterna(unittest.TestCase):
         }, GESTOR)
         self.assertEqual(service_id, 19)
         insercion = next(x for x in cx.consultas if x[0].startswith("insert into services"))
-        # Los valores van en el orden de las columnas: el orden_id es la
-        # anteúltima, porque la última es el plan de mantenimiento.
-        self.assertEqual(insercion[1][-2], 41)
+        self.assertEqual(insercion[1][-1], 41)
         self.assertEqual(insercion[1][1], "2026-09-09")
         self.assertEqual(insercion[1][2], 123000)
 
