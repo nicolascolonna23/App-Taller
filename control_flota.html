@@ -421,6 +421,26 @@
     .modal .row { display: flex; gap: 10px; }
     .modal .row > div { flex: 1; min-width: 0; }
     .modal-ref { font-size: 11px; color: var(--ink-muted); margin-top: 6px; min-height: 15px; }
+    /* Los planes que le tocan a una unidad. Se marcan como una lista de
+       tareas, no como un formulario: son varios y se eligen de un vistazo. */
+    .modal h3 {
+      font-size: 11px; letter-spacing: 0.7px; text-transform: uppercase;
+      font-weight: 600; color: var(--ink-muted); margin: 22px 0 6px;
+      padding-top: 16px; border-top: 1px solid var(--hairline);
+    }
+    .planes-check { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 9px; }
+    .planes-check label {
+      display: inline-flex; align-items: center; gap: 7px; margin: 0;
+      cursor: pointer; background: var(--surface-3);
+      border: 1px solid var(--hairline); border-radius: 9px;
+      padding: 7px 10px; font-size: 12px; letter-spacing: 0;
+      text-transform: none; font-weight: 500; color: var(--ink);
+    }
+    .planes-check label:hover { border-color: var(--brand); }
+    .planes-check label.marcado { border-color: var(--brand); color: var(--ink); }
+    .planes-check input { margin: 0; accent-color: var(--brand); }
+    .planes-check label span { color: var(--ink-muted); font-size: 11px; }
+    .planes-check .nada { font-size: 11.5px; color: var(--ink-muted); }
     .modal-acciones { display: flex; gap: 10px; margin-top: 20px; }
     .modal-acciones button { flex: 1; }
     .btn-plano {
@@ -653,10 +673,24 @@
     <input type="hidden" id="pl-id">
     <div class="modal-acciones"><button class="btn-plano" id="pl-cancel-edit" type="button">Limpiar</button><button class="btn-ok" id="pl-save" type="button">Guardar plan</button></div>
     <div id="planes-lista" style="margin:16px 0"></div>
+
     <h3>Asignar a una patente</h3>
-    <div class="row"><select class="sel" id="as-unidad"></select><select class="sel" id="as-plan"></select></div>
+    <div class="hint">Una unidad puede llevar varios: el M1, el M2 y el M3 de
+      un mismo camión corren en paralelo y cada uno avisa por su cuenta.</div>
+    <select class="sel" id="as-unidad"></select>
+    <div class="planes-check" id="as-planes"></div>
+    <div class="modal-acciones"><button class="btn-ok" id="as-save" type="button">Asignar a la patente</button></div>
+
+    <h3>Asignar a todo un modelo</h3>
+    <div class="hint">El plan lo fija la fábrica por modelo. Esto le pone los
+      mismos planes a todas las unidades activas de ese modelo, y reemplaza
+      lo que tuvieran.</div>
+    <select class="sel" id="as-modelo"></select>
+    <div class="planes-check" id="as-planes-modelo"></div>
+    <div class="modal-acciones"><button class="btn-ok" id="as-save-modelo" type="button">Asignar al modelo</button></div>
+
     <div class="modal-msg" id="pl-msg"></div>
-    <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button><button class="btn-ok" id="as-save" type="button">Asignar</button></div>
+    <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button></div>
   </div>
 </div>
 
@@ -884,7 +918,7 @@ const APP = {
   fuentes: { flota: null, servicios: null, telemetria: null },
   seleccion: null,
   filtroGrupo: '',
-  planes: [], asignaciones: []
+  planes: [], asignaciones: [], modelos: []
 };
 
 /* =====================================================================
@@ -910,8 +944,7 @@ async function cargarFlota() {
     APP.fuentes.flota = 'base';
     return base.map(u => ({ id:u.id, modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
                             patente:u.patente||'', interno:u.interno||'', semi:u.semi||'',
-                            sucursal:u.sucursal||'', uso:u.uso||'', planId:u.mantenimiento_plan_id||null,
-                            planNombre:u.mantenimiento_plan||'', planCada:u.mantenimiento_cada_km||null }));
+                            sucursal:u.sucursal||'', uso:u.uso||'' }));
   }
 
   const rows = await fetchCSV([pub(CFG.gid.flota), gviz(CFG.idServices, CFG.gid.flota)]);
@@ -957,7 +990,8 @@ async function cargarServicios() {
         return {
           patente: normPat(s.patente), marca:'', chofer:'',
           residencia: s.sucursal || '',
-          planId: s.mantenimiento_plan_id || null, planNombre: s.plan_nombre || '',
+          planId: s.plan_id || null, planNombre: s.plan_nombre || '',
+          cada: num(s.cada_km),
           fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
           kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
           kmAct: num(s.km_actual), falta: num(s.km_restantes)
@@ -1130,7 +1164,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
       modelo: f.modelo, marca: f.marca, chofer: f.chofer,
       interno: f.interno, semi: f.semi,
       sucursal: (f.sucursal || '').trim(), uso: f.uso,
-      planId: f.planId || null, planNombre: f.planNombre || '', planCada: num(f.planCada),
+      planes: [],
       grupo: esLAD ? 'LAD' : 'DIS',
       fechaUlt: '', kmUlt: null, kmProx: null, kmAct: null, falta: null,
       estado: 'sindato', serie: [], enFlota: true
@@ -1145,12 +1179,25 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
             uso: '', grupo: 'DIS', serie: [], enFlota: false };
       map.set(s.patente, u);
     }
-    u.fechaUlt = s.fechaUlt; u.kmUlt = s.kmUlt; u.kmProx = s.kmProx;
-    u.kmAct = s.kmAct; u.falta = s.falta;
-    if (s.planId) u.planId = s.planId;
-    if (s.planNombre) u.planNombre = s.planNombre;
-    // Sin lectura de odometro no se puede afirmar nada del service
-    u.estado = (s.kmAct === null || !isFinite(s.kmAct)) ? 'sindato' : estadoDe(s.falta);
+    // La vista devuelve una fila por unidad y plan: un camion con M1, M2 y
+    // M3 son tres renglones. Se guardan todos para la ficha, y el de la
+    // tabla es el que esta mas cerca de tocar, que es el que decide el
+    // color de la fila y cuando entra al taller.
+    (u.planes = u.planes || []).push({ id: s.planId, nombre: s.planNombre,
+      cada: s.cada, fechaUlt: s.fechaUlt, kmUlt: s.kmUlt, kmProx: s.kmProx,
+      falta: s.falta });
+    const tiene = u.kmUlt != null || u.falta != null;
+    const manda = !tiene ||
+      (s.falta == null ? Infinity : s.falta) < (u.falta == null ? Infinity : u.falta);
+    if (manda) {
+      u.fechaUlt = s.fechaUlt; u.kmUlt = s.kmUlt; u.kmProx = s.kmProx;
+      u.falta = s.falta;
+      u.planId = s.planId || null; u.planNombre = s.planNombre || '';
+      // Sin lectura de odometro no se puede afirmar nada del service
+      u.estado = (s.kmAct === null || !isFinite(s.kmAct)) ? 'sindato' : estadoDe(s.falta);
+    }
+    // El odometro es de la unidad, no del plan: sale igual en todas las filas.
+    u.kmAct = s.kmAct;
     if (!u.marca)  u.marca  = s.marca;
     if (!u.chofer) u.chofer = s.chofer;
     if (!u.sucursal) u.sucursal = (s.residencia || '').trim();
@@ -1916,7 +1963,18 @@ function renderFicha() {
           <div class="spec"><div class="s-label">Semi asociado</div><div class="s-value">${esc(u.semi ? fmtPat(u.semi) : '—')}</div></div>
           <div class="spec"><div class="s-label">Uso</div><div class="s-value">${esc(u.uso || (u.grupo === 'LAD' ? 'LARGA DISTANCIA' : '—'))}</div></div>
           <div class="spec"><div class="s-label">Último service</div><div class="s-value">${esc(u.fechaUlt || '—')}</div></div>
-          <div class="spec"><div class="s-label">Plan asignado</div><div class="s-value">${esc(u.planNombre || 'Sin parametrización')}</div></div>
+          <div class="spec"><div class="s-label">Planes de service</div><div class="s-value">${
+            /* Por nombre y no por el orden en que se asignaron: M1, M2 y M3
+               se leen en ese orden en cualquier unidad de la flota. */
+            (u.planes || []).filter(p => p.id).length
+              ? (u.planes || []).filter(p => p.id)
+                  .sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'))
+                  .map(p =>
+                  `${esc(p.nombre)} <span class="apagado">· cada ${fmt0(p.cada)} km · ` +
+                  `${p.falta == null ? 'sin datos' : (p.falta < 0
+                     ? 'pasado por ' + fmt0(Math.abs(p.falta))
+                     : 'faltan ' + fmt0(p.falta)) + ' km'}</span>`).join('<br>')
+              : 'Sin parametrización'}</div></div>
         </div>
       </div>
       <div class="card-body">
@@ -2080,6 +2138,17 @@ function svMensaje(texto, tipo) {
   if (tipo) box.dataset.tipo = tipo; else delete box.dataset.tipo;
 }
 
+/* Qué plan se está registrando. En el desplegable van los planes de esa
+   patente y no todos los que existen: el M3 de un Hi-Way no tiene nada que
+   hacer en la lista de un auto. Si tiene uno solo, viene elegido. */
+function planesDeLaUnidad() {
+  const u = APP.unidades.get($('#sv-patente').value) || {};
+  const suyos = (u.planes || []).filter(p => p.id);
+  $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' +
+    suyos.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada)} km</option>`).join('');
+  $('#sv-tipo').value = suyos.length === 1 ? String(suyos[0].id) : '';
+}
+
 function abrirFormService(patente) {
   const lista = unidadesDe('').filter(u => u.enFlota || u.kmUlt !== null)
     .sort((a, b) => a.display.localeCompare(b.display, 'es'));
@@ -2093,10 +2162,7 @@ function abrirFormService(patente) {
   $('#sv-fecha').value = hoyAR();
   $('#sv-km').value    = '';
   kmAuto = null;
-  $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
-    .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
-  const elegida = APP.asignaciones.find(a => String(a.unidad_id) === String((APP.unidades.get(sel.value)||{}).id));
-  $('#sv-tipo').value = elegida && elegida.plan_id ? String(elegida.plan_id) : '';
+  planesDeLaUnidad();
   svMensaje('');
   sugerirKm();
 
@@ -2197,10 +2263,7 @@ function aplicarServiceLocal(patente, fecha, km) {
 $('#btn-service').addEventListener('click', () => abrirFormService(APP.seleccion));
 $('#sv-cancelar').addEventListener('click', cerrarFormService);
 $('#sv-patente').addEventListener('change', sugerirKm);
-$('#sv-patente').addEventListener('change', () => {
-  const u=APP.unidades.get($('#sv-patente').value), a=APP.asignaciones.find(x=>u&&String(x.unidad_id)===String(u.id));
-  $('#sv-tipo').value=a&&a.plan_id?String(a.plan_id):'';
-});
+$('#sv-patente').addEventListener('change', planesDeLaUnidad);
 $('#sv-fecha').addEventListener('change', sugerirKm);
 $('#sv-fecha').addEventListener('blur', sugerirKm);
 MODAL.addEventListener('mousedown', ev => { if (ev.target === MODAL) cerrarFormService(); });
@@ -2237,8 +2300,8 @@ $('#form-service').addEventListener('submit', async ev => {
       body: JSON.stringify({
         op: 'service_guardar', unidad_id: u.id, fecha: iso,
         km: km,
-        tipo: ($('#sv-tipo').selectedOptions[0]||{}).textContent?.split(' · ')[0] || '',
-        cada_km: (APP.planes.find(p=>String(p.id)===$('#sv-tipo').value)||{}).cada_km || null
+        // Con plan, el intervalo sale del plan: para eso se parametriza.
+        plan_id: $('#sv-tipo').value || null
       })
     });
     const res = await r.json();
@@ -2261,38 +2324,137 @@ $('#form-service').addEventListener('submit', async ev => {
    ===================================================================== */
 const PLAN_MODAL = $('#modal-planes');
 const planMensaje = t => $('#pl-msg').textContent = t || '';
+
+/* El plan dice qué service es y cada cuántos kilómetros se hace. Se define
+   una vez acá y después se le asigna a las patentes: de a una, o de una vez
+   a todas las de un modelo, que es como lo fija la fábrica. */
 async function cargarPlanes(){
-  const r=await fetch('/api/mantenimiento',{cache:'no-store'});
-  const d=await r.json().catch(()=>({}));
-  if(!r.ok) throw new Error(d.error||'No se pudo leer la parametrización.');
-  APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[];
+  const r = await fetch('/api/mantenimiento', { cache:'no-store' });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo leer la parametrización.');
+  APP.planes = d.planes || [];
+  APP.asignaciones = d.asignaciones || [];
+  APP.modelos = d.modelos || [];
   pintarPlanes();
 }
+
+/* Una unidad puede llevar varios planes, así que la asignación son casillas
+   y no un desplegable: el M1, el M2 y el M3 conviven en el mismo camión. */
+function casillas(caja, marcados){
+  const tiene = new Set((marcados || []).map(Number));
+  caja.innerHTML = APP.planes.length ? APP.planes.map(p =>
+    `<label class="${tiene.has(Number(p.id)) ? 'marcado' : ''}">` +
+    `<input type="checkbox" value="${p.id}"${tiene.has(Number(p.id)) ? ' checked' : ''}> ` +
+    `${esc(p.nombre)} <span>cada ${fmt0(p.cada_km)} km</span></label>`).join('')
+    : '<span class="nada">Todavía no hay planes para asignar.</span>';
+  caja.querySelectorAll('input').forEach(i => i.onchange = () =>
+    i.closest('label').classList.toggle('marcado', i.checked));
+}
+const marcados = caja =>
+  [...caja.querySelectorAll('input:checked')].map(i => Number(i.value));
+
 function pintarPlanes(){
-  const unidadElegida=$('#as-unidad').value;
-  $('#planes-lista').innerHTML=APP.planes.map(p=>`<div class="filterbar" style="margin:6px 0">
-    <b>${esc(p.nombre)}</b><span>${fmt0(p.cada_km)} km · ${p.unidades||0} unidades</span>
+  const unidadElegida = $('#as-unidad').value;
+  const modeloElegido = $('#as-modelo').value;
+
+  $('#planes-lista').innerHTML = APP.planes.map(p => `<div class="filterbar" style="margin:6px 0">
+    <b>${esc(p.nombre)}</b><span>${fmt0(p.cada_km)} km · ${p.unidades || 0} unidades</span>
     <span class="spacer"></span><button class="btn-plano" data-edit="${p.id}">Editar</button>
-    <button class="btn-plano" data-del="${p.id}">Eliminar</button></div>`).join('')||'<p class="hint">Todavía no hay planes.</p>';
-  const opciones='<option value="">Sin plan</option>'+APP.planes.filter(p=>p.activo).map(p=>`<option value="${p.id}">${esc(p.nombre)} · ${fmt0(p.cada_km)} km</option>`).join('');
-  $('#as-plan').innerHTML=opciones;
-  $('#as-unidad').innerHTML=APP.asignaciones.map(a=>`<option value="${a.unidad_id}">${esc(a.patente)}${a.interno?' · '+esc(a.interno):''}${a.plan_nombre?' — '+esc(a.plan_nombre):''}</option>`).join('');
-  if([...$('#as-unidad').options].some(o=>o.value===unidadElegida)) $('#as-unidad').value=unidadElegida;
-  const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value); $('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';
+    <button class="btn-plano" data-del="${p.id}">Eliminar</button></div>`).join('')
+    || '<p class="hint">Todavía no hay planes.</p>';
+
+  $('#as-unidad').innerHTML = APP.asignaciones.map(a =>
+    `<option value="${a.unidad_id}">${esc(a.patente)}` +
+    `${a.interno ? ' · int. ' + esc(a.interno) : ''}` +
+    `${a.modelo ? ' — ' + esc(a.modelo) : ''}</option>`).join('');
+  if ([...$('#as-unidad').options].some(o => o.value === unidadElegida))
+    $('#as-unidad').value = unidadElegida;
+
+  $('#as-modelo').innerHTML = '<option value="">Elegí el modelo…</option>' +
+    APP.modelos.map(m => `<option value="${esc(m.modelo)}">${esc(m.modelo)} · ` +
+      `${m.unidades} unidad${m.unidades === 1 ? '' : 'es'}</option>`).join('');
+  $('#as-modelo').value = modeloElegido;
+
+  seleccionarAsignacion();
+  casillas($('#as-planes-modelo'), []);
 }
-function seleccionarAsignacion(){const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value);$('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';}
+
+function seleccionarAsignacion(){
+  const a = APP.asignaciones.find(x => String(x.unidad_id) === $('#as-unidad').value);
+  casillas($('#as-planes'), a ? a.planes : []);
+}
+
 async function guardarPlan(cuerpo){
-  const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
-  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo guardar.');
-  APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes(); planMensaje('Guardado.');
+  const r = await fetch('/api/mantenimiento', { method:'POST',
+    headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(cuerpo) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar.');
+  APP.planes = d.planes || [];
+  APP.asignaciones = d.asignaciones || [];
+  APP.modelos = d.modelos || [];
+  pintarPlanes();
+  planMensaje('Guardado.');
 }
-function limpiarPlan(){ $('#pl-id').value=''; $('#pl-nombre').value=''; $('#pl-km').value=''; $('#pl-desc').value=''; }
-$('#btn-planes').onclick=async()=>{ PLAN_MODAL.setAttribute('open',''); planMensaje(''); try{await cargarPlanes();}catch(e){planMensaje(e.message);} };
-$('#pl-cerrar').onclick=()=>PLAN_MODAL.removeAttribute('open'); $('#pl-cancel-edit').onclick=limpiarPlan;
-$('#as-unidad').onchange=seleccionarAsignacion;
-$('#pl-save').onclick=async()=>{try{await guardarPlan({op:'plan_guardar',id:$('#pl-id').value,nombre:$('#pl-nombre').value,cada_km:$('#pl-km').value,descripcion:$('#pl-desc').value});limpiarPlan();}catch(e){planMensaje(e.message);}};
-$('#as-save').onclick=async()=>{try{await guardarPlan({op:'asignar',unidad_id:$('#as-unidad').value,plan_id:$('#as-plan').value});await cargarTodo(false);}catch(e){planMensaje(e.message);}};
-$('#planes-lista').onclick=async e=>{const p=APP.planes.find(x=>String(x.id)===String(e.target.dataset.edit||e.target.dataset.del));if(!p)return;if(e.target.dataset.edit){$('#pl-id').value=p.id;$('#pl-nombre').value=p.nombre;$('#pl-km').value=p.cada_km;$('#pl-desc').value=p.descripcion||'';}else if(confirm(`Eliminar ${p.nombre}? Las unidades quedarán sin plan.`)){try{await guardarPlan({op:'plan_borrar',id:p.id});}catch(x){planMensaje(x.message);}}};
+
+function limpiarPlan(){
+  $('#pl-id').value=''; $('#pl-nombre').value=''; $('#pl-km').value=''; $('#pl-desc').value='';
+}
+
+$('#btn-planes').onclick = async () => {
+  PLAN_MODAL.setAttribute('open',''); planMensaje('');
+  try { await cargarPlanes(); } catch (e) { planMensaje(e.message); }
+};
+$('#pl-cerrar').onclick = () => PLAN_MODAL.removeAttribute('open');
+$('#pl-cancel-edit').onclick = limpiarPlan;
+$('#as-unidad').onchange = seleccionarAsignacion;
+
+$('#pl-save').onclick = async () => {
+  try {
+    await guardarPlan({ op:'plan_guardar', id:$('#pl-id').value,
+      nombre:$('#pl-nombre').value, cada_km:$('#pl-km').value,
+      descripcion:$('#pl-desc').value });
+    limpiarPlan();
+  } catch (e) { planMensaje(e.message); }
+};
+
+$('#as-save').onclick = async () => {
+  try {
+    await guardarPlan({ op:'asignar', unidad_id:$('#as-unidad').value,
+                        planes: marcados($('#as-planes')) });
+    await cargarTodo(false);
+  } catch (e) { planMensaje(e.message); }
+};
+
+$('#as-save-modelo').onclick = async () => {
+  const modelo = $('#as-modelo').value;
+  if (!modelo) return planMensaje('Elegí el modelo.');
+  const planes = marcados($('#as-planes-modelo'));
+  const cuantas = (APP.modelos.find(m => m.modelo === modelo) || {}).unidades || 0;
+  const que = planes.length
+    ? 'Se les van a asignar ' + planes.length + ' plan(es)'
+    : 'Se les van a sacar todos los planes';
+  if (!confirm(`${modelo}: ${cuantas} unidad(es).\n\n${que}, reemplazando lo que tengan hoy.`))
+    return;
+  try {
+    await guardarPlan({ op:'asignar_modelo', modelo, planes });
+    await cargarTodo(false);
+  } catch (e) { planMensaje(e.message); }
+};
+
+$('#planes-lista').onclick = async e => {
+  const p = APP.planes.find(x =>
+    String(x.id) === String(e.target.dataset.edit || e.target.dataset.del));
+  if (!p) return;
+  if (e.target.dataset.edit) {
+    $('#pl-id').value=p.id; $('#pl-nombre').value=p.nombre;
+    $('#pl-km').value=p.cada_km; $('#pl-desc').value=p.descripcion || '';
+  } else if (confirm(`¿Eliminar ${p.nombre}?\n\nLas unidades que lo tengan ` +
+                     `quedan sin ese plan. Si ya hay services cargados con él, ` +
+                     `el historial no se toca.`)) {
+    try { await guardarPlan({ op:'plan_borrar', id:p.id }); }
+    catch (x) { planMensaje(x.message); }
+  }
+};
 PLAN_MODAL.addEventListener('mousedown',e=>{if(e.target===PLAN_MODAL)PLAN_MODAL.removeAttribute('open');});
 
 /* =====================================================================

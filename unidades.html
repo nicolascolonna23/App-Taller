@@ -172,6 +172,19 @@
   .campo label{font-size:10px;letter-spacing:.9px;text-transform:uppercase;
     color:var(--ink-muted);font-weight:700}
   .campo .ayuda{font-size:11px;color:var(--ink-muted)}
+  /* Los planes de service de la unidad: cuáles de los que hay definidos le
+     corresponden a esta patente. Se marcan como una lista de tareas, no
+     como un formulario más. */
+  .planes{display:flex;flex-wrap:wrap;gap:7px}
+  .planes label{display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+    background:rgba(255,255,255,.04);border:1px solid var(--hairline);
+    border-radius:9px;padding:7px 10px;font-size:12px;
+    letter-spacing:0;text-transform:none;font-weight:500;color:var(--ink)}
+  .planes label:hover{border-color:rgba(255,122,26,.45)}
+  .planes label.marcado{background:rgba(255,122,26,.12);
+    border-color:rgba(255,122,26,.45)}
+  .planes label input{margin:0;accent-color:var(--brand)}
+  .planes label span{color:var(--ink-muted);font-size:11px}
   .pie{display:flex;gap:9px;align-items:center;margin-top:18px;
     padding-top:15px;border-top:1px solid var(--hairline)}
   .pie .der{margin-left:auto;display:flex;gap:9px}
@@ -384,6 +397,13 @@
         </select>
         <span class="ayuda">Vacío, la app lo deduce del mapa de cubiertas o del modelo.</span>
       </div>
+      <div class="campo ancho" id="campo-planes" hidden>
+        <label>Planes de service</label>
+        <div class="planes" id="c-planes"></div>
+        <span class="ayuda">Los planes se crean en Control de service. Acá se
+          eligen los que le tocan a esta unidad: cada uno cuenta y avisa por
+          su cuenta.</span>
+      </div>
       <div class="campo ancho">
         <label for="c-nota">Nota</label>
         <textarea id="c-nota" name="nota" rows="2"></textarea>
@@ -438,16 +458,27 @@ const COLS = [
       ? '<span class="chip equipo">EQUIPO</span>'
       : (u.uso === 'LARGA DISTANCIA' ? '<span class="chip lad">LARGA DISTANCIA</span>'
                                      : `<span class="chip">${esc(u.uso || '—')}</span>`) },
-  { k:'chasis',   t:'Chasis',     v:u => `<span class="apagado">${esc(u.chasis || '—')}</span>` }
+  { k:'chasis',   t:'Chasis',     v:u => `<span class="apagado">${esc(u.chasis || '—')}</span>` },
+  { k:'planes_txt', t:'Service',  v:u => u.planes_txt
+      ? u.planes_txt.split(' · ').map(n => `<span class="chip">${esc(n)}</span>`).join(' ')
+      : '<span class="apagado">—</span>' }
 ];
 
 let DATOS = { unidades: [], sucursales: [], usos: [], revisar: [], armados: [] };
+/* Los planes de service se definen en Control de service; acá se eligen los
+   que le tocan a cada patente, que es donde el taller mira la unidad. */
+let PLANES = [];            /* los planes que hay, con su cada_km */
+let DE_UNIDAD = {};         /* unidad_id -> [plan_id, …] */
 let ORDEN = { col:'interno', asc:true };
 let PUEDE = false;          /* si el usuario puede escribir */
 
 /* ------------------------------------------------------------------ */
+/* La columna de planes solo tiene sentido cuando el taller ya definió
+   alguno: hasta entonces sería una columna de guiones. */
+const columnas = () => COLS.filter(c => c.k !== 'planes_txt' || PLANES.length);
+
 function pintarCabecera(){
-  $('#cabecera').innerHTML = COLS.map(c =>
+  $('#cabecera').innerHTML = columnas().map(c =>
     `<th data-k="${c.k}">${c.t}${ORDEN.col === c.k
       ? ` <span class="flecha">${ORDEN.asc ? '▲' : '▼'}</span>` : ''}</th>`).join('');
   document.querySelectorAll('#cabecera th').forEach(th => th.onclick = () => {
@@ -470,7 +501,8 @@ function filtradas(){
     if (!txt) return true;
     /* La patente se compara pegada: da igual cómo la escriban en el buscador. */
     if (plano && String(u.patente || '').includes(plano)) return true;
-    return [u.interno, u.marca, u.modelo, u.chofer, u.chasis, u.semi, u.sucursal, u.uso]
+    return [u.interno, u.marca, u.modelo, u.chofer, u.chasis, u.semi, u.sucursal,
+            u.uso, u.planes_txt]
       .some(v => String(v || '').toUpperCase().includes(txt));
   });
 }
@@ -494,7 +526,7 @@ function pintar(){
   const filas = ordenar(filtradas());
   $('#cuerpo').innerHTML = filas.map(u =>
     `<tr data-id="${u.id}" class="${u.activa ? '' : 'baja'}">` +
-    COLS.map(c => `<td>${c.v(u)}</td>`).join('') + '</tr>').join('');
+    columnas().map(c => `<td>${c.v(u)}</td>`).join('') + '</tr>').join('');
   $('#vacio').hidden = filas.length > 0;
   const total = DATOS.unidades.length;
   $('#cuenta').textContent = filas.length === total
@@ -511,6 +543,64 @@ function opciones(sel, valores, rotulo){
 }
 const datalist = (id, valores) =>
   document.getElementById(id).innerHTML = valores.map(v => `<option value="${esc(v)}">`).join('');
+
+/* ------------------------------------------------------------------ */
+/* Los planes de service                                               */
+/* --------------------------------------------------------------------
+   El plan lo define el taller en Control de service (M1, M2, M3, service
+   de auto…) y dice cada cuántos kilómetros toca. Acá se elige cuáles le
+   corresponden a cada patente. Vienen con el maestro, así que no hay una
+   lectura de más al abrir la pantalla.
+   -------------------------------------------------------------------- */
+
+/* El nombre del plan se le pega a la unidad para poder mostrarlo en la
+   tabla, ordenar por él y encontrarlo desde el buscador. Se recorre la
+   lista de planes y no la de la unidad: así salen siempre en el mismo
+   orden en toda la flota, sin importar en qué orden se asignaron. */
+function anotarPlanes(){
+  for (const u of DATOS.unidades) {
+    const tiene = new Set((DE_UNIDAD[u.id] || []).map(Number));
+    u.planes_txt = PLANES.filter(p => tiene.has(Number(p.id)))
+                         .map(p => p.nombre).join(' · ');
+  }
+}
+
+const kms = n => Number(n || 0).toLocaleString('es-AR');
+
+function pintarPlanesFicha(u){
+  const caja = $('#c-planes');
+  $('#campo-planes').hidden = !u || PLANES.length === 0;
+  if (!u || !PLANES.length) { caja.innerHTML = ''; return; }
+  const tiene = new Set((DE_UNIDAD[u.id] || []).map(Number));
+  caja.innerHTML = PLANES.map(p =>
+    `<label class="${tiene.has(Number(p.id)) ? 'marcado' : ''}"` +
+    `${p.descripcion ? ` title="${esc(p.descripcion)}"` : ''}>` +
+    `<input type="checkbox" value="${p.id}"${tiene.has(Number(p.id)) ? ' checked' : ''}` +
+    `${PUEDE ? '' : ' disabled'}> ${esc(p.nombre)} ` +
+    `<span>cada ${kms(p.cada_km)} km</span></label>`).join('');
+  caja.querySelectorAll('input').forEach(i => i.onchange = () =>
+    i.closest('label').classList.toggle('marcado', i.checked));
+}
+
+/* Los planes se guardan aparte de la unidad, porque son de otra tabla y de
+   otro módulo. Solo se manda si algo cambió: así, corregir una nota no pisa
+   una asignación que hizo otro mientras tanto. */
+async function guardarPlanes(unidadId){
+  if (!unidadId || !PUEDE || $('#campo-planes').hidden) return;
+  const elegidos = [...document.querySelectorAll('#c-planes input:checked')]
+                     .map(i => Number(i.value));
+  const antes = (DE_UNIDAD[unidadId] || []).map(Number);
+  if (elegidos.length === antes.length && elegidos.every(id => antes.includes(id)))
+    return;
+  const r = await fetch('/api/mantenimiento', {
+    method:'POST', headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({ op:'asignar', unidad_id:unidadId, planes:elegidos })
+  });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error ||
+    'La unidad se guardó, pero no se pudieron asignar los planes.');
+  DE_UNIDAD[unidadId] = elegidos;
+}
 
 /* ------------------------------------------------------------------ */
 /* La ficha                                                            */
@@ -548,6 +638,8 @@ function abrir(u){
     estado.innerHTML = '<div class="cargando">Buscando lo que sabe el resto del sistema…</div>';
     pintarEstado(u.id);
   }
+
+  pintarPlanesFicha(u);
 
   $('#borrar').hidden = !u || !PUEDE;
   $('#guardar').disabled = !PUEDE;
@@ -945,7 +1037,11 @@ $('#ficha').onsubmit = async e => {
     cuerpo[c] = $('#c-' + c).value;
   cuerpo.activa = $('#c-activa').value === '1';
   $('#guardar').disabled = true;
-  try { await mandar(cuerpo); cerrar(); await cargar(); }
+  try {
+    const guardada = await mandar(cuerpo);
+    await guardarPlanes(guardada && guardada.id);
+    cerrar(); await cargar();
+  }
   catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
   finally { $('#guardar').disabled = false; }
 };
@@ -975,6 +1071,10 @@ async function cargar(){
   }
   DATOS = await r.json();
   $('#error').hidden = true;
+  PLANES = DATOS.planes_mantenimiento || [];
+  DE_UNIDAD = DATOS.planes_por_unidad || {};
+  anotarPlanes();
+  pintarCabecera();
 
   opciones($('#f-sucursal'), DATOS.sucursales, 'Toda residencia');
   opciones($('#f-uso'), DATOS.usos, 'Todo uso');
