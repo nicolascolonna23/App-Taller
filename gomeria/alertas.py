@@ -199,10 +199,17 @@ def _services(cx):
         return None
     salida = []
     for f in filas:
+        # La clave lleva el plan: un camión con M1, M2 y M3 tiene tres
+        # alertas distintas, y silenciar la del M1 no puede callar las
+        # otras dos. .get y no [] porque, si todavía no se corrió el SQL de
+        # planes, la vista vieja no trae la columna y esto tiene que seguir
+        # funcionando igual.
+        plan = f.get("plan_nombre")
         base_alerta = {
             "fuente": "service",
-            "clave": str(f["unidad_id"]),
-            "titulo": f"Service{' ' + f['tipo'] if f['tipo'] else ''}",
+            "clave": f"{f['unidad_id']}:{f.get('plan_id') or 0}",
+            "titulo": (f"Service {plan}" if plan
+                       else f"Service{' ' + f['tipo'] if f['tipo'] else ''}"),
             "patente": f["patente"],
             "interno": f["interno"],
             "sucursal": f["sucursal"],
@@ -218,7 +225,8 @@ def _services(cx):
             salida.append({
                 **base_alerta,
                 "severidad": "leve",
-                "titulo": "No se sabe cuándo le toca el service",
+                "titulo": ("No se sabe cuándo le toca el " + plan if plan
+                           else "No se sabe cuándo le toca el service"),
                 "detalle": (f"el satelital marca {_miles(f['km_actual'])} km y su "
                             f"último service fue a los {_miles(f['ultimo_km'])}"),
                 "orden": 0,
@@ -240,7 +248,14 @@ def _services(cx):
             "detalle": detalle,
             "orden": faltan,
             "extra": (f"último a los {_miles(f['ultimo_km'])} km, "
-                      f"cada {_miles(f['cada_km'])}"),
+                      f"cada {_miles(f['cada_km'])}"
+                      # Todavía no hay ningún service de ese plan: la
+                      # cuenta arranca del último que haya. Es una
+                      # estimación, y se dice.
+                      + ("" if f.get("referencia_del_plan") or not plan
+                         else " · todavía no hay ninguno de este plan "
+                              "registrado, se cuenta desde el último "
+                              "service que haya")),
         })
     return salida
 
@@ -418,16 +433,25 @@ def guardar_service(cx, datos, usuario=None):
     if km < 0:
         raise ValueError("El kilometraje no puede ser negativo.")
 
-    cada = datos.get("cada_km")
+    # De qué plan es este service. Con plan, el intervalo sale del plan y
+    # no de lo que se escriba en el formulario: para eso se parametriza,
+    # para que el criterio no dependa de quién lo carga.
+    plan = None
+    plan_id = datos.get("plan_id")
+    if plan_id not in (None, "", 0, "0"):
+        plan = cx.execute("""select * from mantenimiento_planes
+                             where id = %s and activo""",
+                          (int(plan_id),)).fetchone()
+        if not plan:
+            raise ValueError("Ese plan de mantenimiento no existe.")
+
+    cada = plan["cada_km"] if plan else datos.get("cada_km")
     if cada in (None, ""):
-        # Primero manda el plan asignado. El service conserva una foto de
-        # esa frecuencia para que el historial no cambie si luego se reasigna.
-        previo = cx.execute("""select p.cada_km from unidades u
-            join mantenimiento_planes p on p.id=u.mantenimiento_plan_id and p.activo
-            where u.id=%s""", (unidad_id,)).fetchone()
-        if not previo:
-            previo = cx.execute("""select cada_km from services where unidad_id = %s
-                                   order by km desc limit 1""", (unidad_id,)).fetchone()
+        # El intervalo que ya tenía. Si es el primero, el de las reglas. El
+        # service se guarda con una foto de esa frecuencia, para que el
+        # historial no cambie si después se reasigna el plan.
+        previo = cx.execute("""select cada_km from services where unidad_id = %s
+                               order by km desc limit 1""", (unidad_id,)).fetchone()
         cada = float(previo["cada_km"]) if previo else 15000
     cada = float(cada)
     if cada <= 0:
@@ -436,7 +460,11 @@ def guardar_service(cx, datos, usuario=None):
     fecha = str(datos.get("fecha") or "").strip() or None
     limpio = lambda x, n=200: (str(x).strip()[:n] or None) if x else None
     orden_id = int(datos.get("orden_id") or 0) or None
-    valores = (unidad_id, fecha, km, limpio(datos.get("tipo"), 60), cada,
+    # Sin plan, el tipo es lo que escribieron; con plan, el nombre del
+    # plan, así el historial dice de qué fue cada service sin cruzarlo con
+    # nada.
+    tipo = limpio(datos.get("tipo"), 60) or (plan["nombre"] if plan else None)
+    valores = (unidad_id, fecha, km, tipo, cada,
                limpio(datos.get("taller"), 120),
                limpio(datos.get("observaciones"), 500), usuario)
     if orden_id:
@@ -446,28 +474,29 @@ def guardar_service(cx, datos, usuario=None):
             cx.execute("""
                 update services set unidad_id = %s, fecha = coalesce(%s::date, current_date),
                     km = %s, tipo = %s, cada_km = %s, taller = %s,
-                    observaciones = %s, usuario = %s
+                    observaciones = %s, usuario = %s, plan_id = %s
                 where id = %s
-            """, (*valores, existente["id"]))
+            """, (*valores, plan["id"] if plan else None, existente["id"]))
             fila = existente
         else:
             fila = cx.execute("""
                 insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
-                                      observaciones, usuario, orden_id)
-                values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s, %s)
+                                      observaciones, usuario, orden_id, plan_id)
+                values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s, %s, %s)
                 returning id
-            """, (*valores, orden_id)).fetchone()
+            """, (*valores, orden_id, plan["id"] if plan else None)).fetchone()
     else:
         fila = cx.execute("""
             insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
-                                  observaciones, usuario)
-            values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s)
+                                  observaciones, usuario, plan_id)
+            values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s, %s)
             returning id
-        """, valores).fetchone()
+        """, (*valores, plan["id"] if plan else None)).fetchone()
 
     # Un service nuevo es una alerta nueva: lo que se había silenciado del
-    # anterior ya no aplica.
-    reactivar(cx, "service", str(unidad_id))
+    # anterior ya no aplica. La clave lleva el plan, así registrar el M1 no
+    # despierta la alerta silenciada del M2.
+    reactivar(cx, "service", f"{unidad_id}:{plan['id'] if plan else 0}")
     return fila["id"]
 
 

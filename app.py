@@ -77,8 +77,44 @@ PANTALLAS = {
 }
 
 
+def _pantalla_alertas(cx, ver_silenciadas=False):
+    """Todo lo que la pantalla de alertas necesita, en una sola lectura.
+
+    Lo arma una sola función porque lo piden dos caminos —abrir la pantalla
+    y guardar algo en ella— y las dos veces tiene que llegar lo mismo: si
+    después de registrar un service faltara la lista de unidades, el
+    siguiente service no se podría cargar.
+    """
+    salida = alr.listar(cx, incluir_silenciadas=ver_silenciadas)
+    if not salida.get("instalado"):
+        return salida
+    salida["services"] = alr.services(cx)
+    # Los planes, para poder decir de cuál es el service que se registra.
+    # Si su SQL todavía no se corrió, la pantalla anda igual sin ellos.
+    try:
+        salida["planes"] = mant.planes(cx)
+        salida["planes_por_unidad"] = mant.planes_por_unidad(cx)
+    except Exception:
+        cx.rollback()
+        salida["planes"], salida["planes_por_unidad"] = [], {}
+    salida["unidades"] = cx.execute("""
+        select id, patente, interno, marca, modelo, km_actual
+        from unidades where activa order by patente""").fetchall()
+    return salida
+
+
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
+
+    def _ruta_pedida(self):
+        """La dirección que escribió el navegador, antes de reescribirla.
+
+        /gomeria le cambia self.path a "/" para que el manejador de Gomería
+        sirva su pantalla. Cualquier decisión que dependa de en qué pantalla
+        estamos tiene que mirar esto y no self.path, que para entonces ya
+        dice otra cosa.
+        """
+        return getattr(self, "ruta_original", None) or urlparse(self.path).path
 
     def _responder(self, cuerpo, tipo="application/json; charset=utf-8", codigo=200, cookie=None):
         # Incluye las pantallas servidas por el manejador de Gomería.
@@ -86,11 +122,17 @@ class App(gom.Handler):
             html = cuerpo.decode("utf-8") if isinstance(cuerpo, bytes) else cuerpo
             tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
             estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
+            # El logo de la empresa en la solapa del navegador. Va acá y no
+            # en cada archivo porque cada pantalla que se agregue se lo iba
+            # a olvidar: Gomería y Configuración no lo tenían, y en la
+            # solapa se veía el globo gris del navegador.
+            if 'rel="icon"' not in html:
+                estilos += '<link rel="icon" href="/favicon.png" type="image/png">'
             html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
             # Pengui vive en la portada. Inyectarlo en todas las pantallas
             # lo dejaba encima de formularios, tablas y botones de trabajo.
             script = ('<script src="/pengui.js"></script>'
-                      if urlparse(self.path).path == "/" else "")
+                      if self._ruta_pedida() == "/" else "")
             if '</body>' in html:
                 antes, despues = html.rsplit('</body>', 1)
                 cuerpo = antes + script + '</body>' + despues
@@ -100,6 +142,7 @@ class App(gom.Handler):
 
     def do_GET(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
 
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
@@ -237,9 +280,10 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(alr.services(cx)))
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
                 return self._error(
-                    "Falta actualizar los services. Corré gomeria/20_alertas.sql y "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
-                    "en Supabase.", 503)
+                    "Falta actualizar los services. Corré gomeria/20_alertas.sql, "
+                    "gomeria/21_ordenes_preventivas.sql, "
+                    "gomeria/22_planes_mantenimiento.sql y "
+                    "gomeria/23_planes_por_unidad.sql en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los services: {e}", 500)
@@ -251,7 +295,9 @@ class App(gom.Handler):
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(mant.listar(cx)))
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+                return self._error(
+                    "Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql "
+                    "y gomeria/23_planes_por_unidad.sql en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la parametrización: {e}", 500)
@@ -419,13 +465,7 @@ class App(gom.Handler):
                 ver = (parse_qs(urlparse(self.path).query).get("silenciadas")
                        or ["0"])[0] in ("1", "true", "si")
                 with base.conectar() as cx:
-                    salida = alr.listar(cx, incluir_silenciadas=ver)
-                    if salida.get("instalado"):
-                        salida["services"] = alr.services(cx)
-                        salida["unidades"] = cx.execute("""
-                            select id, patente, interno, marca, modelo, km_actual
-                            from unidades where activa order by patente""").fetchall()
-                    return self._responder(gom.jstr(salida))
+                    return self._responder(gom.jstr(_pantalla_alertas(cx, ver)))
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las alertas: {e}", 500)
@@ -478,6 +518,7 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
                 return
@@ -634,7 +675,9 @@ class App(gom.Handler):
             except psycopg.errors.UniqueViolation:
                 return self._error("Ya existe un plan con ese nombre.")
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+                return self._error(
+                    "Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql "
+                    "y gomeria/23_planes_por_unidad.sql en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la parametrización: {e}", 500)
@@ -701,6 +744,7 @@ class App(gom.Handler):
 
     def do_DELETE(self):
         ruta = urlparse(self.path).path
+        self.ruta_original = ruta
         if ruta == "/api/unidades":
             return self._unidad_escribir(borrar=True)
         if ruta == "/api/combustible":
@@ -740,9 +784,8 @@ class App(gom.Handler):
                 else:
                     return self._error("No entiendo qué hay que hacer con la alerta.")
                 cx.commit()
-                salida = alr.listar(cx, incluir_silenciadas=bool(datos.get("ver_silenciadas")))
-                salida["services"] = alr.services(cx)
-                return self._responder(gom.jstr(salida))
+                return self._responder(gom.jstr(_pantalla_alertas(
+                    cx, bool(datos.get("ver_silenciadas")))))
         except PermissionError as e:
             return self._error(str(e), 403)
         except ValueError as e:

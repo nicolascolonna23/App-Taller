@@ -122,7 +122,7 @@
   .estado.urgente{color:#ff9b4a;background:rgba(255,155,74,.13)}
   .estado.proximo{color:var(--warn);background:rgba(240,180,41,.13)}
   .estado.ok{color:var(--ok);background:rgba(49,189,101,.12)}
-  .estado.sin_plan,.estado.sin_odometro{color:var(--ink-muted);background:var(--surface-3)}
+  .estado.sin_service,.estado.sin_odometro{color:var(--ink-muted);background:var(--surface-3)}
   /* El satelital marca menos km que su último service: no se puede
      calcular, y pintarlo de verde sería peor que no decir nada. */
   .estado.km_dudoso{color:#c48cf0;background:rgba(196,140,240,.13)}
@@ -206,11 +206,11 @@
     <div class="caja">
       <table>
         <thead><tr>
-          <th>Unidad</th><th>Último service</th><th class="num">A los</th>
+          <th>Unidad</th><th>Plan</th><th>Último service</th><th class="num">A los</th>
           <th class="num">Cada</th><th class="num">Próximo</th>
           <th class="num">Km de hoy</th><th class="num">Faltan</th><th>Estado</th><th></th>
         </tr></thead>
-        <tbody id="filasSrv"><tr><td colspan="9" class="vacio">Cargando…</td></tr></tbody>
+        <tbody id="filasSrv"><tr><td colspan="10" class="vacio">Cargando…</td></tr></tbody>
       </table>
     </div>
   </section>
@@ -280,6 +280,7 @@
     <div class="ancho"><label>Unidad</label><select id="sUnidad"></select></div>
     <div><label>Fecha</label><input id="sFecha" type="date"></div>
     <div><label>Kilómetros</label><input id="sKm" type="number" min="0" step="1"></div>
+    <div><label>Plan</label><select id="sPlan"></select></div>
     <div><label>Qué se hizo</label><input id="sTipo" placeholder="M6, aceite y filtros…"></div>
     <div><label>Cada cuántos km</label><input id="sCada" type="number" min="1" step="500"></div>
     <div class="ancho"><label>Taller</label><input id="sTaller" placeholder="Taller propio, Nextruck…"></div>
@@ -477,12 +478,19 @@ async function reactivar(clave) {
 function pintarServices() {
   const q = $('#buscarSrv').value.trim().toLowerCase();
   const lista = (D.datos.services || []).filter(s =>
-    !q || [s.patente, s.interno, s.tipo, s.sucursal].filter(Boolean).join(' ').toLowerCase().includes(q));
+    !q || [s.patente, s.interno, s.tipo, s.plan_nombre, s.sucursal]
+            .filter(Boolean).join(' ').toLowerCase().includes(q));
   const ESTADOS = {vencido:'Vencido', urgente:'Urgente', proximo:'Próximo', ok:'Al día',
-                   sin_plan:'Sin cargar', sin_odometro:'Sin satelital',
+                   sin_service:'Sin cargar', sin_odometro:'Sin satelital',
                    km_dudoso:'Km no coinciden'};
   $('#filasSrv').innerHTML = lista.length ? lista.map(s => `<tr>
       <td><b>${esc(pat(s.patente))}</b>${s.interno ? ` <span class="chico">int. ${esc(s.interno)}</span>` : ''}</td>
+      <td>${s.plan_nombre
+            /* Sin ningún service de ese plan registrado, la cuenta arranca
+               del último que haya. Es una estimación, y se dice. */
+            ? esc(s.plan_nombre) + (s.referencia_del_plan || s.ultimo_km == null ? ''
+                : ' <span class="chico">punto de partida prestado</span>')
+            : '<span class="chico">sin plan</span>'}</td>
       <td>${esc(fecha(s.ultimo_fecha))}${s.tipo ? ` <span class="chico">${esc(s.tipo)}</span>` : ''}</td>
       <td class="num">${num(s.ultimo_km)}</td>
       <td class="num">${num(s.cada_km)}</td>
@@ -492,15 +500,40 @@ function pintarServices() {
           (s.dias_restantes != null ? ` <span class="chico">· ${num(s.dias_restantes)} d</span>` : '')}</td>
       <td><span class="estado ${esc(s.estado)}">${esc(ESTADOS[s.estado] || s.estado)}</span></td>
       <td class="num">${D.usuario?.puede_administrar
-        ? `<button class="accion" data-service="${s.unidad_id}">registrar</button>` : ''}</td>
-    </tr>`).join('') : '<tr><td colspan="9" class="vacio">No hay unidades.</td></tr>';
+        ? `<button class="accion" data-service="${s.unidad_id}:${s.plan_id || 0}">registrar</button>` : ''}</td>
+    </tr>`).join('') : '<tr><td colspan="10" class="vacio">No hay unidades.</td></tr>';
   $$('[data-service]').forEach(b => b.onclick = () => abrirService(b.dataset.service));
 }
 $('#buscarSrv').oninput = () => pintarServices();
 
-function abrirService(unidadId) {
+/* Los planes que le tocan a esa patente. No van todos los que existen: el
+   M3 de un Hi-Way no tiene nada que hacer en la lista de un auto. */
+function opcionesDePlan(unidadId, elegido) {
+  const suyos = (D.datos.planes_por_unidad || {})[unidadId] || [];
+  const planes = (D.datos.planes || []).filter(p => suyos.map(Number).includes(Number(p.id)));
+  $('#sPlan').innerHTML = '<option value="">Sin plan</option>' + planes.map(p =>
+    `<option value="${p.id}">${esc(p.nombre)} · cada ${num(p.cada_km)} km</option>`).join('');
+  $('#sPlan').value = elegido && planes.some(p => String(p.id) === String(elegido))
+    ? String(elegido)
+    : (planes.length === 1 ? String(planes[0].id) : '');
+  sincronizarPlan();
+}
+
+/* Con plan, el intervalo sale del plan: para eso se parametriza, para que
+   el criterio no dependa de lo que escriba el que carga el service. */
+function sincronizarPlan() {
+  const p = (D.datos.planes || []).find(x => String(x.id) === $('#sPlan').value);
+  $('#sCada').disabled = !!p;
+  if (p) $('#sCada').value = Math.round(p.cada_km);
+}
+
+/* La clave es «unidad:plan»: el mismo camión tiene un renglón por plan. */
+function abrirService(clave) {
+  const [unidadId, planId] = String(clave || '').split(':');
   const u = (D.datos.unidades || []).find(x => String(x.id) === String(unidadId));
-  const s = (D.datos.services || []).find(x => String(x.unidad_id) === String(unidadId));
+  const s = (D.datos.services || []).find(x =>
+    String(x.unidad_id) === String(unidadId) &&
+    String(x.plan_id || 0) === String(planId || 0));
   $('#sUnidad').innerHTML = (D.datos.unidades || []).map(x =>
     `<option value="${x.id}">${esc(pat(x.patente))}${x.interno ? ' · int. ' + esc(x.interno) : ''}</option>`).join('');
   if (unidadId) $('#sUnidad').value = String(unidadId);
@@ -512,20 +545,24 @@ function abrirService(unidadId) {
   $('#sCada').value = s?.cada_km != null ? Math.round(s.cada_km) : 15000;
   ['sTipo','sTaller','sObs'].forEach(x => $('#' + x).value = '');
   if (s?.tipo) $('#sTipo').value = s.tipo;
+  opcionesDePlan($('#sUnidad').value, planId);
   $('#errorService').innerHTML = '';
   $('#modalService').classList.add('on');
 }
-$('#nuevoService').onclick = () => abrirService($('#buscarSrv').value ? null : null);
+$('#nuevoService').onclick = () => abrirService(null);
+$('#sPlan').onchange = sincronizarPlan;
 $('#sUnidad').onchange = () => {
   const s = (D.datos.services || []).find(x => String(x.unidad_id) === $('#sUnidad').value);
   if (s?.km_actual != null) $('#sKm').value = Math.round(s.km_actual);
   if (s?.cada_km != null) $('#sCada').value = Math.round(s.cada_km);
+  opcionesDePlan($('#sUnidad').value, null);
 };
 $('#guardarService').onclick = async () => {
   const b = $('#guardarService'); b.disabled = true;
   try {
     D.datos = await api({op:'service_guardar', unidad_id:$('#sUnidad').value,
       fecha:$('#sFecha').value, km:$('#sKm').value, tipo:$('#sTipo').value,
+      plan_id:$('#sPlan').value || null,
       cada_km:$('#sCada').value, taller:$('#sTaller').value,
       observaciones:$('#sObs').value, ver_silenciadas:D.verCalladas});
     $('#modalService').classList.remove('on');
