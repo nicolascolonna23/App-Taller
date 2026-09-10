@@ -694,7 +694,7 @@
     <div class="modal-ref" id="sv-ref"></div>
 
     <label for="sv-tipo">Tipo de service</label>
-    <select class="sel" id="sv-tipo"><option value="">Sin parametrización</option></select>
+    <select class="sel" id="sv-tipo" disabled><option value="">Sin parametrización</option></select>
 
     <div class="modal-msg" id="sv-msg"></div>
 
@@ -2118,6 +2118,16 @@ function svMensaje(texto, tipo) {
   if (tipo) box.dataset.tipo = tipo; else delete box.dataset.tipo;
 }
 
+function actualizarPlanDelService() {
+  const u = APP.unidades.get($('#sv-patente').value);
+  const asignacion = APP.asignaciones.find(a => u && String(a.unidad_id) === String(u.id));
+  const plan = asignacion && APP.planes.find(p => p.activo && String(p.id) === String(asignacion.plan_id));
+  $('#sv-tipo').value = plan ? String(plan.id) : '';
+  $('#sv-guardar').disabled = !plan;
+  svMensaje(plan ? '' : 'Esta unidad no tiene un plan de mantenimiento asignado. Parametrizala antes de registrar el service.', plan ? '' : 'error');
+  return plan || null;
+}
+
 function abrirFormService(patente) {
   const lista = unidadesDe('').filter(u => u.enFlota || u.kmUlt !== null)
     .sort((a, b) => a.display.localeCompare(b.display, 'es'));
@@ -2133,9 +2143,7 @@ function abrirFormService(patente) {
   kmAuto = null;
   $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
     .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
-  const elegida = APP.asignaciones.find(a => String(a.unidad_id) === String((APP.unidades.get(sel.value)||{}).id));
-  $('#sv-tipo').value = elegida && elegida.plan_id ? String(elegida.plan_id) : '';
-  svMensaje('');
+  actualizarPlanDelService();
   sugerirKm();
 
   MODAL.setAttribute('open', '');
@@ -2236,8 +2244,7 @@ $('#btn-service').addEventListener('click', () => abrirFormService(APP.seleccion
 $('#sv-cancelar').addEventListener('click', cerrarFormService);
 $('#sv-patente').addEventListener('change', sugerirKm);
 $('#sv-patente').addEventListener('change', () => {
-  const u=APP.unidades.get($('#sv-patente').value), a=APP.asignaciones.find(x=>u&&String(x.unidad_id)===String(u.id));
-  $('#sv-tipo').value=a&&a.plan_id?String(a.plan_id):'';
+  actualizarPlanDelService();
 });
 $('#sv-fecha').addEventListener('change', sugerirKm);
 $('#sv-fecha').addEventListener('blur', sugerirKm);
@@ -2252,7 +2259,9 @@ $('#form-service').addEventListener('submit', async ev => {
   const patente = $('#sv-patente').value;
   const km      = Number($('#sv-km').value);
   const u       = APP.unidades.get(patente);
+  const plan    = actualizarPlanDelService();
 
+  if (!plan) return;
   if (!isFinite(km) || km <= 0) { svMensaje('El kilometraje no es válido.', 'error'); return; }
   if (u && u.kmUlt !== null && km < u.kmUlt) {
     svMensaje(`El km ingresado es menor al último service (${fmt0(u.kmUlt)} km). Revisalo.`, 'error');
@@ -2276,7 +2285,7 @@ $('#form-service').addEventListener('submit', async ev => {
         op: 'service_guardar', unidad_id: u.id, fecha: iso,
         km: km,
         tipo: ($('#sv-tipo').selectedOptions[0]||{}).textContent?.split(' · ')[0] || '',
-        cada_km: (APP.planes.find(p=>String(p.id)===$('#sv-tipo').value)||{}).cada_km || null
+        cada_km: plan.cada_km
       })
     });
     const res = await r.json();
@@ -2289,7 +2298,8 @@ $('#form-service').addEventListener('submit', async ev => {
   } catch (err) {
     svMensaje(String(err.message || err), 'error');
   } finally {
-    guardar.disabled = cancelar.disabled = false;
+    cancelar.disabled = false;
+    guardar.disabled = !plan;
     guardar.textContent = 'Guardar';
   }
 });

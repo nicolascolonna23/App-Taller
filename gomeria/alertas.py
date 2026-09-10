@@ -418,18 +418,15 @@ def guardar_service(cx, datos, usuario=None):
     if km < 0:
         raise ValueError("El kilometraje no puede ser negativo.")
 
-    cada = datos.get("cada_km")
-    if cada in (None, ""):
-        # Primero manda el plan asignado. El service conserva una foto de
-        # esa frecuencia para que el historial no cambie si luego se reasigna.
-        previo = cx.execute("""select p.cada_km from unidades u
-            join mantenimiento_planes p on p.id=u.mantenimiento_plan_id and p.activo
-            where u.id=%s""", (unidad_id,)).fetchone()
-        if not previo:
-            previo = cx.execute("""select cada_km from services where unidad_id = %s
-                                   order by km desc limit 1""", (unidad_id,)).fetchone()
-        cada = float(previo["cada_km"]) if previo else 15000
-    cada = float(cada)
+    # El plan asignado a la patente es la única fuente válida del intervalo.
+    # No aceptamos un valor enviado por el navegador ni inferimos uno anterior:
+    # sin parametrización no se puede calcular con certeza el próximo service.
+    plan = cx.execute("""select p.cada_km from unidades u
+        join mantenimiento_planes p on p.id=u.mantenimiento_plan_id and p.activo
+        where u.id=%s""", (unidad_id,)).fetchone()
+    if not plan:
+        raise ValueError("La unidad no tiene un plan de mantenimiento asignado. Parametrizala antes de registrar el service.")
+    cada = float(plan["cada_km"])
     if cada <= 0:
         raise ValueError("«Cada cuántos km» tiene que ser mayor que cero.")
 
