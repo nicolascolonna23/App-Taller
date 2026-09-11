@@ -36,7 +36,7 @@
       /* Series categoricas (dark) - validadas all-pairs */
       --series-1:     #3987e5;  /* consumo l/100km */
       --series-2:     #d95926;  /* CO2             */
-      --series-3:     #199e70;  /* ralenti %       */
+      --series-3:     #199e70;  /* tercera serie   */
 
       /* Estados de service (paleta de estado reservada) */
       --st-good:      #0ca30c;
@@ -490,7 +490,6 @@
     <button class="tab" role="tab" id="tab-lad"       aria-selected="false" data-panel="p-lad">Larga distancia <span class="count" id="cnt-lad">0</span></button>
     <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución local <span class="count" id="cnt-dist">0</span></button>
     <button class="tab" role="tab" id="tab-unidad"    aria-selected="false" data-panel="p-unidad">Por patente</button>
-    <button class="tab" role="tab" id="tab-prefiltro" aria-selected="false" data-panel="p-prefiltro">Prefiltros <span class="count" id="cnt-pref">0</span></button>
   </div>
 
   <!-- ============ PANEL: CONTROL GENERAL ============ -->
@@ -531,42 +530,22 @@
       <div class="card-body"><div id="suc-chart"></div></div>
     </div>
 
-    <div class="section-label">Telemetría de la flota</div>
-    <div class="grid-2">
-      <div class="card">
-        <div class="card-head">
-          <h3>Consumo promedio de la flota (l/100 km)</h3>
-          <span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="flota-consumo" aria-pressed="false">Tabla</button>
-        </div>
-        <div class="card-body"><div id="flota-consumo"></div></div>
+    <div class="section-label">Consumo de la flota</div>
+    <div class="card">
+      <div class="card-head">
+        <h3>Consumo promedio de la flota (l/100 km)</h3>
+        <span class="spacer"></span>
+        <button class="btn-view" type="button" data-view="flota-consumo" aria-pressed="false">Tabla</button>
       </div>
-      <div class="card">
-        <div class="card-head">
-          <h3>Emisiones totales de la flota (kg CO&#8322;)</h3>
-          <span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="flota-co2" aria-pressed="false">Tabla</button>
-        </div>
-        <div class="card-body"><div id="flota-co2"></div></div>
-      </div>
+      <div class="card-body"><div id="flota-consumo"></div></div>
     </div>
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <div class="card-head">
-          <h3>Consumo por unidad &mdash; <span id="lbl-rank-consumo">…</span></h3>
-          <span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="rank-consumo" aria-pressed="false">Tabla</button>
-        </div>
-        <div class="card-body"><div id="rank-consumo"></div></div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <h3>Consumo por unidad &mdash; <span id="lbl-rank-consumo">…</span></h3>
+        <span class="spacer"></span>
+        <button class="btn-view" type="button" data-view="rank-consumo" aria-pressed="false">Tabla</button>
       </div>
-      <div class="card">
-        <div class="card-head">
-          <h3>Ralentí por unidad (%) &mdash; <span id="lbl-rank-ralenti">…</span></h3>
-          <span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="rank-ralenti" aria-pressed="false">Tabla</button>
-        </div>
-        <div class="card-body"><div id="rank-ralenti"></div></div>
-      </div>
+      <div class="card-body"><div id="rank-consumo"></div></div>
     </div>
   </section>
 
@@ -631,15 +610,6 @@
   </section>
 
   <!-- ============ PANEL: PREFILTROS ============ -->
-  <section class="panel" id="p-prefiltro" role="tabpanel" aria-labelledby="tab-prefiltro">
-    <div class="filterbar">
-      <span class="fl">Filtrar</span>
-      <input class="inp" type="search" id="f-pref-txt" placeholder="Patente…">
-    </div>
-    <div class="card">
-      <div class="table-wrap"><table class="data" id="tbl-pref"></table></div>
-    </div>
-  </section>
 
 </div>
 
@@ -667,8 +637,9 @@
 </div>
 
 <footer class="shell">
-  <div>Fuentes: <b>Supabase</b> (flota y services), planilla <b>SERVICES</b> (prefiltros y respaldo) y planilla <b>COMBUSTIBLE</b> (telemetría, emisiones y ralentí).</div>
-  <div>Si una planilla no responde en vivo, el tablero usa el respaldo local en <code>data/flota.json</code> y <code>data/telemetria.json</code>.</div>
+  <div>Fuentes: <b>Supabase</b>, y nada más. El maestro de unidades y los
+    services salen de la base; el consumo se calcula con los litros que se
+    cargan en Combustible y los kilómetros que cuenta el satelital.</div>
 </footer>
 
 <!-- ============ FORMULARIO: REGISTRAR SERVICE ============ -->
@@ -713,29 +684,10 @@
 /* =====================================================================
    CONFIGURACION DE FUENTES
    ---------------------------------------------------------------------
-   El tablero intenta leer en vivo y, si no puede (planilla sin publicar,
-   sin permisos o sin red), cae al respaldo local del repositorio.
    ===================================================================== */
-const CFG = {
-  // Planilla SERVICES publicada en la web (Archivo > Compartir > Publicar en la web)
-  pubServices : "https://docs.google.com/spreadsheets/d/e/2PACX-1vS-BcGUJLdB2MCZXH1VRCOXSZQwktrKeEYO4DrEswu1Dso8nr9291YZWcWB4Sp8POdJM4plo0VEfn8f/pub?output=csv",
-  idServices  : "10xcMyBI6T4fxLidVu0strLV_tqrKrHJsdPi0y2SP0cU",
-  idCombust   : "1u7cckay0IJ60bfoKk2OZo-TjCvTbH9O1wKxNFdSKDCQ",
-  gid: {
-    lad       : "0",            // services larga distancia
-    conjunto  : "1026354276",   // services toda la flota
-    prefiltro : "1669414303",   // prefiltros
-    flota     : "743729287",    // maestro de unidades (modelo/marca/patente/sucursal)
-    telemetria: "0",            // consumo mensual l/100km (telemetria larga distancia)
-    telemDist : "1044040871",   // consumo mensual de toda la flota (incluye distribucion)
-    emisiones : "882343299"     // % ralenti y kg CO2
-  },
-  refreshMs: 300000,
-
-};
-
-const gviz = (id, gid) => `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
-const pub  = (gid)     => `${CFG.pubServices}&gid=${gid}`;
+/* Cada cuánto se refresca solo el tablero. Todo lo que dibuja sale de la
+   base por /api: no hay planillas de por medio. */
+const CFG = { refreshMs: 300000 };
 
 /* =====================================================================
    PALETA (tokens leidos del CSS para no duplicar valores)
@@ -787,7 +739,7 @@ function esc(s) {
 function normPat(s) { return String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 
 /** Una patente real: AA123BB (nuevo formato) o ABC123 (formato viejo).
- *  Evita que encabezados o totales de la planilla entren como si fueran unidades. */
+ *  Evita que encabezados o totales entren como si fueran unidades. */
 function esPatente(s) {
   const n = normPat(s);
   return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(n) || /^[A-Z]{3}\d{3}$/.test(n);
@@ -804,7 +756,7 @@ function fmtPat(s) {
 }
 
 /**
- * Parser numerico tolerante al formato es-AR y al formato crudo de gviz.
+ * Parser numerico tolerante al formato es-AR.
  * "1.759.118" -> 1759118 · "232.005,59" -> 232005.59 · "34,17" -> 34.17 · "5435.3" -> 5435.3
  */
 function num(v) {
@@ -846,48 +798,10 @@ function mesFromFecha(s) {                   // "31/07/2026" -> "2026-07"
   return `${y}-${String(parseInt(m[2], 10)).padStart(2, '0')}`;
 }
 
-/** CSV completo (respeta comillas y saltos de linea dentro de celdas). */
-function parseCSV(text) {
-  const rows = []; let row = [], cell = '', q = false;
-  const t = text.replace(/\r\n?/g, '\n');
-  for (let i = 0; i < t.length; i++) {
-    const ch = t[i];
-    if (q) {
-      if (ch === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; }
-      else cell += ch;
-    } else if (ch === '"') q = true;
-    else if (ch === ',') { row.push(cell.trim()); cell = ''; }
-    else if (ch === '\n') { row.push(cell.trim()); rows.push(row); row = []; cell = ''; }
-    else cell += ch;
-  }
-  if (cell !== '' || row.length) { row.push(cell.trim()); rows.push(row); }
-  return rows.filter(r => r.some(c => c !== ''));
-}
-
-/** Prueba varias URLs y devuelve el primer CSV valido. */
-async function fetchCSV(urls) {
-  for (const u of urls) {
-    try {
-      const sep = u.includes('?') ? '&' : '?';
-      const r = await fetch(u + sep + '_=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) continue;
-      const t = await r.text();
-      if (!t || t.trimStart().startsWith('<')) continue;   // login de Google / HTML
-      const rows = parseCSV(t);
-      if (rows.length > 1) return rows;
-    } catch (e) { /* CORS, red o permisos: probamos la siguiente */ }
-  }
-  return null;
-}
-
-/* =====================================================================
-   ESTADO DE LA APLICACION
-   ===================================================================== */
 const APP = {
   unidades: new Map(),   // patente normalizada -> unidad
-  prefiltros: [],
   meses: [],
-  fuentes: { flota: null, servicios: null, telemetria: null },
+  fuentes: { flota:null, servicios:null, consumo:null },
   seleccion: null,
   filtroGrupo: '',
   planes: [], asignaciones: []
@@ -898,9 +812,7 @@ const APP = {
    ===================================================================== */
 
 /** Maestro de unidades: modelo(A) · marca(C) · chofer(D) · patente(E) · interno(F) · semi(G) · sucursal(H) · uso(I) */
-/* El maestro sale de la base, que es donde se edita. La planilla queda
-   como respaldo: si la base no contesta —la pantalla abierta sin sesión, un
-   despliegue a medias— el tablero sigue andando con lo último que hay ahí. */
+/* El maestro sale de la base, que es donde se edita. */
 async function maestroDeLaBase() {
   try {
     const r = await fetch('/api/flota', { cache: 'no-store' });
@@ -912,218 +824,91 @@ async function maestroDeLaBase() {
 
 async function cargarFlota() {
   const base = await maestroDeLaBase();
-  if (base) {
-    APP.fuentes.flota = 'base';
-    return base.map(u => ({ id:u.id, modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
-                            patente:u.patente||'', interno:u.interno||'', semi:u.semi||'',
-                            sucursal:u.sucursal||'', uso:u.uso||'', planId:u.mantenimiento_plan_id||null,
-                            planNombre:u.mantenimiento_plan||'', planCada:u.mantenimiento_cada_km||null }));
-  }
-
-  const rows = await fetchCSV([pub(CFG.gid.flota), gviz(CFG.idServices, CFG.gid.flota)]);
-  if (rows) {
-    const head = rows.findIndex(r => (r[4] || '').toUpperCase().includes('PATENTE'));
-    const body = rows.slice(head >= 0 ? head + 1 : 1);
-    // Solo filas con patente real. El maestro tambien lista equipos con codigo
-    // interno (AUTCAT01, HELROD01, ...) que no tienen service ni telemetria y
-    // entraban al tablero como unidades sin datos.
-    const out = body
-      .filter(r => esPatente(r[4]))
-      .map(r => ({ modelo:r[0]||'', marca:r[2]||'', chofer:r[3]||'', patente:r[4]||'',
-                   interno:r[5]||'', semi:r[6]||'', sucursal:r[7]||'', uso:r[8]||'' }));
-    if (out.length > 5) { APP.fuentes.flota = 'vivo'; return out; }
-  }
-  throw new Error('No se pudo leer el maestro de unidades: no contestó ni la base ' +
-                  'ni la planilla de services.');
-}
-
-/** Tablas de service: patente(0) marca(1) chofer(2) residencia(3) fecha(4) kmUlt(5) kmProx(6) kmAct(7) falta(8) */
-function parseServicios(rows) {
-  const out = [];
-  for (const r of rows) {
-    const p = normPat(r[0]);
-    if (p.length < 6 || (r[0] || '').toUpperCase().includes('PATENTE')) continue;
-    out.push({
-      patente: p, marca: r[1] || '', chofer: r[2] || '', residencia: r[3] || '',
-      fechaUlt: r[4] || '', kmUlt: num(r[5]), kmProx: num(r[6]), kmAct: num(r[7]), falta: num(r[8])
-    });
-  }
-  return out;
+  if (!base) throw new Error('No se pudo leer el maestro de unidades.');
+  APP.fuentes.flota = 'base';
+  return base.map(u => ({ id:u.id, modelo:u.modelo||'', marca:u.marca||'', chofer:u.chofer||'',
+                          patente:u.patente||'', interno:u.interno||'', semi:u.semi||'',
+                          sucursal:u.sucursal||'', uso:u.uso||'', planId:u.mantenimiento_plan_id||null,
+                          planNombre:u.mantenimiento_plan||'', planCada:u.mantenimiento_cada_km||null }));
 }
 
 async function cargarServicios() {
-  const desdeBase = await (async () => {
-    try {
-      const r = await fetch('/api/services', { cache: 'no-store' });
-      if (!r.ok) return null;
-      const filas = await r.json();
-      if (!Array.isArray(filas) || !filas.length) return null;
-      return filas.map(s => {
-        const f = String(s.ultimo_fecha || '').slice(0, 10).split('-');
-        return {
-          patente: normPat(s.patente), marca:'', chofer:'',
-          residencia: s.sucursal || '',
-          planId: s.mantenimiento_plan_id || null, planNombre: s.plan_nombre || '',
-          fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
-          kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
-          kmAct: num(s.km_actual), falta: num(s.km_restantes)
-        };
-      });
-    } catch (e) { return null; }
-  })();
+  const r = await fetch('/api/services', { cache: 'no-store' });
+  if (!r.ok) throw new Error('No se pudieron leer los services.');
+  const filas = await r.json();
+  if (!Array.isArray(filas)) throw new Error('No se pudieron leer los services.');
 
-  // Los prefiltros todavía viven en la planilla. Que esa hoja no responda
-  // no puede tapar un service que ya está correctamente guardado en la base.
-  const pref = await fetchCSV([pub(CFG.gid.prefiltro), gviz(CFG.idServices, CFG.gid.prefiltro)]);
-  APP.prefiltros = (pref || []).reduce((acc, r) => {
-    if (esPatente(r[0])) {
-      acc.push({ patente: normPat(r[0]), kmUlt: num(r[1]), kmProx: num(r[2]), falta: num(r[3]) });
-    }
-    return acc;
-  }, []);
-
-  if (desdeBase) {
-    APP.fuentes.servicios = 'base';
+  APP.fuentes.servicios = 'base';
+  const servicios = filas.map(s => {
+    const f = String(s.ultimo_fecha || '').slice(0, 10).split('-');
     return {
-      servicios: desdeBase,
-      setLAD: new Set(desdeBase.filter(s => /^LAD$/i.test(s.residencia)).map(s => s.patente))
+      patente: normPat(s.patente), marca: '', chofer: '',
+      residencia: s.sucursal || '',
+      planId: s.mantenimiento_plan_id || null, planNombre: s.plan_nombre || '',
+      fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
+      kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
+      kmAct: num(s.km_actual), falta: num(s.km_restantes)
     };
-  }
+  });
 
-  const [lad, conj] = await Promise.all([
-    fetchCSV([pub(CFG.gid.lad),       gviz(CFG.idServices, CFG.gid.lad)]),
-    fetchCSV([pub(CFG.gid.conjunto),  gviz(CFG.idServices, CFG.gid.conjunto)]),
-  ]);
-
-  if (lad || conj) {
-    APP.fuentes.servicios = 'vivo';
-    // Solo filas con patente real: la primera fila de la hoja es el encabezado
-    // ("PREFILTRO") y se colaba como si fuera una unidad sin datos.
-    return {
-      servicios: parseServicios(conj || lad),
-      setLAD: new Set(lad ? parseServicios(lad).map(x => x.patente) : [])
-    };
-  }
-
-  throw new Error('No se pudieron leer los services. Revisá que la planilla esté ' +
-                  'compartida como "cualquier persona con el enlace".');
+  return {
+    servicios,
+    setLAD: new Set(servicios.filter(s => /^LAD$/i.test(s.residencia)).map(s => s.patente))
+  };
 }
 
-/** La telemetria es mensual y la planilla es grande: se cachea unas horas
- *  para que el refresco automatico no la vuelva a bajar cada 5 minutos. */
-let telemCache = { t: 0, data: null };
-const TELEM_TTL = 6 * 3600 * 1000;
+/** El consumo mes a mes de cada unidad, calculado en la base con los
+ *  litros que se cargan y los kilómetros del satelital. Antes venía de
+ *  una planilla de Google con la telemetría de la marca.
+ *
+ *  Se cachea unas horas: es un cálculo mensual y el refresco automático
+ *  del tablero es cada cinco minutos. */
+let consumoCache = { t: 0, data: null };
+const CONSUMO_TTL = 6 * 3600 * 1000;
 
-/**
- * Ubica las columnas de una hoja por el texto del encabezado.
- * Las hojas de consumo no comparten el mismo orden de columnas, asi que se
- * buscan por nombre en lugar de fijar indices.
- * alias: { clave: ['TEXTO', ...] } · devuelve { idx, desde } o null.
- */
-function mapaColumnas(rows, alias, obligatorias) {
-  for (let i = 0; i < Math.min(rows.length, 12); i++) {
-    const fila = rows[i].map(c => String(c || '').toUpperCase());
-    const idx = {};
-    for (const k in alias) {
-      const j = fila.findIndex(c => alias[k].some(a => c.includes(a)));
-      if (j >= 0) idx[k] = j;
+async function cargarConsumo() {
+  if (consumoCache.data && Date.now() - consumoCache.t < CONSUMO_TTL) return consumoCache.data;
+
+  let filas = [];
+  try {
+    const r = await fetch('/api/combustible?vista=serie', { cache: 'no-store' });
+    if (r.ok) {
+      const datos = await r.json();
+      filas = (datos && datos.unidades) || [];
     }
-    if (obligatorias.every(k => idx[k] !== undefined)) return { idx, desde: i + 1 };
-  }
-  return null;
-}
+  } catch (e) { /* sin cargas del mes el resto del tablero sirve igual */ }
 
-const ALIAS_CONSUMO = {
-  fecha  : ['FECHA'],
-  patente: ['DOMINIO', 'PATENTE'],
-  tag    : ['TAG'],
-  marca  : ['MARCA'],
-  km     : ['DISTANCIA', 'KILOMETRAJE'],
-  lts    : ['LITROS'],
-  c100   : ['CONSUMO C/', 'L/100', 'L /100']
-};
-
-/** Filas mensuales de consumo de cualquiera de las hojas de COMBUSTIBLE. */
-function leerConsumo(rows) {
-  const map = rows && mapaColumnas(rows, ALIAS_CONSUMO, ['fecha', 'patente']);
-  if (!map) return [];
-  const { idx, desde } = map;
-  const out = [];
-  for (const r of rows.slice(desde)) {
-    const m = mesFromFecha(r[idx.fecha]);
-    if (!m || !esPatente(r[idx.patente])) continue;
-    const km  = idx.km   === undefined ? null : num(r[idx.km]);
-    const lts = idx.lts  === undefined ? null : num(r[idx.lts]);
-    let c100  = idx.c100 === undefined ? null : num(r[idx.c100]);
-    if (c100 === null && km > 0 && lts !== null) c100 = (lts / km) * 100;
-    out.push({
-      patente: normPat(r[idx.patente]), mes: m, km, lts, c100,
-      tag  : idx.tag   === undefined ? '' : (r[idx.tag]   || ''),
-      marca: idx.marca === undefined ? '' : (r[idx.marca] || '')
+  const acc = new Map();
+  for (const f of filas) {
+    const p = normPat(f.patente);
+    if (!p) continue;
+    if (!acc.has(p)) acc.set(p, { marca: f.marca || '', serie: [] });
+    acc.get(p).serie.push({
+      mes : String(f.mes || '').slice(0, 7),
+      km  : num(f.km),
+      lts : num(f.litros),
+      c100: num(f.litros_100km)
     });
   }
-  return out;
-}
 
-/** Telemetria: consumo mensual + emisiones/ralenti. Devuelve { patentes }. */
-async function cargarTelemetria() {
-  if (telemCache.data && Date.now() - telemCache.t < TELEM_TTL) return telemCache.data;
-
-  const [tel, dist, emi] = await Promise.all([
-    fetchCSV([gviz(CFG.idCombust, CFG.gid.telemetria)]),
-    fetchCSV([gviz(CFG.idCombust, CFG.gid.telemDist)]),
-    fetchCSV([gviz(CFG.idCombust, CFG.gid.emisiones)])
-  ]);
-
-  if (tel || dist || emi) {
-    const acc = new Map();
-    const slot = (p, m) => {
-      if (!acc.has(p)) acc.set(p, new Map());
-      const s = acc.get(p);
-      if (!s.has(m)) s.set(m, { mes:m, km:null, lts:null, c100:null, co2:null, ralenti:null, horas:null });
-      return s.get(m);
-    };
-    const tags = new Map(), marcas = new Map();
-    // Primero la hoja de toda la flota (unica fuente de consumo de distribucion)
-    // y despues la de telemetria, que es la referencia para larga distancia.
-    for (const f of leerConsumo(dist).concat(leerConsumo(tel))) {
-      const s = slot(f.patente, f.mes);
-      if (f.km   !== null) s.km   = f.km;
-      if (f.lts  !== null) s.lts  = f.lts;
-      if (f.c100 !== null) s.c100 = f.c100;
-      if (f.tag)   tags.set(f.patente, f.tag);
-      if (f.marca) marcas.set(f.patente, f.marca);
-    }
-    // FECHA(0) DOMINIO(1) HORAS MOTOR(2) RALENTI %(3) EMISIONES KG CO2(4)
-    for (const r of (emi || [])) {
-      const p = normPat(r[1]), m = mesFromFecha(r[0]);
-      if (!esPatente(p) || !m) continue;
-      const s = slot(p, m);
-      s.ralenti = num(r[3]); s.co2 = num(r[4]);
-      const h = String(r[2] || '').match(/^(\d+):/);
-      s.horas = h ? parseInt(h[1], 10) : null;
-    }
-    if (acc.size) {
-      APP.fuentes.telemetria = 'vivo';
-      const patentes = {};
-      for (const [p, s] of acc) {
-        patentes[p] = { tag: tags.get(p) || '', marca: marcas.get(p) || '',
-                        serie: Array.from(s.values()).sort((a, b) => a.mes.localeCompare(b.mes)) };
-      }
-      telemCache = { t: Date.now(), data: { patentes } };
-      return telemCache.data;
-    }
+  if (!acc.size) {
+    APP.fuentes.consumo = null;
+    consumoCache = { t: Date.now(), data: { patentes: {} } };
+    return consumoCache.data;
   }
 
-  // Sin telemetría el tablero sigue sirviendo: services y prefiltros no dependen
-  // de ella. Se devuelve vacío y los gráficos de consumo quedan sin datos.
-  APP.fuentes.telemetria = null;
-  telemCache = { t: Date.now(), data: { patentes: {} } };
-  return telemCache.data;
+  APP.fuentes.consumo = 'base';
+  const patentes = {};
+  for (const [p, v] of acc) {
+    patentes[p] = { tag: '', marca: v.marca,
+                    serie: v.serie.sort((a, b) => a.mes.localeCompare(b.mes)) };
+  }
+  consumoCache = { t: Date.now(), data: { patentes } };
+  return consumoCache.data;
 }
 
-/** Une maestro + services + telemetria en un unico indice de unidades. */
-function construirUnidades(flota, servicios, setLAD, telemetria) {
+/** Une maestro + services + consumo en un unico indice de unidades. */
+function construirUnidades(flota, servicios, setLAD, consumo) {
   const map = new Map();
 
   for (const f of flota) {
@@ -1168,7 +953,7 @@ function construirUnidades(flota, servicios, setLAD, telemetria) {
   }
 
   const meses = new Set();
-  for (const [p, t] of Object.entries(telemetria.patentes || {})) {
+  for (const [p, t] of Object.entries(consumo.patentes || {})) {
     const u = map.get(p);
     if (!u) continue;
     u.serie = t.serie || [];
@@ -1379,7 +1164,7 @@ function barChart(host, points, opt) {
 
 /**
  * Ranking horizontal. items: [{label, value, color, sub, meta}]
- * Se usa para "km restantes" (color = estado) y para consumo/ralenti (color = serie).
+ * Se usa para "km restantes" (color = estado) y para el consumo (color = serie).
  */
 function hbarChart(host, items, opt) {
   opt = opt || {};
@@ -1546,7 +1331,7 @@ function renderGeneral() {
   const cAll  = contarEstados(todas);
 
   const criticas = cAll.vencido + cAll.urgente;
-  const conTelem = todas.filter(u => u.serie.length).length;
+  const conConsumo = todas.filter(u => u.serie.length).length;
 
   $('#kpis-globales').innerHTML =
     kpiHTML('Unidades en flota', fmt0(todas.length),
@@ -1558,8 +1343,8 @@ function renderGeneral() {
             `entre ${fmt0(UMBRAL_URGENTE)} y ${fmt0(UMBRAL_PROXIMO)} km`, ESTADOS.proximo.color) +
     kpiHTML('Al día', fmt0(cAll.ok),
             `más de ${fmt0(UMBRAL_PROXIMO)} km de margen`, ESTADOS.ok.color) +
-    kpiHTML('Con telemetría', fmt0(conTelem),
-            `${fmt0(todas.length - conTelem)} sin datos de consumo`, C.s1);
+    kpiHTML('Con consumo calculado', fmt0(conConsumo),
+            `${fmt0(todas.length - conConsumo)} sin cargas o sin kilómetros`, C.s1);
 
   // --- Paneles por grupo -------------------------------------------------
   const panelGrupo = (titulo, lista, nota) => {
@@ -1577,7 +1362,7 @@ function renderGeneral() {
           ${kpiHTML('Vencidas', fmt0(venc), venc ? 'service pasado de km' : 'ninguna', venc ? ESTADOS.vencido.color : ESTADOS.ok.color)}
           ${kpiHTML('A menos de 5.000 km', fmt0(c.urgente), 'programar turno', ESTADOS.urgente.color)}
           ${kpiHTML('Consumo promedio', prom === null ? '—' : fmt1(prom) + ' <span class="u">l/100</span>',
-                    consumos.length ? `sobre ${consumos.length} unidades con telemetría` : 'sin telemetría', C.s1)}
+                    consumos.length ? `sobre ${consumos.length} unidades con consumo` : 'sin cargas cruzadas', C.s1)}
         </div>
         <div class="chart-note">${esc(nota)}</div>
       </div></div>`;
@@ -1628,13 +1413,14 @@ function renderGeneral() {
     () => tablaDe(['Sucursal', 'Unidades', 'Vencidas o urgentes'],
                   sucItems.map(i => [esc(i.label), fmt0(i.value), esc(i.sub.split(' ')[0])])));
 
-  // --- Telemetria agregada de la flota ----------------------------------
+  // --- Consumo agregado de la flota -------------------------------------
   const porMes = new Map();
   todas.forEach(u => u.serie.forEach(s => {
-    if (!porMes.has(s.mes)) porMes.set(s.mes, { km: 0, lts: 0, co2: 0, nCo2: 0 });
+    if (!porMes.has(s.mes)) porMes.set(s.mes, { km: 0, lts: 0 });
     const e = porMes.get(s.mes);
-    if (s.km !== null && s.lts !== null) { e.km += s.km; e.lts += s.lts; }
-    if (s.co2 !== null) { e.co2 += s.co2; e.nCo2++; }
+    // Solo las unidades con kilómetros del mes: sumar arriba los litros de
+    // una patente sin lecturas da un consumo inventado.
+    if (s.km > 0 && s.lts !== null) { e.km += s.km; e.lts += s.lts; }
   }));
   const mesesOrd = Array.from(porMes.keys()).sort();
 
@@ -1646,17 +1432,9 @@ function renderGeneral() {
                                             serieName: 'Consumo', aria: 'Consumo promedio de la flota' }),
     () => tablaDe(['Mes', 'l/100 km'], consumoFlota.map(p => [mesLabel(p.x), fmt1(p.y)])));
 
-  const co2Flota = mesesOrd.filter(m => porMes.get(m).nCo2 > 0).map(m => ({ x: m, y: porMes.get(m).co2 }));
-  registrarVista('flota-co2',
-    host => barChart(host, co2Flota, { color: C.s2, fmt: fmt0, unit: ' kg',
-                                       serieName: 'CO₂', aria: 'Emisiones totales de la flota' }),
-    () => tablaDe(['Mes', 'kg CO₂'], co2Flota.map(p => [mesLabel(p.x), fmt0(p.y)])));
-
-  // --- Rankings de telemetria (un unico mes de referencia) --------------
+  // --- Ranking de consumo (un unico mes de referencia) ------------------
   const mConsumo = mesRef(todas, 'c100');
-  const mRalenti = mesRef(todas, 'ralenti');
   $('#lbl-rank-consumo').textContent = mConsumo ? mesLabel(mConsumo) : 'sin datos';
-  $('#lbl-rank-ralenti').textContent = mRalenti ? mesLabel(mRalenti) : 'sin datos';
 
   const consumoItems = todas.map(u => {
     const v = valorEnMes(u, 'c100', mConsumo);
@@ -1670,41 +1448,24 @@ function renderGeneral() {
     () => tablaDe(['Unidad', 'Modelo', 'l/100 km'],
                   consumoItems.map(i => [esc(i.label), esc(i.sub), fmt1(i.value)])));
 
-  const ralentiItems = todas.map(u => {
-    const v = valorEnMes(u, 'ralenti', mRalenti);
-    return v === null ? null : { label: u.display, value: v, color: C.s3, patente: u.patente,
-                                 sub: u.chofer || 'sin chofer' };
-  }).filter(Boolean).sort((a, b) => b.value - a.value);
-
-  registrarVista('rank-ralenti',
-    host => hbarChart(host, ralentiItems, { serieName: 'Ralentí', unit: ' %', fmt: fmt1,
-                                            aria: 'Ralentí por unidad' }),
-    () => tablaDe(['Unidad', 'Chofer', '% ralentí'],
-                  ralentiItems.map(i => [esc(i.label), esc(i.sub), fmt1(i.value)])));
-
   // --- KPIs por pestana de grupo ----------------------------------------
   renderKpisGrupo('#kpis-lad', lad);
   renderKpisGrupo('#kpis-dist', dis);
   $('#cnt-lad').textContent  = lad.length;
   $('#cnt-dist').textContent = dis.length;
-  $('#cnt-pref').textContent = APP.prefiltros.length;
 }
 
 function renderKpisGrupo(sel, lista) {
   const c = contarEstados(lista);
   const consumos = lista.map(u => ultimoValor(u, 'c100')).filter(Boolean);
   const prom = consumos.length ? consumos.reduce((a, x) => a + x.valor, 0) / consumos.length : null;
-  const mCo2 = mesRef(lista, 'co2');
-  const co2 = lista.reduce((a, u) => a + (valorEnMes(u, 'co2', mCo2) || 0), 0);
   $(sel).innerHTML =
     kpiHTML('Unidades', fmt0(lista.length), 'en esta operación') +
     kpiHTML('Vencidas', fmt0(c.vencido), 'service pasado de km',
             c.vencido ? ESTADOS.vencido.color : ESTADOS.ok.color) +
     kpiHTML('Urgentes', fmt0(c.urgente), `a menos de ${fmt0(UMBRAL_URGENTE)} km`, ESTADOS.urgente.color) +
     kpiHTML('Consumo promedio', prom === null ? '—' : fmt1(prom) + ' <span class="u">l/100</span>',
-            consumos.length ? `${consumos.length} unidades con telemetría` : 'sin telemetría', C.s1) +
-    kpiHTML('CO₂ del mes', co2 ? fmt0(co2) + ' <span class="u">kg</span>' : '—',
-            mCo2 ? `suma de la operación en ${mesLabel(mCo2)}` : 'sin datos', C.s2);
+            consumos.length ? `${consumos.length} unidades con consumo` : 'sin cargas cruzadas', C.s1);
 }
 
 /* =====================================================================
@@ -1725,26 +1486,23 @@ const COL = {
   kmAct   : { k:'kmAct',    t:'Km act.',     tipo:'num' },
   falta   : { k:'falta',    t:'Faltan',      tipo:'num' },
   estado  : { k:'estado',   t:'Estado',      tipo:'estado' },
-  c100    : { k:'_c100',    t:'l/100 km',    tipo:'dec' },
-  ralenti : { k:'_ralenti', t:'Ralentí',     tipo:'dec' }
+  c100    : { k:'_c100',    t:'l/100 km',    tipo:'dec' }
 };
 
-// La operacion de larga distancia comparte sucursal (LAD) y tiene telemetria
-// completa (consumo y ralenti); la de distribucion necesita la sucursal y solo
-// tiene consumo (hoja de toda la flota de la planilla COMBUSTIBLE).
+// La operacion de larga distancia comparte sucursal (LAD); la de
+// distribucion necesita verla, porque reparte desde varias.
 const COLS_LAD  = [COL.patente, COL.modelo, COL.plan, COL.chofer, COL.fecha, COL.kmUlt,
-                   COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100, COL.ralenti];
+                   COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
 const COLS_DIST = [COL.patente, COL.modelo, COL.plan, COL.sucursal, COL.chofer, COL.fecha,
                    COL.kmUlt, COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
 
 function filaUnidad(u, cols) {
-  const c100 = ultimoValor(u, 'c100'), ral = ultimoValor(u, 'ralenti');
+  const c100 = ultimoValor(u, 'c100');
   return cols.map(col => {
     if (col.tipo === 'pat')
       return `<td><button class="pat" type="button" data-pat="${esc(u.patente)}">${esc(u.display)}</button></td>`;
     if (col.tipo === 'estado') return `<td>${pillHTML(u.estado)}</td>`;
     if (col.k === '_c100')     return `<td class="num">${c100 ? fmt1(c100.valor) : '—'}</td>`;
-    if (col.k === '_ralenti')  return `<td class="num">${ral ? fmt1(ral.valor) : '—'}</td>`;
     if (col.tipo === 'num')    return `<td class="num">${fmt0(u[col.k])}</td>`;
     return `<td>${esc(u[col.k] || '—')}</td>`;
   }).join('');
@@ -1762,9 +1520,8 @@ function renderTabla(id, lista, cols, estadoOrden) {
     const col = cols[st.col];
     filas.sort((a, b) => {
       let va, vb;
-      if (col.k === '_c100' || col.k === '_ralenti') {
-        const f = col.k === '_c100' ? 'c100' : 'ralenti';
-        va = (ultimoValor(a, f) || {}).valor; vb = (ultimoValor(b, f) || {}).valor;
+      if (col.k === '_c100') {
+        va = (ultimoValor(a, 'c100') || {}).valor; vb = (ultimoValor(b, 'c100') || {}).valor;
       } else if (col.tipo === 'estado') { va = ESTADOS[a.estado].orden; vb = ESTADOS[b.estado].orden; }
       else { va = a[col.k]; vb = b[col.k]; }
       if (va === null || va === undefined || va === '') va = col.tipo === 'num' || col.tipo === 'dec' ? Infinity : '￿';
@@ -1846,32 +1603,6 @@ function llenarSucursales() {
 }
 
 /* =====================================================================
-   PANEL: PREFILTROS
-   ===================================================================== */
-function renderPrefiltros() {
-  const txt = $('#f-pref-txt').value.trim().toUpperCase();
-  const filas = APP.prefiltros
-    .filter(p => !txt || p.patente.includes(normPat(txt)))
-    .map(p => {
-      const est = p.falta === null ? 'sindato' : p.falta < 0 ? 'vencido' : p.falta < 5000 ? 'urgente' : 'ok';
-      const u = APP.unidades.get(p.patente);
-      return `<tr>
-        <td><button class="pat" type="button" data-pat="${esc(p.patente)}">${esc(fmtPat(p.patente))}</button></td>
-        <td>${esc(u ? (u.modelo || u.marca) : '—')}</td>
-        <td class="num">${fmt0(p.kmUlt)}</td>
-        <td class="num">${fmt0(p.kmProx)}</td>
-        <td class="num">${fmt0(p.falta)}</td>
-        <td>${pillHTML(est)}</td></tr>`;
-    });
-
-  $('#tbl-pref').innerHTML =
-    `<thead><tr><th>Patente</th><th>Modelo</th><th>Km últ. cambio</th>
-       <th>Km próximo</th><th>Faltan</th><th>Estado</th></tr></thead>
-     <tbody>${filas.length ? filas.join('')
-        : `<tr><td colspan="6" class="empty">Sin registros de prefiltro.</td></tr>`}</tbody>`;
-}
-
-/* =====================================================================
    PANEL: POR PATENTE
    ===================================================================== */
 function renderChips() {
@@ -1923,8 +1654,6 @@ function renderFicha() {
   const pct = (ciclo && ciclo > 0 && rec !== null) ? Math.max(0, Math.min(1, rec / ciclo)) : null;
 
   const c100 = ultimoValor(u, 'c100');
-  const ral  = ultimoValor(u, 'ralenti');
-  const co2  = ultimoValor(u, 'co2');
   const conC100 = u.serie.filter(s => s.c100 !== null);
   const promC100 = conC100.length ? conC100.reduce((a, s) => a + s.c100, 0) / conC100.length : null;
 
@@ -1968,10 +1697,6 @@ function renderFicha() {
           ${kpiHTML('Consumo actual',
                     c100 ? `${fmt1(c100.valor)} <span class="u">l/100</span>` : '—',
                     c100 ? `${mesLabel(c100.mes)}${promC100 ? ` · promedio ${fmt1(promC100)}` : ''}` : 'sin telemetría', C.s1)}
-          ${kpiHTML('CO₂ último mes', co2 ? `${fmt0(co2.valor)} <span class="u">kg</span>` : '—',
-                    co2 ? mesLabel(co2.mes) : 'sin datos', C.s2)}
-          ${kpiHTML('Ralentí', ral ? `${fmt1(ral.valor)} <span class="u">%</span>` : '—',
-                    ral ? mesLabel(ral.mes) : 'sin datos', C.s3)}
         </div>
 
         ${pct !== null ? `
@@ -1993,19 +1718,6 @@ function renderFicha() {
         <div class="card-body"><div id="u-consumo"></div></div>
       </div>
       <div class="card">
-        <div class="card-head"><h3>Emisiones mensuales (kg CO&#8322;)</h3><span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="u-co2" aria-pressed="false">Tabla</button></div>
-        <div class="card-body"><div id="u-co2"></div></div>
-      </div>
-    </div>
-
-    <div class="grid-2" style="margin-top:16px">
-      <div class="card">
-        <div class="card-head"><h3>Ralentí mensual (%)</h3><span class="spacer"></span>
-          <button class="btn-view" type="button" data-view="u-ralenti" aria-pressed="false">Tabla</button></div>
-        <div class="card-body"><div id="u-ralenti"></div></div>
-      </div>
-      <div class="card">
         <div class="card-head"><h3>Kilómetros recorridos por mes</h3><span class="spacer"></span>
           <button class="btn-view" type="button" data-view="u-km" aria-pressed="false">Tabla</button></div>
         <div class="card-body"><div id="u-km"></div></div>
@@ -2025,16 +1737,6 @@ function renderFicha() {
                                      serieName: 'Consumo', aria: `Consumo mensual de ${u.display}` }),
     () => tablaDe(['Mes', 'l/100 km'], serie.filter(s => s.c100 !== null).map(s => [mesLabel(s.mes), fmt1(s.c100)])));
 
-  registrarVista('u-co2',
-    h => barChart(h, pts('co2'), { color: C.s2, fmt: fmt0, unit: ' kg',
-                                   serieName: 'CO₂', aria: `Emisiones de ${u.display}` }),
-    () => tablaDe(['Mes', 'kg CO₂'], serie.filter(s => s.co2 !== null).map(s => [mesLabel(s.mes), fmt0(s.co2)])));
-
-  registrarVista('u-ralenti',
-    h => barChart(h, pts('ralenti'), { color: C.s3, fmt: fmt1, unit: ' %',
-                                       serieName: 'Ralentí', aria: `Ralentí de ${u.display}` }),
-    () => tablaDe(['Mes', '% ralentí'], serie.filter(s => s.ralenti !== null).map(s => [mesLabel(s.mes), fmt1(s.ralenti)])));
-
   registrarVista('u-km',
     h => barChart(h, pts('km'), { color: C.s1, fmt: fmt0, unit: ' km',
                                   serieName: 'Recorrido', aria: `Kilómetros de ${u.display}` }),
@@ -2042,17 +1744,14 @@ function renderFicha() {
 
   const det = document.getElementById('u-detalle');
   det.innerHTML =
-    `<thead><tr><th>Mes</th><th>Km recorridos</th><th>Litros</th><th>l/100 km</th><th>kg CO₂</th><th>Ralentí %</th><th>Horas motor</th></tr></thead>
+    `<thead><tr><th>Mes</th><th>Km recorridos</th><th>Litros</th><th>l/100 km</th></tr></thead>
      <tbody>${serie.length
         ? serie.slice().reverse().map(s => `<tr>
             <td>${mesLabel(s.mes)}</td>
             <td class="num">${fmt0(s.km)}</td>
             <td class="num">${fmt0(s.lts)}</td>
-            <td class="num">${fmt1(s.c100)}</td>
-            <td class="num">${fmt0(s.co2)}</td>
-            <td class="num">${fmt1(s.ralenti)}</td>
-            <td class="num">${s.horas === null || s.horas === undefined ? '—' : fmt0(s.horas)}</td></tr>`).join('')
-        : `<tr><td colspan="7" class="empty">Esta unidad no tiene telemetría cargada.</td></tr>`}</tbody>`;
+            <td class="num">${fmt1(s.c100)}</td></tr>`).join('')
+        : `<tr><td colspan="4" class="empty">Esta unidad no tiene cargas de combustible cruzadas con kilómetros.</td></tr>`}</tbody>`;
 }
 
 /* =====================================================================
@@ -2084,7 +1783,6 @@ $('#f-dist-txt').addEventListener('input', renderDist);
 $('#f-dist-estado').addEventListener('change', renderDist);
 $('#f-dist-suc').addEventListener('change', renderDist);
 $('#f-dist-plan').addEventListener('change', renderDist);
-$('#f-pref-txt').addEventListener('input', renderPrefiltros);
 $('#f-unidad').addEventListener('input', renderChips);
 $$('#seg-grupo button').forEach(b => b.addEventListener('click', () => {
   APP.filtroGrupo = b.dataset.g;
@@ -2170,7 +1868,7 @@ let kmAuto  = null; // el ultimo valor que puso el formulario solo
 /** Muestra el ultimo service y el odometro como referencia, y busca en la
     base el kilometraje que tenia la unidad la fecha del service.
 
-    El odometro de la planilla es el de hoy, no el del dia del trabajo: si
+    El odometro del tablero es el de hoy, no el del dia del trabajo: si
     el service se carga una semana despues, ese numero ya corrio de mas.
     La tabla odometros guarda una lectura por dia, asi que se puede pedir
     la que corresponde. */
@@ -2221,7 +1919,7 @@ function fechaCorta(iso) {
   return p.length === 3 ? `${p[2]}/${p[1]}` : iso;
 }
 
-/** Refleja el service recien cargado sin esperar a que la planilla se actualice. */
+/** Refleja el service recien cargado sin esperar al proximo refresco. */
 function aplicarServiceLocal(patente, fecha, km) {
   const u = APP.unidades.get(patente);
   if (!u) return;
@@ -2369,7 +2067,7 @@ async function cargarTodo(manual) {
   document.querySelectorAll('.panel').forEach(p => p.style.opacity = manual ? '0.55' : '1');
 
   try {
-    const [flota, srv, tel] = await Promise.all([cargarFlota(), cargarServicios(), cargarTelemetria()]);
+    const [flota, srv, tel] = await Promise.all([cargarFlota(), cargarServicios(), cargarConsumo()]);
     construirUnidades(flota, srv.servicios, srv.setLAD, tel);
 
     llenarSucursales();
@@ -2377,7 +2075,6 @@ async function cargarTodo(manual) {
     renderGeneral();
     renderLAD();
     renderDist();
-    renderPrefiltros();
     renderChips();
 
     $('#btn-service').hidden = !APP.unidades.size;
@@ -2385,8 +2082,6 @@ async function cargarTodo(manual) {
     try { await cargarPlanes(); } catch (e) { console.warn(e); }
   } catch (err) {
     console.error('Error de carga:', err);
-    // El motivo va en el chip: casi siempre es la planilla sin compartir, y
-    // decirlo ahorra tener que abrir la consola del navegador para enterarse.
     console.warn(err && err.message ? err.message : 'Error al cargar los datos');
   } finally {
     document.querySelectorAll('.panel').forEach(p => p.style.opacity = '1');
