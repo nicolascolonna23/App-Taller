@@ -1,4 +1,7 @@
-// La pantalla de Flota: el chasis al lado de la patente y las dos salidas.
+// La pantalla de Flota: el chasis al lado de la patente, las dos salidas y
+// la baja. Las direcciones de /api las contesta este mismo archivo, así que
+// esto NO prueba el ruteo del servidor: de eso se ocupa tests/test_rutas.py,
+// que existe porque el Excel se rompió justamente ahí y acá no se vio.
 const { chromium } = require('playwright');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const RAIZ = path.join(__dirname, '..');
