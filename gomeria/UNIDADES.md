@@ -69,7 +69,24 @@ actualizarla, se pega de nuevo y se vuelve a correr.
 
 **Flota**, en `/unidades`. Buscador, filtros por residencia, uso y estado, y
 la tabla ordenable por cualquier columna. Se hace clic en una fila y se abre
-la ficha.
+la ficha. El chasis va al lado de la patente: son los dos números con los que
+se identifica una unidad afuera de la empresa, y se piden juntos.
+
+### Llevarse el listado
+
+Los botones **Excel** y **PDF** bajan **lo que se está viendo**: con los
+filtros, la búsqueda y el orden puestos. Exportar toda la flota cuando la
+pantalla muestra una sucursal no es lo que pidió el que apretó el botón.
+
+- **Excel** lo arma el servidor en `/api/unidades/exportar`. El navegador
+  manda qué unidades; el contenido de cada fila se relee de la base. Sale con
+  la primera fila fija, filtros de Excel y todo como texto, porque el chasis
+  es un número largo y Excel lo redondea si lo toma como número. Lleva una
+  columna **Estado** que no está en la pantalla: ahí la baja se ve tachada, y
+  en un archivo eso se pierde.
+- **PDF** sale por el diálogo de impresión del navegador —el mismo camino que
+  la cédula de la unidad— en A4 apaisada. En Mac, «Guardar como PDF». No se
+  trae ninguna librería para hacer peor lo que el navegador ya hace.
 
 La ficha tiene dos partes. Arriba, los datos del maestro, que se editan.
 Abajo, lo que sabe el resto del sistema y no se toca desde acá:
