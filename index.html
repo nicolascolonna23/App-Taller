@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Panel de Flota | Diemar</title>
+  <title>Panel de Flota | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -25,10 +25,10 @@
       --ink-2:        #a9b0b8;
       --ink-muted:    #7b828b;
 
-      /* Marca Diemar (solo chrome: nunca dentro de un grafico) */
+      /* Color de acento (solo chrome: nunca dentro de un grafico) */
       --brand:        #ffd400;
       --brand-deep:   #d35400;
-      --brand-soft:   rgba(255,122,26,0.12);
+      --brand-soft:   color-mix(in srgb,var(--brand) 12%,transparent);
 
       /* Series categoricas (dark) - validadas all-pairs sobre #12161a */
       --series-1:     #3987e5;  /* larga distancia */
@@ -61,7 +61,7 @@
     }
     body::before {
       content: ""; position: fixed; inset: 0 0 auto 0; height: 420px;
-      background: radial-gradient(ellipse at center, rgba(255,122,26,0.11), transparent 68%);
+      background: radial-gradient(ellipse at center, color-mix(in srgb,var(--brand) 11%,transparent), transparent 68%);
       pointer-events: none; z-index: 0;
     }
     .shell { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 0 20px 56px; }
@@ -73,7 +73,7 @@
     }
     .topbar::after {
       content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-      background: linear-gradient(90deg, var(--brand), rgba(255,122,26,0) 55%);
+      background: linear-gradient(90deg, var(--brand), color-mix(in srgb,var(--brand) 0%,transparent) 55%);
     }
     .logo { height: 46px; width: auto; }
     .brandblock { display: flex; flex-direction: column; gap: 3px; margin-right: auto; }
@@ -104,15 +104,15 @@
       border: 1px solid var(--hairline); border-radius: 999px;
       padding: 6px 12px; white-space: nowrap; transition: color .18s, border-color .18s;
     }
-    .nav-link:hover { color: var(--brand); border-color: rgba(255,122,26,0.4); }
+    .nav-link:hover { color: var(--brand); border-color: color-mix(in srgb,var(--brand) 40%,transparent); }
 
     .btn-refresh {
       font: inherit; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
       font-weight: 600; color: var(--brand); background: var(--brand-soft);
-      border: 1px solid rgba(255,122,26,0.32); border-radius: 999px;
+      border: 1px solid color-mix(in srgb,var(--brand) 32%,transparent); border-radius: 999px;
       padding: 6px 14px; cursor: pointer; transition: background .18s;
     }
-    .btn-refresh:hover { background: rgba(255,122,26,0.2); }
+    .btn-refresh:hover { background: color-mix(in srgb,var(--brand) 20%,transparent); }
     .btn-refresh[disabled] { opacity: .5; cursor: default; }
 
     /* ===================== ACCESOS ===================== */
@@ -128,13 +128,13 @@
       content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 3px; background: var(--brand);
     }
     .acceso:hover {
-      border-color: rgba(255,122,26,0.45); transform: translateY(-2px);
+      border-color: color-mix(in srgb,var(--brand) 45%,transparent); transform: translateY(-2px);
       box-shadow: 0 14px 32px rgba(0,0,0,0.45);
     }
     .acceso:focus-visible { outline: 2px solid var(--brand); outline-offset: 3px; }
     .acceso .ico {
       width: 44px; height: 44px; flex: none; border-radius: 11px;
-      background: var(--brand-soft); border: 1px solid rgba(255,122,26,0.28);
+      background: var(--brand-soft); border: 1px solid color-mix(in srgb,var(--brand) 28%,transparent);
       display: grid; place-items: center; color: var(--brand);
     }
     .acceso .ico svg { width: 22px; height: 22px; }
@@ -231,7 +231,7 @@
       white-space: nowrap;
     }
     table.data tbody tr:last-child td { border-bottom: none; }
-    table.data tbody tr:hover { background: rgba(255,122,26,0.045); }
+    table.data tbody tr:hover { background: color-mix(in srgb,var(--brand) 4.5%,transparent); }
     .pat { font-weight: 700; color: var(--brand); letter-spacing: 0.4px; }
 
     /* ===================== GRAFICOS ===================== */
@@ -283,9 +283,9 @@
 
   <!-- ============ HEADER ============ -->
   <div class="topbar">
-    <img src="/logo.png" alt="Diemar" class="logo">
+    <img src="/logo.png" alt="Gestión de flota" class="logo">
     <div class="brandblock">
-      <div class="sub">Expreso Diemar</div>
+      <div class="sub">Gestión de flota</div>
       <h1>Panel general de flota</h1>
     </div>
     <div class="meta">
@@ -521,7 +521,7 @@ async function cargarServicios() {
 }
 
 /** El consumo mes a mes, calculado en la base con los litros que se
- *  cargan y los kilómetros del satelital. Antes venía de una planilla de
+ *  cargan y los kilómetros Telemetría. Antes venía de una planilla de
  *  Google con la telemetría de la marca. */
 async function cargarConsumo() {
   try {

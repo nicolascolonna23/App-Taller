@@ -56,7 +56,7 @@ def _logo():
     if not os.path.exists(LOGO):
         return ""
     datos = base64.b64encode(open(LOGO, "rb").read()).decode()
-    return f'<img class="dm" src="data:image/png;base64,{datos}" alt="Diemar">'
+    return f'<img class="dm" src="data:image/png;base64,{datos}" alt="Gestión de flota">'
 
 
 def _articulos(cx, rubro=None, codigos=None, solo_activos=True):
@@ -114,7 +114,7 @@ def hoja(cx, base, rubro=None, codigos=None):
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Etiquetas de repuestos | Diemar</title>
+<title>Etiquetas de repuestos | Gestión de flota</title>
 <style>
   /* En pantalla se ve sobre gris para distinguir las hojas; al imprimir
      solo salen las etiquetas. */
@@ -168,7 +168,7 @@ def hoja(cx, base, rubro=None, codigos=None):
 <body>
 
 <div class="barra">
-  <img src="/logo.png" alt="Diemar" style="height:24px" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Gestión de flota" style="height:24px" onerror="this.style.display='none'">
   <a class="volver" href="/repuestos">‹ Volver</a>
   <b>{titulo}</b>
   <button onclick="print()">Imprimir</button>

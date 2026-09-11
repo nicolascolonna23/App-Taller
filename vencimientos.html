@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Vencimientos | Diemar</title>
+<title>Vencimientos | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
     --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
     --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
-    --brand:#ffd400; --brand-soft:rgba(255,122,26,.13);
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
     --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
   }
   *{box-sizing:border-box}
@@ -26,7 +26,7 @@
   .top img{height:27px}
   .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
     padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
-  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
   .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
     color:var(--ink-muted);font-weight:800}
   .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
@@ -95,7 +95,7 @@
   input,select,textarea{background:var(--surface-2);color:var(--ink);
     border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
     font:inherit;outline:none;width:100%}
-  input:focus,select:focus,textarea:focus{border-color:rgba(255,122,26,.6)}
+  input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .barra input{max-width:330px}
   .barra select{max-width:210px}
   .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
@@ -111,7 +111,7 @@
     letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
     white-space:nowrap}
   td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:top}
-  tbody tr:hover{background:rgba(255,122,26,.06)}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
   .de{font-weight:800;letter-spacing:.4px}
   .chico{color:var(--ink-muted);font-size:11.5px}
   .marca{display:inline-block;border-radius:99px;padding:4px 9px;font-size:10.5px;
@@ -154,7 +154,7 @@
 <body>
 
 <header class="top">
-  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
   <span class="brand">Flota</span>
   <span class="who" id="quien"></span>
