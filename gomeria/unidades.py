@@ -10,6 +10,7 @@ Los equipos que no tienen patente (autoelevadores, apiladores) van en la
 misma tabla con su código en el lugar de la patente y `tipo = 'equipo'`.
 Están en el mismo listado que en la planilla, y así se mantiene.
 """
+import io
 import os
 import re
 
@@ -733,6 +734,91 @@ def base_fmt(patente):
         return f"{m[1]} {m[2]} {m[3]}"
     o = re.fullmatch(r"([A-Z]{3})(\d{3})", patente or "")
     return f"{o[1]} {o[2]}" if o else (patente or "")
+
+
+# Las columnas del listado, en el mismo orden que la pantalla. Se definen
+# una vez: el Excel y la pantalla tienen que decir lo mismo, y una lista
+# suelta en cada lado es la forma más segura de que un día no coincidan.
+COLUMNAS_LISTADO = [
+    ("Patente",    lambda u: base_fmt(u.get("patente") or "")),
+    ("Chasis",     lambda u: u.get("chasis") or ""),
+    ("Interno",    lambda u: u.get("interno") or ""),
+    ("Marca",      lambda u: u.get("marca") or ""),
+    ("Modelo",     lambda u: u.get("modelo") or ""),
+    ("Chofer",     lambda u: u.get("chofer") or ""),
+    ("Semi",       lambda u: base_fmt(u.get("semi") or "")),
+    ("Residencia", lambda u: u.get("sucursal") or ""),
+    ("Uso",        lambda u: "EQUIPO" if u.get("tipo") == "equipo" else (u.get("uso") or "")),
+    # En la pantalla una unidad de baja se ve tachada. En un archivo eso se
+    # pierde, y un listado donde no se distingue la baja es un listado que
+    # miente. Por eso acá va escrito.
+    ("Estado",     lambda u: "Activa" if u.get("activa") else "De baja"),
+]
+
+
+def exportar_excel(cx, ids=None):
+    """El listado de la flota como archivo de Excel.
+
+    `ids` son las unidades que la pantalla está mostrando: se exporta lo
+    que se ve, con los filtros puestos. Sin `ids` sale el maestro entero.
+
+    Los datos se releen de la base y no se reciben del navegador: lo que
+    llega de afuera es qué filas, nunca qué dice cada fila.
+    """
+    import openpyxl
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    if ids:
+        # En el orden en que vienen, que es el de la pantalla: si alguien
+        # ordenó por chofer y exporta, el archivo tiene que salir así y no
+        # reordenado por un criterio que el que apretó el botón no eligió.
+        filas = cx.execute(
+            "select * from v_unidades where id = any(%s) "
+            "order by array_position(%s::bigint[], id)",
+            (list(ids), list(ids))).fetchall()
+    else:
+        filas = cx.execute(
+            "select * from v_unidades "
+            "order by tipo, coalesce(nullif(interno,'')::text, 'zzz'), patente"
+        ).fetchall()
+
+    libro = openpyxl.Workbook()
+    hoja = libro.active
+    hoja.title = "Flota"
+
+    encabezado = Font(bold=True, color="FFFFFF")
+    fondo = PatternFill("solid", fgColor="1F2933")
+    for i, (titulo, _) in enumerate(COLUMNAS_LISTADO, start=1):
+        celda = hoja.cell(row=1, column=i, value=titulo)
+        celda.font, celda.fill = encabezado, fondo
+        celda.alignment = Alignment(vertical="center")
+
+    for fila in filas:
+        hoja.append([sacar(dict(fila)) for _, sacar in COLUMNAS_LISTADO])
+
+    # El chasis es un número largo: si va como número, Excel lo redondea y
+    # lo muestra en notación científica. Todo el listado va como texto.
+    for columna in hoja.iter_cols(min_row=2):
+        for celda in columna:
+            celda.number_format = "@"
+
+    # Ancho por el contenido más largo, con tope: una observación larga no
+    # puede dejar una columna de media pantalla.
+    for i, (titulo, _) in enumerate(COLUMNAS_LISTADO, start=1):
+        largo = max([len(titulo)] +
+                    [len(str(hoja.cell(row=f, column=i).value or ""))
+                     for f in range(2, hoja.max_row + 1)])
+        hoja.column_dimensions[get_column_letter(i)].width = min(largo + 3, 42)
+
+    # La primera fila queda fija y con filtros: es un listado para mirar,
+    # no para leer de una sola pasada.
+    hoja.freeze_panes = "A2"
+    hoja.auto_filter.ref = f"A1:{get_column_letter(len(COLUMNAS_LISTADO))}{hoja.max_row}"
+
+    salida = io.BytesIO()
+    libro.save(salida)
+    return salida.getvalue(), len(filas)
 
 
 def para_tablero(cx):

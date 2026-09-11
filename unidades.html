@@ -283,6 +283,10 @@
       <option value="equipos">Solo equipos</option>
     </select>
     <button class="btn" id="nueva">+ Nueva unidad</button>
+    <button class="btn gris" id="exp-excel" type="button"
+            title="Baja el listado que estás viendo, con los filtros puestos">Excel</button>
+    <button class="btn gris" id="exp-pdf" type="button"
+            title="Abre el diálogo de impresión: ahí elegís «Guardar como PDF»">PDF</button>
     <span class="cuenta" id="cuenta"></span>
   </div>
 
@@ -428,6 +432,7 @@ const fmtPat = p => {
 
 const COLS = [
   { k:'patente',  t:'Patente',    v:u => `<span class="pat">${esc(fmtPat(u.patente))}</span>` },
+  { k:'chasis',   t:'Chasis',     v:u => `<span class="apagado">${esc(u.chasis || '—')}</span>` },
   { k:'interno',  t:'Interno',    v:u => esc(u.interno || '—'), n:true },
   { k:'marca',    t:'Marca',      v:u => esc(u.marca || '—') },
   { k:'modelo',   t:'Modelo',     v:u => esc(u.modelo || '—') },
@@ -437,8 +442,7 @@ const COLS = [
   { k:'uso',      t:'Uso',        v:u => u.tipo === 'equipo'
       ? '<span class="chip equipo">EQUIPO</span>'
       : (u.uso === 'LARGA DISTANCIA' ? '<span class="chip lad">LARGA DISTANCIA</span>'
-                                     : `<span class="chip">${esc(u.uso || '—')}</span>`) },
-  { k:'chasis',   t:'Chasis',     v:u => `<span class="apagado">${esc(u.chasis || '—')}</span>` }
+                                     : `<span class="chip">${esc(u.uso || '—')}</span>`) }
 ];
 
 let DATOS = { unidades: [], sucursales: [], usos: [], revisar: [], armados: [] };
@@ -502,6 +506,97 @@ function pintar(){
   document.querySelectorAll('#cuerpo tr').forEach(tr =>
     tr.onclick = () => abrir(DATOS.unidades.find(u => String(u.id) === tr.dataset.id)));
 }
+
+/* ------------------------------------------------------------------ */
+/* Llevarse el listado                                                  */
+/* ------------------------------------------------------------------ */
+/* Las dos salidas exportan lo que se está viendo, con los filtros y el
+   orden puestos. Un listado de toda la flota cuando la pantalla muestra
+   una sucursal no es el listado que pidió el que apretó el botón. */
+
+function comoSeVe(){
+  return ordenar(filtradas());
+}
+
+/* Usa el mismo cartel rojo que los errores de carga, para no inventar una
+   segunda forma de avisar en la misma pantalla. */
+function avisar(texto){
+  $('#error').textContent = texto;
+  $('#error').hidden = false;
+}
+
+function rotuloFiltros(){
+  const partes = [];
+  const est = $('#f-estado');
+  partes.push(est.options[est.selectedIndex].textContent.toLowerCase());
+  if ($('#f-sucursal').value) partes.push(`residencia ${$('#f-sucursal').value}`);
+  if ($('#f-uso').value)      partes.push($('#f-uso').value.toLowerCase());
+  if ($('#buscar').value.trim()) partes.push(`buscando «${$('#buscar').value.trim()}»`);
+  return partes.join(' · ');
+}
+
+/* El Excel lo arma el servidor: el navegador manda qué unidades, y cada
+   fila se relee de la base. Así el archivo no puede salir con algo que
+   la pantalla tenía desactualizado. */
+$('#exp-excel').onclick = () => {
+  const filas = comoSeVe();
+  if (!filas.length) return avisar('No hay unidades para exportar con ese filtro.');
+  location.href = '/api/unidades/exportar?ids=' + filas.map(u => u.id).join(',');
+};
+
+/* El PDF sale por el diálogo de impresión, como la cédula de la unidad:
+   el navegador ya sabe hacer PDF y no hace falta traer una librería para
+   repetir lo que hace peor. */
+$('#exp-pdf').onclick = () => {
+  const filas = comoSeVe();
+  if (!filas.length) return avisar('No hay unidades para exportar con ese filtro.');
+
+  const celdas = u => COLS.map(c => {
+    if (c.k === 'patente') return esc(fmtPat(u.patente));
+    if (c.k === 'semi')    return u.semi ? esc(fmtPat(u.semi)) : '—';
+    if (c.k === 'uso')     return u.tipo === 'equipo' ? 'EQUIPO' : esc(u.uso || '—');
+    return esc(u[c.k] || '—');
+  }).map(v => `<td>${v}</td>`).join('');
+
+  const w = window.open('', '_blank', 'width=1100,height=700');
+  if (!w) return avisar('El navegador bloqueó la ventana. Permitile abrir ventanas a este sitio.');
+  w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+    <title>Flota Diemar ${new Date().toLocaleDateString('es-AR')}</title>
+    <style>
+      *{box-sizing:border-box}
+      body{font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+           color:#1f2933;margin:0;padding:10mm}
+      h1{font-size:17px;margin:0 0 2px}
+      .sub{font-size:10px;color:#6b7785;margin:0 0 10px}
+      .nota{font-size:9px;color:#6b7785;margin:8px 0 0}
+      table{border-collapse:collapse;width:100%}
+      th{background:#1f2933;color:#fff;text-align:left;font-size:9px;
+         letter-spacing:.04em;text-transform:uppercase;padding:5px 6px}
+      td{padding:4px 6px;border-bottom:1px solid #e3e8ee}
+      tr.baja td{color:#98a2ad;text-decoration:line-through}
+      .pat{font-weight:700;letter-spacing:.03em;white-space:nowrap}
+      /* El chasis es lo más largo de la fila y lo que menos se lee de
+         corrido: va chico para que la tabla entre en el ancho de la hoja. */
+      td:nth-child(2){font-size:9px;color:#6b7785}
+      /* Apaisada: son nueve columnas y en vertical no entran sin partirse. */
+      @page{size:A4 landscape;margin:8mm}
+      thead{display:table-header-group}
+      tr{break-inside:avoid}
+    </style></head><body>
+    <h1>Flota &mdash; Expreso Diemar</h1>
+    <p class="sub">${filas.length} ${filas.length === 1 ? 'unidad' : 'unidades'}
+      &nbsp;·&nbsp; ${esc(rotuloFiltros())}
+      &nbsp;·&nbsp; ${new Date().toLocaleDateString('es-AR')}</p>
+    <table><thead><tr>${COLS.map(c => `<th>${c.t}</th>`).join('')}</tr></thead>
+      <tbody>${filas.map(u =>
+        `<tr class="${u.activa ? '' : 'baja'}">${celdas(u)}</tr>`).join('')}</tbody>
+    </table>
+    ${filas.some(u => !u.activa)
+      ? '<p class="nota">Las unidades tachadas están de baja.</p>' : ''}
+    </body></html>`);
+  w.document.close();
+  w.onload = () => { w.focus(); w.print(); };
+};
 
 function opciones(sel, valores, rotulo){
   const antes = sel.value;

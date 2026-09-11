@@ -1,6 +1,10 @@
 -- Asigna a cada patente su único plan de mantenimiento/service y corrige
 -- el kilometraje del último service informado. Conserva la fecha existente.
 -- Ejecutar después de 22_planes_mantenimiento.sql y 23_baja_ae988uw.sql.
+--
+-- La asignación de plan por patente sale de `tipo_service_por_patente.xlsx`,
+-- que está al lado de este archivo. Los kilómetros no: esos vinieron aparte
+-- y van más abajo, con su propia advertencia.
 
 insert into mantenimiento_planes (nombre, descripcion, cada_km, activo)
 values ('TRACTORES', 'Service para tractores', 40000, true),
@@ -38,9 +42,17 @@ from asignacion a
 left join mantenimiento_planes p on p.nombre = a.plan
 where regexp_replace(upper(u.patente), '[^A-Z0-9]', '', 'g') = a.patente;
 
+-- Los kilómetros son la segunda versión del listado. En la primera, los de
+-- AD 247 MQ y AE 423 IV venían cruzados entre sí: casi un millón de
+-- kilómetros a parar a la unidad equivocada. También quedaron viejos los de
+-- AE 423 IW, AF 218 HY y AF 470 UT.
+--
+-- Un número mal cargado acá no se ve: la unidad avisa cuando no corresponde,
+-- o no avisa cuando sí, y eso se descubre cuando el service ya pasó. Por eso
+-- la consulta del final compara cada uno contra el odómetro de hoy.
 with valores(patente, km) as (values
-  ('AD247MQ',735933::numeric), ('AE423IV',1652322), ('AE423IW',1295194),
-  ('AE588MW',1210648), ('AF218HY',287110), ('AF470UT',525898),
+  ('AD247MQ',1652322::numeric), ('AE423IV',736004), ('AE423IW',1295215),
+  ('AE588MW',1210648), ('AF218HY',304894), ('AF470UT',525962),
   ('AF533SB',282700), ('AF577BD',34571), ('AF796IX',152968),
   ('AG286TR',586560), ('AG708DM',110381), ('AG865QF',359504),
   ('AG983HW',351250), ('AH522SI',195997), ('AH861UB',139717),
@@ -103,7 +115,15 @@ from (
     and upper(coalesce(u.uso,'')) not like '%REMOLQUE%'
 ) b;
 
-select u.patente, p.nombre as plan, s.ultimo_km
+select u.patente, p.nombre as plan, s.ultimo_km, s.km_actual as odometro_hoy,
+       -- Un service no puede estar por encima de los kilómetros que la unidad
+       -- tiene hoy: eso es un service en el futuro, y significa que el número
+       -- quedó mal cargado o fue a parar a la patente equivocada.
+       case when s.ultimo_km is null then 'esta unidad no tiene services'
+            when s.km_actual is null then 'sin lecturas del satelital'
+            when s.ultimo_km > s.km_actual then 'REVISAR: el service quedó por encima del odómetro'
+            else 'ok'
+       end as control
 from unidades u
 left join mantenimiento_planes p on p.id = u.mantenimiento_plan_id
 left join v_services_hoy s on s.unidad_id = u.id
@@ -111,4 +131,8 @@ where regexp_replace(upper(u.patente), '[^A-Z0-9]', '', 'g') in
       ('AD247MQ','AE423IV','AE423IW','AE588MW','AF218HY','AF470UT','AF533SB',
        'AF577BD','AF796IX','AG286TR','AG708DM','AG865QF','AG983HW','AH522SI',
        'AH861UB','AH938VO','AH842GQ')
-order by u.patente;
+-- Lo que hay que mirar primero: el número que no puede ser.
+order by case when s.ultimo_km > s.km_actual then 0
+              when s.ultimo_km is null or s.km_actual is null then 1
+              else 2 end,
+         u.patente;
