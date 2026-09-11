@@ -72,6 +72,29 @@ la tabla ordenable por cualquier columna. Se hace clic en una fila y se abre
 la ficha. El chasis va al lado de la patente: son los dos números con los que
 se identifica una unidad afuera de la empresa, y se piden juntos.
 
+### Dar de baja
+
+El botón **Dar de baja** de la ficha saca la unidad de la operación. Es una
+sola columna —`unidades.activa`— y de ahí sale para todos los módulos: deja
+de aparecer en el maestro, de contar en los tableros, de pedir service y de
+reclamar cubiertas, documentos y combustible. El mismo botón la **reactiva**.
+
+La regla es: **lo operativo se olvida de la unidad, la historia la
+recuerda.** No se borra nada. El combustible que cargó, las órdenes que tuvo
+y las gomas que usó siguen donde estaban. Si el consumo filtrara por
+`activa`, dar de baja un camión en septiembre cambiaría el consumo de la
+flota de junio, que es un número que alguien ya miró.
+
+Al dar de baja, el aviso dice **qué quedó colgando**: cubiertas montadas,
+órdenes de trabajo abiertas y documentos vigentes. Eso no se cierra solo, y
+como la unidad deja de reclamar, si no se dice en ese momento no lo dice
+nadie más. Las gomas siguen figurando montadas en el mapa de gomería a
+propósito: están arriba de ese camión de verdad y alguien las tiene que
+bajar.
+
+Dar de baja no es **Eliminar**. Eliminar borra la fila, y solo funciona si
+la unidad no tiene nada cargado; si tiene, la da de baja igual.
+
 ### Llevarse el listado
 
 Los botones **Excel** y **PDF** bajan **lo que se está viendo**: con los

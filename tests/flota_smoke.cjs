@@ -21,7 +21,7 @@ const unidades = [
   try {
     const page = await browser.newPage({ viewport:{ width:1440, height:1000 } });
     const errores = []; page.on('pageerror', e => errores.push(e.message));
-    let pedidoExcel = null;
+    let pedidoExcel = null; const bajas = [];
 
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -31,9 +31,26 @@ const unidades = [
         pedidoExcel = url.searchParams.get('ids');
         return route.fulfill({ status:200, contentType:'application/octet-stream', body:'xlsx' });
       }
+      if (p === '/api/unidades' && route.request().method() === 'POST') {
+        const cuerpo = route.request().postDataJSON();
+        bajas.push(cuerpo);
+        const u = unidades.find(x => x.id === cuerpo.id);
+        if (u) u.activa = !!cuerpo.activa;
+        return route.fulfill({ json:{ activa:!!cuerpo.activa, unidad:u,
+          aviso: cuerpo.activa ? 'Vuelve a la operación.'
+               : 'Queda de baja. Ojo: tenía 2 cubiertas montadas.' } });
+      }
       if (p === '/api/unidades') return route.fulfill({ json:{
         unidades, sucursales:['LAD','CAT'], usos:['LARGA DISTANCIA','DISTRIBUCION LOCAL'],
         configuraciones:[], revisar:[], armados:[], planes_mantenimiento:[] } });
+      // La ficha de una unidad: lo que sabe el resto del sistema.
+      const ficha = p.match(/^\/api\/unidades\/(\d+)$/);
+      if (ficha) {
+        const u = unidades.find(x => String(x.id) === ficha[1]);
+        return route.fulfill({ json:{ unidad:u, modelo_3d:null, modelo_3d_falta:null,
+          odometro:null, lecturas:[], cubiertas:[], vencimientos:[], ordenes:[],
+          services:[], posiciones:[] } });
+      }
       if (p.startsWith('/api/')) return route.fulfill({ json:{} });
       const archivo = { '/unidades':'unidades.html', '/sistema.css':'sistema.css',
                         '/tema.js':'tema.js', '/camion3d.js':'camion3d.js' }[p];
@@ -90,8 +107,27 @@ const unidades = [
     await vent.screenshot({ path:'/tmp/flota-pdf.png', fullPage:true });
     await vent.close();
 
+    // ---- dar de baja y reactivar --------------------------------------
+    page.on('dialog', d => d.accept());
+    await page.selectOption('#f-estado', 'activas');
+    await page.click('#cuerpo tr:has-text("AH 522 SI")');
+    await page.locator('#baja').waitFor({ state:'visible' });
+    assert.equal((await page.locator('#baja').innerText()).trim(), 'Dar de baja');
+    await page.click('#baja');
+    await page.waitForFunction(() => !document.querySelector('#ficha-aviso').hidden);
+    assert.deepEqual(bajas.at(-1), { op:'baja', id:1, activa:false });
+    assert((await page.locator('#ficha-aviso').innerText()).includes('cubiertas montadas'),
+           'la baja no avisa qué quedó colgando');
+    assert.equal((await page.locator('#baja').innerText()).trim(), 'Reactivar',
+                 'el botón no cambió a Reactivar');
+
+    await page.click('#baja');
+    await page.waitForFunction(() => document.querySelector('#baja').textContent.trim() === 'Dar de baja');
+    assert.deepEqual(bajas.at(-1), { op:'baja', id:1, activa:true });
+
+    await page.click('#cerrar');
     await page.screenshot({ path:'/tmp/flota-listado.png', fullPage:true });
     assert.deepEqual(errores, [], 'errores de JS: ' + errores.join(' | '));
-    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado, con las bajas marcadas.');
+    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; baja y reactivación avisan qué queda colgando.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

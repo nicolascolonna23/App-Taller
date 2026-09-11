@@ -894,6 +894,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = uni.eliminar(cx, datos.get("id"), self.usuario)
+                elif (datos.get("op") or "") == "baja":
+                    # Dar de baja no es borrar: es sacarla de la operación.
+                    salida = uni.dar_de_baja(cx, datos.get("id"),
+                                             datos.get("activa"), self.usuario)
                 else:
                     salida = uni.guardar(cx, datos, self.usuario)
                 cx.commit()
