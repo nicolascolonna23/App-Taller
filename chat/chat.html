@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consultas | Gestión de flota</title>
+<title>Consultas | Diemar</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='12' y='7' width='8' height='18' fill='%23ff7a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -14,7 +14,7 @@
     --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
     --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
     --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
-    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 12%,transparent);
+    --brand:#ffd400; --brand-soft:rgba(255,122,26,.12);
     --st-good:#0ca30c; --st-warning:#fab219; --st-critical:#d03b3b;
     --radius:14px;
   }
@@ -33,7 +33,7 @@
     background:var(--surface-1); position:relative; flex:none;
   }
   .topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-    background:linear-gradient(90deg,var(--brand),color-mix(in srgb,var(--brand) 0%,transparent) 55%)}
+    background:linear-gradient(90deg,var(--brand),rgba(255,122,26,0) 55%)}
   .logo{height:34px;width:auto}
   .brandblock{display:flex;flex-direction:column;gap:2px;margin-right:auto}
   .brandblock h1{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
@@ -57,7 +57,7 @@
     font-size:10.5px;font-weight:700;letter-spacing:.5px;margin-top:1px;
   }
   .msg.yo .avatar{background:var(--surface-3);color:var(--ink-2);border:1px solid var(--hairline)}
-  .msg.bot .avatar{background:var(--brand-soft);color:var(--brand);border:1px solid color-mix(in srgb,var(--brand) 30%,transparent)}
+  .msg.bot .avatar{background:var(--brand-soft);color:var(--brand);border:1px solid rgba(255,122,26,.3)}
   .burbuja{min-width:0;flex:1}
   .msg.yo .burbuja{color:var(--ink)}
   .quien{font-size:10.5px;letter-spacing:1.3px;text-transform:uppercase;
@@ -82,7 +82,7 @@
   .md td{padding:9px 11px;border-bottom:1px solid rgba(255,255,255,.04);white-space:nowrap}
   .md tr:last-child td{border-bottom:none}
   .md td.num,.md th.num{text-align:right}
-  .md tbody tr:hover{background:color-mix(in srgb,var(--brand) 4.5%,transparent)}
+  .md tbody tr:hover{background:rgba(255,122,26,.045)}
 
   /* ---------- estado mientras piensa ---------- */
   .trabajando{display:flex;flex-direction:column;gap:6px;color:var(--ink-muted);font-size:13px}
@@ -103,7 +103,7 @@
   .sug{text-align:left;font:inherit;font-size:13px;color:var(--ink-2);cursor:pointer;
     background:var(--surface-1);border:1px solid var(--hairline);border-radius:11px;
     padding:12px 14px;transition:border-color .18s,color .18s}
-  .sug:hover{color:var(--ink);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+  .sug:hover{color:var(--ink);border-color:rgba(255,122,26,.4)}
 
   /* ---------- barra de escritura ---------- */
   .abajo{flex:none;border-top:1px solid var(--hairline);background:var(--surface-1);padding:14px 22px 16px}
@@ -111,14 +111,14 @@
   .caja{display:flex;gap:10px;align-items:flex-end;background:var(--surface-2);
     border:1px solid var(--hairline-2);border-radius:13px;padding:9px 9px 9px 15px;
     transition:border-color .18s}
-  .caja:focus-within{border-color:color-mix(in srgb,var(--brand) 50%,transparent)}
+  .caja:focus-within{border-color:rgba(255,122,26,.5)}
   #texto{flex:1;font:inherit;color:var(--ink);background:none;border:none;outline:none;
     resize:none;max-height:180px;line-height:1.5;padding:5px 0}
   #texto::placeholder{color:var(--ink-muted)}
-  #enviar{flex:none;width:35px;height:35px;border-radius:9px;border:1px solid color-mix(in srgb,var(--brand) 32%,transparent);
+  #enviar{flex:none;width:35px;height:35px;border-radius:9px;border:1px solid rgba(255,122,26,.32);
     background:var(--brand-soft);color:var(--brand);cursor:pointer;display:grid;place-items:center;
     transition:background .18s}
-  #enviar:hover:not(:disabled){background:color-mix(in srgb,var(--brand) 22%,transparent)}
+  #enviar:hover:not(:disabled){background:rgba(255,122,26,.22)}
   #enviar:disabled{opacity:.4;cursor:default}
   #enviar svg{width:17px;height:17px}
   .pie{margin-top:9px;font-size:11px;color:var(--ink-muted);display:flex;gap:14px;flex-wrap:wrap}
@@ -134,9 +134,9 @@
 <body>
 
 <div class="topbar">
-  <img src="logo.png" alt="Gestión de flota" class="logo">
+  <img src="logo.png" alt="Diemar" class="logo">
   <div class="brandblock">
-    <div class="sub">Gestión de flota</div>
+    <div class="sub">Expreso Diemar</div>
     <h1>Consultas de clientes y cuenta corriente</h1>
   </div>
   <span class="chip" id="chip-datos"><span class="dot"></span><span id="txt-datos">Cargando…</span></span>

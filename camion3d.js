@@ -417,7 +417,7 @@ function armarVisor(clave, archivo, opciones){
   apagarVisor();
   VISOR = opciones || {};
   nodo('#visor-vacio').hidden = true;
-  const POR = { mano:'asignación manual', mapa:'configuración de neumáticos',
+  const POR = { mano:'elegido a mano', mapa:'por el mapa de cubiertas',
                 modelo:'lo dice el modelo', codigo:'por el código de Iveco',
                 equipo:'está cargado como equipo',
                 'no se sabe':'sin datos' };

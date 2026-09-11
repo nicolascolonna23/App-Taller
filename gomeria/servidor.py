@@ -75,7 +75,6 @@ class Handler(BaseHTTPRequestHandler):
             cuerpo = cuerpo.encode()
         self.send_response(codigo)
         self.send_header("Content-Type", tipo)
-        self.send_header("X-UI-Release", "2026-09-11-theme-fix")
         self.send_header("Content-Length", str(len(cuerpo)))
         self.send_header("Cache-Control", "no-store")
         if cookie:

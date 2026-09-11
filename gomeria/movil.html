@@ -1,4 +1,4 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gomería | Gestión de flota</title>
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Gomería | Diemar</title>
 <style>
 :root{color-scheme:dark;--b:#08090b;--p:#12161a;--p2:#191e23;--p3:#20262c;--l:#ffffff14;--l2:#ffffff24;--t:#edf0f2;--m:#8d959e;--o:#ffd400;--os:#ffd40020;--ok:#31bd65;--w:#f0b429;--bad:#e35d62}*{box-sizing:border-box}
 /* Que hidden signifique oculto. Cualquier regla con clase que ponga un
@@ -115,7 +115,7 @@ table.datos .flojo{color:var(--m)}
   table.puestas th:nth-child(3),table.puestas td:nth-child(3){display:none}}
 </style>
 <script src="/tema.js"></script></head><body>
-<header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
+<header class="top"><img src="/logo.png" alt="Diemar" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
 <nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
 <main><section class="panel on" id="fleet"><div class="grid"><aside class="card side"><h1>Unidades</h1><p class="sub" id="unitCount">Cargando…</p><input class="search" id="unitSearch" placeholder="Buscar patente, interno o sucursal"><div class="units" id="unitList"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div></div></section>
 <section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>

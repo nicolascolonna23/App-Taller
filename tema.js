@@ -19,8 +19,8 @@
 
   /* El color de cada paleta. Lo demás sale de él. */
   const PALETAS = {
-    diemar:'#6caeff', azul:'#3d8bfd', verde:'#22a06b',
-    violeta:'#8b7bf7', rojo:'#e5484d', grafito:'#8a94a0'
+    diemar:'#ffd400', azul:'#ffd400', verde:'#ffd400',
+    violeta:'#ffd400', rojo:'#ffd400', grafito:'#ffd400'
   };
 
   /* Los dos temas, en roles. El claro no es el oscuro dado vuelta: el
@@ -28,7 +28,7 @@
   const TEMAS = {
     oscuro: {
       esquema:'dark',
-      fondo:'#101419', panel:'#171d24', panel2:'#202832', panel3:'#293440',
+      fondo:'#080808', panel:'#111111', panel2:'#191919', panel3:'#242424',
       linea:'rgba(255,255,255,.08)', linea2:'rgba(255,255,255,.14)',
       texto:'#ffffff', texto2:'#e4e4e4', apagado:'#a5a5a5',
       sombra:'0 18px 40px rgba(0,0,0,.45)',
@@ -39,7 +39,7 @@
     },
     claro: {
       esquema:'light',
-      fondo:'#f2f5f8', panel:'#ffffff', panel2:'#e9eef4', panel3:'#dfe6ee',
+      fondo:'#f5f5f2', panel:'#ffffff', panel2:'#faf9f4', panel3:'#f1f0e9',
       linea:'rgba(0,0,0,.10)', linea2:'rgba(0,0,0,.20)',
       texto:'#121212', texto2:'#343434', apagado:'#666666',
       sombra:'0 12px 30px rgba(0,0,0,.10)',
@@ -56,9 +56,9 @@
     fondo:   ['--bg', '--bg2', '--plane', '--b'],
     panel:   ['--panel', '--surface-1', '--p', '--card'],
     panel2:  ['--panel-2', '--surface-2', '--p2', '--card2'],
-    panel3:  ['--panel-3', '--surface-3', '--p3', '--raise'],
+    panel3:  ['--surface-3', '--p3', '--raise'],
     linea:   ['--line', '--hairline', '--l', '--rule'],
-    linea2:  ['--line-2', '--hairline-2', '--l2', '--rule2'],
+    linea2:  ['--hairline-2', '--l2', '--rule2'],
     texto:   ['--ink', '--t'],
     texto2:  ['--ink-2', '--ink2'],
     apagado: ['--muted', '--ink-muted', '--m'],
@@ -98,11 +98,8 @@
     const lineas = [];
     for (const rol in NOMBRES)
       if (roles[rol] != null)
-        for (const nombre of NOMBRES[rol]) lineas.push(`${nombre}:${roles[rol]}!important;`);
-    const canales = marca.slice(1).match(/../g).map(c => parseInt(c,16)/255).map(c => c <= .04045 ? c/12.92 : ((c+.055)/1.055)**2.4);
-    const luminancia = canales[0]*.2126 + canales[1]*.7152 + canales[2]*.0722;
-    lineas.push(`--marca-ink:${luminancia > .179 ? '#101419' : '#ffffff'};`);
-    lineas.push(`color-scheme:${t.esquema}!important;`);
+        for (const nombre of NOMBRES[rol]) lineas.push(`${nombre}:${roles[rol]};`);
+    lineas.push(`color-scheme:${t.esquema};`);
     return `:root{${lineas.join('')}}`;
   }
 
@@ -139,7 +136,7 @@
      cambie al otro medio segundo después. Se guarda en el navegador y se
      refresca con lo que diga el servidor, que es el que manda. */
   const GUARDADO = 'taller.tema';
-  let prefs = { tema:'oscuro', paleta:'diemar', tiene_fondo:false, fondo_propio:true };
+  let prefs = { tema:'claro', paleta:'diemar', tiene_fondo:false, fondo_propio:true };
   try {
     const antes = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
     if (antes) prefs = Object.assign(prefs, antes);
