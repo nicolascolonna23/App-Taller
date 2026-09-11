@@ -341,7 +341,45 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el stock: {e}", 500)
 
+        # El listado de la flota como Excel. La pantalla manda qué unidades
+        # está mostrando; el contenido de cada fila se relee de la base.
+        if ruta == "/api/unidades/exportar":
+            if not self._exigir_sesion():
+                return
+            try:
+                crudo = (parse_qs(urlparse(self.path).query).get("ids") or [""])[0]
+                ids = [int(x) for x in crudo.split(",") if x.strip().isdigit()]
+                with base.conectar() as cx:
+                    cuerpo, cuantas = uni.exportar_excel(cx, ids)
+                nombre = f"flota-{datetime.date.today():%Y-%m-%d}.xlsx"
+                self.send_response(200)
+                self.send_header(
+                    "Content-Type",
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet")
+                self.send_header("Content-Disposition",
+                                 f'attachment; filename="{nombre}"')
+                self.send_header("Content-Length", str(len(cuerpo)))
+                # Un listado que se baja dos veces el mismo día no es el
+                # mismo archivo: la flota cambia durante el día.
+                self.send_header("Cache-Control", "no-store")
+                self.send_header("X-Unidades", str(cuantas))
+                self.end_headers()
+                return self.wfile.write(cuerpo)
+            except psycopg.errors.UndefinedTable:
+                return self._error(
+                    "Falta crear la vista de unidades. Corré "
+                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo armar el Excel: {e}", 500)
+
         # La ficha de una unidad: el maestro más lo que sabe cada módulo.
+        #
+        # Se queda con TODO lo que cuelgue de /api/unidades/, así que
+        # cualquier dirección nueva de ese palo va arriba de esta línea o
+        # nunca se llega: acá el nombre se lee como un id, no es un número
+        # y contesta "esa unidad no existe".
         if ruta.startswith("/api/unidades/"):
             if not self._exigir_sesion():
                 return
@@ -395,39 +433,6 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el combustible: {e}", 500)
-
-        # El listado de la flota como Excel. La pantalla manda qué unidades
-        # está mostrando; el contenido de cada fila se relee de la base.
-        if ruta == "/api/unidades/exportar":
-            if not self._exigir_sesion():
-                return
-            try:
-                crudo = (parse_qs(urlparse(self.path).query).get("ids") or [""])[0]
-                ids = [int(x) for x in crudo.split(",") if x.strip().isdigit()]
-                with base.conectar() as cx:
-                    cuerpo, cuantas = uni.exportar_excel(cx, ids)
-                nombre = f"flota-{datetime.date.today():%Y-%m-%d}.xlsx"
-                self.send_response(200)
-                self.send_header(
-                    "Content-Type",
-                    "application/vnd.openxmlformats-officedocument."
-                    "spreadsheetml.sheet")
-                self.send_header("Content-Disposition",
-                                 f'attachment; filename="{nombre}"')
-                self.send_header("Content-Length", str(len(cuerpo)))
-                # Un listado que se baja dos veces el mismo día no es el
-                # mismo archivo: la flota cambia durante el día.
-                self.send_header("Cache-Control", "no-store")
-                self.send_header("X-Unidades", str(cuantas))
-                self.end_headers()
-                return self.wfile.write(cuerpo)
-            except psycopg.errors.UndefinedTable:
-                return self._error(
-                    "Falta crear la vista de unidades. Corré "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
-            except Exception as e:
-                traceback.print_exc()
-                return self._error(f"No se pudo armar el Excel: {e}", 500)
 
         # El maestro de unidades. De acá sale la información de cada vehículo
         # para el resto del sistema, así que la pantalla lee la vista entera.
@@ -894,6 +899,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = uni.eliminar(cx, datos.get("id"), self.usuario)
+                elif (datos.get("op") or "") == "baja":
+                    # Dar de baja no es borrar: es sacarla de la operación.
+                    salida = uni.dar_de_baja(cx, datos.get("id"),
+                                             datos.get("activa"), self.usuario)
                 else:
                     salida = uni.guardar(cx, datos, self.usuario)
                 cx.commit()

@@ -689,6 +689,90 @@ def guardar(cx, datos, usuario=None):
     return una(cx, fila["id"])
 
 
+def pendientes_de(cx, unidad_id):
+    """Qué le sigue colgando a una unidad cuando se la da de baja.
+
+    Dar de baja no es hacer desaparecer: las gomas que tiene puestas
+    siguen estando arriba de un camión, una orden abierta sigue sin
+    cerrarse y un documento sigue venciendo. El sistema deja de reclamar
+    por esa unidad, así que lo que quede pendiente hay que decirlo en el
+    momento de la baja o no lo dice nadie más.
+    """
+    def contar(consulta, valores=()):
+        try:
+            return cx.execute(consulta, valores).fetchone()["n"]
+        except Exception:
+            # Ese módulo todavía no está instalado: no ata nada.
+            cx.rollback()
+            return 0
+
+    return {
+        "cubiertas": contar(
+            "select count(*) as n from montajes "
+            "where unidad_id = %s and hasta is null", (unidad_id,)),
+        "ordenes": contar(
+            "select count(*) as n from ordenes_trabajo "
+            "where unidad_id = %s and estado = 'abierta'", (unidad_id,)),
+        "vencimientos": contar(
+            "select count(*) as n from vencimientos "
+            "where unidad_id = %s and vence >= current_date", (unidad_id,)),
+    }
+
+
+def _frase_pendientes(p):
+    """«2 cubiertas montadas, 1 orden de trabajo abierta y 1 documento vigente»."""
+    # Singular y plural escritos, no armados: «órdenes» lleva tilde y
+    # «orden» no, y eso no sale de pegarle una «es» al final.
+    plantillas = (
+        ("cubiertas",    "{} cubierta montada",          "{} cubiertas montadas"),
+        ("ordenes",      "{} orden de trabajo abierta",  "{} órdenes de trabajo abiertas"),
+        ("vencimientos", "{} documento vigente",         "{} documentos vigentes"),
+    )
+    partes = [(uno if p[clave] == 1 else varios).format(p[clave])
+              for clave, uno, varios in plantillas if p[clave]]
+    # "a, b y c", no "a y b y c".
+    if len(partes) <= 1:
+        return partes[0] if partes else ""
+    return ", ".join(partes[:-1]) + " y " + partes[-1]
+
+
+def dar_de_baja(cx, unidad_id, activa, usuario=None):
+    """Saca una unidad de la operación, o la vuelve a poner.
+
+    Es una sola columna, `unidades.activa`, y de ahí sale para todos los
+    módulos: la unidad deja de aparecer en el maestro, de contar en los
+    tableros, de pedir service y de reclamar cubiertas o documentos.
+
+    No se borra nada. El combustible que cargó, las órdenes que tuvo y
+    las gomas que usó siguen en su lugar: son historia que pasó, y
+    hacerla desaparecer cambiaría números de meses ya cerrados.
+    """
+    _exigir_gestor(usuario, "dar de baja una unidad")
+
+    unidad = una(cx, unidad_id)
+    if not unidad:
+        raise ValueError("Esa unidad no existe.")
+
+    activa = bool(activa)
+    if bool(unidad["activa"]) == activa:
+        raise ValueError("Esa unidad ya está " + ("activa." if activa else "de baja."))
+
+    pendientes = pendientes_de(cx, unidad_id) if not activa else None
+    cx.execute("update unidades set activa = %s, actualizado = now() where id = %s",
+               (activa, unidad_id))
+
+    if activa:
+        return {"activa": True, "unidad": una(cx, unidad_id),
+                "aviso": f"{base_fmt(unidad['patente'])} vuelve a la operación."}
+
+    frase = _frase_pendientes(pendientes)
+    aviso = f"{base_fmt(unidad['patente'])} queda de baja. Deja de aparecer y de avisar en todos los módulos; la historia no se toca."
+    if frase:
+        aviso += f" Ojo: tenía {frase}. Eso no se cierra solo."
+    return {"activa": False, "unidad": una(cx, unidad_id),
+            "pendientes": pendientes, "aviso": aviso}
+
+
 def eliminar(cx, unidad_id, usuario=None):
     """Borra la unidad, si no tiene historia colgando.
 

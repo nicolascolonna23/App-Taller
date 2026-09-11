@@ -401,6 +401,7 @@
     </div>
 
     <div class="pie">
+      <button type="button" class="btn roja" id="baja" hidden>Dar de baja</button>
       <button type="button" class="btn roja" id="borrar" hidden>Eliminar</button>
       <div class="der">
         <button type="button" class="btn gris" id="cerrar">Cancelar</button>
@@ -645,6 +646,13 @@ function abrir(u){
   }
 
   $('#borrar').hidden = !u || !PUEDE;
+  const bt = $('#baja');
+  bt.hidden = !u || !PUEDE;
+  if (u) {
+    bt.textContent = u.activa ? 'Dar de baja' : 'Reactivar';
+    bt.classList.toggle('roja', !!u.activa);
+    bt.classList.toggle('gris', !u.activa);
+  }
   $('#guardar').disabled = !PUEDE;
   $('#fondo').hidden = false;
   $('#c-patente').focus();
@@ -1043,6 +1051,31 @@ $('#ficha').onsubmit = async e => {
   try { await mandar(cuerpo); cerrar(); await cargar(); }
   catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
   finally { $('#guardar').disabled = false; }
+};
+
+/* Dar de baja saca la unidad de la operación en todos los módulos a la
+   vez: es una sola columna, `activa`, y todo lo operativo la mira. No
+   borra nada — el combustible que cargó, las órdenes que tuvo y las gomas
+   que usó siguen donde estaban. */
+$('#baja').onclick = async () => {
+  if (!EDITANDO) return;
+  const pat = fmtPat(EDITANDO.patente);
+  const activar = !EDITANDO.activa;
+
+  if (!confirm(activar
+      ? `¿Reactivar ${pat}?\n\nVuelve a aparecer en el maestro, a contar en los ` +
+        `tableros y a pedir service, cubiertas y documentos.`
+      : `¿Dar de baja ${pat}?\n\nDeja de aparecer y de avisar en todos los ` +
+        `módulos: flota, services, gomería, vencimientos y alertas.\n\n` +
+        `No se borra nada: el combustible que cargó, las órdenes que tuvo y ` +
+        `las gomas que usó quedan como están.\n\nSe puede reactivar cuando quieras.`)) return;
+
+  try {
+    const d = await mandar({ op:'baja', id: EDITANDO.id, activa: activar });
+    await cargar();
+    abrir(DATOS.unidades.find(u => u.id === EDITANDO.id) || null);
+    if (d.aviso) { $('#ficha-aviso').textContent = d.aviso; $('#ficha-aviso').hidden = false; }
+  } catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
 };
 
 $('#borrar').onclick = async () => {
