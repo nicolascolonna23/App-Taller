@@ -45,6 +45,8 @@ import servidor as gom
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/inicio-dashboard.css": ("inicio-dashboard.css", "text/css; charset=utf-8"),
+    "/inicio-dashboard.js": ("inicio-dashboard.js", "text/javascript; charset=utf-8"),
     "/sistema.css": ("sistema.css", "text/css; charset=utf-8"),
     "/pengui.js": ("pengui.js", "text/javascript; charset=utf-8"),
     "/":           ("inicio.html",             "text/html; charset=utf-8"),
