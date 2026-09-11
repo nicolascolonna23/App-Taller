@@ -19,7 +19,7 @@
 
   /* El color de cada paleta. Lo demás sale de él. */
   const PALETAS = {
-    diemar:'#6caeff', azul:'#3d8bfd', verde:'#22a06b',
+    diemar:'#ffd400', azul:'#3d8bfd', verde:'#22a06b',
     violeta:'#8b7bf7', rojo:'#e5484d', grafito:'#8a94a0'
   };
 

@@ -131,6 +131,7 @@ html[data-modo="claro"] .workspace::after{display:none}
 @media(max-width:980px){html[data-modo="claro"] .visual::before{background:var(--portada) 62% center/cover no-repeat}}
 </style>
 <script src="/tema.js"></script>
+<link rel="stylesheet" href="/inicio-dashboard.css">
 </head>
 <body class="operations-home">
 <div class="shell">
@@ -151,32 +152,45 @@ html[data-modo="claro"] .workspace::after{display:none}
   <main>
     <header class="topbar"><div class="context"><b>Operación de hoy</b><span id="fecha">Cargando fecha…</span></div><div class="top-actions"><div class="alerts-menu" id="alertas-menu"><button class="alerts-button" id="alertas-btn" type="button" aria-label="Abrir alertas" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="alerts-badge" id="alertas-badge" hidden>0</span></button><section class="alerts-popover" id="alertas-popover" hidden aria-label="Alertas operativas"><div class="alerts-popover-head"><strong>Alertas</strong><span id="alertas-resumen">En vivo</span></div><div class="alerts-list" id="alertas-list"><div class="alerts-empty">Cargando…</div></div><a class="alerts-all" href="/alertas">Ver todas las alertas</a></section></div><div class="person" id="quien"><span class="avatar">DN</span></div></div></header>
     <div class="workspace">
-      <section class="visual" aria-hidden="true"></section>
       <section class="summary" aria-label="Resumen operativo">
-        <div class="summary-head"><h2>Resumen operativo</h2><span>Datos actualizados</span></div>
+        <div class="summary-head"><div><p class="dashboard-eyebrow">Centro operativo</p><h1>Actividad de la flota</h1></div><div class="dashboard-context"><a class="alert-mini" href="/alertas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 8v5m0 4h.01M10.3 4 2.7 17.2a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/></svg><strong id="alert-mini-count">Consultando alertas…</strong><small id="alert-mini-priority"></small><b aria-hidden="true">↗</b></a><span id="dashboard-status" role="status">Actualizando datos…</span></div></div>
         <div class="card km" id="km">
           <div class="km-head">
             <span><b>Kilómetros de la flota</b><small id="km-pie">Telemetría</small></span>
             <div class="km-tabs">
-              <button type="button" data-p="ayer" class="on">Ayer</button>
-              <button type="button" data-p="semana">7 días</button>
-              <button type="button" data-p="mes">30 días</button>
+              <button type="button" data-p="ayer" class="on" aria-pressed="true">Ayer</button>
+              <button type="button" data-p="semana" aria-pressed="false">7 días</button>
+              <button type="button" data-p="mes" aria-pressed="false">30 días</button>
             </div>
           </div>
           <div class="km-num"><b id="km-valor">—</b><span>km</span></div>
           <p class="km-sub" id="km-sub">Cargando…</p>
+          <div class="chart-heading"><h2>Distancia diaria</h2><span id="km-chart-period">Últimos 7 días</span></div>
+          <div id="km-chart" class="daily-chart"><p class="dashboard-empty">Cargando recorrido…</p></div>
+          <div id="km-chart-labels" class="chart-labels" aria-hidden="true"></div>
+          <details class="chart-data"><summary>Ver datos del gráfico</summary><div id="km-chart-table"></div></details>
         </div>
-        <div class="card km" id="consumo" hidden>
+        <div class="card km" id="consumo">
           <a class="km-head" href="/combustible" style="color:inherit;text-decoration:none"><span><b>Consumo de la flota</b><small>del módulo de combustible</small></span></a>
           <div class="km-num"><b id="cons-valor">—</b><span>L/100 km</span></div>
           <p class="km-sub" id="cons-sub"></p>
+          <div class="chart-heading"><h2>Comparación mensual</h2><span>L/100 km</span></div>
+          <div id="fuel-chart" class="fuel-chart"><p class="dashboard-empty">Cargando consumo…</p></div>
+          <p class="chart-note" id="fuel-note">Consumo ponderado por distancia · meses cerrados.</p>
         </div>
+        <section class="card dashboard-alerts" aria-labelledby="dashboard-alert-title">
+          <div class="dashboard-section-head"><h2 id="dashboard-alert-title">Alertas operativas</h2><a href="/alertas">Ver todas <span aria-hidden="true">↗</span></a></div>
+          <div class="alert-overview"><strong id="dashboard-alert-count">—</strong><span id="dashboard-alert-state">Consultando estado</span><span class="critical-label" id="dashboard-alert-critical" hidden></span></div>
+          <div id="dashboard-alert-meter" class="alert-meter" hidden></div>
+          <div id="dashboard-alert-list"><p class="dashboard-empty">Cargando alertas…</p></div>
+        </section>
         <div class="stat-grid"><a class="card stat" href="/gomeria" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg></span><span><b id="st-unidades">—</b><small>unidades activas</small></span></a><a class="card stat" href="/repuestos" style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/></svg></span><span><b id="st-reponer">—</b><small>artículos a reponer</small></span></a><a class="card stat ancho" href="/ordenes" id="st-caja-ordenes" hidden style="color:inherit;text-decoration:none"><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg></span><span><b id="st-ordenes">—</b><small>en el taller con orden abierta</small></span></a></div>
         <div class="card notice" id="aviso" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 9v4m0 4h.01M10.2 4.1 2.6 18a2 2 0 0 0 1.75 3h15.3A2 2 0 0 0 21.4 18L13.8 4.1a2 2 0 0 0-3.6 0Z"/></svg><div><b>Para revisar</b><p id="aviso-txt">Revisando el stock…</p></div></div>
       </section>
     </div>
   </main>
 </div>
+<script src="/inicio-dashboard.js"></script>
 <script>
 "use strict";const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));document.getElementById('fecha').textContent=new Intl.DateTimeFormat('es-AR',{weekday:'long',day:'numeric',month:'long'}).format(new Date());fetch('/api/yo').then(r=>r.ok?r.json():null).then(d=>{if(d)document.getElementById('quien').innerHTML=`<span class="avatar">${esc(d.nombre).slice(0,1).toUpperCase()}</span><span>${esc(d.nombre)}</span>`}).catch(()=>{});
 /* Los kilómetros que recorrió la flota, de las lecturas Telemetría que
@@ -188,13 +202,15 @@ const ROTULO={ayer:'ayer',semana:'los últimos 7 días',mes:'los últimos 30 dí
 const CONTRA={ayer:'anteayer',semana:'los 7 anteriores',mes:'los 30 anteriores'};
 let RECORRIDO=null,PERIODO='ayer';
 function pintarKm(){
+  InicioDashboard.kilometros(RECORRIDO, PERIODO);
   const valor=document.getElementById('km-valor'),pie=document.getElementById('km-sub');
   const a=RECORRIDO&&RECORRIDO[PERIODO];
   if(!a||a.km==null){valor.textContent='—';pie.textContent='Sin lecturas suficientes para '+ROTULO[PERIODO]+'.';return}
   valor.textContent=nfm.format(a.km);
-  let txt=`${a.unidades} unidad${a.unidades===1?'':'es'} con lecturas · ${a.desde} a ${a.hasta}`;
+  const fechaCorta=f=>String(f).slice(8,10)+'/'+String(f).slice(5,7);
+  let txt=`${a.unidades} unidad${a.unidades===1?'':'es'} con lecturas · ${fechaCorta(a.desde)}`;
+  if(a.desde!==a.hasta)txt+=' – '+fechaCorta(a.hasta);
   if(a.unidades_completas<a.unidades)txt+=' · cobertura parcial';
-  txt+=' · diferencias entre lecturas diarias de Hawk';
   const b=RECORRIDO[PREVIO[PERIODO]];
   /* Solo se compara si el período anterior tiene una cobertura parecida: la
      serie arranca el 29 de julio, así que contra un mes con cuatro días
@@ -207,11 +223,12 @@ function pintarKm(){
 }
 document.querySelectorAll('.km-tabs button').forEach(b=>b.addEventListener('click',()=>{
   PERIODO=b.dataset.p;
-  document.querySelectorAll('.km-tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.km-tabs button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});
   pintarKm();
 }));
 fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
-  if(!d)return;
+  if(!d)throw Error('No se pudo actualizar el resumen.');
+  document.getElementById('dashboard-status').textContent='Datos actualizados';
   RECORRIDO=d.recorrido||null;pintarKm();
   const totalAlertas=d.alertas&&d.alertas.total||0;
   const badge=document.getElementById('alertas-badge');
@@ -222,7 +239,7 @@ fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
   const poner=(id,v)=>{const e=document.getElementById(id);if(e&&v!=null)e.textContent=nfm.format(v)};
   poner('st-unidades',d.unidades);poner('st-reponer',d.reponer);
   pintarConsumo(d.combustible);
-  if(d.ordenes_abiertas){poner('st-ordenes',d.ordenes_abiertas);
+  if(d.ordenes_abiertas!=null){poner('st-ordenes',d.ordenes_abiertas);
     document.getElementById('st-caja-ordenes').hidden=false}
   if(d.km_fecha)document.getElementById('km-pie').textContent=
     'última lectura '+d.km_fecha.slice(8,10)+'/'+d.km_fecha.slice(5,7);
@@ -247,7 +264,7 @@ fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
       (donde.length?' Entrá a '+donde.join(' y ')+'.':'');
     document.getElementById('aviso').hidden=false;
   }
-}).catch(()=>{});
+}).catch(()=>{InicioDashboard.error();});
 /* =====================================================================
    Consumo de la flota
    ---------------------------------------------------------------------
@@ -269,6 +286,7 @@ const mesLabel=m=>{const p=String(m).split('-');
   return p.length===2?`${MESES_AR[+p[1]-1]} ${p[0].slice(2)}`:m};
 
 function pintarConsumo(c){
+  InicioDashboard.consumo(c);
   if(!c||!c.mes){document.getElementById('consumo').hidden=false;document.getElementById('cons-sub').textContent='Sin datos del último mes cerrado'+(c&&c.esperado?' · '+mesLabel(c.esperado.slice(0,7)):'');return;}
   const m=c.mes,b=c.previo;
   const caja=document.getElementById('consumo');
@@ -276,7 +294,7 @@ function pintarConsumo(c){
   document.getElementById('cons-valor').textContent=
     m.litros_100km!=null?nf1.format(m.litros_100km):'—';
   let txt=mesLabel(String(m.mes).slice(0,7));
-  if(b&&b.litros_100km&&m.litros_100km!=null){
+  if(b&&b.litros_100km&&m.litros_100km!=null&&!m.sin_consumo&&!b.sin_consumo){
     const p=(m.litros_100km-b.litros_100km)/b.litros_100km*100;
     /* Acá subir es peor: el verde va cuando el consumo baja. */
     txt+=` · <span class="${p<=0?'sube':'baja'}">${p>=0?'+':''}${nf1.format(p)}%</span>`+
@@ -300,13 +318,16 @@ async function cargarAlertas(){
   try{
     const r=await fetch('/api/alertas');const d=await r.json();
     if(!r.ok)throw Error(d.error||'No se pudieron cargar las alertas.');
+    InicioDashboard.alertas(d);
     if(!d.instalado){lista.innerHTML=`<div class="alerts-empty">${esc(d.aviso||'Alertas no configuradas.')}</div>`;return}
     const filas=(d.alertas||[]).slice(0,6);
     const resumen=d.resumen||{};
     document.getElementById('alertas-resumen').textContent=`${resumen.total||0} activas`;
     lista.innerHTML=filas.length?filas.map(a=>`<a class="alert-item ${esc(a.severidad||'')}" href="${esc(a.enlace||'/alertas')}"><b>${esc(a.titulo||a.modulo||'Alerta')}</b><small>${esc(a.detalle||a.modulo||'Requiere revisión')}</small></a>`).join(''):'<div class="alerts-empty">No hay alertas activas.</div>';
-  }catch(e){lista.innerHTML=`<div class="alerts-empty">${esc(e.message)}</div>`}
+  }catch(e){lista.innerHTML=`<div class="alerts-empty">${esc(e.message)}</div>`;InicioDashboard.alertasError();}
 }
+alertasCargadas=true;
+cargarAlertas();
 alertasBtn.addEventListener('click',async()=>{
   const abrir=alertasPopover.hidden;alertasPopover.hidden=!abrir;
   alertasBtn.setAttribute('aria-expanded',String(abrir));

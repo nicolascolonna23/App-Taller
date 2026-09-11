@@ -14,7 +14,7 @@ import json
 # Las paletas. El color es lo único que cambia entre una y otra: el resto
 # de la pantalla sale de ahí. La primera es la de la empresa.
 PALETAS = (
-    ("diemar",   "Predeterminado", "#6caeff"),
+    ("diemar",   "Predeterminado", "#ffd400"),
     ("azul",     "Azul",      "#3d8bfd"),
     ("verde",    "Verde",     "#22a06b"),
     ("violeta",  "Violeta",   "#8b7bf7"),

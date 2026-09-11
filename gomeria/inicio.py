@@ -65,6 +65,17 @@ def _resumir_km(filas, hoy):
             "desde": desde.isoformat(), "hasta": hasta.isoformat(),
             "comparar": False,
         }
+        por_dia = {}
+        for unidad, fecha, km in seleccion:
+            punto = por_dia.setdefault(fecha, {"km": 0, "unidades": 0})
+            punto["km"] += float(km)
+            punto["unidades"] += 1
+        salida[periodo]["serie"] = [
+            {"fecha": (desde + timedelta(days=i)).isoformat(),
+             "km": por_dia.get(desde + timedelta(days=i), {}).get("km"),
+             "unidades": por_dia.get(desde + timedelta(days=i), {}).get("unidades", 0)}
+            for i in range(dias)
+        ]
     for actual, previo in (("ayer", "ayer_previo"), ("semana", "semana_previa"), ("mes", "mes_previo")):
         completas, unidades = coberturas[actual]
         anteriores_completas, anteriores_unidades = coberturas[previo]

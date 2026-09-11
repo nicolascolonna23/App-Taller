@@ -1,0 +1,59 @@
+/* A full-width operational workspace, with one natural page scroll. */
+body.operations-home main{height:auto;min-height:100vh;display:block;overflow:visible}
+body.operations-home .workspace{display:block;padding:22px clamp(18px,2.5vw,38px) 130px;min-height:0}
+body.operations-home .workspace::before{display:block;opacity:.07;pointer-events:none;background:var(--portada,url('/inicio-camion-hero.jpg')) center/cover no-repeat}
+body.operations-home .workspace::after{display:none}
+body.operations-home .summary{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;overflow:visible;max-width:1500px;margin:0 auto}
+body.operations-home .summary>*{min-width:0;margin:0}
+body.operations-home .summary-head{grid-column:1/-1;align-items:center;padding:0 0 6px;text-shadow:none}
+.dashboard-eyebrow{margin:0 0 7px;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+.dashboard-context{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.alert-mini{display:flex;align-items:center;gap:10px;padding:10px 13px;background:var(--panel);border:1px solid var(--line);border-radius:6px;color:var(--ink);text-decoration:none;font-size:13px}.alert-mini>svg{color:var(--warn,#f0b429);flex:none}.alert-mini strong{font-weight:600}.alert-mini small{color:var(--muted);font-size:12px}.alert-mini:hover{border-color:var(--brand)}
+body.operations-home .summary-head h1{margin:0;font-size:clamp(24px,2.3vw,32px);letter-spacing:-.04em;font-weight:600;line-height:1.2}
+body.operations-home .summary-head span{font-size:12px;max-width:230px;text-align:right;color:var(--muted);text-shadow:none}
+body.operations-home .summary .card{padding:20px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:none;backdrop-filter:none}
+body.operations-home .km{grid-column:auto;display:flex;flex-direction:column}
+body.operations-home .km-head b{font-size:15px;font-weight:600}
+body.operations-home .km-head small{font-size:12px;margin-top:6px}
+body.operations-home .km-tabs{padding:3px;gap:2px;background:var(--panel-2)}
+body.operations-home .km-tabs button{font-size:12px;padding:7px 10px}
+body.operations-home .km-num{margin-top:16px;gap:9px}
+body.operations-home .km-num b{font-size:clamp(32px,3.3vw,46px);line-height:1.1;font-weight:600;letter-spacing:-.05em}
+body.operations-home .km-num span{font-size:14px}
+body.operations-home .km-sub{font-size:12px;line-height:1.5;min-height:32px;margin:8px 0 10px;color:var(--muted)}
+body.operations-home #km .km-sub span{color:var(--ink-2)}
+.chart-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 10px}
+.chart-heading h2{font-size:13px;margin:0;font-weight:500;color:var(--ink-2)}
+.chart-heading>span{font-size:12px;color:var(--muted)}
+.daily-chart{position:relative;height:120px;display:flex;gap:12px}
+.chart-scale{display:flex;flex-direction:column;justify-content:space-between;align-items:flex-end;flex:none;font-size:11px;color:var(--muted);width:68px;padding-bottom:1px}
+.daily-columns{flex:1;display:flex;align-items:end;gap:clamp(3px,.9vw,14px);min-width:0;border-bottom:1px solid var(--line);background:repeating-linear-gradient(to top,transparent 0,transparent calc(50% - 1px),var(--line) calc(50% - 1px),var(--line) 50%)}
+.daily-column{position:relative;flex:1;max-width:64px;min-width:0;height:100%;display:flex;align-items:end;outline-offset:3px}
+.daily-bar{width:100%;border-radius:3px 3px 0 0;background:var(--brand);min-height:2px}
+html[data-modo="claro"] .daily-bar,html[data-modo="claro"] .fuel-row.current .fuel-track>div{box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--brand) 60%,#000)}
+html[data-modo="claro"] body.operations-home .avatar,html[data-modo="claro"] body.operations-home .stat .icon{color:var(--ink)}
+.daily-column.missing .daily-bar{height:3px!important;min-height:0;background:var(--muted);opacity:.5}
+.chart-tooltip{display:none;position:absolute;z-index:5;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:max-content;max-width:180px;padding:8px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);color:var(--ink);font-size:12px;box-shadow:0 6px 16px #0003}
+.daily-column:hover .chart-tooltip,.daily-column:focus-visible .chart-tooltip{display:block}
+.daily-column:first-child .chart-tooltip{left:0;transform:none}.daily-column:last-child .chart-tooltip{left:auto;right:0;transform:none}
+.chart-labels{display:flex;justify-content:space-between;padding-left:80px;margin-top:9px;color:var(--muted);font-size:11px}
+.chart-data{margin-top:16px;font-size:12px;color:var(--muted)}
+.chart-data summary{cursor:pointer;width:max-content}.chart-data>div{overflow:auto;max-height:250px;margin-top:12px}.chart-data table{width:100%;border-collapse:collapse}.chart-data th,.chart-data td{padding:8px;text-align:left;border-bottom:1px solid var(--line)}.chart-data caption{text-align:left;margin-bottom:8px}
+.fuel-chart{display:grid;gap:14px;margin:0 0 12px}
+.fuel-row-label{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px;font-size:13px;color:var(--ink-2)}
+.fuel-row-label strong{font-size:18px;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
+.fuel-track{height:13px;background:var(--panel-2);border-radius:3px;overflow:hidden}.fuel-track>div{height:100%;background:var(--muted);border-radius:3px}.fuel-row.current .fuel-track>div{background:var(--brand)}
+.fuel-row small{display:block;color:var(--muted);font-size:12px;margin-top:7px}
+.chart-note{font-size:12px;line-height:1.5;color:var(--muted);margin:auto 0 0;padding-top:10px;border-top:1px solid var(--line)}
+.dashboard-section-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.dashboard-section-head h2{font-size:15px;font-weight:600;margin:0}.dashboard-section-head a{font-size:12px;color:var(--ink-2);text-decoration:none}.dashboard-section-head a:hover{text-decoration:underline}
+.alert-overview{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:18px 0 14px}.alert-overview>strong{font-size:34px;letter-spacing:-.04em;font-weight:600}.alert-overview>span{font-size:13px;color:var(--muted)}.alert-overview .critical-label{margin-left:auto;color:var(--bad);font-size:12px}
+.alert-meter{display:flex;gap:3px;height:5px;border-radius:3px;overflow:hidden;margin-bottom:14px}.alert-meter .grave{background:var(--bad)}.alert-meter .media{background:var(--warn,#f0b429)}.alert-meter .leve{background:var(--muted)}
+.dashboard-alert-row{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}.dashboard-alert-row:last-child{border-bottom:0;padding-bottom:0}.dashboard-alert-row:hover strong{text-decoration:underline}.dashboard-alert-row>span:nth-child(2){flex:1;min-width:0}.dashboard-alert-row strong{display:block;font-size:13px;font-weight:500;line-height:1.4}.dashboard-alert-row small{display:block;font-size:12px;line-height:1.5;color:var(--muted);margin-top:3px}.severity{min-width:44px;font-size:11px;border:1px solid var(--line);padding:4px 6px;border-radius:4px;text-align:center;color:var(--ink-2)}.severity.grave{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 35%,transparent)}
+.dashboard-empty{font-size:13px;color:var(--muted);line-height:1.6;margin:16px 0;align-self:center}.dashboard-empty a{color:inherit}
+body.operations-home .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-content:start}
+body.operations-home .stat{min-height:130px;gap:14px}body.operations-home .stat b{font-size:30px;font-weight:600}body.operations-home .stat small{font-size:12px;line-height:1.5}
+body.operations-home .stat.ancho{grid-column:1/-1;min-height:100px}body.operations-home #aviso{display:none}
+@media(min-width:981px){body.operations-home .topbar{position:sticky;top:0;z-index:10}body.operations-home .sidebar{height:100vh}}
+@media(max-width:1150px){body.operations-home .km-head{flex-wrap:wrap}body.operations-home .summary .card{padding:20px}}
+@media(max-width:760px){body.operations-home .summary{grid-template-columns:minmax(0,1fr);gap:16px}body.operations-home .workspace{padding:22px 16px 120px}body.operations-home .summary-head{align-items:start;gap:12px}body.operations-home .summary-head span{max-width:110px}body.operations-home .km-head{flex-wrap:wrap;gap:14px}body.operations-home .km-num b{font-size:38px}.dashboard-alerts{grid-row:4}.chart-tooltip{max-width:135px}.alert-overview .critical-label{margin-left:0}}
+@media(max-width:760px){body.operations-home .summary-head{flex-wrap:wrap}.dashboard-context{width:100%;align-items:stretch}.alert-mini{flex-wrap:wrap}.alert-mini b{margin-left:auto}body.operations-home .summary-head #dashboard-status{max-width:none;text-align:left}}

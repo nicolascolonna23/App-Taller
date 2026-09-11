@@ -21,6 +21,16 @@ class Inicio(unittest.TestCase):
         self.assertEqual(_resumir_km(rows, hoy)['ayer']['km'], 0)
         self.assertIsNone(_resumir_km([], hoy)['ayer']['km'])
 
+    def test_daily_series_preserves_gaps_zero_and_total(self):
+        rows = [dict(unidad_id=1, fecha=date(2026,9,d), km=km)
+                for d, km in [(1,100),(2,180),(3,180),(5,250),(6,310)]]
+        result = _resumir_km(rows, date(2026,9,8))['semana']
+        self.assertEqual(len(result['serie']), 7)
+        self.assertEqual([p['km'] for p in result['serie']], [None,80,0,None,None,60,None])
+        self.assertEqual(sum(p['km'] or 0 for p in result['serie']), result['km'])
+        self.assertEqual(result['serie'][1]['unidades'], 1)
+        self.assertEqual(result['serie'][3]['unidades'], 0)
+
     def test_reset_gap_and_impossible_jump_are_excluded(self):
         rows = [dict(unidad_id=1, fecha=date(2026,9,d), km=km)
                 for d, km in [(1,1000),(2,1100),(3,10),(4,60),(6,200),(7,8000)]]
