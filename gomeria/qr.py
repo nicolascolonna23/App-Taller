@@ -86,7 +86,7 @@ CARTEL = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
   <div style="margin-left:7mm" class="ej">&ldquo;AD 247 MQ gir&eacute; las dos de afuera del lado izquierdo&rdquo;</div>
   <div><b>3.</b> Revis&aacute; lo que entendi&oacute; y confirm&aacute;.</div>
 </div>
-<div class="pie">Expreso Diemar</div>
+<div class="pie">Gestión de flota</div>
 </body></html>"""
 
 
@@ -131,7 +131,7 @@ def main():
             f'<div class="et">{svg_qr(url)}'
             f'<div class="pat">{fmt_pat(f["patente"])}</div>'
             f'<div class="sub">{sub}</div>'
-            f'<div class="marca">Gomería Diemar</div></div>')
+            f'<div class="marca">Gomería</div></div>')
 
     aviso = (f"{len(filas)} etiquetas · apuntan a {base_url} · "
              f"Ctrl+P para imprimir. Este texto no sale impreso.")

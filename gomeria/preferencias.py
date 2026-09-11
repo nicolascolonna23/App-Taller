@@ -14,14 +14,14 @@ import json
 # Las paletas. El color es lo único que cambia entre una y otra: el resto
 # de la pantalla sale de ahí. La primera es la de la empresa.
 PALETAS = (
-    ("diemar",   "Diemar",    "#ffd400"),
+    ("diemar",   "Predeterminado", "#6caeff"),
     ("azul",     "Azul",      "#3d8bfd"),
     ("verde",    "Verde",     "#22a06b"),
     ("violeta",  "Violeta",   "#8b7bf7"),
     ("rojo",     "Rojo",      "#e5484d"),
     ("grafito",  "Grafito",   "#8a94a0"),
 )
-TEMAS = (("oscuro", "Oscuro"), ("claro", "Claro"), ("auto", "El del sistema"))
+TEMAS = (("oscuro", "Oscuro"), ("claro", "Claro"), ("auto", "Sistema"))
 
 # Lo que pesa como mucho una foto de portada. Una foto de celular ronda
 # los 3 MB; más que esto es una foto sin achicar, y tarda en cargar cada
@@ -33,10 +33,10 @@ TIPOS = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}
 def _limpiar(prefs):
     """Deja solo lo que se entiende, con lo de siempre para el resto."""
     prefs = prefs if isinstance(prefs, dict) else {}
-    tema = str(prefs.get("tema") or "claro").lower()
+    tema = str(prefs.get("tema") or "oscuro").lower()
     paleta = str(prefs.get("paleta") or "diemar").lower()
     return {
-        "tema": tema if tema in {t[0] for t in TEMAS} else "claro",
+        "tema": tema if tema in {t[0] for t in TEMAS} else "oscuro",
         "paleta": paleta if paleta in {p[0] for p in PALETAS} else "diemar",
         # Si subió una foto, se usa; el interruptor es para volver a la de
         # la empresa sin tener que borrarla.

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Combustible | Diemar</title>
+<title>Combustible | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
     --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
     --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
-    --brand:#ffd400; --brand-soft:rgba(255,122,26,.13);
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
     --ok:#31bd65; --warn:#f0b429; --bad:#e35d62; --info:#3987e5;
   }
   *{box-sizing:border-box}
@@ -27,7 +27,7 @@
   .top img{height:27px}
   .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
     padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
-  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
   .marca{font-size:11px;letter-spacing:2px;text-transform:uppercase;
     color:var(--ink-muted);font-weight:800}
   .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
@@ -152,7 +152,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
 <body>
 
 <header class="top">
-  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
   <span class="marca">Combustible</span>
   <span class="who" id="quien"></span>
@@ -567,7 +567,7 @@ function pintarFlota(){
     tarjeta('dato', plata(t.importe), 'Gastado en el mes'),
     tarjeta('dato', t.precio_litro == null ? '—' : '$ ' + nf.format(t.precio_litro),
             'Precio por litro', 'promedio de lo cargado'),
-    tarjeta('dato', t.km == null ? '—' : nf0.format(t.km) + ' km', 'Recorrido', 'del satelital'),
+    tarjeta('dato', t.km == null ? '—' : nf0.format(t.km) + ' km', 'Recorrido', 'Telemetría'),
     tarjeta('consumo', t.litros_100km == null ? '—' : nf.format(t.litros_100km),
             'Litros cada 100 km', 'de la flota entera'),
     tarjeta('dato', t.pesos_km == null ? '—' : '$ ' + nf.format(t.pesos_km), 'Por kilómetro'),
@@ -579,7 +579,7 @@ function pintarFlota(){
   $('#aviso-flota').hidden = !fuera;
   if (fuera) $('#aviso-flota').innerHTML =
     `<b>${fuera}</b> unidad${fuera === 1 ? '' : 'es'} quedó fuera del consumo por no tener ` +
-    `kilómetros del satelital ese mes${t.litros_sin_consumo
+    `kilómetros Telemetría ese mes${t.litros_sin_consumo
       ? ` — son ${nf0.format(t.litros_sin_consumo)} litros` : ''}. ` +
     `El gasto sí está contado; el <b>L/100 km</b> se calcula solo sobre las que ` +
     `tienen kilómetros, porque mezclarlas daría un consumo inventado.`;

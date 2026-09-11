@@ -1,11 +1,11 @@
 <!doctype html><html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Configuración | Diemar</title>
+<title>Configuración | Gestión de flota</title>
 <style>
 :root{color-scheme:dark;--bg:#090b0e;--panel:#12171c;--panel-2:#171e24;--panel-3:#20262c;
   --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
   --ink:#f3f5f6;--ink-2:#c5cbd0;--muted:#9099a4;
-  --orange:#ffd400;--orange-soft:rgba(255,122,26,.13);
+  --orange:#ffd400;--orange-soft:color-mix(in srgb,var(--brand) 13%,transparent);
   --ok:#31bd65;--bad:#e35d62;--radius:16px}
 *{box-sizing:border-box}
 html,body{min-height:100%;margin:0}
@@ -59,38 +59,35 @@ input[type=file]{display:none}
 <script src="/tema.js"></script>
 </head><body>
 <header class="top">
-  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
   <a class="volver" href="/">‹ Inicio</a>
   <span class="donde">Configuración</span>
   <span class="quien" id="quien"></span>
 </header>
 <main>
-  <h1>Personalización</h1>
-  <p class="sub">Es tuya: se guarda en tu usuario y te sigue a la computadora del
-    taller y al celular. Nadie más la ve.</p>
+  <h1>Apariencia</h1>
+  <p class="sub">Las preferencias se guardan en su cuenta y se aplican en todos sus dispositivos.</p>
 
   <section>
     <h2>Tema</h2>
-    <p class="ayuda">Oscuro para el taller, claro para la oficina. Con
-      <b>el del sistema</b> sigue lo que tengas puesto en la computadora.</p>
+    <p class="ayuda">Seleccione un tema o utilice la configuración del sistema.</p>
     <div class="opciones" id="temas"></div>
   </section>
 
   <section>
     <h2>Color</h2>
-    <p class="ayuda">El color de los botones, los números y lo que está elegido.</p>
+    <p class="ayuda">Color de acento para botones, accesos y elementos seleccionados.</p>
     <div class="opciones" id="paletas"></div>
   </section>
 
   <section>
     <h2>Foto de portada</h2>
-    <p class="ayuda">La que se ve atrás en el inicio. Podés subir la tuya: una foto
-      de la flota, de tu sucursal, la que quieras. La ve tu usuario y nadie más.</p>
+    <p class="ayuda">Imagen de fondo del inicio, visible únicamente en su cuenta.</p>
     <div class="portada" id="portada"><span class="cartel" id="portada-pie"></span></div>
     <div class="acciones">
       <button type="button" class="btn principal" id="subir">Subir una foto</button>
       <button type="button" class="btn" id="usar" hidden></button>
-      <button type="button" class="btn" id="sacar" hidden>Sacar la mía</button>
+      <button type="button" class="btn" id="sacar" hidden>Eliminar imagen</button>
       <input type="file" id="archivo" accept="image/jpeg,image/png,image/webp">
     </div>
     <p class="aviso" id="aviso" hidden></p>
