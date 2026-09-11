@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Flota | Diemar</title>
+<title>Flota | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
     --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
     --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
-    --brand:#ffd400; --brand-soft:rgba(255,122,26,.13);
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
     --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
   }
   *{box-sizing:border-box}
@@ -27,7 +27,7 @@
   .top img{height:27px}
   .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
     padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
-  .back:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
   .marca{font-size:11px;letter-spacing:2px;text-transform:uppercase;
     color:var(--ink-muted);font-weight:800}
   .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
@@ -78,7 +78,7 @@
   .pat{font-weight:700;letter-spacing:.4px}
   .chip{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;
     font-weight:700;letter-spacing:.5px;background:var(--surface-3);color:var(--ink-2)}
-  .chip.lad{background:rgba(255,122,26,.15);color:var(--brand)}
+  .chip.lad{background:color-mix(in srgb,var(--brand) 15%,transparent);color:var(--brand)}
   .chip.equipo{background:rgba(57,135,229,.15);color:#7db3ef}
   .apagado{color:var(--ink-muted)}
   .vacio{padding:40px;text-align:center;color:var(--ink-muted)}
@@ -96,7 +96,7 @@
   table.armados td:first-child{font-weight:700}
   table.armados .n{text-align:right;white-space:nowrap;color:var(--ink-2)}
   table.armados .pat{color:var(--ink-2);font-size:11px;line-height:1.5}
-  table.armados .falta td{background:rgba(255,122,26,.05)}
+  table.armados .falta td{background:color-mix(in srgb,var(--brand) 5%,transparent)}
   table.armados .marca{display:inline-block;padding:1px 6px;border-radius:5px;
     font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
   table.armados .marca.no{background:var(--brand);color:#fff}
@@ -148,7 +148,7 @@
   .imprimir{background:none;border:1px solid var(--hairline-2);color:var(--ink-muted);
     border-radius:8px;padding:6px 11px;font:inherit;font-size:11px;font-weight:700;
     cursor:pointer;margin-top:9px;width:100%}
-  .imprimir:hover{color:var(--brand);border-color:rgba(255,122,26,.4)}
+  .imprimir:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
 
   /* ---- El camión ----------------------------------------------------- */
   .visor{position:relative;margin-top:14px;border:1px solid var(--hairline);
@@ -247,7 +247,7 @@
 <body>
 
 <header class="top">
-  <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
   <span class="marca">Flota</span>
   <span class="who" id="quien"></span>
@@ -267,7 +267,7 @@
   </details>
 
   <details class="revisar" id="armados" hidden>
-    <summary>Qué tipos de vehículo hay, y cuáles no tienen modelo 3D
+    <summary>Tipos de vehículo y disponibilidad de modelos 3D
       <span id="armados-n" class="apagado"></span></summary>
     <table class="armados"><tbody id="armados-lista"></tbody></table>
   </details>
@@ -323,7 +323,7 @@
       <div class="campo">
         <label for="c-patente">Patente o código</label>
         <input id="c-patente" name="patente" required>
-        <span class="ayuda">Se guarda sin espacios. Un equipo sin patente va con su código: AUTCAT01.</span>
+        <span class="ayuda">Ingrese la patente sin espacios o el código interno del equipo.</span>
       </div>
       <div class="campo">
         <label for="c-interno">Nro. interno</label>
@@ -348,7 +348,7 @@
       <div class="campo">
         <label for="c-semi">Semi asociado</label>
         <input id="c-semi" name="semi">
-        <span class="ayuda">La patente del semi. Se guarda sin espacios.</span>
+        <span class="ayuda">Patente del semirremolque, sin espacios.</span>
       </div>
       <div class="campo">
         <label for="c-sucursal">Residencia</label>
@@ -562,7 +562,7 @@ $('#exp-pdf').onclick = () => {
   const w = window.open('', '_blank', 'width=1100,height=700');
   if (!w) return avisar('El navegador bloqueó la ventana. Permitile abrir ventanas a este sitio.');
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
-    <title>Flota Diemar ${new Date().toLocaleDateString('es-AR')}</title>
+    <title>Flota ${new Date().toLocaleDateString('es-AR')}</title>
     <style>
       *{box-sizing:border-box}
       body{font:11px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
@@ -584,7 +584,7 @@ $('#exp-pdf').onclick = () => {
       thead{display:table-header-group}
       tr{break-inside:avoid}
     </style></head><body>
-    <h1>Flota &mdash; Expreso Diemar</h1>
+    <h1>Flota &mdash; Gestión de flota</h1>
     <p class="sub">${filas.length} ${filas.length === 1 ? 'unidad' : 'unidades'}
       &nbsp;·&nbsp; ${esc(rotuloFiltros())}
       &nbsp;·&nbsp; ${new Date().toLocaleDateString('es-AR')}</p>
@@ -667,9 +667,9 @@ function pintarCedula(u){
   const dato = (t, v) => `<div><dt>${esc(t)}</dt><dd>${esc(v || '—')}</dd></div>`;
   $('#cedula').innerHTML = `
     <div class="cab">
-      <img src="/logo-cedula.png" alt="Diemar"
+      <img src="/logo-cedula.png" alt="Gestión de flota"
            onerror="this.src='/logo.png';this.onerror=null">
-      <span class="quien"><b>Expreso Diemar</b>Vencemos distancias</span>
+      <span class="quien"><b>Gestión de flota</b>Administración de unidades</span>
       <span class="sello">${u.tipo === 'equipo' ? 'Equipo' : 'Unidad'}<br>de flota</span>
     </div>
     <div class="dominio">

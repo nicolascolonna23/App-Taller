@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Control de Flota | Diemar</title>
+  <title>Control de Flota | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -28,10 +28,10 @@
       --ink-2:        #a9b0b8;
       --ink-muted:    #7b828b;
 
-      /* Marca Diemar (solo chrome: nunca dentro de un grafico) */
+      /* Color de acento (solo chrome: nunca dentro de un grafico) */
       --brand:        #ffd400;
       --brand-deep:   #d35400;
-      --brand-soft:   rgba(255,122,26,0.12);
+      --brand-soft:   color-mix(in srgb,var(--brand) 12%,transparent);
 
       /* Series categoricas (dark) - validadas all-pairs */
       --series-1:     #3987e5;  /* consumo l/100km */
@@ -84,7 +84,7 @@
       top: -280px; left: 50%;
       width: 1100px; height: 620px;
       transform: translateX(-50%);
-      background: radial-gradient(ellipse at center, rgba(255,122,26,0.11), transparent 68%);
+      background: radial-gradient(ellipse at center, color-mix(in srgb,var(--brand) 11%,transparent), transparent 68%);
       pointer-events: none;
       z-index: 0;
     }
@@ -102,7 +102,7 @@
     .topbar::after {
       content: "";
       position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
-      background: linear-gradient(90deg, var(--brand), rgba(255,122,26,0) 55%);
+      background: linear-gradient(90deg, var(--brand), color-mix(in srgb,var(--brand) 0%,transparent) 55%);
     }
     .logo { height: 46px; width: auto; }
     .brandblock { display: flex; flex-direction: column; gap: 3px; margin-right: auto; }
@@ -137,15 +137,15 @@
       border: 1px solid var(--hairline); border-radius: 999px;
       padding: 6px 12px; white-space: nowrap; transition: color .18s, border-color .18s;
     }
-    .nav-link:hover { color: var(--brand); border-color: rgba(255,122,26,0.4); }
+    .nav-link:hover { color: var(--brand); border-color: color-mix(in srgb,var(--brand) 40%,transparent); }
 
     .btn-refresh {
       font: inherit; font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
       font-weight: 600; color: var(--brand); background: var(--brand-soft);
-      border: 1px solid rgba(255,122,26,0.32); border-radius: 999px;
+      border: 1px solid color-mix(in srgb,var(--brand) 32%,transparent); border-radius: 999px;
       padding: 6px 14px; cursor: pointer; transition: background .18s, color .18s;
     }
-    .btn-refresh:hover { background: rgba(255,122,26,0.2); }
+    .btn-refresh:hover { background: color-mix(in srgb,var(--brand) 20%,transparent); }
     .btn-refresh[disabled] { opacity: .5; cursor: default; }
 
     /* ===================== TABS ===================== */
@@ -164,16 +164,16 @@
     }
     .tab:hover { color: var(--ink); border-color: var(--hairline-2); }
     .tab[aria-selected="true"] {
-      color: #fff; background: linear-gradient(180deg, rgba(255,122,26,0.18), rgba(255,122,26,0.06));
-      border-color: rgba(255,122,26,0.45);
-      box-shadow: 0 0 0 1px rgba(255,122,26,0.12), 0 6px 20px rgba(255,122,26,0.10);
+      color: #fff; background: linear-gradient(180deg, color-mix(in srgb,var(--brand) 18%,transparent), color-mix(in srgb,var(--brand) 6%,transparent));
+      border-color: color-mix(in srgb,var(--brand) 45%,transparent);
+      box-shadow: 0 0 0 1px color-mix(in srgb,var(--brand) 12%,transparent), 0 6px 20px color-mix(in srgb,var(--brand) 10%,transparent);
     }
     .tab .count {
       font-size: 10.5px; font-weight: 700; color: var(--ink-muted);
       background: rgba(255,255,255,0.06); border-radius: 6px; padding: 2px 6px;
       font-variant-numeric: tabular-nums;
     }
-    .tab[aria-selected="true"] .count { color: var(--brand); background: rgba(255,122,26,0.14); }
+    .tab[aria-selected="true"] .count { color: var(--brand); background: color-mix(in srgb,var(--brand) 14%,transparent); }
 
     .panel { display: none; padding-top: 22px; }
     .panel.active { display: block; }
@@ -267,7 +267,7 @@
       border-radius: 8px; padding: 8px 11px; outline: none; min-width: 130px;
       transition: border-color .15s;
     }
-    .inp:focus, .sel:focus { border-color: rgba(255,122,26,0.55); }
+    .inp:focus, .sel:focus { border-color: color-mix(in srgb,var(--brand) 55%,transparent); }
     .inp::placeholder { color: var(--ink-muted); }
     .seg { display: inline-flex; background: var(--surface-3); border: 1px solid var(--hairline); border-radius: 8px; padding: 2px; }
     .seg button {
@@ -293,7 +293,7 @@
       padding: 11px 9px; font-size: 12.5px; border-bottom: 1px solid rgba(255,255,255,0.04);
       white-space: nowrap;
     }
-    table.data tbody tr:hover { background: rgba(255,122,26,0.045); }
+    table.data tbody tr:hover { background: color-mix(in srgb,var(--brand) 4.5%,transparent); }
     table.data td.num { text-align: right; }
     .pat {
       font-weight: 700; color: var(--brand); letter-spacing: 0.4px;
@@ -322,7 +322,7 @@
       border: 1px solid var(--hairline); border-radius: 7px; padding: 5px 10px; cursor: pointer;
     }
     .btn-view:hover { color: var(--ink); }
-    .btn-view[aria-pressed="true"] { color: var(--brand); border-color: rgba(255,122,26,0.35); }
+    .btn-view[aria-pressed="true"] { color: var(--brand); border-color: color-mix(in srgb,var(--brand) 35%,transparent); }
 
     table.mini { width: 100%; border-collapse: collapse; font-size: 12px; font-variant-numeric: tabular-nums; }
     table.mini th, table.mini td { padding: 7px 10px; text-align: right; border-bottom: 1px solid rgba(255,255,255,0.05); }
@@ -351,7 +351,7 @@
     .ficha-head {
       display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;
       padding: 20px; border-bottom: 1px solid var(--hairline);
-      background: linear-gradient(180deg, rgba(255,122,26,0.055), transparent);
+      background: linear-gradient(180deg, color-mix(in srgb,var(--brand) 5.5%,transparent), transparent);
     }
     .ficha-pat {
       font-size: 34px; font-weight: 700; letter-spacing: 0.5px; color: var(--brand);
@@ -384,7 +384,7 @@
       display: inline-flex; align-items: center; gap: 6px;
     }
     .unit-chip:hover { color: var(--ink); border-color: var(--hairline-2); }
-    .unit-chip[aria-pressed="true"] { color: var(--brand); border-color: rgba(255,122,26,0.5); background: var(--brand-soft); }
+    .unit-chip[aria-pressed="true"] { color: var(--brand); border-color: color-mix(in srgb,var(--brand) 50%,transparent); background: var(--brand-soft); }
     .unit-chip .bullet { width: 6px; height: 6px; border-radius: 50%; flex: none; }
 
     .banner {
@@ -465,15 +465,15 @@
   </style>
 <script src="/tema.js"></script>
 </head>
-<body>
+<body class="fleet-control">
 
 <div class="shell">
 
   <!-- ============ HEADER ============ -->
   <div class="topbar">
-    <img src="/logo.png" alt="Diemar" class="logo">
+    <img src="/logo.png" alt="Gestión de flota" class="logo">
     <div class="brandblock">
-      <div class="sub">Expreso Diemar</div>
+      <div class="sub">Gestión de flota</div>
       <h1>Control de Flota &amp; Mantenimiento</h1>
     </div>
     <div class="meta">
@@ -636,11 +636,7 @@
   </div>
 </div>
 
-<footer class="shell">
-  <div>Fuentes: <b>Supabase</b>, y nada más. El maestro de unidades y los
-    services salen de la base; el consumo se calcula con los litros que se
-    cargan en Combustible y los kilómetros que cuenta el satelital.</div>
-</footer>
+<footer class="shell">Gestión de flota · Mantenimiento y telemetría</footer>
 
 <!-- ============ FORMULARIO: REGISTRAR SERVICE ============ -->
 <div class="modal-bg" id="modal-service" role="dialog" aria-modal="true" aria-labelledby="modal-titulo">
@@ -858,7 +854,7 @@ async function cargarServicios() {
 }
 
 /** El consumo mes a mes de cada unidad, calculado en la base con los
- *  litros que se cargan y los kilómetros del satelital. Antes venía de
+ *  litros que se cargan y los kilómetros Telemetría. Antes venía de
  *  una planilla de Google con la telemetría de la marca.
  *
  *  Se cachea unas horas: es un cálculo mensual y el refresco automático
@@ -1359,7 +1355,7 @@ function renderGeneral() {
         ${legendEstadosHTML(c)}
         ${stackHTML(c, lista.length)}
         <div class="grid-3" style="margin-top:16px">
-          ${kpiHTML('Vencidas', fmt0(venc), venc ? 'service pasado de km' : 'ninguna', venc ? ESTADOS.vencido.color : ESTADOS.ok.color)}
+          ${kpiHTML('Vencidas', fmt0(venc), venc ? 'intervalo de mantenimiento excedido' : 'ninguna', venc ? ESTADOS.vencido.color : ESTADOS.ok.color)}
           ${kpiHTML('A menos de 5.000 km', fmt0(c.urgente), 'programar turno', ESTADOS.urgente.color)}
           ${kpiHTML('Consumo promedio', prom === null ? '—' : fmt1(prom) + ' <span class="u">l/100</span>',
                     consumos.length ? `sobre ${consumos.length} unidades con consumo` : 'sin cargas cruzadas', C.s1)}
@@ -1461,7 +1457,7 @@ function renderKpisGrupo(sel, lista) {
   const prom = consumos.length ? consumos.reduce((a, x) => a + x.valor, 0) / consumos.length : null;
   $(sel).innerHTML =
     kpiHTML('Unidades', fmt0(lista.length), 'en esta operación') +
-    kpiHTML('Vencidas', fmt0(c.vencido), 'service pasado de km',
+    kpiHTML('Vencidas', fmt0(c.vencido), 'intervalo de mantenimiento excedido',
             c.vencido ? ESTADOS.vencido.color : ESTADOS.ok.color) +
     kpiHTML('Urgentes', fmt0(c.urgente), `a menos de ${fmt0(UMBRAL_URGENTE)} km`, ESTADOS.urgente.color) +
     kpiHTML('Consumo promedio', prom === null ? '—' : fmt1(prom) + ' <span class="u">l/100</span>',

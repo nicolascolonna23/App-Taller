@@ -233,8 +233,8 @@ LOGIN = """<!DOCTYPE html><html lang="es"><head>
 </style></head><body>
 <form class="caja" method="POST" action="/login">
   <div class="marca">
-    <img src="/logo.png" alt="Diemar" onerror="this.style.display='none'">
-    <div class="t">Pengui · Taller Diemar</div>
+    <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+    <div class="t">Pengui · Gestión de flota</div>
   </div>
   <label for="usuario">Usuario</label>
   <input id="usuario" name="usuario" autocapitalize="none" autocorrect="off" autofocus required>
