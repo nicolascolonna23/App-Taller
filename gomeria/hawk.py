@@ -218,17 +218,23 @@ def lecturas(usuario, clave):
         detalle = km = reporte = falla = None
         try:
             detalle = _movil(s, m.get("idGPS"))
-            if detalle is None:
-                falla = "sin datos"
         except Exception as e:
             falla = type(e).__name__
         if detalle:
             km = detalle.get("Kilometraje")
             reporte = _reporte(detalle.get("FechaServer"))
-        if falla:
-            fallados.append(f"{m.get('Patente') or m.get('idGPS')}: {falla}")
 
         patente = (detalle or {}).get("Descripcion") or m.get("Patente") or m.get("Descripcion")
+
+        # Lo que decide no es si el pedido salió bien sino si trajo odómetro:
+        # el equipo que contesta con el kilometraje vacío tampoco es una
+        # lectura. Se clasifica acá para que los que no entraron y los que sí
+        # sumen la flota completa; si no, hay móviles que no aparecen en
+        # ninguna de las dos cuentas y el resumen no cierra.
+        if not isinstance(km, (int, float)):
+            fallados.append(f"{_patente(patente) or m.get('idGPS')}: "
+                            f"{falla or ('sin datos' if detalle is None else 'sin kilometraje')}")
+
         filas.append({
             "Patente": _patente(patente),
             "Kilometraje": km,
