@@ -60,7 +60,7 @@ class Handler(BaseHTTPRequestHandler):
             return True
         ruta = urlparse(self.path).path
         if ruta.startswith("/api/"):
-            self._error("Se cerró la sesión. Recargá la página y entrá de nuevo.", 401)
+            self._error("Se cerró la sesión. Recargar la página y ingresar de nuevo.", 401)
         else:
             destino = self.path if ruta not in ("/login",) else "/"
             self._responder(auth.pagina_login(destino=destino),
@@ -249,7 +249,7 @@ class Handler(BaseHTTPRequestHandler):
         puede, minutos = auth.puede_intentar(origen)
         if not puede:
             return self._responder(
-                auth.pagina_login(f"Demasiados intentos fallidos. Probá de nuevo en "
+                auth.pagina_login(f"Demasiados intentos fallidos. Reintentar de nuevo en "
                                   f"{minutos} minuto{'s' if minutos > 1 else ''}.", destino),
                 "text/html; charset=utf-8", codigo=429)
 
@@ -300,7 +300,7 @@ class Handler(BaseHTTPRequestHandler):
             if ruta == "/api/movimientos":
                 return self._movimientos(datos)
         except anthropic.APIStatusError as e:
-            return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
+            return self._error(f"La API respondió {e.status_code}. Revisar la clave o el saldo.", 502)
         except anthropic.APIConnectionError:
             return self._error("No se pudo conectar con la API de Claude.", 502)
         except PermissionError as e:
@@ -358,10 +358,10 @@ class Handler(BaseHTTPRequestHandler):
                 cubierta_id = int(datos.get("id") or 0)
                 remanente = datos.get("remanente_mm")
                 if remanente in (None, ""):
-                    raise ValueError("Escribí cuántos milímetros le quedan.")
+                    raise ValueError("Indicar cuántos milímetros le quedan.")
                 remanente = float(remanente)
                 if not 0 <= remanente <= 40:
-                    raise ValueError("Ese remanente no es de una cubierta. Revisá el número.")
+                    raise ValueError("Ese remanente no es de una cubierta. Revisar el número.")
                 base.medir(cx, cubierta_id, remanente,
                            usuario=self.usuario["nombre"])
             elif op == "recapado":
@@ -439,7 +439,7 @@ class Handler(BaseHTTPRequestHandler):
         texto = (datos.get("texto") or "").strip()
         autor = self.usuario["nombre"]
         if not texto:
-            return self._error("Escribí qué hiciste.")
+            return self._error("Indicar qué hiciste.")
 
         with base.conectar() as cx:
             # La unidad puede venir de la URL (un QR por unidad) o salir del
@@ -471,7 +471,7 @@ class Handler(BaseHTTPRequestHandler):
                 cx.commit()
                 return self._error(
                     "Falta la clave de la API. Lo que escribiste quedó guardado; "
-                    "poné la clave en chat/clave.txt, reiniciá el servidor y volvé a mandarlo.")
+                    "indicar la clave en chat/clave.txt, reiniciar el servidor y volver a mandarlo.")
 
             mapa = base.mapa_unidad(cx, unidad["id"])
             try:
@@ -562,7 +562,7 @@ def main():
     print(f"Gomería · {n} unidades · {c} cubiertas")
     if not hay_clave:
         print("  Sin clave de la API: se ven los mapas, pero todavía no se pueden")
-        print("  cargar partes. Poné la clave en chat/clave.txt cuando la tengas.")
+        print("  cargar partes. Indicar la clave en chat/clave.txt cuando la tengas.")
 
     ip = ip_en_la_red() if a.host == "0.0.0.0" else a.host
     print(f"  Pantalla:  http://{ip}:{a.puerto}/u/PATENTE")

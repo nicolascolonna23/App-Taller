@@ -84,7 +84,7 @@ def crear_movimiento(cx, datos, usuario):
         raise ValueError("La fecha no es válida.") from None
     patente = "".join(ch for ch in _texto(datos, "patente").upper() if ch.isalnum())
     if tipo == "Salida" and not patente:
-        raise ValueError("Cargá la patente de la unidad que recibe el repuesto.")
+        raise ValueError("Cargar la patente de la unidad que recibe el repuesto.")
 
     articulo = cx.execute(
         "select id, activo from repuestos_articulos where codigo = %s", (codigo,)

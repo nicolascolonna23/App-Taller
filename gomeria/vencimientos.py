@@ -97,7 +97,7 @@ def guardar(cx, datos, usuario):
     tipo = cx.execute("select * from tipos_vencimiento where id = %s and activo",
                       (tipo_id,)).fetchone()
     if not tipo:
-        raise ValueError("Elegí qué vence.")
+        raise ValueError("Seleccionar qué vence.")
 
     vence = _fecha(datos.get("vence"), "vencimiento")
     desde = _fecha(datos.get("desde"), "emisión")
@@ -113,11 +113,11 @@ def guardar(cx, datos, usuario):
     if tipo["ambito"] == "unidad":
         persona_id = None
         if not unidad_id:
-            raise ValueError(f"{tipo['nombre']} es de una unidad: elegí la patente.")
+            raise ValueError(f"{tipo['nombre']} es de una unidad: seleccionar la patente.")
     elif tipo["ambito"] == "persona":
         unidad_id = None
         if not persona_id:
-            raise ValueError(f"{tipo['nombre']} es de una persona: elegí quién.")
+            raise ValueError(f"{tipo['nombre']} es de una persona: seleccionar quién.")
     else:
         unidad_id = persona_id = None
 

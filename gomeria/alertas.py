@@ -135,7 +135,7 @@ def silenciar(cx, fuente, clave, motivo, usuario=None, hasta=None):
         raise ValueError("Falta la alerta a silenciar.")
     motivo = str(motivo or "").strip()
     if len(motivo) < 3:
-        raise ValueError("Escribí por qué se silencia. Sin el motivo, dentro de "
+        raise ValueError("Indicar por qué se silencia. Sin el motivo, dentro de "
                          "seis meses nadie va a saber si estaba bien ocultarla.")
     cx.execute("""
         insert into alertas_silenciadas (fuente, clave, motivo, hasta, usuario)
@@ -403,7 +403,7 @@ def guardar_service(cx, datos, usuario=None):
     """Anota un service hecho. No pisa el anterior: se suma al historial."""
     unidad_id = int(datos.get("unidad_id") or 0)
     if not unidad_id:
-        raise ValueError("Elegí la unidad.")
+        raise ValueError("Seleccionar la unidad.")
     unidad = cx.execute("select id, patente, km_actual from unidades where id = %s",
                         (unidad_id,)).fetchone()
     if not unidad:

@@ -256,7 +256,7 @@ def revisar(ruta, cx, unidades, internos):
     print(f"  {len(listas)} para cargar · {repetidas} ya estaban · "
           f"{salteadas} sin service todavía")
     if sin_intervalo:
-        print(f"  ojo: {sin_intervalo} sin «cada cuántos km» en la planilla; "
+        print(f"  advertencia: {sin_intervalo} sin «cada cuántos km» en la planilla; "
               f"quedan con {CADA_KM_POR_DEFECTO:,.0f}".replace(",", ".") +
               " o con el que ya tenían")
     return listas, problemas, salteadas, repetidas
@@ -299,7 +299,7 @@ def main():
                 print("  " + x)
             if len(problemas) > 25:
                 print(f"  … y {len(problemas) - 25} más")
-            sys.exit("\nNo se cargó nada, de ningún archivo. Corregí y volvé a correrlo.")
+            sys.exit("\nNo se cargó nada, de ningún archivo. Corregí y volver a correrlo.")
 
         if args.simular:
             print("\n(simulación: no se escribió nada)")

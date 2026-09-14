@@ -243,7 +243,7 @@ LOGIN = """<!DOCTYPE html><html lang="es"><head>
   <input type="hidden" name="destino" value="__DESTINO__">
   <button type="submit">Entrar</button>
   __ERROR__
-  <div class="pie">Si no tenés usuario, pedíselo al encargado.</div>
+  <div class="pie">Si no cuenta con usuario, debe solicitarlo al encargado.</div>
 </form>
 </body></html>"""
 

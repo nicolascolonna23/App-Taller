@@ -79,7 +79,7 @@ def guardar_fondo(cx, usuario_id, cuerpo, tipo):
     if len(cuerpo) > FONDO_MAXIMO:
         raise ValueError(
             f"La imagen pesa {len(cuerpo) // (1024 * 1024)} MB y el máximo son "
-            f"{FONDO_MAXIMO // (1024 * 1024)}. Achicala y volvé a subirla.")
+            f"{FONDO_MAXIMO // (1024 * 1024)}. Achicala y volver a subirla.")
     tipo = (tipo or "").split(";")[0].strip().lower()
     if tipo not in TIPOS:
         raise ValueError("La imagen tiene que ser .jpg, .png o .webp.")

@@ -86,7 +86,7 @@ def buscar_cliente(texto: str, limite: int = 10) -> str:
         LIMIT ?""", (like, like, like, solo_digitos, solo_digitos, limite))
     if not filas:
         return jstr({"encontrados": 0,
-                     "sugerencia": "Probá con menos letras o con el CUIT."})
+                     "sugerencia": "Reintentar con menos letras o con el CUIT."})
     return jstr({"encontrados": len(filas), "clientes": filas})
 
 
@@ -469,9 +469,9 @@ class Handler(BaseHTTPRequestHandler):
         try:
             emitir("texto", responder(mensajes, emitir))
         except anthropic.APIStatusError as e:
-            emitir("error", f"La API respondió {e.status_code}. Revisá la clave o el saldo de la cuenta.")
+            emitir("error", f"La API respondió {e.status_code}. Revisar la clave o el saldo de la cuenta.")
         except anthropic.APIConnectionError:
-            emitir("error", "No se pudo conectar con la API. Revisá la salida a internet del servidor.")
+            emitir("error", "No se pudo conectar con la API. Revisar la salida a internet del servidor.")
         except Exception as e:
             traceback.print_exc()
             emitir("error", f"Error inesperado: {e}")

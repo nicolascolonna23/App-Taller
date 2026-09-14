@@ -243,7 +243,7 @@
         <div>
           <label>Aviso de service (km)</label>
           <input id="rAviso" type="number" min="1" step="500">
-          <p class="pista">Desde acá se empieza a avisar, en amarillo.</p>
+          <p class="pista">Valor a partir del cual se emite el aviso.</p>
         </div>
       </div>
       <div class="barra" style="margin:14px 0 0"><button class="btn" id="guardarReglas">Guardar</button></div>
@@ -395,7 +395,7 @@ function pintar() {
   $('#n-calladas').textContent = r.silenciadas;
   $('#pie').textContent = r.total
     ? `${r.total} cosa${r.total === 1 ? '' : 's'} para mirar hoy.`
-    : 'No hay nada para mirar. Todo al día.';
+    : 'Sin alertas activas.';
 
   $('#apagadas').hidden = !d.fuentes_apagadas.length;
   if (d.fuentes_apagadas.length)
@@ -423,7 +423,7 @@ function pintar() {
   $('#filas').innerHTML = (lista.length
       ? lista.map(a => alertaHtml(a, calladas)).join('')
       : `<div class="caja"><div class="vacio">${
-          d.resumen.total ? 'Ninguna alerta con ese filtro.' : 'No hay nada para mirar. Todo al día.'
+          d.resumen.total ? 'Ninguna alerta con ese filtro.' : 'Sin alertas activas.'
         }</div></div>`) + extra;
 
   $$('[data-callar]').forEach(b => b.onclick = () => abrirCallar(b.dataset.callar));

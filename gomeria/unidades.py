@@ -768,12 +768,12 @@ def dar_de_baja(cx, unidad_id, activa, usuario=None):
 
     if activa:
         return {"activa": True, "unidad": una(cx, unidad_id),
-                "aviso": f"{base_fmt(unidad['patente'])} vuelve a la operación."}
+                "aviso": f"{base_fmt(unidad['patente'])} reactivada."}
 
     frase = _frase_pendientes(pendientes)
-    aviso = f"{base_fmt(unidad['patente'])} queda de baja. Deja de aparecer y de avisar en todos los módulos; la historia no se toca."
+    aviso = f"{base_fmt(unidad['patente'])} dada de baja."
     if frase:
-        aviso += f" Ojo: tenía {frase}. Eso no se cierra solo."
+        aviso += f" Quedan pendientes: {frase}."
     return {"activa": False, "unidad": una(cx, unidad_id),
             "pendientes": pendientes, "aviso": aviso}
 
@@ -808,9 +808,8 @@ def eliminar(cx, unidad_id, usuario=None):
     if ligada:
         cx.execute("update unidades set activa = false where id = %s", (unidad_id,))
         return {"baja": True, "unidad": una(cx, unidad_id),
-                "aviso": ("No se puede borrar porque tiene " + " y ".join(ligada) +
-                          ". Se la dio de baja: deja de contar en los tableros "
-                          "pero la historia queda.")}
+                "aviso": ("No se puede eliminar: la unidad tiene " +
+                          " y ".join(ligada) + ". Se dio de baja.")}
 
     cx.execute("delete from unidades where id = %s", (unidad_id,))
     return {"baja": False, "borrada": unidad["patente"]}
@@ -996,7 +995,7 @@ def mover_cubierta(cx, datos, usuario=None):
     elif accion == "montar":
         cubierta_id = datos.get("cubierta_id")
         if not cubierta_id:
-            raise ValueError("Elegí qué cubierta va.")
+            raise ValueError("Seleccionar qué cubierta va.")
         cubierta = cx.execute("select * from cubiertas where id = %s",
                               (cubierta_id,)).fetchone()
         if not cubierta:
@@ -1017,15 +1016,15 @@ def mover_cubierta(cx, datos, usuario=None):
             raise ValueError(
                 f"La {cubierta['codigo']} es {cubierta['medida'] or 'sin medida'} y "
                 f"{base_fmt(unidad['patente'])} lleva {comose}. "
-                "Revisá el número de fuego y la unidad: alguno de los dos no es.")
+                "Revisar el número de fuego y la unidad: alguno de los dos no es.")
         if otra:
             raise ValueError(f"La {cubierta['codigo']} está puesta en "
                              f"{base_fmt(otra['patente'])}, posición {otra['codigo']}. "
-                             f"Sacala de ahí primero.")
+                             f"Debe retirarse de esa posición primero.")
         _base.montar(cx, unidad_id, posicion_id, cubierta_id,
                      usuario=quien, nota=_texto(datos.get("nota"), 300))
     else:
-        raise ValueError("La acción tiene que ser montar o desmontar.")
+        raise ValueError("La acción debe ser montar o desmontar.")
 
     return {"mapa": posiciones(cx, unidad_id)}
 

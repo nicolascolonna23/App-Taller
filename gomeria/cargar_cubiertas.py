@@ -151,7 +151,7 @@ def main():
         raise SystemExit(
             "No encontré la columna del código de la cubierta.\n"
             f"  Encabezados del archivo: {', '.join(str(h) for h in encabezados if h)}\n"
-            "  Renombrá esa columna a 'codigo' y volvé a probar.")
+            "  Renombrá esa columna a 'codigo' y volver a probar.")
 
     print(f"{len(filas)} filas en el archivo")
     print("Columnas reconocidas:")
@@ -201,7 +201,7 @@ def main():
             print(f"  {p}")
         if len(problemas) > 20:
             print(f"  ... y {len(problemas) - 20} más")
-        raise SystemExit("\nNo cargué nada. Corregí el archivo y volvé a probar.")
+        raise SystemExit("\nNo cargué nada. Corregí el archivo y volver a probar.")
 
     from collections import Counter
     print(f"\n{len(limpias)} cubiertas para cargar")

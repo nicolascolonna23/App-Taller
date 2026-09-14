@@ -50,7 +50,7 @@ HERRAMIENTA = {
                 "type": ["string", "null"],
                 "description": "Número de comprobante completo, como figura: "
                                "'0001-00012345'. Si dice 'Factura B Nº 0003-00045', "
-                               "poné '0003-00045'."
+                               "indicar '0003-00045'."
             },
             "fecha": {
                 "type": ["string", "null"],
@@ -60,7 +60,7 @@ HERRAMIENTA = {
             "monto": {
                 "type": ["number", "null"],
                 "description": "El TOTAL a pagar, con IVA incluido, en números. "
-                               "Sin símbolo de moneda ni separador de miles. Ojo "
+                               "Importe sin símbolo de moneda ni separador de miles. "
                                "con la coma decimal: '1.234.567,89' es 1234567.89."
             },
             "patente": {
@@ -161,7 +161,7 @@ def leer(archivos, patentes=None, cliente=None):
         try:
             crudo = base64.b64decode(archivo.get("contenido") or "", validate=False)
         except Exception:
-            raise ValueError("El archivo llegó cortado. Probá de nuevo.")
+            raise ValueError("El archivo llegó cortado. Reintentar de nuevo.")
         if not crudo:
             raise ValueError("El archivo llegó vacío.")
         if len(crudo) > MAXIMO:
@@ -185,7 +185,7 @@ def leer(archivos, patentes=None, cliente=None):
     if cliente is None and not (os.environ.get("ANTHROPIC_API_KEY")
                                 or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
         raise ValueError("Falta la clave de la API de Claude: sin eso no se "
-                         "pueden leer facturas. Cargá los datos a mano.")
+                         "pueden leer facturas. Cargar los datos a mano.")
 
     cliente = cliente or anthropic.Anthropic()
     r = cliente.messages.create(
@@ -202,7 +202,7 @@ def leer(archivos, patentes=None, cliente=None):
             leido = dict(bloque.input)
             break
     else:
-        raise ValueError("No se pudo leer la factura. Cargala a mano.")
+        raise ValueError("No se pudo leer la factura. Cargarla a mano.")
 
     # La patente se valida contra la flota: es el campo del que cuelga todo
     # lo demás —la orden va a parar al historial de esa unidad— y el único

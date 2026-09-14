@@ -120,7 +120,7 @@ def main():
             filas = cx.execute("""select patente, interno, sucursal from unidades
                                   where activa order by sucursal, patente""").fetchall()
     if not filas:
-        raise SystemExit("No hay unidades para generar. Cargá primero las unidades.")
+        raise SystemExit("No hay unidades para generar. Cargar primero las unidades.")
 
     etiquetas = []
     for f in filas:

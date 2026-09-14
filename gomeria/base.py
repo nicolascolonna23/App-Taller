@@ -74,7 +74,7 @@ def resolver_unidad(cx, texto):
     """
     plano = "".join(ch for ch in str(texto).upper() if ch.isalnum())
     if not plano:
-        return None, "Escribí qué hiciste y en qué unidad."
+        return None, "Indicar qué hiciste y en qué unidad."
 
     todas = cx.execute("select * from unidades where activa").fetchall()
     encontradas = [u for u in todas if u["patente"] and u["patente"] in plano]
@@ -87,7 +87,7 @@ def resolver_unidad(cx, texto):
         if len(largas) == 1:
             return largas[0], None
         nombres = ", ".join(fmtPat(u["patente"]) for u in largas)
-        return None, f"Nombrás más de una unidad ({nombres}). Cargá una por vez."
+        return None, f"Se nombra más de una unidad ({nombres}). Debe cargarse una por vez."
     if len(encontradas) == 1:
         return encontradas[0], None
 
@@ -98,9 +98,9 @@ def resolver_unidad(cx, texto):
         if len(porinterno) == 1:
             return porinterno[0], None
         if len(porinterno) > 1:
-            return None, f"Hay más de una unidad con el interno {m.group(1)}. Escribí la patente."
+            return None, f"Hay más de una unidad con el interno {m.group(1)}. Indicar la patente."
 
-    return None, ("No encontré la unidad. Escribí la patente en el texto, "
+    return None, ("No encontré la unidad. Indicar la patente en el texto, "
                   "por ejemplo: AD 247 MQ giré las de atrás.")
 
 
@@ -383,7 +383,7 @@ def buscar_cubierta_flexible(cx, codigo):
     if len(candidatas) > 1:
         cuales = ", ".join(sorted(c["codigo"] for c in candidatas))
         raise ValueError(f"El número {codigo} da con varias cubiertas ({cuales}). "
-                         f"Escribí el código completo.")
+                         f"Indicar el código completo.")
     return None
 
 

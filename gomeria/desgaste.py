@@ -100,7 +100,7 @@ def guardar_dibujo(cx, mm, medida=None, marca=None, dibujo=None, nota=None):
     if mm <= 0:
         raise ValueError("El dibujo tiene que ser mayor que cero.")
     if mm > 40:
-        raise ValueError("Ese dibujo no es de una cubierta. Revisá el número.")
+        raise ValueError("Ese dibujo no es de una cubierta. Revisar el número.")
     limpio = lambda x: (str(x).strip().upper() or None) if x else None
     cx.execute("""
         insert into dibujos_nuevos (medida, marca, dibujo, mm, origen, nota)
@@ -281,7 +281,7 @@ def recapar(cx, cubierta_id, marca=None, banda=None, proveedor=None,
     if inicial_mm not in (None, ""):
         inicial_mm = float(inicial_mm)
         if not 0 < inicial_mm <= 40:
-            raise ValueError("Ese dibujo no es de una cubierta. Revisá el número.")
+            raise ValueError("Ese dibujo no es de una cubierta. Revisar el número.")
     else:
         inicial_mm = None
 

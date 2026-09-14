@@ -564,7 +564,7 @@ class App(gom.Handler):
             except asistente.NoDisponible as e:
                 return self._error(str(e), 503)
             except (ValueError, UnicodeError) as e:
-                return self._error("Consulta inválida. Revisá el texto y su longitud.", 400)
+                return self._error("Consulta inválida. Revisar el texto y su longitud.", 400)
             except Exception:
                 return self._error("No se pudo completar la consulta. Intentá nuevamente.", 500)
 
@@ -635,7 +635,7 @@ class App(gom.Handler):
                            if isinstance(e, psycopg.errors.UniqueViolation) else str(e))
                 return self._error(mensaje)
             except anthropic.APIStatusError as e:
-                return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
+                return self._error(f"La API respondió {e.status_code}. Revisar la clave o el saldo.", 502)
             except anthropic.APIConnectionError:
                 return self._error("No se pudo conectar con la API de Claude.", 502)
             except Exception as e:
@@ -839,7 +839,7 @@ class App(gom.Handler):
                                    "con menos calidad.", 413)
             datos = json.loads(self.rfile.read(largo) or b"{}")
         except Exception:
-            return self._error("El pedido llegó cortado. Probá de nuevo.")
+            return self._error("El pedido llegó cortado. Reintentar de nuevo.")
 
         try:
             with base.conectar() as cx:
@@ -852,7 +852,7 @@ class App(gom.Handler):
         except ValueError as e:
             return self._error(str(e))
         except anthropic.APIStatusError as e:
-            return self._error(f"La API respondió {e.status_code}. Revisá la clave "
+            return self._error(f"La API respondió {e.status_code}. Revisar la clave "
                                f"o el saldo.", 502)
         except anthropic.APIConnectionError:
             return self._error("No se pudo conectar con la API de Claude.", 502)
@@ -982,7 +982,7 @@ def preparar():
 
     if not cuantos:
         print("  Todavía no hay usuarios: nadie va a poder entrar.")
-        print('  Poné USUARIO_INICIAL="usuario:Nombre Completo:contraseña" y reiniciá.')
+        print('  Indicar USUARIO_INICIAL="usuario:Nombre Completo:contraseña" y reiniciar.')
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("  Sin ANTHROPIC_API_KEY: se ven los mapas, no se cargan partes.")
     return cuantos, unidades

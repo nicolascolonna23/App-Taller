@@ -257,7 +257,7 @@
 
 <main>
   <h1>Flota</h1>
-  <p class="sub">Toda la información de las unidades. De acá sale para el resto del sistema.</p>
+  <p class="sub">Toda la información de las unidades. Es el origen de los datos del resto del sistema.</p>
 
   <div id="error" class="error" hidden></div>
 
@@ -286,7 +286,7 @@
     <button class="btn gris" id="exp-excel" type="button"
             title="Baja el listado que estás viendo, con los filtros puestos">Excel</button>
     <button class="btn gris" id="exp-pdf" type="button"
-            title="Abre el diálogo de impresión: ahí elegís «Guardar como PDF»">PDF</button>
+            title="Abre el diálogo de impresión, donde se debe seleccionar «Guardar como PDF»">PDF</button>
     <span class="cuenta" id="cuenta"></span>
   </div>
 
@@ -738,7 +738,7 @@ function pintarCorner(){
   const caja = $('#corner');
   if (!caja) return;
   if (!V.esquina){
-    caja.innerHTML = '<p class="nada">Tocá una rueda del camión para ver ' +
+    caja.innerHTML = '<p class="nada">Seleccionar una rueda del camión para ver ' +
       'qué tiene puesto y cambiarla.</p>';
     return;
   }
@@ -1009,8 +1009,8 @@ async function pintarEstado(id){
       s ? `<div class="lista"><div class="fila"><span class="izq">${esc(fmtPat(s.patente))}</span>` +
           `<span>${esc([s.marca, s.modelo].filter(Boolean).join(' '))  || 'sin modelo cargado'}</span>` +
           `<span class="der">${s.configuracion_id ? 'con mapa' : 'sin mapa'}</span></div></div>`
-        : `<p class="nada">${esc(fmtPat(u.semi))} — no está cargado como unidad. ` +
-          `Si lleva cubiertas propias, conviene darlo de alta.</p>`));
+        : `<p class="nada">${esc(fmtPat(u.semi))} — no está registrado como unidad. ` +
+          `Si lleva cubiertas propias, debe darse de alta.</p>`));
   }
 
   caja.innerHTML = partes.join('');

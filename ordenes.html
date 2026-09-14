@@ -249,7 +249,7 @@
   <div class="campos">
     <div class="ancho"><label>Unidad</label><select id="nUnidad"></select></div>
     <div><label>Tipo de mantenimiento</label><select id="nMantenimiento">
-      <option value="">Elegí una opción</option>
+      <option value="">Seleccionar una opción</option>
       <option value="preventivo">Preventivo</option>
       <option value="correctivo">Correctivo</option>
     </select></div>
@@ -279,7 +279,7 @@
        mal leída que entra sola al historial es peor que no tener la foto. -->
   <div class="lector">
     <div class="lector-cab">
-      <b>¿Tenés la factura a mano?</b>
+      <b>Adjuntar factura</b>
       <span class="pista">Sacale una foto o subí el PDF y se completa solo. Revisalo antes de guardar.</span>
     </div>
     <div class="lector-acciones">
@@ -293,7 +293,7 @@
   <div class="campos">
     <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
     <div><label>Tipo de mantenimiento</label><select id="xMantenimiento">
-      <option value="">Elegí una opción</option>
+      <option value="">Seleccionar una opción</option>
       <option value="preventivo">Preventivo</option>
       <option value="correctivo">Correctivo</option>
     </select></div>
@@ -417,8 +417,8 @@ function opciones() {
   const lista = u.map(x => `<option value="${x.id}">${esc(pat(x.patente))}${
     x.interno ? ' · ' + esc(x.interno) : ''}${
     x.marca ? ' · ' + esc([x.marca, x.modelo].filter(Boolean).join(' ')) : ''}</option>`).join('');
-  $('#nUnidad').innerHTML = '<option value="">Elegí la unidad</option>' + lista;
-  $('#xUnidad').innerHTML = '<option value="">Elegí la unidad</option>' + lista;
+  $('#nUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
+  $('#xUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
   $('#filtroUnidad').innerHTML = '<option value="">Todas las unidades</option>' +
     u.map(x => `<option value="${esc(x.patente)}">${esc(pat(x.patente))}${
       x.interno ? ' · ' + esc(x.interno) : ''}</option>`).join('');
@@ -534,7 +534,7 @@ function dibujarOrden() {
         <div><label>Sin código</label><input id="rSuelto" placeholder="Qué se puso"></div>
         <button class="btn alt" id="agregarRep">Descontar</button>
       </div>
-      <p class="pista" id="rInfo">Elegí un repuesto del depósito y se descuenta del stock al agregarlo.
+      <p class="pista" id="rInfo">Seleccionar un repuesto del depósito y se descuenta del stock al agregarlo.
         Lo que se compró para este trabajo y no está en el depósito va en “sin código”.</p>`;
     html += `</div>`;
 
@@ -769,7 +769,7 @@ document.addEventListener('click', async ev => {
   switch (t.id) {
     case 'agregarTarea': {
       const detalle = $('#tDetalle').value.trim();
-      if (!detalle) return avisoOrden('Escribí qué se le hizo.');
+      if (!detalle) return avisoOrden('Indicar qué se le hizo.');
       await sobreOrden('tarea_agregar', {detalle, horas: $('#tHoras').value || null,
         importe: $('#tImporte').value || null});
       break;
@@ -778,7 +778,7 @@ document.addEventListener('click', async ev => {
       const codigo = $('#rCodigo').value.trim();
       const suelto = $('#rSuelto').value.trim();
       if (!codigo && !suelto)
-        return avisoOrden('Elegí un repuesto del depósito o escribí qué se puso.');
+        return avisoOrden('Seleccionar un repuesto del depósito o indicar qué se puso.');
       const r = await sobreOrden('repuesto_agregar', {
         codigo, descripcion: suelto || null,
         cantidad: $('#rCantidad').value || 1, precio: $('#rPrecio').value || null},
@@ -824,7 +824,7 @@ $('#buscar').oninput = () => pintar();
 $('#filtroUnidad').onchange = () => pintar();
 $('#verHistorial').onclick = () => {
   const id = $('#filtroUnidad').value;
-  if (!id) return alert('Elegí primero una unidad en el filtro de al lado.');
+  if (!id) return alert('Seleccionar primero una unidad en el filtro de al lado.');
   verHistorial(id);
 };
 
@@ -997,7 +997,7 @@ function volcarFactura(f) {
   caja.id = 'lectorDudas';
   caja.className = 'aviso ' + (dudas.length ? 'mal' : 'bien');
   caja.innerHTML = dudas.length
-    ? `<div class="lector-dudas"><b>Revisá esto antes de guardar</b><ul>${
+    ? `<div class="lector-dudas"><b>Revisar esto antes de guardar</b><ul>${
         dudas.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>`
     : 'Se leyó la factura entera. Igual conviene mirar el número y el total antes de guardar.';
   $('#avisoExterna').appendChild(caja);
