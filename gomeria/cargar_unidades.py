@@ -95,7 +95,7 @@ def main():
     print(f"\nCargadas {nuevas} unidades.")
     if sin_mapa:
         print(f"Quedaron afuera {len(sin_mapa)} sin mapa: {', '.join(sin_mapa)}")
-        print("  Completales la columna 'mapa' en el CSV y volvé a correr esto.")
+        print("  Completales la columna 'mapa' en el CSV y volver a correr esto.")
     print("Las cubiertas se montan después, desde la pantalla de gomería o con un CSV aparte.")
 
 

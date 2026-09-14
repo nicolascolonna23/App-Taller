@@ -422,7 +422,7 @@ function vistaStock(mp){
     '<a class="btn ghost" href="'+enlaceEtiquetas()+'" target="_blank" rel="noopener">Etiquetas QR</a>'+
     '<span class="count">'+lista.length+' de '+S.arts.length+'</span></div>';
 
-  if(!lista.length) return h+'<div class="card"><div class="empty"><b>Sin resultados</b>Cambiá el filtro o cargá un repuesto nuevo.</div></div>';
+  if(!lista.length) return h+'<div class="card"><div class="empty"><b>Sin resultados</b>Modificar el filtro o cargar un repuesto nuevo.</div></div>';
 
   h+='<div class="card"><table><thead><tr><th>Código</th><th>Descripción</th><th>Rubro</th>'+
      '<th class="num">Mín.</th><th class="num">Stock</th><th>Estado</th><th></th></tr></thead><tbody>';
@@ -468,7 +468,7 @@ function vistaMovs(){
     '<span class="count">'+lista.length+' de '+S.movs.length+'</span></div>';
 
   if(!lista.length) return h+'<div class="card"><div class="empty"><b>No hay movimientos</b>'+
-    (S.movs.length?'Ningún movimiento coincide con el filtro.':'Cargá el primero con el botón “+ Movimiento”.')+'</div></div>';
+    (S.movs.length?'Ningún movimiento coincide con el filtro.':'Cargar el primero con el botón “+ Movimiento”.')+'</div></div>';
 
   h+='<div class="card"><table><thead><tr><th>Fecha</th><th>Código</th><th>Producto</th><th>Patente</th>'+
      '<th>Tipo</th><th class="num">Cantidad</th><th>Observaciones</th><th></th></tr></thead><tbody>';
@@ -500,7 +500,7 @@ function vistaDatos(){
     '</div><p style="margin:10px 0 0">Los CSV se abren con doble clic en Excel o Numbers.</p></div>'+
 
     '<div class="panel"><h3>Cómo se usa</h3><ol>'+
-    '<li><b>Stock inicial:</b> cargá un movimiento de tipo <b>Ajuste</b> por cada repuesto, con lo que hay hoy en el depósito.</li>'+
+    '<li><b>Stock inicial:</b> cargar un movimiento de tipo <b>Ajuste</b> por cada repuesto, con lo que hay hoy en el depósito.</li>'+
     '<li><b>Entrada:</b> compras y devoluciones al depósito. Suman.</li>'+
     '<li><b>Salida:</b> repuesto que se monta en una unidad. Restan y piden la patente.</li>'+
     '<li><b>Ajuste:</b> corrección de conteo. Admite cantidad negativa.</li>'+
@@ -525,7 +525,7 @@ function pintarMov(){
   var a=art(M.cod);
   var sel = a ? '<div class="picked"><div><span class="c">'+esc(a.codigo)+'</span><span class="d">'+esc(a.descripcion)+'</span></div>'+
                 '<button class="link" data-act="mov-clear">cambiar</button></div>'
-              : '<div class="cbx"><input type="text" id="mv-q" autocomplete="off" placeholder="Escribí el producto o el código" value="'+esc(M.q)+'">'+
+              : '<div class="cbx"><input type="text" id="mv-q" autocomplete="off" placeholder="Indicar el producto o el código" value="'+esc(M.q)+'">'+
                 (M.open?listaCbx():"")+'</div>';
   var st = a ? stockDe(a.codigo) : null;
   abrir('<h2>'+(M.tipo==="Salida"?"Salida de repuesto":M.tipo==="Entrada"?"Entrada de repuesto":"Ajuste de stock")+'</h2><div class="body">'+
@@ -568,11 +568,11 @@ function leerMov(){
 async function guardarMov(){
   leerMov();
   var a=art(M.cod);
-  if(!a){ M.err="Elegí un producto de la lista."; return pintarMov(); }
+  if(!a){ M.err="Seleccionar un producto de la lista."; return pintarMov(); }
   if(!M.fecha){ M.err="Falta la fecha."; return pintarMov(); }
   if(!M.cant || isNaN(M.cant)){ M.err="La cantidad tiene que ser distinta de cero."; return pintarMov(); }
   if(M.tipo!=="Ajuste" && M.cant<0){ M.err="En entradas y salidas la cantidad va en positivo."; return pintarMov(); }
-  if(M.tipo==="Salida" && !M.pat){ M.err="Cargá la patente de la unidad que recibe el repuesto."; return pintarMov(); }
+  if(M.tipo==="Salida" && !M.pat){ M.err="Cargar la patente de la unidad que recibe el repuesto."; return pintarMov(); }
   if(M.tipo==="Salida"){
     var st=stockDe(a.codigo);
     if(M.cant>st && !confirm("El stock de “"+a.descripcion+"” es "+st+" y estás sacando "+M.cant+". ¿Guardo igual?")) return;
@@ -863,7 +863,7 @@ function abrirDesdeQR(cod){
       achicarImagen(inp.files[0], LADO_MAX).then(function (r) {
         OCR.dataUrl = r.dataUrl; OCR.b64 = r.b64; OCR.mime = r.mime; pintarOCR();
       }).catch(function () {
-        OCR.err = "No se pudo abrir esa imagen. Probá con un JPG o PNG."; pintarOCR();
+        OCR.err = "No se pudo abrir la imagen. Debe utilizarse un archivo JPG o PNG."; pintarOCR();
       });
     };
   }
@@ -887,7 +887,7 @@ function abrirDesdeQR(cod){
     var filas = OCR.filas.map(function (f, i) {
       return '<tr data-i="' + i + '" class="' + (f.duda ? "duda" : "") + '">' +
         '<td style="width:120px"><input type="date" data-k="fecha" value="' + esc(f.fecha) + '"></td>' +
-        '<td><input type="text" data-k="prod" list="ocr-arts" value="' + esc(f.prod) + '" placeholder="Elegí el repuesto"></td>' +
+        '<td><input type="text" data-k="prod" list="ocr-arts" value="' + esc(f.prod) + '" placeholder="Seleccionar el repuesto"></td>' +
         '<td style="width:98px"><input type="text" data-k="patente" value="' + esc(f.patente) + '" maxlength="9" style="text-transform:uppercase" placeholder="—"></td>' +
         '<td style="width:106px"><select data-k="tipo">' +
           ["Entrada", "Salida", "Ajuste"].map(function (t) {
@@ -903,7 +903,7 @@ function abrirDesdeQR(cod){
     abrirAncho('<h2>Revisar lo que leyó</h2><div class="body">' +
       '<datalist id="ocr-arts">' + opciones + '</datalist>' +
       (OCR.nota ? '<p class="ocrnota" style="margin:0 0 12px">' + esc(OCR.nota) + '</p>' : '') +
-      (dudas ? '<p class="ocrnota" style="margin:0 0 12px">Las filas <b>resaltadas</b> son las que no pudo emparejar con el listado. Elegí el repuesto a mano.</p>' : '') +
+      (dudas ? '<p class="ocrnota" style="margin:0 0 12px">Las filas <b>resaltadas</b> son las que no pudo emparejar con el listado. Seleccionar el repuesto a mano.</p>' : '') +
       '<div class="ocrscroll"><table class="ocrtab"><thead><tr>' +
         '<th>Fecha</th><th>Repuesto</th><th>Patente</th><th>Tipo</th><th>Cant.</th><th>Observaciones</th><th></th>' +
       '</tr></thead><tbody id="ocr-tbody">' + filas + '</tbody></table></div>' +
@@ -981,7 +981,7 @@ function abrirDesdeQR(cod){
       var datos = parsearJSON(texto);
       if (!datos.length) throw new Error("No encontré movimientos en esa foto.");
       OCR.filas = datos.map(mapearFila);
-      OCR.nota = "Leí " + OCR.filas.length + " movimiento(s). Revisá antes de guardar.";
+      OCR.nota = "Leí " + OCR.filas.length + " movimiento(s). Revisar antes de guardar.";
       OCR.paso = "revision";
       pintarOCR();
     }).catch(function (e) {
@@ -1084,7 +1084,7 @@ function abrirDesdeQR(cod){
 
     for (var i = 0; i < OCR.filas.length; i++) {
       var f = OCR.filas[i], n = i + 1;
-      if (!f.codigo)  { OCR.err = "Fila " + n + ": elegí el repuesto de la lista."; return pintarOCR(); }
+      if (!f.codigo)  { OCR.err = "Fila " + n + ": seleccionar el repuesto de la lista."; return pintarOCR(); }
       if (!f.fecha)   { OCR.err = "Fila " + n + ": falta la fecha."; return pintarOCR(); }
       if (!f.cantidad || isNaN(f.cantidad)) { OCR.err = "Fila " + n + ": la cantidad no puede ser cero."; return pintarOCR(); }
       if (f.tipo !== "Ajuste" && f.cantidad < 0) { OCR.err = "Fila " + n + ": en entradas y salidas la cantidad va en positivo."; return pintarOCR(); }

@@ -174,7 +174,7 @@ def main():
     a = ap.parse_args()
 
     if not a.clientes and not a.cuenta_corriente:
-        raise SystemExit("Indicá --clientes y/o --cuenta-corriente, o completá config.json")
+        raise SystemExit("Indicar --clientes y/o --cuenta-corriente, o completar config.json")
 
     print("Ingesta de reportes")
     cx = sqlite3.connect(DB)

@@ -1642,7 +1642,7 @@ function abrirUnidad(pat) {
 function renderFicha() {
   const host = $('#ficha');
   const u = APP.unidades.get(APP.seleccion);
-  if (!u) { host.innerHTML = `<div class="card"><div class="empty">Elegí una unidad para ver su ficha.</div></div>`; return; }
+  if (!u) { host.innerHTML = `<div class="card"><div class="empty">Seleccionar una unidad para ver su ficha.</div></div>`; return; }
 
   const e = ESTADOS[u.estado];
   const ciclo = (u.kmProx !== null && u.kmUlt !== null) ? u.kmProx - u.kmUlt : null;
@@ -1969,7 +1969,7 @@ $('#form-service').addEventListener('submit', async ev => {
 
   try {
     const iso = fechaISO($('#sv-fecha').value.trim());
-    if (!iso) throw new Error('La fecha no es válida. Usá DD/MM/AA.');
+    if (!iso) throw new Error('La fecha no es válida. Utilizar DD/MM/AA.');
     if (!u || !u.id) throw new Error('La unidad no está vinculada con el maestro de Supabase.');
 
     const r = await fetch('/api/alertas', {
@@ -2035,7 +2035,7 @@ $('#as-unidad').onchange=seleccionarAsignacion;
 $('#pl-save').onclick=async()=>{try{await guardarPlan({op:'plan_guardar',id:$('#pl-id').value,nombre:$('#pl-nombre').value,cada_km:$('#pl-km').value,descripcion:$('#pl-desc').value});limpiarPlan();}catch(e){planMensaje(e.message);}};
 $('#as-save').onclick=async()=>{try{await guardarPlan({op:'asignar',unidad_id:$('#as-unidad').value,plan_id:$('#as-plan').value});await cargarTodo(false);}catch(e){planMensaje(e.message);}};
 $('#as-importar').onclick=async()=>{
-  const archivo=$('#as-archivo').files[0]; if(!archivo){planMensaje('Elegí un archivo .xlsx.');return;}
+  const archivo=$('#as-archivo').files[0]; if(!archivo){planMensaje('Seleccionar un archivo .xlsx.');return;}
   const boton=$('#as-importar'); boton.disabled=true; planMensaje('Importando…'); $('#as-resultado').textContent='';
   try{
     const bytes=new Uint8Array(await archivo.arrayBuffer()); let bin='';

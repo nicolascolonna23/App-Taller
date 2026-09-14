@@ -273,7 +273,7 @@ fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
     const donde=[d.alertas&&d.alertas.total ? '<a href="/alertas" style="color:inherit">Alertas</a>' : null,
                  d.reponer ? '<a href="/repuestos" style="color:inherit">Repuestos</a>' : null].filter(Boolean);
     document.getElementById('aviso-txt').innerHTML=avisos.join(' ')+
-      (donde.length?' Entrá a '+donde.join(' y ')+'.':'');
+      (donde.length?' Ingresar a '+donde.join(' y ')+'.':'');
     document.getElementById('aviso').hidden=false;
   }
 }).catch(()=>{InicioDashboard.error();});

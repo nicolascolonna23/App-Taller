@@ -133,7 +133,7 @@ def aplicar(cx, datos, usuario):
         descripcion = " ".join(str(datos.get("descripcion") or "").split())[:300] or None
         cada = int(datos.get("cada_km") or 0)
         if not nombre or cada <= 0:
-            raise ValueError("Completá el nombre y una frecuencia mayor que cero.")
+            raise ValueError("Completar el nombre y una frecuencia mayor que cero.")
         plan_id = int(datos.get("id") or 0)
         if plan_id:
             fila = cx.execute("""update mantenimiento_planes

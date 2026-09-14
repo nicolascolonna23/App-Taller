@@ -75,7 +75,7 @@ def _numero(valor, campo, entero=False):
 def _mantenimiento(valor):
     clase = str(valor or "").strip().lower()
     if clase not in ("preventivo", "correctivo"):
-        raise ValueError("Elegí si el mantenimiento es preventivo o correctivo.")
+        raise ValueError("Seleccionar si el mantenimiento es preventivo o correctivo.")
     return clase
 
 
@@ -202,7 +202,7 @@ def historial(cx, patente=None, unidad_id=None):
                           (unidad_id,)).fetchone()
         patente = fila["patente"] if fila else None
     if not patente:
-        raise ValueError("Elegí de qué unidad querés ver el historial.")
+        raise ValueError("Debe seleccionarse la unidad para ver su historial.")
 
     ordenes = [dict(o) for o in cx.execute("""
         select * from v_ordenes where patente = %s
@@ -333,7 +333,7 @@ def cerrar(cx, datos, usuario):
     """, (orden["id"], orden["id"])).fetchone()
     if vacia and not orden["diagnostico"]:
         raise ValueError("La orden no tiene ni un trabajo ni un repuesto cargado. "
-                         "Cargá lo que se hizo antes de cerrarla.")
+                         "Cargar lo que se hizo antes de cerrarla.")
 
     cierre = _fecha(datos.get("fecha_cierre"), "la fecha de cierre") or date.today()
     if cierre < orden["fecha"]:
@@ -413,7 +413,7 @@ def tarea_agregar(cx, datos, usuario):
     orden = _orden(cx, datos.get("id"), abierta=True)
     detalle = _texto(datos.get("detalle"), 500)
     if not detalle:
-        raise ValueError("Escribí qué se le hizo.")
+        raise ValueError("Indicar qué se le hizo.")
     fila = cx.execute("""
         insert into ordenes_tareas (orden_id, detalle, horas, importe)
         values (%s,%s,%s,%s) returning id
@@ -483,7 +483,7 @@ def repuesto_agregar(cx, datos, usuario):
         # Sin código: algo que se compró para este trabajo y no está en el
         # depósito. Se anota en la orden pero no toca el stock.
         if not descripcion:
-            raise ValueError("Elegí un repuesto del depósito o escribí qué se puso.")
+            raise ValueError("Seleccionar un repuesto del depósito o indicar qué se puso.")
         quedan = None
 
     renglon = cx.execute("""

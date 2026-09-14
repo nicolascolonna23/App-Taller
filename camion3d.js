@@ -41,6 +41,18 @@ const RUEDAS = {
    Se buscan por nombre en varios idiomas —los modelos vienen de donde
    vienen— y, si eso no da, por dónde están: los pedazos de abajo, redondos
    y de un tamaño razonable. */
+/* El gris de la goma. Es el color con el que sale toda rueda de la que el
+   mapa todavía no sabe nada, y es el mismo en los siete modelos: el que
+   cambie el autoelevador tiene que cambiar el camión.
+
+   Estaba en 0x24282d, que sobre el fondo oscuro del visor no se leía como
+   una goma sino como un agujero negro. Se nota sobre todo en las unidades
+   sin mapa de cubiertas, donde ninguna rueda se pinta de azul ni de rojizo
+   y quedan todas de este color. Subirlo un punto alcanza para que se vea
+   el volumen de la rueda, y sigue bien separado del naranja de la elegida,
+   del azul de la que está puesta y del rojizo de la que falta. */
+const GOMA = 0x454b53;
+
 const PALABRAS_RUEDA = /rueda|wheel|tire|tyre|llanta|neumat|goma|kerek|gumi|\brad\b|roue|pneu/i;
 /* La otra convención: FL, FR, ML, MR, RL, RR — front/middle/rear por
    left/right. Vienen así los modelos armados para juegos. */
@@ -418,16 +430,16 @@ function armarVisor(clave, archivo, opciones){
   VISOR = opciones || {};
   nodo('#visor-vacio').hidden = true;
   const POR = { mano:'asignación manual', mapa:'configuración de neumáticos',
-                modelo:'lo dice el modelo', codigo:'por el código de Iveco',
-                equipo:'está cargado como equipo',
-                'no se sabe':'sin datos' };
+                modelo:'según el modelo', codigo:'código del fabricante',
+                equipo:'registrado como equipo',
+                'no se sabe':'sin determinar' };
   const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
                    semi:'Semirremolque', autoelevador:'Autoelevador',
                    utilitario:'Utilitario / furgón', auto:'Auto',
                    chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
-  nodo('#visor-pista').textContent = 'Arrastrá para girar · tocá una rueda';
+  nodo('#visor-pista').textContent = 'Arrastrar para girar · seleccionar una rueda';
 
   const caja = nodo('#visor');
   const esc3 = new THREE.Scene();
@@ -466,7 +478,7 @@ function armarVisor(clave, archivo, opciones){
   ctrl.maxPolarAngle = Math.PI / 2 - .04;
   ctrl.enablePan = false;
 
-  const goma   = new THREE.MeshStandardMaterial({ color:0x24282d, roughness:.92, metalness:.02 });
+  const goma   = new THREE.MeshStandardMaterial({ color:GOMA, roughness:.92, metalness:.02 });
 
   /* El .obj y el .fbx se leen igual de acá para abajo. El FBX se acepta
      porque es como vienen casi todos los modelos, y convertirlos sería un
@@ -477,7 +489,7 @@ function armarVisor(clave, archivo, opciones){
                       : THREE.OBJLoader;
   if (!ClaseCargador){
     visorVacio(`Falta el lector para el archivo <code>${escHtml(archivo)}</code>. ` +
-      'Recargá la página; si sigue igual, avisá al administrador.');
+      'Recargar la página; si sigue igual, avisar al administrador.');
     return;
   }
   const cargador = new ClaseCargador();
@@ -680,8 +692,8 @@ function armarVisor(clave, archivo, opciones){
     });
 
     nodo('#visor-pista').textContent = V.ruedas.length
-      ? 'Arrastrá para girar · tocá una rueda'
-      : 'Arrastrá para girar · en este modelo no se reconocieron las ruedas';
+      ? 'Arrastrar para girar · seleccionar una rueda'
+      : 'Arrastrar para girar · no se reconocieron las ruedas de este modelo';
     /* Centrado a lo largo y a lo ancho, y apoyado en el piso. */
     obj.position.x -= (caja.min.x + caja.max.x) / 2;
     obj.position.z -= (caja.min.z + caja.max.z) / 2;
@@ -704,7 +716,7 @@ function armarVisor(clave, archivo, opciones){
   }, undefined, error => {
     const detalle = error && error.message ? ` (${escHtml(error.message)})` : '';
     visorVacio(`No se pudo cargar <code>${escHtml(archivo)}</code>${detalle}. ` +
-      'Probá recargar la página.');
+      'Reintentar recargar la página.');
   });
 
   /* Piso: un disco apenas más claro, para que el camión no flote. */
@@ -857,7 +869,7 @@ function esquinaDeLaRueda(malla){
    elegida es de ese eje, del lado que sea: no se puede pintar media
    pieza, y por eso tampoco se le puede decir si está ocupada o no. */
 const RUEDA = {
-  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: 0x24282d,
+  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: GOMA,
 };
 
 function pintarRuedas(){

@@ -66,14 +66,18 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
      assert(!(await page.locator('body').innerText()).includes('AC 111 ZZ'));
     }
     if(url==='/combustible')assert(!(await page.locator('body').innerText()).includes('EN PRUEBA'));
-    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(245, 245, 242)');
+    // El fondo del tema claro lo define tema.js (--plane). Si cambia allá,
+    // esta línea tiene que cambiar acá: es el precio de fijar un color.
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(242, 245, 248)');
     if(url==='/'){
      assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);
      assert.equal(await page.locator('.nav a', {hasText:'Alertas'}).count(),0);
      assert.equal(await page.locator('.side-footer').count(),0);
      assert.equal(await page.locator('#sello').count(),0);
      assert.equal(await page.locator('.brand-copy').innerText(),'PENGUIN FLEET\nMANAGEMENT');
-     assert((await page.locator('#pengui').boundingBox()).x>=230);
+     assert.equal(await page.locator('.top-actions #pengui').count(),1);
+     const pb=await page.locator('#pengui .launch').boundingBox(),cb=await page.locator('#alertas-btn').boundingBox();
+     assert(pb.y+pb.height<=cb.y+cb.height+2&&pb.x<cb.x);
      await page.locator('#alertas-btn').click();
      await page.locator('.alert-item').first().waitFor();
      assert.equal(await page.locator('.alert-item').count(),2);

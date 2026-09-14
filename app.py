@@ -65,6 +65,8 @@ PANTALLAS = {
     "/asistente/guia": ("docs/ASISTENTE.md", "text/plain; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
+    # El módulo liviano para el teléfono: solo gomería y órdenes.
+    "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
     # El logo de la app es blanco; sobre el papel claro de la cédula no se
     # vería. Este es el azul, el mismo que se imprime en las etiquetas.
@@ -256,7 +258,7 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(alr.services(cx)))
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
                 return self._error(
-                    "Falta actualizar los services. Corré gomeria/20_alertas.sql y "
+                    "Falta actualizar los services. Ejecutar gomeria/20_alertas.sql y "
                     "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
                     "en Supabase.", 503)
             except Exception as e:
@@ -270,7 +272,7 @@ class App(gom.Handler):
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(mant.listar(cx)))
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la parametrización: {e}", 500)
@@ -370,7 +372,7 @@ class App(gom.Handler):
                 return self.wfile.write(cuerpo)
             except psycopg.errors.UndefinedTable:
                 return self._error(
-                    "Falta crear la vista de unidades. Corré "
+                    "Falta crear la vista de unidades. Ejecutar "
                     "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
@@ -446,11 +448,11 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(uni.listar(cx)))
             except psycopg.errors.UndefinedColumn:
                 return self._error(
-                    "Al maestro de unidades le faltan columnas. Corré "
+                    "Al maestro de unidades le faltan columnas. Ejecutar "
                     "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
             except psycopg.errors.UndefinedTable:
                 return self._error(
-                    "Falta crear la vista de unidades. Corré "
+                    "Falta crear la vista de unidades. Ejecutar "
                     "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
@@ -465,11 +467,11 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(ots.listar(cx, self.usuario)))
             except psycopg.errors.UndefinedTable:
                 return self._error(
-                    "Falta crear las tablas de órdenes de trabajo. Corré "
+                    "Falta crear las tablas de órdenes de trabajo. Ejecutar "
                     "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
             except psycopg.errors.UndefinedColumn:
                 return self._error(
-                    "Falta actualizar las órdenes preventivas. Corré "
+                    "Falta actualizar las órdenes preventivas. Ejecutar "
                     "gomeria/21_ordenes_preventivas.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
@@ -501,7 +503,7 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(venc.listar(cx)))
             except psycopg.errors.UndefinedTable:
                 return self._error(
-                    "Falta crear las tablas de vencimientos. Corré "
+                    "Falta crear las tablas de vencimientos. Ejecutar "
                     "gomeria/06_vencimientos.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
@@ -564,7 +566,7 @@ class App(gom.Handler):
             except asistente.NoDisponible as e:
                 return self._error(str(e), 503)
             except (ValueError, UnicodeError) as e:
-                return self._error("Consulta inválida. Revisá el texto y su longitud.", 400)
+                return self._error("Consulta inválida. Revisar el texto y su longitud.", 400)
             except Exception:
                 return self._error("No se pudo completar la consulta. Intentá nuevamente.", 500)
 
@@ -635,7 +637,7 @@ class App(gom.Handler):
                            if isinstance(e, psycopg.errors.UniqueViolation) else str(e))
                 return self._error(mensaje)
             except anthropic.APIStatusError as e:
-                return self._error(f"La API respondió {e.status_code}. Revisá la clave o el saldo.", 502)
+                return self._error(f"La API respondió {e.status_code}. Revisar la clave o el saldo.", 502)
             except anthropic.APIConnectionError:
                 return self._error("No se pudo conectar con la API de Claude.", 502)
             except Exception as e:
@@ -662,11 +664,11 @@ class App(gom.Handler):
                 return self._error(str(e))
             except psycopg.errors.UndefinedTable:
                 return self._error(
-                    "Falta crear las tablas de órdenes de trabajo. Corré "
+                    "Falta crear las tablas de órdenes de trabajo. Ejecutar "
                     "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
             except psycopg.errors.UndefinedColumn:
                 return self._error(
-                    "Falta actualizar las órdenes preventivas. Corré "
+                    "Falta actualizar las órdenes preventivas. Ejecutar "
                     "gomeria/21_ordenes_preventivas.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
@@ -698,7 +700,7 @@ class App(gom.Handler):
             except psycopg.errors.UniqueViolation:
                 return self._error("Ya existe un plan con ese nombre.")
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Corré gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la parametrización: {e}", 500)
@@ -813,7 +815,7 @@ class App(gom.Handler):
         except ValueError as e:
             return self._error(str(e))
         except psycopg.errors.UndefinedTable:
-            return self._error("Falta crear las tablas de alertas. Corré "
+            return self._error("Falta crear las tablas de alertas. Ejecutar "
                                "gomeria/20_alertas.sql en el SQL Editor de Supabase.", 503)
         except Exception as e:
             traceback.print_exc()
@@ -835,11 +837,11 @@ class App(gom.Handler):
             largo = int(self.headers.get("Content-Length") or 0)
             # Cuatro hojas del tamaño máximo, más lo que agrega el base64.
             if largo > 68 * 1024 * 1024:
-                return self._error("Las fotos pesan demasiado. Sacalas de nuevo "
-                                   "con menos calidad.", 413)
+                return self._error("Las fotos pesan demasiado. Deben tomarse "
+                                   "de nuevo con menor calidad.", 413)
             datos = json.loads(self.rfile.read(largo) or b"{}")
         except Exception:
-            return self._error("El pedido llegó cortado. Probá de nuevo.")
+            return self._error("El pedido llegó cortado. Debe reintentarse.")
 
         try:
             with base.conectar() as cx:
@@ -852,7 +854,7 @@ class App(gom.Handler):
         except ValueError as e:
             return self._error(str(e))
         except anthropic.APIStatusError as e:
-            return self._error(f"La API respondió {e.status_code}. Revisá la clave "
+            return self._error(f"La API respondió {e.status_code}. Revisar la clave "
                                f"o el saldo.", 502)
         except anthropic.APIConnectionError:
             return self._error("No se pudo conectar con la API de Claude.", 502)
@@ -883,7 +885,7 @@ class App(gom.Handler):
             return self._error(str(e))
         except psycopg.errors.UndefinedTable:
             return self._error(
-                "Falta crear las tablas de combustible. Corré "
+                "Falta crear las tablas de combustible. Ejecutar "
                 "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
         except Exception as e:
             traceback.print_exc()
@@ -915,7 +917,7 @@ class App(gom.Handler):
             return self._error(str(e))
         except psycopg.errors.UndefinedColumn:
             return self._error(
-                "Al maestro de unidades le faltan columnas. Corré "
+                "Al maestro de unidades le faltan columnas. Ejecutar "
                 "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
         except Exception as e:
             traceback.print_exc()
@@ -962,7 +964,7 @@ def preparar():
             where table_schema = 'public' and table_name = 'unidades'
               and column_name in ('chasis','chofer','semi','tipo')""").fetchone()["n"]
         if tiene_maestro < 4:
-            print("  Al maestro de unidades le faltan columnas: corré "
+            print("  Al maestro de unidades le faltan columnas: ejecutar "
                   "gomeria/07_unidades.sql en Supabase.")
 
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
@@ -982,7 +984,7 @@ def preparar():
 
     if not cuantos:
         print("  Todavía no hay usuarios: nadie va a poder entrar.")
-        print('  Poné USUARIO_INICIAL="usuario:Nombre Completo:contraseña" y reiniciá.')
+        print('  Indicar USUARIO_INICIAL="usuario:Nombre Completo:contraseña" y reiniciar.')
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print("  Sin ANTHROPIC_API_KEY: se ven los mapas, no se cargan partes.")
     return cuantos, unidades

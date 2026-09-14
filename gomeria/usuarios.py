@@ -33,9 +33,9 @@ def pedir_clave(usuario):
     problema = auth.revisar_clave(clave)
     if problema:
         raise SystemExit(problema)
-    repetida = input("  Escribila de nuevo: ").strip()
+    repetida = input("  Indicarla de nuevo: ").strip()
     if clave != repetida:
-        raise SystemExit("Las dos veces no coinciden. Probá otra vez.")
+        raise SystemExit("Las dos veces no coinciden. Debe reintentarse.")
     return clave
 
 

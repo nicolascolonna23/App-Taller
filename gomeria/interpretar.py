@@ -287,7 +287,7 @@ def aplicar(cx, unidad, propuesta, parte_id=None, usuario=None, base=None):
                 raise ValueError(
                     f"La cubierta {c['codigo']} figura montada en "
                     f"{base.fmtPat(puesta['patente'])}, posición {puesta['posicion']}. "
-                    f"Sacala de ahí antes de ponerla en {a['posicion']}.")
+                    f"Debe retirarse de esa posición antes de montarla en {a['posicion']}.")
             base.montar(cx, unidad["id"], posicion(a["posicion"]), c["id"], km=km,
                         grupo=grupo, parte_id=parte_id, usuario=usuario, nota=a.get("nota"))
             hecho.append(f"Montada {c['codigo']} en {a['posicion']}"
@@ -314,7 +314,7 @@ def aplicar(cx, unidad, propuesta, parte_id=None, usuario=None, base=None):
                 if not a.get("cubierta"):
                     raise ValueError(
                         f"En {a['posicion']} el sistema no tiene ninguna cubierta "
-                        f"cargada. Escribí el número de fuego de la que sacaste "
+                        f"cargada. Indicar el número de fuego de la que sacaste "
                         f"para poder registrarla.")
                 c, nueva = cubierta_de(a)
                 base.sacar_de_servicio(cx, c["id"], destino=destino,

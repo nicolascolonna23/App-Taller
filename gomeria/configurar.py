@@ -44,11 +44,11 @@ def revisar(url):
                 "Supabase, sin editarla.")
     if not url.startswith("postgresql://") and not url.startswith("postgres://"):
         return ("Eso no parece una cadena de conexión. Tiene que empezar con "
-                "postgresql:// — fijate que copiaste la de 'Connection String', "
+                "postgresql:// — verificar que copiaste la de 'Connection String', "
                 "no la URL del proyecto ni una clave de API.")
     if ":6543" in url:
         return ("Esa es la del Transaction pooler (puerto 6543) y no sirve para esto. "
-                "Volvé a Connect y elegí Session pooler, que usa el puerto 5432.")
+                "Volver a Connect y seleccionar Session pooler, que usa el puerto 5432.")
     if "YOUR-PROJECT" in url or "example.com" in url:
         return "Esa cadena es el ejemplo de la documentación, no la de tu proyecto."
     # Con el Session pooler el usuario lleva el identificador del proyecto pegado
@@ -81,7 +81,7 @@ def probar(url):
     try:
         import psycopg
     except ImportError:
-        return False, ("Falta una librería. Corré primero:\n"
+        return False, ("Falta una librería. Ejecutar primero:\n"
                        "    pip3 install -r gomeria/requisitos.txt")
     try:
         with psycopg.connect(url, connect_timeout=20) as cx:
@@ -90,8 +90,8 @@ def probar(url):
             if faltan:
                 return False, ("Entré a la base, pero le faltan tablas: "
                                + ", ".join(faltan) +
-                               "\n  Corré 01_esquema.sql y 02_vistas.sql en el SQL Editor "
-                               "de Supabase y volvé a probar.")
+                               "\n  Ejecutar 01_esquema.sql y 02_vistas.sql en el SQL Editor "
+                               "de Supabase y volver a probar.")
             # Las tablas tienen RLS prendido. El dueño de la tabla lo saltea, pero
             # cualquier otro rol vería la base vacía y sin ningún error: es el
             # tipo de problema que cuesta horas encontrar. Mejor avisar acá.
@@ -106,7 +106,7 @@ def probar(url):
                 return False, (
                     f"Conecté como '{d[1]}', pero las tablas son de '{d[0]}'.\n"
                     "  Con ese usuario no vas a ver ninguna fila, por la seguridad a\n"
-                    "  nivel de fila que tienen las tablas. Usá la cadena de conexión\n"
+                    "  nivel de fila que tienen las tablas. Utilizar la cadena de conexión\n"
                     "  que da Supabase, que entra como dueño.")
 
             unidades = cx.execute("select count(*) from unidades").fetchone()[0]
@@ -119,10 +119,10 @@ def probar(url):
             pista = ("\n  La contraseña no es la correcta. Podés resetearla en Supabase: "
                      "Settings → Database → Reset database password.")
         elif "could not translate host name" in detalle.lower() or "name or service" in detalle.lower():
-            pista = "\n  No se pudo resolver la dirección. Revisá que copiaste la línea entera."
+            pista = "\n  No se pudo resolver la dirección. Revisar que copiaste la línea entera."
         elif "timeout" in detalle.lower():
             pista = ("\n  No hubo respuesta. Si el proyecto estuvo una semana sin uso, "
-                     "Supabase lo pausa: entrá al panel y despausalo.")
+                     "Supabase lo pausa: ingresar al panel y reactivarlo.")
         return False, f"No pude conectarme: {detalle}{pista}"
 
 
@@ -134,7 +134,7 @@ def salir_mal():
     """
     print("\n" + "-" * 64)
     print("  El programa terminó. Ya NO está esperando que escribas nada.")
-    print("  Para volver a intentar, corré de nuevo:")
+    print("  Para volver a intentar, ejecutar de nuevo:")
     print("      python3 gomeria/configurar.py")
     print("-" * 64)
 
@@ -170,8 +170,8 @@ def main():
             sys.exit(1)
 
     url = pedir("PASO 1 de 2 — la cadena de conexión", [
-        "Pegala acá y apretá Enter.",
-        "Dejá el [YOUR-PASSWORD] tal cual: la contraseña te la pido después.",
+        "Pegarla acá y presionar Enter.",
+        "Dejar el [YOUR-PASSWORD] tal cual: la contraseña te la pido después.",
     ])
     problema = revisar(url)
     if problema:
@@ -180,7 +180,7 @@ def main():
         return 1
 
     password = pedir("PASO 2 de 2 — la contraseña de la base", [
-        "Escribila y apretá Enter. Se va a ver mientras la escribís,",
+        "Indicarla y presionar Enter. Se va a ver mientras la escribís,",
         "para que sepas que el programa la está recibiendo.",
     ])
     if not password:
