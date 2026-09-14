@@ -1,7 +1,7 @@
 -- =====================================================================
 -- ODÓMETROS: el kilometraje diario que llega del satelital
 -- =====================================================================
--- Todos los días a las 08:30 la app entra al satelital (gomeria/hawk.py) y
+-- Todos los días a las 05:00 la app entra al satelital (gomeria/hawk.py) y
 -- lee el odómetro de cada móvil. Acá queda la serie completa, que es lo que
 -- la planilla de services no guarda: ahí se pisa la celda y el valor de
 -- ayer se pierde.

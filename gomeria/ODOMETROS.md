@@ -14,7 +14,7 @@ el número del que cuelga todo el módulo de gomería.
 |---|---|
 | `gomeria/hawk.py` | entra a Hawk, lee el odómetro de cada móvil |
 | `gomeria/subir_odometros.py` | deja esas lecturas en la tabla `odometros` |
-| `.github/workflows/odometros.yml` | los corre a los dos, 08:30 ART, todos los días |
+| `.github/workflows/odometros.yml` | los corre a los dos, 05:00 ART, todos los días |
 | `gomeria/05_odometros.sql` | la tabla y las tres vistas |
 
 Hawk no tiene una API abierta. Hay que loguearse con un navegador de verdad
@@ -31,9 +31,8 @@ Y el día que allá cambió el orden de las columnas del CSV, de este lado se
 guardaron dos campos en blanco sin que nadie se enterara.
 
 ServiceDM sigue como está: es el que escribe la planilla de services y no
-hay que tocarlo. Son dos lecturas distintas del mismo satelital, media hora
-separadas para que las sesiones no se pisen, y si un día se cae una, la otra
-sigue.
+hay que tocarlo. Son dos lecturas distintas del mismo satelital —esta a las
+05:00, la de ServiceDM a las 08:00— y si un día se cae una, la otra sigue.
 
 ## Lo que hay que tener configurado
 
@@ -44,6 +43,12 @@ En **App-Taller** → Settings → Secrets and variables → Actions:
 | `HAWK_USER` | el usuario del satelital |
 | `HAWK_PASS` | su contraseña |
 | `SUPABASE_DB_URL` | la cadena de conexión de Supabase |
+| `EMAIL_FROM` | la casilla de Gmail que manda y recibe el aviso |
+| `EMAIL_PASSWORD` | una **contraseña de aplicación** de esa cuenta, no la del mail |
+
+La contraseña de aplicación se saca en la cuenta de Google → *Seguridad* →
+*Verificación en dos pasos* → *Contraseñas de aplicaciones*. La contraseña
+común de Gmail no sirve: Google no deja que un programa entre con ella.
 
 **La de Supabase tiene que ser la de Connection pooling**, no la directa.
 Las máquinas de GitHub Actions no tienen IPv6 y la conexión directa de
@@ -70,7 +75,12 @@ correr las veces que haga falta: no borra datos. Deja armado:
 
 ## Cómo saber si está entrando
 
-Tres lugares, del más cómodo al más detallado:
+Sin hacer nada: **te llega un mail en cada corrida**, salga bien o salga
+mal. El que avisa que salió bien no es de adorno — si un día no llega
+ninguno de los dos, es que el job ni arrancó, y eso no se nota de ninguna
+otra manera.
+
+Y si querés mirarlo vos, tres lugares del más cómodo al más detallado:
 
 1. **La portada de la app.** La tarjeta *Kilómetros de la flota* dice abajo
    `última lectura 11/09`. Si esa fecha se atrasa más de un día, algo se
