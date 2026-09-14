@@ -277,7 +277,7 @@ def main():
     with base.conectar() as cx:
         existe = cx.execute("select to_regclass('public.services') as t").fetchone()
         if not existe or not existe["t"]:
-            sys.exit("Falta la tabla de services. Corré gomeria/20_alertas.sql "
+            sys.exit("Falta la tabla de services. Ejecutar gomeria/20_alertas.sql "
                      "en el SQL Editor de Supabase.")
 
         unidades = {u["patente"]: u["id"] for u in cx.execute(

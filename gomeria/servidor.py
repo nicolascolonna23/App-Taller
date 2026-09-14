@@ -439,7 +439,7 @@ class Handler(BaseHTTPRequestHandler):
         texto = (datos.get("texto") or "").strip()
         autor = self.usuario["nombre"]
         if not texto:
-            return self._error("Indicar qué hiciste.")
+            return self._error("Falta describir el trabajo realizado.")
 
         with base.conectar() as cx:
             # La unidad puede venir de la URL (un QR por unidad) o salir del
@@ -470,7 +470,7 @@ class Handler(BaseHTTPRequestHandler):
                            ("sin clave de la API", parte["id"]))
                 cx.commit()
                 return self._error(
-                    "Falta la clave de la API. Lo que escribiste quedó guardado; "
+                    "Falta la clave de la API. El texto quedó guardado; "
                     "indicar la clave en chat/clave.txt, reiniciar el servidor y volver a mandarlo.")
 
             mapa = base.mapa_unidad(cx, unidad["id"])

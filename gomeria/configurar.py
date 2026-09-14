@@ -81,7 +81,7 @@ def probar(url):
     try:
         import psycopg
     except ImportError:
-        return False, ("Falta una librería. Corré primero:\n"
+        return False, ("Falta una librería. Ejecutar primero:\n"
                        "    pip3 install -r gomeria/requisitos.txt")
     try:
         with psycopg.connect(url, connect_timeout=20) as cx:
@@ -90,7 +90,7 @@ def probar(url):
             if faltan:
                 return False, ("Entré a la base, pero le faltan tablas: "
                                + ", ".join(faltan) +
-                               "\n  Corré 01_esquema.sql y 02_vistas.sql en el SQL Editor "
+                               "\n  Ejecutar 01_esquema.sql y 02_vistas.sql en el SQL Editor "
                                "de Supabase y volver a probar.")
             # Las tablas tienen RLS prendido. El dueño de la tabla lo saltea, pero
             # cualquier otro rol vería la base vacía y sin ningún error: es el
@@ -134,7 +134,7 @@ def salir_mal():
     """
     print("\n" + "-" * 64)
     print("  El programa terminó. Ya NO está esperando que escribas nada.")
-    print("  Para volver a intentar, corré de nuevo:")
+    print("  Para volver a intentar, ejecutar de nuevo:")
     print("      python3 gomeria/configurar.py")
     print("-" * 64)
 

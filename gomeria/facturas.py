@@ -161,7 +161,7 @@ def leer(archivos, patentes=None, cliente=None):
         try:
             crudo = base64.b64decode(archivo.get("contenido") or "", validate=False)
         except Exception:
-            raise ValueError("El archivo llegó cortado. Reintentar de nuevo.")
+            raise ValueError("El archivo llegó cortado. Debe reintentarse.")
         if not crudo:
             raise ValueError("El archivo llegó vacío.")
         if len(crudo) > MAXIMO:

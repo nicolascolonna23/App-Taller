@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffd400">
+<title>Operación móvil · Pengui Fleet</title>
+<!--
+  El sistema en el teléfono, para el que está parado al lado del camión.
+
+  No es el escritorio achicado. Ahí hay ocho módulos, tableros y filtros;
+  acá hay dos cosas, porque son las dos que se hacen con las manos sucias y
+  sin volver a la oficina: registrar un movimiento de gomería y abrir una
+  orden o cargar la factura de un tercero.
+
+  Todo lo demás —el maestro, los tableros, la configuración— se sigue
+  haciendo en la computadora. Un formulario de alta de unidad en una
+  pantalla de cinco pulgadas no le sirve a nadie.
+
+  No tiene API propia: usa las mismas que el escritorio, así que una regla
+  que cambie allá cambia acá sola.
+-->
+<style>
+:root{color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--plane,#f2f5f8);color:var(--ink,#121212);
+  font-family:Inter,system-ui,-apple-system,sans-serif;font-size:16px}
+
+/* La cabecera se queda arriba: en el teléfono el pulgar no llega al tope
+   de la pantalla y volver no puede costar un scroll. */
+header.top{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;
+  padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));
+  background:var(--surface-1,#fff);border-bottom:1px solid var(--hairline,rgba(0,0,0,.1))}
+header.top img{height:34px;max-width:40px;object-fit:contain;border-radius:8px;padding:2px}
+header.top .marca{flex:1;min-width:0;font-size:11px;font-weight:800;letter-spacing:2px;
+  text-transform:uppercase;color:var(--ink-muted,#666)}
+header.top .quien{font-size:12px;color:var(--ink-muted,#666);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:38vw}
+header.top a.salir{font-size:12px;color:var(--ink-muted,#666);text-decoration:none}
+
+main{max-width:560px;margin:0 auto;padding:16px;
+  padding-bottom:max(28px,calc(env(safe-area-inset-bottom) + 16px))}
+
+.vista{display:none}.vista.on{display:block}
+
+h1{margin:4px 0 2px;font-size:22px;letter-spacing:-.025em}
+.sub{margin:0 0 18px;color:var(--ink-muted,#666);font-size:14px;line-height:1.45}
+
+/* Las dos entradas del módulo. Grandes a propósito: se aprietan con el
+   guante puesto. */
+.acceso{display:grid;gap:12px}
+.tile{display:flex;align-items:center;gap:14px;width:100%;padding:18px 16px;text-align:left;
+  border:1px solid var(--hairline,rgba(0,0,0,.1));border-radius:10px;
+  background:var(--surface-1,#fff);color:inherit;font:inherit;cursor:pointer;
+  box-shadow:0 2px 4px #0000000d}
+.tile:active{background:var(--surface-2,#e9eef4)}
+.tile .icono{flex:none;width:46px;height:46px;display:grid;place-items:center;border-radius:12px;
+  background:var(--brand,#ffd400);color:#111}
+.tile .icono svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.9}
+.tile b{display:block;font-size:16px;letter-spacing:-.01em}
+.tile small{display:block;margin-top:3px;color:var(--ink-muted,#666);font-size:12.5px;line-height:1.4}
+.tile .flecha{margin-left:auto;color:var(--ink-muted,#666)}
+
+.volver{display:inline-flex;align-items:center;gap:6px;margin-bottom:10px;padding:8px 0;
+  border:0;background:none;color:var(--ink-muted,#666);font:inherit;font-size:14px;cursor:pointer}
+
+.card{padding:16px;border:1px solid var(--hairline,rgba(0,0,0,.1));border-radius:10px;
+  background:var(--surface-1,#fff);box-shadow:0 2px 4px #0000000d}
+.card+.card{margin-top:12px}
+
+label{display:block;margin:14px 0 6px;font-size:11px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--ink-muted,#666)}
+label:first-child{margin-top:0}
+label .opcional{font-weight:500;letter-spacing:0;text-transform:none;font-size:11px}
+input,select,textarea{width:100%;padding:13px 12px;font:inherit;font-size:16px;
+  border:1px solid var(--hairline-2,rgba(0,0,0,.2));border-radius:6px;
+  background:var(--surface-1,#fff);color:inherit}
+textarea{min-height:130px;resize:vertical;line-height:1.5}
+.ayuda{margin:8px 0 0;font-size:12.5px;line-height:1.45;color:var(--ink-muted,#666)}
+.par{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.btn{width:100%;margin-top:18px;padding:15px 16px;font:inherit;font-size:16px;font-weight:700;
+  border:1px solid var(--brand,#ffd400);border-radius:6px;
+  background:var(--brand,#ffd400);color:var(--marca-ink,#111);cursor:pointer}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.alt{background:var(--surface-1,#fff);border-color:var(--hairline-2,rgba(0,0,0,.2));color:inherit}
+.btn.chico{margin-top:0;padding:12px 14px;font-size:14px}
+.dosbotones{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+
+.aviso{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:14px;line-height:1.5;
+  border:1px solid var(--hairline,rgba(0,0,0,.1));background:var(--surface-2,#e9eef4)}
+.aviso.mal{border-color:var(--bad,#bd3038);color:var(--bad,#bd3038);background:#bd30380f}
+.aviso.bien{border-color:var(--ok,#16834a);color:var(--ok,#16834a);background:#16834a0f}
+.aviso b{display:block;margin-bottom:4px}
+.aviso ul{margin:6px 0 0;padding-left:18px}
+.aviso li{margin:3px 0}
+
+/* Lo que leyó el modelo se marca, igual que en el escritorio: se tiene que
+   ver de un vistazo qué puso la máquina y qué escribió una persona. */
+.leido{border-color:var(--brand,#ffd400);box-shadow:inset 3px 0 0 var(--brand,#ffd400)}
+
+.fotos{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.fotos figure{position:relative;margin:0;width:76px;height:76px;border-radius:8px;overflow:hidden;
+  border:1px solid var(--hairline,rgba(0,0,0,.1));background:var(--surface-2,#e9eef4)}
+.fotos img{width:100%;height:100%;object-fit:cover;display:block}
+.fotos button{position:absolute;top:2px;right:2px;width:22px;height:22px;padding:0;line-height:1;
+  border:0;border-radius:50%;background:#000c;color:#fff;font-size:14px;cursor:pointer}
+
+.cargando{display:inline-block;width:14px;height:14px;margin-right:8px;vertical-align:-2px;
+  border:2px solid currentColor;border-right-color:transparent;border-radius:50%;
+  animation:giro .7s linear infinite}
+@keyframes giro{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.cargando{animation:none}}
+</style>
+</head>
+<body class="movil">
+
+<header class="top">
+  <img src="/logo.png" alt="" onerror="this.style.display='none'">
+  <span class="marca">Operación móvil</span>
+  <span class="quien" id="quien"></span>
+  <a class="salir" href="/salir">Salir</a>
+</header>
+
+<main>
+
+<!-- ---------------------------------------------------------------- inicio -->
+<section class="vista on" id="v-inicio">
+  <h1>¿Qué se va a registrar?</h1>
+  <p class="sub">Las dos operaciones que se hacen junto a la unidad. El resto del sistema está en la computadora.</p>
+  <div class="acceso">
+    <button class="tile" type="button" data-ir="v-gomeria">
+      <span class="icono"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/></svg></span>
+      <span><b>Movimiento de gomería</b><small>Se escribe el parte y el sistema lo interpreta</small></span>
+      <span class="flecha">›</span>
+    </button>
+    <button class="tile" type="button" data-ir="v-ordenes">
+      <span class="icono"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg></span>
+      <span><b>Órdenes de trabajo</b><small>Abrir una orden o cargar la factura de un tercero</small></span>
+      <span class="flecha">›</span>
+    </button>
+  </div>
+</section>
+
+<!-- --------------------------------------------------------------- gomería -->
+<section class="vista" id="v-gomeria">
+  <button class="volver" type="button" data-ir="v-inicio">‹ Volver</button>
+  <h1>Movimiento de gomería</h1>
+  <p class="sub">Se escribe como el parte de papel. El sistema propone el movimiento y se confirma antes de guardarlo.</p>
+  <div class="card">
+    <label for="g-unidad">Unidad <span class="opcional">— opcional si figura en el texto</span></label>
+    <select id="g-unidad"><option value="">Seleccionar patente</option></select>
+
+    <label for="g-texto">Trabajo realizado</label>
+    <textarea id="g-texto" placeholder="Patente: AD 900 UK&#10;3 eje lado izquierdo entran 2 Michelin 079 y 327 recapadas. Salen 2 Fate 380 y 381 para recapar."></textarea>
+    <p class="ayuda">La patente arriba y debajo qué entra y qué sale, con el número de fuego. El kilometraje se toma del satelital según la fecha del movimiento.</p>
+
+    <button class="btn" type="button" id="g-interpretar">Interpretar movimiento</button>
+    <div id="g-salida"></div>
+  </div>
+</section>
+
+<!-- --------------------------------------------------------------- órdenes -->
+<section class="vista" id="v-ordenes">
+  <button class="volver" type="button" data-ir="v-inicio">‹ Volver</button>
+  <h1>Órdenes de trabajo</h1>
+  <p class="sub">Una orden interna es un trabajo del taller propio. Un servicio externo lo hizo un tercero y de eso queda la factura.</p>
+  <div class="acceso">
+    <button class="tile" type="button" data-ir="v-orden">
+      <span class="icono"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span>
+      <span><b>Abrir orden de trabajo</b><small>La unidad entró al taller</small></span>
+      <span class="flecha">›</span>
+    </button>
+    <button class="tile" type="button" data-ir="v-externo">
+      <span class="icono"><svg viewBox="0 0 24 24"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg></span>
+      <span><b>Cargar servicio externo</b><small>Se fotografía la factura y la lee el asistente</small></span>
+      <span class="flecha">›</span>
+    </button>
+  </div>
+</section>
+
+<!-- ----------------------------------------------------------- orden nueva -->
+<section class="vista" id="v-orden">
+  <button class="volver" type="button" data-ir="v-ordenes">‹ Volver</button>
+  <h1>Abrir orden de trabajo</h1>
+  <p class="sub">Queda abierta para completarla después desde la computadora.</p>
+  <div class="card">
+    <label for="o-unidad">Unidad</label>
+    <select id="o-unidad"><option value="">Seleccionar patente</option></select>
+
+    <div class="par">
+      <div><label for="o-fecha">Fecha de entrada</label><input type="date" id="o-fecha"></div>
+      <div><label for="o-km">Kilometraje</label><input type="number" id="o-km" inputmode="numeric" placeholder="0"></div>
+    </div>
+    <p class="ayuda" id="o-km-ayuda"></p>
+
+    <label for="o-mantenimiento">Mantenimiento</label>
+    <select id="o-mantenimiento">
+      <option value="correctivo">Correctivo</option>
+      <option value="preventivo">Preventivo</option>
+    </select>
+
+    <label for="o-solicitado">Trabajo solicitado</label>
+    <textarea id="o-solicitado" style="min-height:96px" placeholder="Qué hay que revisar o reparar."></textarea>
+
+    <button class="btn" type="button" id="o-abrir">Abrir orden</button>
+    <div id="o-salida"></div>
+  </div>
+</section>
+
+<!-- ------------------------------------------------------- servicio externo -->
+<section class="vista" id="v-externo">
+  <button class="volver" type="button" data-ir="v-ordenes">‹ Volver</button>
+  <h1>Servicio externo</h1>
+  <p class="sub">Se fotografía la factura, el asistente propone los campos y se revisan antes de guardar.</p>
+
+  <div class="card">
+    <label>Factura</label>
+    <div class="dosbotones">
+      <button class="btn alt chico" type="button" id="x-camara">Sacar foto</button>
+      <button class="btn alt chico" type="button" id="x-archivo-btn">Elegir archivo</button>
+    </div>
+    <input type="file" id="x-camara-input" accept="image/*" capture="environment" multiple hidden>
+    <input type="file" id="x-archivo-input" accept="image/*,application/pdf" multiple hidden>
+    <div class="fotos" id="x-fotos"></div>
+    <button class="btn" type="button" id="x-leer" hidden>Leer factura</button>
+    <div id="x-lectura"></div>
+  </div>
+
+  <div class="card">
+    <label for="x-unidad">Unidad</label>
+    <select id="x-unidad"><option value="">Seleccionar patente</option></select>
+
+    <div class="par">
+      <div><label for="x-fecha">Fecha</label><input type="date" id="x-fecha"></div>
+      <div><label for="x-km">Kilometraje</label><input type="number" id="x-km" inputmode="numeric"></div>
+    </div>
+
+    <label for="x-taller">Taller o proveedor</label>
+    <input type="text" id="x-taller" autocomplete="off">
+
+    <div class="par">
+      <div><label for="x-factura">N.º de factura</label><input type="text" id="x-factura" autocomplete="off"></div>
+      <div><label for="x-monto">Monto total</label><input type="number" id="x-monto" inputmode="decimal" step="0.01"></div>
+    </div>
+
+    <label for="x-mantenimiento">Mantenimiento</label>
+    <select id="x-mantenimiento">
+      <option value="correctivo">Correctivo</option>
+      <option value="preventivo">Preventivo</option>
+    </select>
+
+    <label for="x-detalle">Detalle del trabajo</label>
+    <textarea id="x-detalle" style="min-height:96px"></textarea>
+
+    <button class="btn" type="button" id="x-guardar">Guardar servicio externo</button>
+    <div id="x-salida"></div>
+  </div>
+</section>
+
+</main>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s)
+  .replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* --------------------------------------------------------------- navegación */
+/* El historial del navegador acompaña: en el teléfono, el gesto de volver
+   es el del sistema operativo y tiene que hacer lo que se espera. */
+function ir(id, empujar = true) {
+  document.querySelectorAll('.vista').forEach(v => v.classList.toggle('on', v.id === id));
+  window.scrollTo(0, 0);
+  if (empujar && location.hash.slice(1) !== id) history.pushState({v: id}, '', '#' + id);
+}
+document.querySelectorAll('[data-ir]').forEach(b => b.onclick = () => ir(b.dataset.ir));
+window.addEventListener('popstate', () => ir(location.hash.slice(1) || 'v-inicio', false));
+
+/* ---------------------------------------------------------------------- API */
+async function api(url, cuerpo) {
+  const r = await fetch(url, cuerpo
+    ? {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)}
+    : undefined);
+  const d = await r.json().catch(() => ({error: 'El servidor respondió algo ilegible.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar la operación.');
+  return d;
+}
+const mal  = (donde, txt) => $(donde).innerHTML = `<div class="aviso mal">${esc(txt)}</div>`;
+const bien = (donde, html) => $(donde).innerHTML = `<div class="aviso bien">${html}</div>`;
+
+function ocupado(boton, si, textoOcupado) {
+  boton.disabled = si;
+  if (si) { boton.dataset.texto = boton.textContent;
+            boton.innerHTML = `<span class="cargando"></span>${esc(textoOcupado)}`; }
+  else if (boton.dataset.texto) boton.textContent = boton.dataset.texto;
+}
+
+/* ------------------------------------------------------------------- unidades */
+let FLOTA = [];
+async function cargarFlota() {
+  try { FLOTA = await api('/api/flota'); } catch { FLOTA = []; }
+  const opciones = FLOTA.map(u =>
+    `<option value="${esc(u.patente)}">${esc(u.patente)}${u.interno ? ' · int. ' + esc(u.interno) : ''}</option>`).join('');
+  ['#g-unidad', '#o-unidad', '#x-unidad'].forEach(sel => {
+    $(sel).innerHTML = '<option value="">Seleccionar patente</option>' + opciones;
+  });
+}
+
+/* El odómetro del satelital para esa unidad y esa fecha. Ahorra el dato que
+   nadie tiene a mano parado al lado del camión; si no hay lectura, el campo
+   queda vacío para escribirlo. */
+async function kmDelSatelital(patente, fecha, campo, ayuda) {
+  if (!patente || !fecha) return;
+  try {
+    const r = await fetch(`/api/odometro?patente=${encodeURIComponent(patente)}&fecha=${fecha}`);
+    const d = await r.json();
+    if (d && d.km) {
+      $(campo).value = Math.round(d.km);
+      $(campo).classList.add('leido');
+      if (ayuda) $(ayuda).textContent = 'Kilometraje tomado del satelital. Se puede corregir.';
+    } else if (ayuda) {
+      $(ayuda).textContent = 'Sin lectura del satelital para esa fecha: se carga a mano.';
+    }
+  } catch { /* sin lectura, se escribe a mano */ }
+}
+
+/* --------------------------------------------------------------- 1. gomería */
+let PARTE = null;
+
+$('#g-interpretar').onclick = async () => {
+  const boton = $('#g-interpretar');
+  const texto = $('#g-texto').value.trim();
+  if (!texto) return mal('#g-salida', 'Falta describir el trabajo realizado.');
+  ocupado(boton, true, 'Interpretando…');
+  $('#g-salida').innerHTML = '';
+  try {
+    const d = await api('/api/interpretar', {patente: $('#g-unidad').value, texto});
+    PARTE = d.parte_id;
+    const p = d.propuesta || {};
+    if (!(p.acciones || []).length) {
+      mal('#g-salida', p.pregunta || 'No se pudo interpretar el movimiento.');
+      return;
+    }
+    $('#g-salida').innerHTML =
+      `<div class="aviso"><b>${esc(p.resumen || 'Movimiento interpretado')}</b><ul>` +
+      p.acciones.map(a => `<li>${esc(a.tipo)} · ${esc(a.posicion || '')}` +
+        (a.posicion_destino ? ' → ' + esc(a.posicion_destino) : '') +
+        (a.cubierta ? ' · ' + esc(a.cubierta) : '') + '</li>').join('') +
+      `</ul><div class="dosbotones">` +
+      `<button class="btn chico" type="button" id="g-confirmar">Confirmar</button>` +
+      `<button class="btn alt chico" type="button" id="g-descartar">Descartar</button></div></div>`;
+    $('#g-confirmar').onclick = confirmarParte;
+    $('#g-descartar').onclick = descartarParte;
+  } catch (e) {
+    mal('#g-salida', e.message);
+  } finally { ocupado(boton, false); }
+};
+
+async function confirmarParte() {
+  const boton = $('#g-confirmar');
+  ocupado(boton, true, 'Guardando…');
+  try {
+    const d = await api('/api/confirmar', {parte_id: PARTE});
+    bien('#g-salida', '<b>Movimiento guardado.</b>' +
+      (d.hecho || []).map(h => esc(h)).join('<br>'));
+    $('#g-texto').value = '';
+    PARTE = null;
+  } catch (e) { mal('#g-salida', e.message); }
+}
+
+async function descartarParte() {
+  await api('/api/descartar', {parte_id: PARTE}).catch(() => {});
+  $('#g-salida').innerHTML = '';
+  PARTE = null;
+}
+
+/* ---------------------------------------------------------- 2a. orden nueva */
+const hoy = () => new Date().toISOString().slice(0, 10);
+
+$('#o-unidad').onchange = () =>
+  kmDelSatelital($('#o-unidad').value, $('#o-fecha').value, '#o-km', '#o-km-ayuda');
+$('#o-fecha').onchange = () =>
+  kmDelSatelital($('#o-unidad').value, $('#o-fecha').value, '#o-km', '#o-km-ayuda');
+
+$('#o-abrir').onclick = async () => {
+  const boton = $('#o-abrir');
+  ocupado(boton, true, 'Abriendo…');
+  $('#o-salida').innerHTML = '';
+  try {
+    const d = await api('/api/ordenes', {
+      op: 'abrir',
+      patente: $('#o-unidad').value,
+      fecha: $('#o-fecha').value,
+      km: $('#o-km').value,
+      mantenimiento: $('#o-mantenimiento').value,
+      solicitado: $('#o-solicitado').value.trim(),
+    });
+    bien('#o-salida', `<b>Orden ${esc(d.numero)} abierta.</b>Se completa desde Órdenes en la computadora.`);
+    $('#o-solicitado').value = '';
+    $('#o-km').classList.remove('leido');
+  } catch (e) { mal('#o-salida', e.message); }
+  finally { ocupado(boton, false); }
+};
+
+/* ------------------------------------------------------ 2b. servicio externo */
+/* Una foto de celular son varios megabytes y la factura se lee igual con el
+   lado largo en 1600: lo que sobra es tiempo de subida en una conexión de
+   campo. Se achica en el teléfono, antes de mandarla. */
+const LADO_MAXIMO = 1600;
+let ARCHIVOS = [];
+
+function achicar(file) {
+  if (file.type === 'application/pdf') return leerBase64(file, file.type);
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const escala = Math.min(1, LADO_MAXIMO / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * escala);
+      c.height = Math.round(img.height * escala);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const dataUrl = c.toDataURL('image/jpeg', 0.85);
+      resolve({tipo: 'image/jpeg', contenido: dataUrl.split(',')[1], nombre: file.name, vista: dataUrl});
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('No se pudo abrir ' + file.name)); };
+    img.src = url;
+  });
+}
+
+function leerBase64(file, tipo) {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader();
+    fr.onload = () => resolve({tipo, contenido: String(fr.result).split(',')[1], nombre: file.name, vista: ''});
+    fr.onerror = () => reject(new Error('No se pudo leer ' + file.name));
+    fr.readAsDataURL(file);
+  });
+}
+
+function pintarFotos() {
+  $('#x-fotos').innerHTML = ARCHIVOS.map((a, i) =>
+    `<figure>${a.vista ? `<img src="${a.vista}" alt="">`
+      : `<div style="display:grid;place-items:center;height:100%;font-size:11px;padding:4px;text-align:center">PDF</div>`}` +
+    `<button type="button" data-quitar="${i}" aria-label="Quitar">×</button></figure>`).join('');
+  $('#x-fotos').querySelectorAll('[data-quitar]').forEach(b => b.onclick = () => {
+    ARCHIVOS.splice(Number(b.dataset.quitar), 1); pintarFotos();
+  });
+  $('#x-leer').hidden = ARCHIVOS.length === 0;
+}
+
+$('#x-camara').onclick = () => $('#x-camara-input').click();
+$('#x-archivo-btn').onclick = () => $('#x-archivo-input').click();
+
+async function tomar(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  $('#x-lectura').innerHTML = '';
+  try {
+    const nuevos = await Promise.all(files.map(achicar));
+    ARCHIVOS = ARCHIVOS.concat(nuevos).slice(0, 4);   // cuatro hojas, como el escritorio
+    pintarFotos();
+  } catch (e) { mal('#x-lectura', e.message); }
+  input.value = '';
+}
+$('#x-camara-input').onchange = () => tomar($('#x-camara-input'));
+$('#x-archivo-input').onchange = () => tomar($('#x-archivo-input'));
+
+$('#x-leer').onclick = async () => {
+  const boton = $('#x-leer');
+  ocupado(boton, true, 'Leyendo…');
+  $('#x-lectura').innerHTML = '';
+  try {
+    const d = await api('/api/factura',
+      {archivos: ARCHIVOS.map(a => ({tipo: a.tipo, contenido: a.contenido, nombre: a.nombre}))});
+    volcar(d.factura || {});
+  } catch (e) { mal('#x-lectura', e.message); }
+  finally { ocupado(boton, false); }
+};
+
+/* Lo leído entra en los campos con el borde marcado: se tiene que ver qué
+   puso el asistente y qué escribió una persona. Nada se guarda sin revisar. */
+function volcar(f) {
+  const poner = (sel, valor) => {
+    if (valor === null || valor === undefined || valor === '') return;
+    $(sel).value = valor;
+    $(sel).classList.add('leido');
+  };
+  poner('#x-taller', f.taller);
+  poner('#x-factura', f.factura);
+  poner('#x-fecha', f.fecha);
+  poner('#x-monto', f.monto);
+  poner('#x-km', f.km);
+  poner('#x-detalle', f.detalle);
+  if (f.patente) { $('#x-unidad').value = f.patente; $('#x-unidad').classList.add('leido'); }
+
+  const dudas = f.dudas ? (Array.isArray(f.dudas) ? f.dudas : [f.dudas]) : [];
+  $('#x-lectura').innerHTML =
+    `<div class="aviso"><b>Factura leída. Revisar los campos antes de guardar.</b>` +
+    (f.patente ? '' : 'No se reconoció la patente: debe seleccionarse.') +
+    (dudas.length ? `<ul>${dudas.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : '') +
+    `</div>`;
+}
+
+$('#x-guardar').onclick = async () => {
+  const boton = $('#x-guardar');
+  ocupado(boton, true, 'Guardando…');
+  $('#x-salida').innerHTML = '';
+  try {
+    const d = await api('/api/ordenes', {
+      op: 'externa',
+      patente: $('#x-unidad').value,
+      fecha: $('#x-fecha').value,
+      km: $('#x-km').value,
+      mantenimiento: $('#x-mantenimiento').value,
+      taller: $('#x-taller').value.trim(),
+      factura: $('#x-factura').value.trim(),
+      monto: $('#x-monto').value,
+      solicitado: $('#x-detalle').value.trim(),
+    });
+    bien('#x-salida', `<b>Servicio externo cargado en la orden ${esc(d.numero)}.</b>`);
+    ARCHIVOS = []; pintarFotos();
+    $('#x-lectura').innerHTML = '';
+    ['#x-taller','#x-factura','#x-monto','#x-detalle','#x-km'].forEach(s => {
+      $(s).value = ''; $(s).classList.remove('leido');
+    });
+  } catch (e) { mal('#x-salida', e.message); }
+  finally { ocupado(boton, false); }
+};
+
+/* -------------------------------------------------------------------- arranque */
+$('#o-fecha').value = hoy();
+$('#x-fecha').value = hoy();
+fetch('/api/yo').then(r => r.ok ? r.json() : null)
+  .then(d => { if (d) $('#quien').textContent = d.nombre; }).catch(() => {});
+cargarFlota();
+ir(location.hash.slice(1) || 'v-inicio', false);
+</script>
+</body>
+</html>

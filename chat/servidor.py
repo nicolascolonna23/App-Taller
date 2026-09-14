@@ -506,7 +506,7 @@ def main():
     a = ap.parse_args()
 
     if not os.path.exists(DB):
-        raise SystemExit(f"Falta {DB}. Corré primero: python3 ingesta.py")
+        raise SystemExit(f"Falta {DB}. Ejecutar primero: python3 ingesta.py")
     # La clave puede venir del entorno o de chat/clave.txt. El archivo existe
     # para poder arrancar con doble clic, donde no hay variables de entorno.
     if not (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):

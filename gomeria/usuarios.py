@@ -35,7 +35,7 @@ def pedir_clave(usuario):
         raise SystemExit(problema)
     repetida = input("  Indicarla de nuevo: ").strip()
     if clave != repetida:
-        raise SystemExit("Las dos veces no coinciden. Reintentar otra vez.")
+        raise SystemExit("Las dos veces no coinciden. Debe reintentarse.")
     return clave
 
 
