@@ -1,26 +1,33 @@
 name: Odometros a Supabase
 
-# Toma las lecturas del satelital que el scraper de Hawk deja en el repo
-# ServiceDM y las guarda en la tabla odometros de Supabase.
+# Lee el odómetro de cada móvil directo del satelital Hawk y lo guarda en la
+# tabla odometros de Supabase. Antes esto se bajaba del repo ServiceDM, que
+# corre de lunes a viernes: el fin de semana la serie quedaba con agujeros.
+# Ahora la app entra sola y corre los siete días.
 #
-# Lee data/historico.csv, que es acumulativo: trae todo desde el 29 de
-# julio. Por eso el mismo proceso sirve para la carga inicial y para el
-# día a día — lo que ya está cargado no se duplica, así que correrlo de
-# más no hace nada.
+# Sale a las 08:30 ART, media hora después del scraper de ServiceDM, que
+# sigue escribiendo la planilla de services. Son dos sesiones distintas
+# contra el mismo satelital y conviene que no se pisen.
 #
-# Se dispara solo todos los días a las 09:00 de Argentina, una hora
-# después del scraper, y también a mano desde la pestaña Actions con el
-# botón "Run workflow".
+# También se dispara a mano desde la pestaña Actions, con "Run workflow".
 
 on:
   schedule:
-    - cron: "0 12 * * *"      # 09:00 ART
+    - cron: "30 11 * * *"     # 08:30 ART, todos los días
   workflow_dispatch:
+    inputs:
+      solo_empresas:
+        description: "Leer solo estas empresas (subcadena, separadas por coma). Vacío = toda la flota."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
 
 jobs:
-  cargar:
+  leer:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -30,15 +37,37 @@ jobs:
           python-version: "3.11"
 
       - name: Instalar dependencias
-        run: pip install "psycopg[binary]" pandas
+        run: pip install selenium requests "psycopg[binary]"
 
-      - name: Traer las lecturas de ServiceDM
-        run: |
-          curl -sSfL -o historico.csv \
-            https://raw.githubusercontent.com/${{ github.repository_owner }}/ServiceDM/main/data/historico.csv
-          echo "filas: $(wc -l < historico.csv)"
+      - name: Instalar Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable
+          install-chromedriver: false
 
-      - name: Guardar en Supabase
+      # Selenium se busca solo el chromedriver que corresponde a este Chrome.
+      # El que trae la máquina de GitHub suele ser de otra versión y rompe.
+      - name: Limpiar chromedriver del PATH
+        run: sudo rm -f "$(command -v chromedriver)" || true
+
+      - name: Leer Hawk y guardar en Supabase
         env:
+          HAWK_USER: ${{ secrets.HAWK_USER }}
+          HAWK_PASS: ${{ secrets.HAWK_PASS }}
+          SOLO_EMPRESAS: ${{ github.event.inputs.solo_empresas }}
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: python gomeria/subir_odometros.py historico.csv
+        run: |
+          set -o pipefail
+          python gomeria/hawk.py 2>&1 | tee salida.txt
+
+      # Para no tener que abrir el log: el resumen de la corrida queda en la
+      # portada del run, que es donde uno mira cuando quiere saber si entró.
+      - name: Resumen
+        if: always()
+        run: |
+          {
+            echo '### Lecturas del satelital'
+            echo '```'
+            tail -n 12 salida.txt 2>/dev/null || echo '(el job falló antes de leer nada)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

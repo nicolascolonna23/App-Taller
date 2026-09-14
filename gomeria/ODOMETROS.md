@@ -1,101 +1,119 @@
 # Los km del satelital en la base
 
-El scraper de Hawk ya existe: vive en el repo **ServiceDM**, corre todos los
-días a las 08:00 (workflow `hawk_km.yml`) y escribe el kilometraje de cada
-móvil en la planilla de services.
+Todos los días la app entra sola a Hawk, le pide el odómetro de cada móvil
+y lo guarda en Supabase. Una fila por unidad y por día, para siempre.
 
-Lo que falta es que esa misma lectura quede también en Supabase. No para
-reemplazar la planilla —ahí sigue igual— sino porque la planilla **pisa la
-celda**: guarda el último kilometraje y pierde el de ayer. Sin la serie no
-se puede saber cuántos kilómetros rodó una cubierta, que es el número del
-que cuelga todo el módulo de gomería.
+Eso último es el punto. La planilla de services también tiene el
+kilometraje, pero **pisa la celda**: guarda el último y pierde el de ayer.
+Sin la serie no se puede saber cuántos kilómetros rodó una cubierta, que es
+el número del que cuelga todo el módulo de gomería.
 
-## Qué se agrega
+## Cómo funciona
 
-| Dónde | Qué |
+| Pieza | Qué hace |
 |---|---|
-| Supabase | tabla `odometros` + 3 vistas (`05_odometros.sql`) |
-| App-Taller | el workflow `odometros.yml`, que corre solo |
-| App-Taller | el secret `SUPABASE_DB_URL` |
+| `gomeria/hawk.py` | entra a Hawk, lee el odómetro de cada móvil |
+| `gomeria/subir_odometros.py` | deja esas lecturas en la tabla `odometros` |
+| `.github/workflows/odometros.yml` | los corre a los dos, 08:30 ART, todos los días |
+| `gomeria/05_odometros.sql` | la tabla y las tres vistas |
 
-## Paso 1 — la tabla
+Hawk no tiene una API abierta. Hay que loguearse con un navegador de verdad
+—por eso el job instala Chrome— y recién con las cookies de esa sesión se le
+puede pedir la flota al mismo endpoint que usa su propia página. Eso es lo
+que hace `hawk.py`, y es la razón por la que esto corre en GitHub Actions y
+no en el server de la app.
 
-En Supabase, **SQL Editor**, pegar y correr `gomeria/05_odometros.sql`.
-Se puede correr las veces que haga falta: no borra datos.
+**Antes esto llegaba rebotado.** El scraper vivía en el repo ServiceDM,
+dejaba un `historico.csv` commiteado y App-Taller se lo bajaba con curl.
+Andaba, pero ataba la serie a que el otro repo corriera: ServiceDM está
+programado de lunes a viernes, así que sábado y domingo acá no entraba nada.
+Y el día que allá cambió el orden de las columnas del CSV, de este lado se
+guardaron dos campos en blanco sin que nadie se enterara.
 
-Deja armado:
+ServiceDM sigue como está: es el que escribe la planilla de services y no
+hay que tocarlo. Son dos lecturas distintas del mismo satelital, media hora
+separadas para que las sesiones no se pisen, y si un día se cae una, la otra
+sigue.
+
+## Lo que hay que tener configurado
+
+En **App-Taller** → Settings → Secrets and variables → Actions:
+
+| Secret | Qué es |
+|---|---|
+| `HAWK_USER` | el usuario del satelital |
+| `HAWK_PASS` | su contraseña |
+| `SUPABASE_DB_URL` | la cadena de conexión de Supabase |
+
+**La de Supabase tiene que ser la de Connection pooling**, no la directa.
+Las máquinas de GitHub Actions no tienen IPv6 y la conexión directa de
+Supabase sí, así que desde ahí no conecta. Se copia en Supabase →
+*Project Settings* → *Database* → *Connection pooling*, y se reconoce porque
+el host termina en `pooler.supabase.com`.
+
+Y en Supabase, **SQL Editor**, correr `gomeria/05_odometros.sql`. Se puede
+correr las veces que haga falta: no borra datos. Deja armado:
 
 - **`odometros`** — una fila por unidad y por día. Si el job se corre dos
   veces en el día, la segunda pisa a la primera.
 - Un disparador que actualiza `unidades.km_actual`, **solo si el número
-  sube**. Un odómetro no vuelve para atrás; una lectura mala no puede
-  bajar el kilometraje bueno.
+  sube**. Un odómetro no vuelve para atrás; una lectura mala no puede bajar
+  el kilometraje bueno.
 - **`v_km_diarios`** — lo que recorrió entre lecturas, con la cantidad de
-  días. El scraper queda programado los siete días; si Hawk o el job fallan,
-  la siguiente lectura puede abarcar más de un día.
-- **`v_km_por_montaje`** — toma la primera lectura de Hawk desde la fecha de
-  montaje y la última hasta la fecha del siguiente movimiento en esa posición.
-  La diferencia es lo que rodó la cubierta; el gomero no carga kilómetros.
-- **`v_odometro_ultimo`** — la última lectura de cada unidad y hace
-  cuántos días que no reporta.
+  días. Normalmente son 24 horas, pero si Hawk o el job fallan la siguiente
+  lectura puede abarcar más de un día.
+- **`v_km_por_montaje`** — toma la primera lectura desde la fecha de montaje
+  y la última hasta el siguiente movimiento en esa posición. La diferencia
+  es lo que rodó la cubierta; el gomero no carga kilómetros.
+- **`v_odometro_ultimo`** — la última lectura de cada unidad y hace cuántos
+  días que no reporta.
 
-## Paso 2 — el secret, en GitHub
+## Cómo saber si está entrando
 
-En **App-Taller**: Settings → Secrets and variables → Actions → New
-repository secret.
+Tres lugares, del más cómodo al más detallado:
 
-- Nombre: `SUPABASE_DB_URL`
-- Valor: la cadena de conexión de Supabase
+1. **La portada de la app.** La tarjeta *Kilómetros de la flota* dice abajo
+   `última lectura 11/09`. Si esa fecha se atrasa más de un día, algo se
+   cortó.
+2. **La ficha de la unidad.** Las últimas diez lecturas, con fecha y km.
+3. **GitHub → Actions → _Odometros a Supabase_.** El resumen de cada corrida
+   dice cuántos móviles se leyeron y cuántas lecturas nuevas entraron.
 
-**Importante:** tiene que ser la de **Connection pooling**, no la directa.
-Las máquinas de GitHub Actions no tienen IPv6 y la conexión directa de
-Supabase sí, así que la directa no conecta desde ahí. La del pooler se
-copia en Supabase → *Project Settings* → *Database* → *Connection pooling*
-y se reconoce porque el host termina en `pooler.supabase.com`.
+Correr el job de más no rompe nada: la lectura del día se pisa en vez de
+duplicarse. Si hace falta a mano, es **Actions** → *Odometros a Supabase* →
+**Run workflow**, y ahí se puede filtrar por empresa si se quiere probar con
+pocos móviles.
 
-## Paso 3 — apretar el botón
+Para cargar un archivo viejo —el `historico.csv` que quedó de la época de
+ServiceDM, por ejemplo— sirve todavía:
 
-El workflow `.github/workflows/odometros.yml` hace todo: se baja
-`data/historico.csv` del repo ServiceDM y lo pasa a la base.
-
-En App-Taller → pestaña **Actions** → *Odometros a Supabase* → **Run
-workflow**. La primera corrida carga las ~1.700 lecturas que hay desde el
-29 de julio; después queda programado todos los días a las 09:00 de
-Argentina, una hora después del scraper.
-
-No hace falta tocar nada en ServiceDM. El scraper ya deja el histórico
-commiteado en el repo en cada corrida, y este workflow lo lee de ahí.
-
-`historico.csv` es acumulativo, así que todos los días se manda entero y
-la base se queda solo con lo que no tenía: por eso correrlo de más no
-duplica nada, y el resumen del workflow dice cuántas entraron nuevas.
+    python gomeria/subir_odometros.py historico.csv
 
 ## Cómo queda el cálculo en la app
 
 Al confirmar un montaje, rotación o desmontaje se guarda su fecha y hora. La
 ficha de la cubierta cruza ese intervalo con `odometros`: primera lectura
 diaria dentro del intervalo contra la última. Cuando al día siguiente entra
-una lectura nueva de Hawk, el valor se actualiza solo.
+una lectura nueva, el valor se actualiza solo.
 
 Si todavía no hay dos días de lecturas, la app muestra **Esperando lecturas
 de Hawk**. Dos movimientos de una misma cubierta en el mismo día pueden dar
-0 km porque Hawk aporta un único odómetro diario; para conocer recorridos
-dentro del día harían falta lecturas con hora.
+0 km porque el satelital aporta un único odómetro diario; para conocer
+recorridos dentro del día harían falta lecturas con hora.
 
 ## En la portada
 
 El centro operativo muestra arriba de todo los **kilómetros de la flota**,
 con el selector *Ayer · 7 días · 30 días*. El número sale de esta misma
 tabla: por unidad se toma la última lectura del período menos la primera,
-que es más robusto que sumar día contra día —si un equipo no reportó un
-día, el tramo se cierra igual con la lectura siguiente en vez de perderse—
-y se descartan los retrocesos, que son cambios de módulo GPS y no viajes.
+que es más robusto que sumar día contra día —si un equipo no reportó un día,
+el tramo se cierra igual con la lectura siguiente en vez de perderse— y se
+descartan los retrocesos, que son cambios de módulo GPS y no viajes.
 
 Al lado va la variación contra el período anterior, pero solo cuando el
-anterior tiene una cobertura parecida. La serie arranca el 29 de julio: hoy
-los 30 días previos tienen apenas cuatro días cargados, así que ese
-porcentaje sería un espejismo y la portada directamente no lo muestra. Se
-va a prender solo cuando haya historia suficiente.
+anterior tiene una cobertura parecida. La serie arranca el 29 de julio, así
+que hasta que haya historia suficiente ese porcentaje sería un espejismo y
+la portada directamente no lo muestra.
 
 ## Lo que no engancha, y está bien
 
@@ -103,11 +121,11 @@ Algunas lecturas no corresponden a ninguna unidad de la flota. Se guardan
 igual (la tabla no las rechaza) pero quedan sin `unidad_id`:
 
 - **`PORTATIL0134` y compañía** — equipos portátiles, no son vehículos.
-- **`DZM638`, `LCC752`, `LCC754`, `STR530`, `VUX564`** — patentes viejas
-  que no están en `unidades`. Si son unidades que siguen andando, hay que
-  darlas de alta; si no, se ignoran solas.
-- **`AE527AE` / `AF527AE`** — es AE527FA mal escrita. El scraper ya la
-  corrige, así que solo aparece en las filas viejas del histórico.
+- **`DZM638`, `LCC752`, `LCC754`, `STR530`, `VUX564`** — patentes viejas que
+  no están en `unidades`. Si son unidades que siguen andando, hay que darlas
+  de alta; si no, se ignoran solas.
+- **`AE527AE` / `AF527AE`** — es AE527FA mal escrita. `hawk.py` la corrige,
+  así que solo aparece en las filas viejas del histórico.
 
 El satelital devuelve algunas patentes con un `HC` pegado atrás
-(`AC538KWHC`). El script lo saca solo.
+(`AC538KWHC`). También se saca solo.

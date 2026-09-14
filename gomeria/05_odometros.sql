@@ -1,10 +1,10 @@
 -- =====================================================================
 -- ODÓMETROS: el kilometraje diario que llega del satelital
 -- =====================================================================
--- Todos los días a las 08:00 el scraper de Hawk (repo ServiceDM) lee el
--- odómetro de cada móvil y hoy lo escribe en la planilla. Acá queda
--- además la serie completa, que es lo que la planilla no guarda: ahí se
--- pisa la celda y el valor de ayer se pierde.
+-- Todos los días a las 08:30 la app entra al satelital (gomeria/hawk.py) y
+-- lee el odómetro de cada móvil. Acá queda la serie completa, que es lo que
+-- la planilla de services no guarda: ahí se pisa la celda y el valor de
+-- ayer se pierde.
 --
 -- Con esto la gomería puede responder lo que hoy no puede: cuántos
 -- kilómetros rodó una cubierta entre que se montó y se sacó, y cuánto
