@@ -1,25 +1,18 @@
 """
 Sube al Supabase de la app las lecturas de odómetro del satelital.
 
-Este archivo va copiado en el repo ServiceDM, al lado de hawk_km.py, que es
-donde corre el scraper de Hawk todos los días. Se deja también acá porque
-la tabla que escribe (odometros, ver 05_odometros.sql) es de esta app y las
-dos puntas tienen que cambiar juntas.
+Quien las consigue es hawk.py, que entra al satelital y le pide la flota.
+Este archivo es la otra mitad: las deja en la tabla `odometros`
+(ver 05_odometros.sql), una fila por unidad y por día.
 
-Cómo se engancha en hawk_km.py, después de actualizar_sheets(df):
+Recibe la lista de lecturas del scraper, o un DataFrame de pandas si lo que
+se está cargando es un archivo viejo. Eso último es para la carga a mano:
 
-    try:
-        import subir_odometros
-        subir_odometros.subir(df)
-    except Exception:
-        print("\\n[supabase] error al subir los odometros:")
-        traceback.print_exc()
-
-Va con su propio try como el de la planilla: los Excel ya están escritos y
-un problema de red con la base no tiene que voltear el job.
+    python gomeria/subir_odometros.py historico.csv
 
 Necesita la variable SUPABASE_DB_URL (secret del repo). Si no está, avisa
-y no hace nada, así el scraper sigue andando igual en cualquier lado.
+y no hace nada, así el scraper se puede probar en cualquier lado sin tocar
+la base.
 """
 import os
 import datetime
@@ -70,16 +63,22 @@ def _reporte_de(valor):
     return None
 
 
-def filas_de(df):
-    """El DataFrame del scraper, quedándose con lo que se puede guardar.
+def filas_de(lecturas):
+    """Las lecturas del scraper, quedándose con lo que se puede guardar.
 
-    El scraper deja la fila igual cuando el equipo no contesta, con el
+    El scraper devuelve la fila igual cuando el equipo no contesta, con el
     kilometraje vacío, así que hay que filtrarlas. Y como el job se puede
     correr varias veces en el día, de cada unidad y día queda la última
     lectura: es una fila por unidad por día, igual que el índice de la tabla.
+
+    Acepta la lista de diccionarios de hawk.py o un DataFrame de pandas: las
+    dos cosas se recorren igual y en las dos la fila responde a .get().
     """
+    if hasattr(lecturas, "iterrows"):
+        lecturas = (fila for _, fila in lecturas.iterrows())
+
     porclave = {}
-    for _, r in df.iterrows():
+    for r in lecturas:
         patente = _patente(r.get("Patente"))
         if not patente:
             continue
@@ -102,14 +101,14 @@ def filas_de(df):
     return [porclave[k] for k in sorted(porclave)]
 
 
-def subir(df, url=None):
+def subir(lecturas, url=None):
     """Guarda las lecturas del día. Devuelve cuántas guardó."""
     url = url or _url()
     if not url:
         print("\n[supabase] sin SUPABASE_DB_URL: no se suben los odometros")
         return 0
 
-    filas = filas_de(df)
+    filas = filas_de(lecturas)
     if not filas:
         print("\n[supabase] ninguna lectura utilizable")
         return 0
