@@ -83,4 +83,13 @@ El asistente de consultas está en `/asistente`, detrás del login. Consultá [l
 
 Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Ambas pruebas usan datos simulados, no credenciales ni la base de producción.
+## Costos del taller en la portada
+
+La portada muestra los KPI de las órdenes de los últimos doce meses: total
+gastado por patente y pesos por kilómetro separados en preventivo y
+correctivo. La cuenta está en `gomeria/kpi_ordenes.py`, sale de las vistas
+que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
+detalle de cómo se calcula y qué queda afuera está en
+[la guía de órdenes](gomeria/ORDENES.md).
+
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs` y `node tests/costos_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Ambas pruebas usan datos simulados, no credenciales ni la base de producción.

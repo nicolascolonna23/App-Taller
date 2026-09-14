@@ -69,6 +69,65 @@
       return `<a class="dashboard-alert-row" href="${escape(href)}"><span class="severity ${severity}">${({grave:'Alta',media:'Media',leve:'Baja'})[severity]}</span><span><strong>${escape(a.titulo || a.modulo || 'Alerta')}</strong><small>${escape(a.detalle || 'Requiere revisión')}</small></span><span aria-hidden="true">↗</span></a>`;
     }).join('') : '<p class="dashboard-empty">No hay incidencias pendientes de revisión.</p>';
   }
+  /* El taller en pesos: qué se gastó, en qué unidad y cuánto pesa cada
+     kilómetro. El preventivo y el correctivo se muestran separados porque
+     es la única comparación que cambia una decisión: si el correctivo por
+     kilómetro le gana al preventivo, la unidad se está arreglando sola
+     cuando se rompe. */
+  const pesos = value => '$ ' + new Intl.NumberFormat('es-AR', {maximumFractionDigits: 0}).format(Math.round(Number(value) || 0));
+  const pesosKm = value => value == null ? '—' : '$ ' + new Intl.NumberFormat('es-AR', {
+    minimumFractionDigits: Number(value) < 100 ? 2 : 0,
+    maximumFractionDigits: Number(value) < 100 ? 2 : 0}).format(Number(value));
+  const patente = value => {
+    const t = String(value || '').toUpperCase();
+    return /^[A-Z]{2}\d{3}[A-Z]{2}$/.test(t) ? `${t.slice(0,2)} ${t.slice(2,5)} ${t.slice(5)}` : t;
+  };
+  function costos(data) {
+    const tabla = el('cost-table');
+    if (!tabla) return;
+    const poner = (id, texto) => { const nodo = el(id); if (nodo) nodo.textContent = texto; };
+    if (!data || !data.gasto || !data.gasto.ordenes) {
+      ['cost-corr','cost-prev','cost-total'].forEach(id => poner(id, '—'));
+      ['cost-corr-sub','cost-prev-sub','cost-total-sub'].forEach(id => poner(id, ''));
+      el('cost-split').innerHTML = '';
+      tabla.innerHTML = `<p class="dashboard-empty">${data ? 'Todavía no hay órdenes cargadas en el período.' : 'Costos del taller no disponibles.'}</p>`;
+      poner('cost-note', data ? 'Se cuentan las órdenes no anuladas, internas y externas.' : '');
+      return;
+    }
+    const gasto = data.gasto, flota = data.flota || {};
+    poner('cost-corr', pesosKm(flota.pesos_km_correctivo));
+    poner('cost-prev', pesosKm(flota.pesos_km_preventivo));
+    poner('cost-total', pesos(gasto.total));
+    poner('cost-corr-sub', `${pesos(gasto.correctivo)} en correctivos`);
+    poner('cost-prev-sub', `${pesos(gasto.preventivo)} en preventivos`);
+    poner('cost-total-sub', `${number.format(gasto.ordenes)} órdenes · ${number.format(gasto.unidades)} unidades`);
+
+    // La proporción se dibuja sobre el gasto del período, no sobre el
+    // medido por kilómetro: es la plata que salió de la caja.
+    const partes = [
+      {clase: 'correctivo', rotulo: 'Correctivo', monto: gasto.correctivo},
+      {clase: 'preventivo', rotulo: 'Preventivo', monto: gasto.preventivo},
+      {clase: 'sin-clasificar', rotulo: 'Sin clasificar', monto: gasto.sin_clasificar},
+    ].filter(p => Number(p.monto) > 0);
+    const suma = partes.reduce((t, p) => t + Number(p.monto), 0);
+    el('cost-split').innerHTML = suma ? `<div class="cost-bar" role="img" aria-label="${escape(partes.map(p => `${p.rotulo}: ${pesos(p.monto)}`).join('; '))}">${partes.map(p => `<span class="${p.clase}" style="flex:${Number(p.monto)}" title="${escape(p.rotulo)}: ${escape(pesos(p.monto))}"></span>`).join('')}</div><div class="cost-legend">${partes.map(p => `<span class="${p.clase}">${escape(p.rotulo)} ${Math.round(Number(p.monto) / suma * 100)}%</span>`).join('')}</div>` : '';
+
+    const filas = data.unidades || [];
+    tabla.innerHTML = filas.length ? `<table><caption>Gasto por patente · ${escape(periodo(data))}</caption><thead><tr><th>Unidad</th><th class="num">Total</th><th class="num">$/km correctivo</th><th class="num">$/km preventivo</th></tr></thead><tbody>${filas.map(u => `<tr><td><strong>${escape(patente(u.patente))}</strong><small>${escape(u.interno ? 'Interno ' + u.interno : (u.marca || ''))}${u.km ? ' · ' + number.format(u.km) + ' km' : ''}</small></td><td class="num">${escape(pesos(u.total))}</td><td class="num">${escape(pesosKm(u.pesos_km_correctivo))}</td><td class="num">${escape(pesosKm(u.pesos_km_preventivo))}</td></tr>`).join('')}</tbody></table>` : '<p class="dashboard-empty">Sin órdenes con monto en el período.</p>';
+
+    const notas = [];
+    if (flota.km) notas.push(`${number.format(flota.unidades_con_km)} unidad${flota.unidades_con_km === 1 ? '' : 'es'} con ${number.format(flota.km)} km del satelital para dividir.`);
+    else notas.push('Sin kilómetros del satelital en el período: el gasto se muestra sin dividir.');
+    if (flota.unidades_sin_km) notas.push(`${number.format(flota.unidades_sin_km)} sin lecturas quedan fuera del peso por kilómetro.`);
+    if (gasto.sin_clasificar > 0) notas.push(`${pesos(gasto.sin_clasificar)} en órdenes sin clasificar como preventivo o correctivo.`);
+    if (data.resto && data.resto.unidades) notas.push(`Otras ${number.format(data.resto.unidades)} unidades suman ${pesos(data.resto.total)}.`);
+    poner('cost-note', notas.join(' '));
+    poner('cost-period', periodo(data));
+  }
+  const periodo = data => {
+    if (!data || !data.desde) return 'Últimos 12 meses';
+    return `${month(data.desde)} – ${month(data.hasta)}`;
+  };
   function alertasError() {
     el('alert-mini-count').textContent = 'Alertas no disponibles';
     el('dashboard-alert-state').textContent = 'No disponible';
@@ -78,7 +137,7 @@
     el('dashboard-status').textContent = 'No se pudo actualizar. Recargue la página para reintentar.';
     el('km-sub').textContent = 'Recorrido no disponible.';
     el('cons-sub').textContent = 'Consumo no disponible.';
-    kilometros(null, 'ayer'); consumo(null);
+    kilometros(null, 'ayer'); consumo(null); costos(null);
   }
-  window.InicioDashboard = {kilometros, consumo, alertas, alertasError, error};
+  window.InicioDashboard = {kilometros, consumo, costos, alertas, alertasError, error};
 })();

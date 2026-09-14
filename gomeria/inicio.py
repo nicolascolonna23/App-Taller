@@ -165,8 +165,26 @@ def resumen(cx):
     }
     datos["recorrido"] = _kilometros(cx)
     datos["combustible"] = _combustible(cx)
+    datos["ordenes_costos"] = _ordenes_costos(cx)
     datos["alertas"] = _alertas(cx)
     return datos
+
+
+def _ordenes_costos(cx):
+    """Lo que cuesta el taller: gasto por patente y pesos por kilómetro.
+
+    Se importa acá adentro, como las alertas: si todavía no se corrió el
+    SQL de órdenes, la portada tiene que seguir dibujándose sin el panel.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        import kpi_ordenes
+        hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
+        return kpi_ordenes.resumen(cx, hoy)
+    except Exception:
+        cx.rollback()
+        return None
 
 
 def _alertas(cx):
