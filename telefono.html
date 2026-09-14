@@ -78,7 +78,13 @@ input,select,textarea{width:100%;padding:13px 12px;font:inherit;font-size:16px;
   background:var(--surface-1,#fff);color:inherit}
 textarea{min-height:130px;resize:vertical;line-height:1.5}
 .ayuda{margin:8px 0 0;font-size:12.5px;line-height:1.45;color:var(--ink-muted,#666)}
-.par{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+/* minmax(0,1fr) y min-width:0 no son adorno: en el grid, la columna no
+   baja del ancho intrínseco de lo que tiene adentro, y el selector de fecha
+   nativo de iOS mide bastante más de media pantalla. Sin esto se desborda de
+   su columna y se monta encima del kilometraje. */
+.par{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.par>div{min-width:0}
+input[type=date]{-webkit-appearance:none;appearance:none;min-width:0;max-width:100%}
 
 .btn{width:100%;margin-top:18px;padding:15px 16px;font:inherit;font-size:16px;font-weight:700;
   border:1px solid var(--brand,#ffd400);border-radius:6px;
@@ -236,6 +242,7 @@ textarea{min-height:130px;resize:vertical;line-height:1.5}
       <div><label for="x-fecha">Fecha</label><input type="date" id="x-fecha"></div>
       <div><label for="x-km">Kilometraje</label><input type="number" id="x-km" inputmode="numeric"></div>
     </div>
+    <p class="ayuda" id="x-km-ayuda"></p>
 
     <label for="x-taller">Taller o proveedor</label>
     <input type="text" id="x-taller" autocomplete="off">
@@ -312,19 +319,35 @@ async function cargarFlota() {
    nadie tiene a mano parado al lado del camión; si no hay lectura, el campo
    queda vacío para escribirlo. */
 async function kmDelSatelital(patente, fecha, campo, ayuda) {
+  const e = $(campo);
   if (!patente || !fecha) return;
+  /* Solo se completa lo que está vacío o lo que trajo antes el propio
+     satelital. Un kilometraje escrito a mano, o el que salió de la factura,
+     lo puso alguien que tenía el dato delante: cambiar de fecha no puede
+     pisarlo. */
+  if (e.value && e.dataset.origen !== 'satelital') return;
   try {
     const r = await fetch(`/api/odometro?patente=${encodeURIComponent(patente)}&fecha=${fecha}`);
     const d = await r.json();
     if (d && d.km) {
-      $(campo).value = Math.round(d.km);
-      $(campo).classList.add('leido');
+      e.value = Math.round(d.km);
+      e.dataset.origen = 'satelital';
+      e.classList.add('leido');
       if (ayuda) $(ayuda).textContent = 'Kilometraje tomado del satelital. Se puede corregir.';
     } else if (ayuda) {
       $(ayuda).textContent = 'Sin lectura del satelital para esa fecha: se carga a mano.';
     }
   } catch { /* sin lectura, se escribe a mano */ }
 }
+
+/* Si lo escribe una persona deja de ser del satelital, y no se vuelve a pisar. */
+function aMano(campo) {
+  $(campo).addEventListener('input', () => {
+    delete $(campo).dataset.origen;
+    $(campo).classList.remove('leido');
+  });
+}
+aMano('#o-km'); aMano('#x-km');
 
 /* --------------------------------------------------------------- 1. gomería */
 let PARTE = null;
@@ -379,10 +402,10 @@ async function descartarParte() {
 /* ---------------------------------------------------------- 2a. orden nueva */
 const hoy = () => new Date().toISOString().slice(0, 10);
 
-$('#o-unidad').onchange = () =>
+const kmOrden = () =>
   kmDelSatelital($('#o-unidad').value, $('#o-fecha').value, '#o-km', '#o-km-ayuda');
-$('#o-fecha').onchange = () =>
-  kmDelSatelital($('#o-unidad').value, $('#o-fecha').value, '#o-km', '#o-km-ayuda');
+$('#o-unidad').onchange = kmOrden;
+$('#o-fecha').onchange = kmOrden;
 
 $('#o-abrir').onclick = async () => {
   const boton = $('#o-abrir');
@@ -405,6 +428,13 @@ $('#o-abrir').onclick = async () => {
 };
 
 /* ------------------------------------------------------ 2b. servicio externo */
+/* El mismo automático que en la orden: acá faltaba, y era el motivo por el
+   que elegir la patente no traía nada. */
+const kmExterno = () =>
+  kmDelSatelital($('#x-unidad').value, $('#x-fecha').value, '#x-km', '#x-km-ayuda');
+$('#x-unidad').onchange = kmExterno;
+$('#x-fecha').onchange = kmExterno;
+
 /* Una foto de celular son varios megabytes y la factura se lee igual con el
    lado largo en 1600: lo que sobra es tiempo de subida en una conexión de
    campo. Se achica en el teléfono, antes de mandarla. */
@@ -494,6 +524,7 @@ function volcar(f) {
   poner('#x-km', f.km);
   poner('#x-detalle', f.detalle);
   if (f.patente) { $('#x-unidad').value = f.patente; $('#x-unidad').classList.add('leido'); }
+  if (!$('#x-km').value) kmExterno();   // la factura no siempre trae el km
 
   const dudas = f.dudas ? (Array.isArray(f.dudas) ? f.dudas : [f.dudas]) : [];
   $('#x-lectura').innerHTML =
@@ -523,8 +554,9 @@ $('#x-guardar').onclick = async () => {
     ARCHIVOS = []; pintarFotos();
     $('#x-lectura').innerHTML = '';
     ['#x-taller','#x-factura','#x-monto','#x-detalle','#x-km'].forEach(s => {
-      $(s).value = ''; $(s).classList.remove('leido');
+      $(s).value = ''; $(s).classList.remove('leido'); delete $(s).dataset.origen;
     });
+    $('#x-km-ayuda').textContent = '';
   } catch (e) { mal('#x-salida', e.message); }
   finally { ocupado(boton, false); }
 };
