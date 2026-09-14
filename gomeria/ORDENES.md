@@ -114,3 +114,42 @@ sin importar el tema con el que se esté mirando la aplicación.
 - La **misma factura** de la misma unidad no se carga dos veces.
 - Al cerrar, si el kilometraje de la orden es mayor que el del maestro,
   el maestro se pone al día solo.
+
+## Lo que cuesta el taller (los KPI de la portada)
+
+La portada muestra, arriba de las tarjetas de la flota, un panel
+**Costos del taller** con los últimos doce meses:
+
+| | Qué dice |
+|---|---|
+| **Correctivo por km** | Lo que salió arreglar roturas, por kilómetro rodado |
+| **Preventivo por km** | Lo que salió el mantenimiento programado, por kilómetro |
+| **Gasto del período** | La plata de todas las órdenes, con el reparto entre preventivo, correctivo y sin clasificar |
+| **Gasto por patente** | El ranking de unidades, con el total y los dos pesos por kilómetro de cada una |
+
+De dónde sale cada cosa:
+
+- **Los pesos**, de `v_ordenes`: en las internas, los trabajos y los
+  repuestos renglón por renglón; en las externas, el monto de la factura.
+  Entran las internas y las externas juntas, porque la plata es la misma.
+- **Los kilómetros**, de `v_km_diarios`, la serie del satelital, que ya
+  descarta los retrocesos —cambios de equipo— y los saltos imposibles.
+
+Tres decisiones que hacen que el número no mienta:
+
+- **Las anuladas no cuentan.** El trabajo no existió.
+- **Cada unidad se divide por sus propios kilómetros**, y la flota, por la
+  suma de todos: un utilitario que hizo 5.000 km no puede pesar lo mismo
+  que un camión que hizo 95.000. No es el promedio de los dos números.
+- **Solo se divide el gasto que esos kilómetros explican.** Si el
+  satelital empezó a leer una unidad en marzo, la orden de octubre entra
+  en el total gastado pero no en el peso por kilómetro: dividir un año de
+  gasto por seis meses de kilómetros da un número altísimo que no es de
+  nadie. Lo que queda afuera se avisa abajo del panel, no se rellena.
+
+Una unidad sin lecturas muestra el gasto y deja los pesos por kilómetro en
+blanco. Un cero ahí sería decir que mantenerla no cuesta nada.
+
+La cuenta vive en `gomeria/kpi_ordenes.py` y no necesita SQL nuevo: son
+consultas sobre las vistas que ya están. Si todavía no se corrió
+`15_ordenes.sql`, el panel no aparece y el resto de la portada sigue igual.
