@@ -3,17 +3,21 @@ name: Odometros a Supabase
 # Lee el odómetro de cada móvil directo del satelital Hawk y lo guarda en la
 # tabla odometros de Supabase. Antes esto se bajaba del repo ServiceDM, que
 # corre de lunes a viernes: el fin de semana la serie quedaba con agujeros.
-# Ahora la app entra sola y corre los siete días.
+# Ahora la app entra sola y corre los siete días, sábados y domingos incluidos.
 #
-# Sale a las 08:30 ART, media hora después del scraper de ServiceDM, que
+# Sale a las 05:00 ART, tres horas antes que el scraper de ServiceDM, que
 # sigue escribiendo la planilla de services. Son dos sesiones distintas
 # contra el mismo satelital y conviene que no se pisen.
+#
+# Al terminar manda un mail, salga bien o salga mal. El que avisa que salió
+# bien no es de adorno: si un día no llega ninguno de los dos, es que el job
+# ni arrancó, y eso no se nota de ninguna otra manera.
 #
 # También se dispara a mano desde la pestaña Actions, con "Run workflow".
 
 on:
   schedule:
-    - cron: "30 11 * * *"     # 08:30 ART, todos los días
+    - cron: "0 8 * * *"       # 05:00 ART, todos los días
   workflow_dispatch:
     inputs:
       solo_empresas:
@@ -60,14 +64,108 @@ jobs:
           set -o pipefail
           python gomeria/hawk.py 2>&1 | tee salida.txt
 
-      # Para no tener que abrir el log: el resumen de la corrida queda en la
-      # portada del run, que es donde uno mira cuando quiere saber si entró.
-      - name: Resumen
+      # El resumen sirve para el mail y para la portada del run. Se arma acá
+      # una sola vez, con if:always() para que también exista cuando el paso
+      # anterior se cayó, que es justo cuando más hace falta.
+      - name: Armar el resumen
+        if: always()
+        run: |
+          echo "FECHA_AR=$(TZ=America/Argentina/Buenos_Aires date '+%d/%m/%Y %H:%M')" >> "$GITHUB_ENV"
+
+          # Las líneas que importan: la flota, cuántas se leyeron y qué dijo
+          # la base. Si no hay ninguna, el job se cayó antes de leer nada y
+          # eso también hay que poder contarlo. El patrón esquiva las vocales
+          # acentuadas a propósito: según el locale del runner, un punto
+          # matchea un byte y no una letra, y "leídos" se escapaba.
+          resumen=$(grep -E '^(flota|sin lectura|\[supabase\]|nuevas)|con kilometraje' salida.txt 2>/dev/null | tail -n 20)
+          [ -n "$resumen" ] || resumen="(el job se cayó antes de leer nada)"
+
+          # El delimitador lleva el id de la corrida para que ninguna línea
+          # del log pueda cerrar el bloque antes de tiempo.
+          {
+            echo "RESUMEN<<FIN_$GITHUB_RUN_ID"
+            echo "$resumen"
+            echo "FIN_$GITHUB_RUN_ID"
+            echo "LOG<<FIN_$GITHUB_RUN_ID"
+            tail -n 40 salida.txt 2>/dev/null || echo "(sin salida)"
+            echo "FIN_$GITHUB_RUN_ID"
+          } >> "$GITHUB_ENV"
+
+      - name: Resumen en la portada del run
         if: always()
         run: |
           {
             echo '### Lecturas del satelital'
             echo '```'
-            tail -n 12 salida.txt 2>/dev/null || echo '(el job falló antes de leer nada)'
+            echo "${RESUMEN}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Mail exito
+        if: success()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_FROM }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          from: GitHub Odometros
+          to: ${{ secrets.EMAIL_FROM }}
+          subject: "✅ Odometros OK"
+          body: |
+            Las lecturas del satelital entraron a la base.
+
+            Hora Argentina:
+            ${{ env.FECHA_AR }}
+
+            ${{ env.RESUMEN }}
+
+            La corrida:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Mail error
+        if: failure()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_FROM }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          from: GitHub Odometros
+          to: ${{ secrets.EMAIL_FROM }}
+          subject: "❌ Error en los odometros"
+          body: |
+            Hoy no entraron las lecturas del satelital.
+
+            Hora Argentina:
+            ${{ env.FECHA_AR }}
+
+            Últimas líneas:
+            ${{ env.LOG }}
+
+            La corrida:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Mail cancelado
+        if: cancelled()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.EMAIL_FROM }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          from: GitHub Odometros
+          to: ${{ secrets.EMAIL_FROM }}
+          subject: "⚠️ Odometros cancelado"
+          body: |
+            La corrida se cortó: pasó el límite de 20 minutos, o alguien la
+            canceló a mano. Las lecturas de hoy pueden no haber entrado.
+
+            Hora Argentina:
+            ${{ env.FECHA_AR }}
+
+            La corrida:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
