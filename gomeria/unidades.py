@@ -78,6 +78,11 @@ def listar(cx):
         "armados": armados(cx),
         "planes_mantenimiento": cx.execute("""select id,nombre,cada_km
             from mantenimiento_planes where activo order by nombre""").fetchall(),
+        # La lista de modelos 3D va servida y no escrita en la pantalla.
+        # Estuvo copiada en cuatro lugares y se desincronizó: acá había
+        # siete modelos y el desplegable ofrecía tres, así que el furgón,
+        # el autoelevador y el resto existían pero no se podían elegir.
+        "modelos_3d": [{"valor": v, "nombre": n} for v, n in MODELOS_3D],
     }
 
 

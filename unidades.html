@@ -383,8 +383,6 @@
         <label for="c-modelo_3d">Modelo 3D</label>
         <select id="c-modelo_3d" name="modelo_3d">
           <option value="">Según los ejes</option>
-          <option value="6x2">Tractor 6x2 / 6x4</option>
-          <option value="4x2">Tractor 4x2</option>
         </select>
         <span class="ayuda">Vacío, la app lo deduce del mapa de cubiertas o del modelo.</span>
       </div>
@@ -598,6 +596,12 @@ $('#exp-pdf').onclick = () => {
   w.document.close();
   w.onload = () => { w.focus(); w.print(); };
 };
+
+/* El nombre para mostrar de un modelo 3D. Sale de la lista que sirve el
+   servidor, así que agregar un modelo en Python alcanza para que aparezca
+   acá y en el desplegable, sin tocar la pantalla. */
+const nombre3d = clave =>
+  (DATOS.modelos_3d || []).reduce((n, m) => m.valor === clave ? m.nombre : n, clave);
 
 function opciones(sel, valores, rotulo){
   const antes = sel.value;
@@ -936,10 +940,8 @@ async function pintarEstado(id){
 
   /* El camión, si hay modelo para esta unidad. */
   if (d.modelo_3d_falta){
-    const COMO = { '6x2':'tractor 6x2 / 6x4', '4x2':'tractor 4x2',
-                   semi:'semirremolque' };
     visorVacio(`Falta el archivo del modelo ` +
-      `<b>${esc(COMO[d.modelo_3d_falta] || d.modelo_3d_falta)}</b>.<br>` +
+      `<b>${esc(nombre3d(d.modelo_3d_falta).toLowerCase())}</b>.<br>` +
       `Va en la carpeta <code>modelos/</code>, en .glb, .obj o .fbx.`);
   } else if (!d.modelo_3d){
     visorVacio(u.tipo === 'equipo'
@@ -1111,6 +1113,10 @@ async function cargar(){
   const unicos = k => [...new Set(DATOS.unidades.map(u => u[k]).filter(Boolean))].sort();
   datalist('marcas', unicos('marca'));
   datalist('choferes', unicos('chofer'));
+  $('#c-modelo_3d').innerHTML = '<option value="">Según los ejes</option>' +
+    (DATOS.modelos_3d || []).map(m =>
+      `<option value="${esc(m.valor)}">${esc(m.nombre)}</option>`).join('');
+
   const planes = DATOS.planes_mantenimiento || [];
   $('#c-mantenimiento_plan_id').innerHTML = '<option value="">Sin plan asignado</option>' +
     planes.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${Number(p.cada_km).toLocaleString('es-AR')} km</option>`).join('');
@@ -1139,10 +1145,8 @@ function pintarArmados(){
                    .reduce((a, g) => a + g.unidades, 0);
   $('#armados-n').textContent = faltan ? `(${faltan} unidades sin modelo)` : '';
 
-  const NOMBRE = { '6x2':'Tractor 6x2 / 6x4', '4x2':'Tractor 4x2',
-                   semi:'Semirremolque' };
   $('#armados-lista').innerHTML = gs.map(g => {
-    const que = g.modelo_3d ? NOMBRE[g.modelo_3d]
+    const que = g.modelo_3d ? nombre3d(g.modelo_3d)
               : (g.armado || g.titulo || 'sin identificar');
     /* Las gomas y el reparto salen del mapa. Sin mapa no hay reparto que
        mostrar, y eso también es un dato: es lo primero que falta. */
