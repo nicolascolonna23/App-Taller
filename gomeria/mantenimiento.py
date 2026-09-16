@@ -6,7 +6,10 @@ import re
 import zipfile
 from xml.etree import ElementTree as ET
 
-GESTORES = {"admin", "encargado"}
+import permisos
+
+# Quién puede escribir no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles.
 
 
 def _clave(texto):
@@ -90,7 +93,7 @@ def importar(cx, contenido):
 
 
 def _gestor(usuario):
-    if (usuario or {}).get("rol") not in GESTORES:
+    if not permisos.gestiona(usuario):
         raise PermissionError("Solo un encargado o administrador puede parametrizar services.")
 
 

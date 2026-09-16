@@ -14,9 +14,12 @@ import io
 import os
 import re
 
+import permisos
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
-GESTORES = {"admin", "encargado"}
+# Quién puede escribir no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles.
 
 # Los campos que la pantalla puede tocar. Todo lo que no esté acá se ignora,
 # así un JSON de más no llega nunca a la consulta.
@@ -25,7 +28,7 @@ CAMPOS = ("interno", "tipo", "marca", "modelo", "chasis", "chofer", "semi",
 
 
 def _exigir_gestor(usuario, que="tocar el maestro de unidades"):
-    if (usuario or {}).get("rol") not in GESTORES:
+    if not permisos.gestiona(usuario):
         raise PermissionError(f"Solo un encargado o administrador puede {que}.")
 
 

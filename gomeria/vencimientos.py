@@ -10,11 +10,14 @@ cada VTV y en qué planta.
 """
 from datetime import date, timedelta
 
-GESTORES = {"admin", "encargado"}
+import permisos
+
+# Quién puede escribir no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles.
 
 
 def _exigir_gestor(usuario):
-    if (usuario or {}).get("rol") not in GESTORES:
+    if not permisos.gestiona(usuario):
         raise PermissionError("Solo un encargado o administrador puede cargar vencimientos.")
 
 

@@ -10,6 +10,17 @@ Dos clases, la misma tabla (ver 15_ordenes.sql):
     externa   la hizo un tercero y de eso hay una factura; se anota
               patente, fecha, número y monto, y nace cerrada.
 
+Una orden externa es la rendición de una factura de taller, y pide una
+cosa más: quién mandó a hacer el trabajo.
+
+    mantenimiento  lo decidió el área. Se carga la factura y listo.
+    sucursal       lo decidió una boca. Va con el número de la solicitud
+                   de orden de compra que lo autorizó (ver solicitudes.py).
+
+Esa es toda la regla: el circuito existe para el gasto que se resolvía
+lejos del taller, que es el que quedaba sin constancia técnica. Al taller
+no se le traba la carga de lo que él mismo mandó a hacer.
+
 Lo importante de acá es el enganche con el stock: cada repuesto que se
 carga a una orden escribe una Salida en repuestos_movimientos, que es de
 donde sale el stock de todo el sistema. Sacar el renglón borra ese
@@ -18,8 +29,12 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 from datetime import date
 
 import alertas
+import permisos
+import solicitudes as sol
 
-GESTORES = {"admin", "encargado"}
+# Quién puede tocar una orden ya no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles (ver permisos.py).
+# En una base que todavía no corrió 27_roles.sql se cae al rol de siempre.
 
 # Lo que se puede escribir en la cabecera de una orden abierta. Está en un
 # solo lugar para que agregar un campo sea agregarlo acá y en el SQL.
@@ -31,7 +46,7 @@ CAMPOS = ("km", "chofer", "responsable", "taller",
 # AYUDAS
 # =====================================================================
 def puede_gestionar(usuario):
-    return (usuario or {}).get("rol") in GESTORES
+    return permisos.gestiona(usuario)
 
 
 def _exigir_gestor(usuario, que="tocar las órdenes de trabajo"):
@@ -70,6 +85,16 @@ def _numero(valor, campo, entero=False):
     if n < 0:
         raise ValueError(f"{campo} no puede ser negativo.")
     return n
+
+
+def _gestion(valor):
+    """Quién mandó a hacer el servicio externo, que es quién decide si va
+    con solicitud. Vacío no se adivina: se pregunta."""
+    quien = str(valor or "").strip().lower()
+    if quien not in ("mantenimiento", "sucursal"):
+        raise ValueError("Indicar si el servicio lo mandó a hacer mantenimiento "
+                         "o una sucursal.")
+    return quien
 
 
 def _mantenimiento(valor):
@@ -167,7 +192,19 @@ def listar(cx, usuario):
             from v_repuestos_stock where activo
             order by descripcion, codigo""").fetchall()],
         "puede_gestionar": puede_gestionar(usuario),
+        # Las solicitudes cerradas que todavía no se rindieron: rendir una
+        # factura es elegir de esta lista, no tipear un número a mano.
+        # Sin el módulo instalado la pantalla sigue andando igual.
+        **_solicitudes_pendientes(cx),
     }
+
+
+def _solicitudes_pendientes(cx):
+    try:
+        return {"solicitudes": sol.para_rendir(cx), "exigir_solicitud": sol.exigir_solicitud(cx)}
+    except Exception:
+        cx.rollback()
+        return {"solicitudes": [], "exigir_solicitud": False}
 
 
 def ficha(cx, orden_id):
@@ -361,7 +398,7 @@ def cerrar(cx, datos, usuario):
 
 def reabrir(cx, datos, usuario):
     """Se cerró de más. Solo un admin, y nunca una externa."""
-    if (usuario or {}).get("rol") != "admin":
+    if not permisos.administra(usuario):
         raise PermissionError("Solo un administrador puede reabrir una orden cerrada.")
     orden = _orden(cx, datos.get("id"))
     if orden["tipo"] == "externa":
@@ -396,7 +433,7 @@ def anular(cx, datos, usuario):
 
 def borrar(cx, datos, usuario):
     """Saca del medio una orden cargada por error. Solo un admin."""
-    if (usuario or {}).get("rol") != "admin":
+    if not permisos.administra(usuario):
         raise PermissionError("Solo un administrador puede borrar una orden.")
     orden = _orden(cx, datos.get("id"))
     _devolver_stock(cx, orden["id"])
@@ -535,6 +572,16 @@ def externa(cx, datos, usuario):
     lo único que importa es que quede en la historia de la unidad.
     """
     _exigir_gestor(usuario, "cargar un servicio externo")
+    # Quién lo mandó a hacer, primero: de eso depende si la factura
+    # necesita una solicitud. Se resuelve antes de escribir nada.
+    solicitud_id = _texto(datos.get("solicitud_id"), 20)
+    exigido = sol.exigir_solicitud(cx)
+    # None es "el módulo todavía no se corrió en esta base": ahí no se
+    # pregunta nada y la factura entra como entraba antes. Y una factura
+    # que trae solicitud es, por definición, de sucursal: no hace falta
+    # que además lo digan.
+    gestion = (_gestion(datos.get("gestion") or ("sucursal" if solicitud_id else None))
+               if exigido is not None else None)
     mantenimiento = _mantenimiento(datos.get("mantenimiento"))
     fecha = _fecha_requerida(datos.get("fecha"), "la fecha del servicio")
     km = _km_requeridos(datos.get("km"))
@@ -550,6 +597,16 @@ def externa(cx, datos, usuario):
     if not factura:
         raise ValueError("Falta el número de factura.")
 
+    if solicitud_id:
+        sol.validar_para_gasto(cx, solicitud_id, patente)
+    elif exigido and gestion == "sucursal":
+        raise ValueError(
+            "El servicio lo mandó a hacer una sucursal, así que va con su "
+            "solicitud de orden de compra. Si todavía no está cargada: se pide "
+            "en /solicitudes, se cierra con el número de factura y recién ahí "
+            "se rinde acá. Si en realidad lo mandó a hacer mantenimiento, "
+            "elegilo y se carga sin solicitud.")
+
     # La misma factura dos veces es un error de carga, no dos servicios.
     repetida = cx.execute("""
         select numero from ordenes_trabajo
@@ -559,18 +616,26 @@ def externa(cx, datos, usuario):
         raise ValueError(f"La factura {factura} de {patente} ya está cargada "
                          f"en la orden {repetida['numero']}.")
 
-    fila = cx.execute("""
-        insert into ordenes_trabajo
-          (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, fecha_cierre,
-           taller, factura, monto, solicitado, observaciones,
-           usuario_id, usuario, cerrada_por)
-        values ('externa','cerrada',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+    columnas = ["mantenimiento", "unidad_id", "patente", "km", "fecha", "fecha_cierre",
+                "taller", "factura", "monto", "solicitado", "observaciones",
+                "usuario_id", "usuario", "cerrada_por"]
+    valores = [mantenimiento, unidad_id, patente, km, fecha, fecha,
+               _texto(datos.get("taller"), 120), factura, monto,
+               _texto(datos.get("solicitado")), _texto(datos.get("observaciones")),
+               (usuario or {}).get("id"), (usuario or {}).get("nombre"),
+               (usuario or {}).get("nombre")]
+    # Las dos columnas del circuito existen recién con 26_solicitudes.sql
+    # corrido. Nombrarlas antes sería romperle la carga de facturas a una
+    # base que todavía no lo corrió.
+    if exigido is not None:
+        columnas += ["solicitud_id", "gestion"]
+        valores += [solicitud_id or None, gestion]
+
+    fila = cx.execute(f"""
+        insert into ordenes_trabajo (tipo, estado, {", ".join(columnas)})
+        values ('externa', 'cerrada', {", ".join(["%s"] * len(columnas))})
         returning id, numero
-    """, (mantenimiento, unidad_id, patente, km, fecha, fecha,
-          _texto(datos.get("taller"), 120), factura, monto,
-          _texto(datos.get("solicitado")), _texto(datos.get("observaciones")),
-          (usuario or {}).get("id"), (usuario or {}).get("nombre"),
-          (usuario or {}).get("nombre"))).fetchone()
+    """, tuple(valores)).fetchone()
 
     orden = {
         "id": fila["id"], "numero": fila["numero"], "mantenimiento": mantenimiento,

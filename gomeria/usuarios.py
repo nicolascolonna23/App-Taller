@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
-Administrar quién puede entrar al sistema.
+Administrar quién puede entrar al sistema, desde la terminal.
+
+Lo de todos los días se hace en la pantalla `/usuarios`, con la sesión de
+alguien que administra: altas, bajas, contraseñas, roles y qué módulos
+abre cada rol (ver USUARIOS.md). Esto es la salida de emergencia —quedarse
+sin administradores, o todavía no haber corrido 27_roles.sql— y por eso
+sigue acá.
 
     python3 gomeria/usuarios.py listar
     python3 gomeria/usuarios.py agregar ramon "Ramón Gómez"
@@ -18,10 +24,14 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 import auth, base
 
+# Los cuatro que trae el sistema. Si hay roles hechos a mano en la base,
+# se listan igual: acá solo se eligen los de fábrica, que son los que
+# existen seguro.
 ROLES = {
-    "operario":  "carga partes de gomería",
-    "encargado": "además confirma y corrige",
-    "admin":     "además administra usuarios",
+    "operario":  "carga lo que hace: partes, repuestos y órdenes",
+    "encargado": "además aprueba, cierra y corrige",
+    "admin":     "además administra usuarios y roles",
+    "sucursal":  "pide y rinde las solicitudes de su boca",
 }
 
 

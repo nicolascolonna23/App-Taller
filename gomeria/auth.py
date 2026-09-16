@@ -13,6 +13,8 @@ import hashlib, hmac, os, secrets
 from datetime import datetime, timedelta, timezone
 from http.cookies import SimpleCookie
 
+import permisos
+
 DIAS_SESION = 30           # el gomero no debería tener que entrar todos los días
 COOKIE = "sesion"
 
@@ -100,6 +102,12 @@ def abrir_sesion(cx, usuario_id, agente=None):
 
 
 def usuario_de_sesion(cx, token):
+    """Quién está de este lado, con lo que su rol le permite.
+
+    Los permisos se cuelgan acá y no en cada pantalla: es el único lugar
+    por el que pasan todos los pedidos, así que es donde no se puede
+    olvidar. Ver permisos.py.
+    """
     if not token:
         return None
     fila = cx.execute("""
@@ -108,7 +116,7 @@ def usuario_de_sesion(cx, token):
         where s.token = %s and s.expira > now() and u.activo""", (token,)).fetchone()
     if fila:
         cx.execute("update sesiones set ultimo_uso = now() where token = %s", (token,))
-    return fila
+    return permisos.con_permisos(cx, fila) if fila else None
 
 
 def cerrar_sesion(cx, token):

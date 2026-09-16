@@ -27,9 +27,16 @@ class BaseFalsa:
         self.orden = orden
         self.consultas = []
 
+    def rollback(self):
+        pass
+
     def execute(self, consulta, valores=()):
         sql = " ".join(consulta.split())
         self.consultas.append((sql, valores))
+        # Sin el módulo de solicitudes instalado no se le exige solicitud a nadie:
+        # estas pruebas miran el enganche con el service, no el circuito.
+        if sql.startswith("select exigir_solicitud from solicitudes_ajustes"):
+            return Resultado({"exigir_solicitud": False})
         if sql.startswith("select * from ordenes_trabajo where id"):
             return Resultado(self.orden)
         if "select 1 from ordenes_tareas" in sql:
@@ -136,6 +143,7 @@ class ServicioExterno(unittest.TestCase):
         with patch.object(ordenes, "_registrar_preventivo", return_value=20) as registrar:
             salida = ordenes.externa(cx, {
                 "unidad_id": 7, "mantenimiento": "preventivo",
+                "gestion": "mantenimiento",
                 "fecha": "2026-09-08", "km": 122500,
                 "factura": "A-123", "monto": 250000,
                 "taller": "Iveco", "solicitado": "Service M6",

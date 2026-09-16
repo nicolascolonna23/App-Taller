@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Solicitudes de orden de compra | Gestión de flota</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62; --frio:#7db3ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+
+  main{max-width:1320px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px}
+
+  .tarjetas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+  .tarjeta{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;padding:15px;text-align:left;font:inherit;color:inherit}
+  .tarjeta b{display:block;font-size:26px;line-height:1.1}
+  .tarjeta span{color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.9px;font-weight:700}
+  .tarjeta.parados b{color:var(--bad)}
+  .tarjeta.espera b{color:var(--warn)}
+  .tarjeta.curso b{color:var(--frio)}
+  .tarjeta.rendir b{color:var(--ok)}
+
+  .solapas{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
+    border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+  .solapa.on{background:var(--brand-soft);border-color:var(--brand);color:var(--ink)}
+
+  .barra{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
+    font:inherit;outline:none;width:100%}
+  textarea{resize:vertical;min-height:66px;line-height:1.45}
+  input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
+  .barra input{max-width:320px}
+  .barra select{max-width:200px}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
+  .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
+  .btn.bien{background:var(--ok)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .espacio{margin-left:auto}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:15px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
+    white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  .num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+  .de{font-weight:800;letter-spacing:.4px}
+  .chico{color:var(--ink-muted);font-size:11.5px}
+  .marca{display:inline-block;border-radius:99px;padding:4px 9px;font-size:10.5px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .marca.SOLICITADO{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.APROBADO{color:var(--frio);background:rgba(125,179,239,.13)}
+  .marca.EN_EJECUCION{color:var(--brand);background:var(--brand-soft)}
+  .marca.CERRADO{color:var(--ok);background:rgba(49,189,101,.12)}
+  .marca.RECHAZADO{color:var(--ink-muted);background:rgba(255,255,255,.06)}
+  .marca.UNIDAD_PARADA{color:var(--bad);background:rgba(227,93,98,.14)}
+  .marca.OPERA_CON_RIESGO{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.PUEDE_ESPERAR{color:var(--ink-muted);background:rgba(255,255,255,.06)}
+  tr.urgente td{background:rgba(227,93,98,.06)}
+  .demora{color:var(--bad);font-weight:700}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0}
+  .accion:hover{color:var(--brand)}
+  .vacio{text-align:center;color:var(--ink-muted);padding:34px}
+
+  .fondo{position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:30;
+    display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+  .fondo.on{display:flex}
+  .modal{width:min(640px,100%);background:var(--surface-1);
+    border:1px solid var(--hairline-2);border-radius:16px;padding:20px;margin:auto}
+  .modal.ancho{width:min(980px,100%)}
+  .modal h2{margin:0;font-size:19px}
+  .cabecera{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .cerrar{border:0;background:none;color:var(--ink-muted);font-size:25px;cursor:pointer}
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .campos .ancho{grid-column:1/-1}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--ink-muted);font-weight:700;margin-bottom:5px}
+  .pista{color:var(--ink-muted);font-size:12px;margin:6px 0 0}
+  .aviso{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+  .aviso.mal{background:rgba(227,93,98,.12);color:var(--bad);
+    border:1px solid rgba(227,93,98,.3)}
+  .aviso.bien{background:rgba(49,189,101,.12);color:var(--ok);
+    border:1px solid rgba(49,189,101,.3)}
+  .blanca{border:1px dashed var(--hairline-2);border-radius:12px;padding:12px;
+    margin:0 0 14px;background:color-mix(in srgb,var(--brand) 4%,transparent);font-size:12.5px}
+  .blanca b{display:block;margin-bottom:4px;font-size:13px}
+  .blanca ul{margin:0;padding-left:18px;color:var(--ink-2);line-height:1.6}
+
+  .ficha-cab{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+    background:var(--surface-2);border:1px solid var(--hairline);border-radius:12px;
+    padding:13px;margin-bottom:14px}
+  .ficha-cab div span{display:block;font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;color:var(--ink-muted);font-weight:700}
+  .ficha-cab div b{font-size:14px;font-weight:600}
+  .bloque{margin-bottom:16px}
+  .bloque h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;
+    letter-spacing:.9px;color:var(--ink-muted)}
+  .linea{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--hairline);
+    font-size:13px;align-items:baseline}
+  .linea .cuando{color:var(--ink-muted);font-size:11.5px;white-space:nowrap;min-width:130px}
+  .pie-modal{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;
+    border-top:1px solid var(--hairline);padding-top:14px}
+  .kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;
+    margin-bottom:16px}
+  .kpi .caja b{display:block;font-size:24px;line-height:1.2}
+  .kpi .caja span{color:var(--ink-muted);font-size:10.5px;text-transform:uppercase;
+    letter-spacing:.8px;font-weight:700}
+
+  @media (max-width:860px){
+    .tarjetas{grid-template-columns:repeat(2,1fr)}
+    .campos{grid-template-columns:1fr}
+    .ficha-cab{grid-template-columns:repeat(2,1fr)}
+    main{padding:14px}
+  }
+
+  /* ------------------------------------------------------------------
+     LA SOLICITUD IMPRESA
+     Una carilla: número, unidad, falla, taller, monto y las dos firmas.
+     Es lo que se grapa a la factura, así que va en blanco y negro y con
+     los colores puestos a mano, sin depender del tema de la pantalla.
+     ------------------------------------------------------------------ */
+  #hoja{display:none;background:#fff;color:#000;font:12px Inter,system-ui,sans-serif}
+  #hoja *{box-sizing:border-box}
+  #hoja .marco{border:1.4px solid #000}
+  #hoja .titulo{display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:1.4px solid #000;padding:10px 12px}
+  #hoja .casa{font-size:15px;font-weight:800;letter-spacing:.5px}
+  #hoja .casa small{display:block;font-weight:400;font-size:9.5px}
+  #hoja .nro{text-align:right;line-height:1.5}
+  #hoja .nro b{font-size:20px;letter-spacing:1px}
+  #hoja .nro img{height:32px;display:block;margin:0 0 7px auto}
+  #hoja .grilla{display:grid;grid-template-columns:repeat(4,1fr)}
+  #hoja .grilla div{border-right:1px solid #000;border-bottom:1px solid #000;padding:8px 10px}
+  #hoja .grilla div:nth-child(4n){border-right:0}
+  #hoja .grilla span{display:block;font-size:8.5px;text-transform:uppercase;
+    letter-spacing:.8px;color:#444;font-weight:700;margin-bottom:2px}
+  #hoja .grilla b{font-size:12.5px;font-weight:600}
+  #hoja .texto{padding:9px 11px;border-bottom:1px solid #000;min-height:74px}
+  #hoja .texto span{display:block;font-size:8.5px;text-transform:uppercase;
+    letter-spacing:.8px;color:#444;font-weight:700;margin-bottom:3px}
+  #hoja .firmas{display:grid;grid-template-columns:1fr 1fr;gap:0}
+  #hoja .firmas div{padding:34px 11px 9px;border-right:1px solid #000;text-align:center;
+    font-size:9.5px}
+  #hoja .firmas div:last-child{border-right:0}
+  #hoja .firmas em{display:block;border-top:1px solid #000;padding-top:4px;font-style:normal}
+  #hoja .pie{padding:7px 11px;font-size:9px;color:#444}
+
+  @media print{
+    body{background:#fff}
+    .top,main,.fondo{display:none !important}
+    #hoja{display:block}
+    @page{size:A4;margin:14mm}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Solicitudes de orden de compra</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Solicitudes de orden de compra</h1>
+  <p class="sub" id="pie">Cargando…</p>
+
+  <div class="tarjetas">
+    <div class="tarjeta parados"><b id="n-parados">–</b><span>Unidades paradas</span></div>
+    <div class="tarjeta espera"><b id="n-espera">–</b><span>Esperando respuesta</span></div>
+    <div class="tarjeta curso"><b id="n-curso">–</b><span>Aprobados y en ejecución</span></div>
+    <div class="tarjeta rendir"><b id="n-rendir">–</b><span>Cerrados sin rendir</span></div>
+  </div>
+
+  <div class="solapas">
+    <button class="solapa on" data-vista="bandeja">Bandeja del taller</button>
+    <button class="solapa" data-vista="mia">Mi sucursal</button>
+    <button class="solapa" data-vista="red">Toda la red</button>
+    <button class="solapa" data-vista="indicadores">Indicadores</button>
+  </div>
+
+  <div class="barra" id="barraFiltros">
+    <input id="buscar" placeholder="Buscar patente, número de solicitud, falla o taller">
+    <select id="fSucursal"><option value="">Todas las sucursales</option></select>
+    <select id="fEstado">
+      <option value="">Todos los estados</option>
+      <option value="SOLICITADO">Solicitados</option>
+      <option value="APROBADO">Aprobados</option>
+      <option value="EN_EJECUCION">En ejecución</option>
+      <option value="CERRADO">Cerrados</option>
+      <option value="RECHAZADO">Rechazados</option>
+    </select>
+    <button class="btn alt" id="verUnidad">Ficha de unidad</button>
+    <button class="btn espacio" id="nuevo">+ Nueva solicitud</button>
+  </div>
+
+  <div class="caja" id="caja">
+    <table id="tabla">
+      <thead><tr>
+        <th>Solicitud</th><th>Unidad</th><th>Pedido</th><th>Tipo</th>
+        <th>Urgencia</th><th class="num">Monto</th><th>Estado</th><th></th>
+      </tr></thead>
+      <tbody id="filas"><tr><td colspan="8" class="vacio">Cargando…</td></tr></tbody>
+    </table>
+    <div id="panelIndicadores" hidden></div>
+  </div>
+</main>
+
+<!-- --------------------------------------------------------- nueva solicitud -->
+<div class="fondo" id="modalNuevo"><div class="modal">
+  <div class="cabecera"><h2 id="tituloNuevo">Nueva solicitud</h2>
+    <button class="cerrar" data-cerrar="modalNuevo">×</button></div>
+
+  <!-- La lista blanca arriba del formulario: lo que no necesita solicitud se
+       resuelve y se informa en el control mensual. La lista decide, no el
+       monto: un tope de plata se interpreta, se discute y se esquiva. -->
+  <div class="blanca">
+    <b>Esto no necesita solicitud</b>
+    <ul id="listaBlanca"></ul>
+  </div>
+
+  <div class="campos">
+    <div class="ancho"><label>Unidad</label><select id="vUnidad"></select></div>
+    <div id="cajaSucursal" hidden><label>Sucursal que pide</label>
+      <select id="vSucursal"></select></div>
+    <div><label>Kilómetros</label><input id="vKm" type="number" min="0" step="1" required></div>
+    <div><label>Tipo de trabajo</label><select id="vTipo">
+      <option value="CORRECTIVO">Correctivo</option>
+      <option value="PREVENTIVO">Preventivo</option>
+      <option value="GOMERIA">Gomería</option>
+      <option value="SINIESTRO">Siniestro</option>
+    </select></div>
+    <div><label>De dónde sale</label><select id="vOrigen">
+      <option value="CHECKLIST">Check list del chofer</option>
+      <option value="RUTA">Falla en ruta</option>
+      <option value="RUTINA_SEMANAL">Rutina semanal</option>
+      <option value="PREVENTIVO_KM">Preventivo por kilometraje</option>
+      <option value="CONTROL_MENSUAL">Control mensual</option>
+    </select></div>
+    <div><label>Urgencia</label><select id="vUrgencia">
+      <option value="PUEDE_ESPERAR">Puede esperar</option>
+      <option value="OPERA_CON_RIESGO">Opera con riesgo</option>
+      <option value="UNIDAD_PARADA">Unidad parada</option>
+    </select></div>
+    <div><label>Taller sugerido</label><input id="vTaller" placeholder="Opcional"></div>
+    <div><label>Monto estimado</label>
+      <input id="vMonto" type="number" min="0" step="0.01" placeholder="Vacío: a presupuestar"></div>
+    <div class="ancho"><label>Falla o tarea</label>
+      <textarea id="vDetalle" placeholder="Pierde aire el sistema de frenos, ruido en el tren delantero, service de 40.000…"></textarea></div>
+    <div class="ancho">
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-size:13px;letter-spacing:0">
+        <input type="checkbox" id="vRegular" style="width:auto">
+        Se autorizó en ruta y se está cargando después
+      </label>
+      <p class="pista">Unidad parada fuera de la sucursal: se autoriza verbalmente y la solicitud
+        se carga dentro de las 48 horas hábiles. Poné la fecha en que pasó.</p>
+    </div>
+    <div class="ancho" id="cajaFecha" hidden><label>Fecha del hecho</label>
+      <input id="vFecha" type="date"></div>
+  </div>
+  <div id="avisoNuevo"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarNuevo">Pedir la solicitud</button>
+    <button class="btn alt" data-cerrar="modalNuevo">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- --------------------------------------------------------------- solicitud -->
+<div class="fondo" id="modalSolicitud"><div class="modal ancho">
+  <div class="cabecera"><h2 id="tituloSolicitud">Solicitud</h2>
+    <button class="cerrar" data-cerrar="modalSolicitud">×</button></div>
+  <div id="cuerpoSolicitud"></div>
+</div></div>
+
+<!-- ----------------------------------------------------------- historial -->
+<div class="fondo" id="modalHist"><div class="modal ancho">
+  <div class="cabecera"><h2 id="tituloHist">Ficha de unidad</h2>
+    <button class="cerrar" data-cerrar="modalHist">×</button></div>
+  <div id="cuerpoHist"></div>
+</div></div>
+
+<!-- La solicitud de papel. Se arma al imprimir y no se ve en pantalla. -->
+<div id="hoja"></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const D = { datos:null, vista:'bandeja', solicitud:null };
+
+const money = n => n == null || n === '' ? '—'
+  : Number(n).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const nfm = new Intl.NumberFormat('es-AR');
+const fecha = f => !f ? '' : String(f).slice(0,10).split('-').reverse().join('/');
+const cuando = f => !f ? '' : new Date(f).toLocaleString('es-AR',
+  {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'});
+const hoy = () => new Date().toISOString().slice(0,10);
+
+const ESTADO = {SOLICITADO:'Solicitada', APROBADO:'Aprobada',
+  EN_EJECUCION:'En ejecución', CERRADO:'Cerrada', RECHAZADO:'Rechazada'};
+const TIPO = {PREVENTIVO:'Preventivo', CORRECTIVO:'Correctivo',
+  GOMERIA:'Gomería', SINIESTRO:'Siniestro'};
+const ORIGEN = {CHECKLIST:'Check list', RUTA:'Ruta', RUTINA_SEMANAL:'Rutina semanal',
+  PREVENTIVO_KM:'Preventivo por km', CONTROL_MENSUAL:'Control mensual'};
+const URGENCIA = {PUEDE_ESPERAR:'Puede esperar', OPERA_CON_RIESGO:'Opera con riesgo',
+  UNIDAD_PARADA:'Unidad parada'};
+const PESO_URGENCIA = {UNIDAD_PARADA:0, OPERA_CON_RIESGO:1, PUEDE_ESPERAR:2};
+
+/** AD247MQ -> AD 247 MQ, como lo lee una persona. */
+function pat(p) {
+  const m = /^([A-Z]{2})(\d{3})([A-Z]{2})$/.exec(p || '');
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = /^([A-Z]{3})(\d{3})$/.exec(p || '');
+  return o ? `${o[1]} ${o[2]}` : (p || '');
+}
+
+async function api(op, extra) {
+  const r = await fetch('/api/solicitudes', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+// =====================================================================
+// LA LISTA
+// =====================================================================
+function visibles() {
+  const solicitudes = (D.datos && D.datos.solicitudes) || [];
+  const mia = D.datos && D.datos.usuario && D.datos.usuario.sucursal_codigo;
+  let lista = solicitudes;
+  if (D.vista === 'bandeja') lista = solicitudes.filter(v => v.estado === 'SOLICITADO');
+  if (D.vista === 'mia' && mia) lista = solicitudes.filter(v => v.sucursal_codigo === mia);
+
+  const texto = ($('#buscar').value || '').trim().toLowerCase();
+  const suc = $('#fSucursal').value, est = $('#fEstado').value;
+  lista = lista.filter(v => {
+    if (suc && v.sucursal_codigo !== suc) return false;
+    if (est && v.estado !== est) return false;
+    if (!texto) return true;
+    return [v.id, v.patente, v.interno, v.detalle, v.taller, v.taller_sugerido,
+            v.solicitante, v.factura_numero]
+      .some(x => String(x || '').toLowerCase().includes(texto));
+  });
+
+  // En la bandeja manda la urgencia y después la antigüedad: la unidad
+  // parada tiene que estar arriba de todo sin que nadie la busque.
+  if (D.vista === 'bandeja') {
+    lista = lista.slice().sort((a, b) =>
+      (PESO_URGENCIA[a.urgencia] - PESO_URGENCIA[b.urgencia]) ||
+      (new Date(a.creado_en) - new Date(b.creado_en)));
+  }
+  return lista;
+}
+
+function pintar() {
+  const r = (D.datos && D.datos.resumen) || {};
+  $('#n-parados').textContent = r.parados || 0;
+  $('#n-espera').textContent = r.SOLICITADO || 0;
+  $('#n-curso').textContent = (r.APROBADO || 0) + (r.EN_EJECUCION || 0);
+  $('#n-rendir').textContent = r.sin_rendir || 0;
+
+  const lista = visibles();
+  const cuerpo = $('#filas');
+  if (!lista.length) {
+    cuerpo.innerHTML = `<tr><td colspan="8" class="vacio">${
+      D.vista === 'bandeja' ? 'No hay solicitudes esperando respuesta.'
+                            : 'No hay solicitudes que coincidan.'}</td></tr>`;
+  } else {
+    cuerpo.innerHTML = lista.map(v => `
+      <tr class="${v.urgencia === 'UNIDAD_PARADA' && v.estado === 'SOLICITADO' ? 'urgente' : ''}">
+        <td><b class="de">${esc(v.id)}</b>
+            <div class="chico">${esc(v.sucursal || v.sucursal_codigo)}</div></td>
+        <td><b>${esc(pat(v.patente))}</b>
+            <div class="chico">${esc([v.interno ? 'Nº ' + v.interno : '', v.marca, v.modelo]
+              .filter(Boolean).join(' · '))}</div></td>
+        <td>${esc(fecha(v.fecha_hecho))}
+            <div class="chico">${esc(v.solicitante || '')}${
+              v.regularizacion_ruta ? ' · regularización' : ''}</div></td>
+        <td>${esc(TIPO[v.tipo] || v.tipo)}
+            <div class="chico">${esc(ORIGEN[v.origen] || v.origen)}</div></td>
+        <td><span class="marca ${esc(v.urgencia)}">${esc(URGENCIA[v.urgencia] || '')}</span>
+            ${v.demorado ? '<div class="chico demora">Sin respuesta</div>' : ''}</td>
+        <td class="num">${v.monto == null ? '<span class="chico">a presupuestar</span>'
+                                          : '$ ' + money(v.monto)}</td>
+        <td><span class="marca ${esc(v.estado)}">${esc(ESTADO[v.estado] || v.estado)}</span>
+            ${v.orden_numero ? `<div class="chico">rendido · OT ${esc(v.orden_numero)}</div>` : ''}</td>
+        <td><button class="accion" data-solicitud="${esc(v.id)}">Abrir</button></td>
+      </tr>`).join('');
+  }
+
+  const total = ((D.datos && D.datos.solicitudes) || []).length;
+  $('#pie').textContent = `${lista.length} de ${total} solicitudes · ` + (
+    D.vista === 'bandeja' ? 'los que esperan respuesta del taller, el más urgente arriba'
+    : D.vista === 'mia' ? 'los de tu sucursal'
+    : 'toda la red');
+}
+
+function opciones() {
+  const d = D.datos;
+  $('#vUnidad').innerHTML = '<option value="">Seleccionar unidad</option>' +
+    d.unidades.map(u => `<option value="${u.id}" data-km="${u.km_actual || ''}">${
+      esc(pat(u.patente))}${u.interno ? ' · Nº ' + esc(u.interno) : ''}</option>`).join('');
+  const sucs = d.sucursales.map(s =>
+    `<option value="${esc(s.codigo)}">${esc(s.nombre)}</option>`).join('');
+  $('#vSucursal').innerHTML = '<option value="">Seleccionar sucursal</option>' + sucs;
+  $('#fSucursal').innerHTML = '<option value="">Todas las sucursales</option>' + sucs;
+  $('#listaBlanca').innerHTML = d.lista_blanca.map(x => `<li>${esc(x)}</li>`).join('');
+  // Al que tiene sucursal cargada no se le pregunta: la solicitud se numera
+  // según quién lo pide, no según lo que se elija en un desplegable.
+  $('#cajaSucursal').hidden = !!d.usuario.sucursal_codigo;
+  $('#quien').textContent = [d.usuario.nombre, d.usuario.sucursal_codigo]
+    .filter(Boolean).join(' · ');
+}
+
+async function cargar() {
+  const r = await fetch('/api/solicitudes');
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) { $('#pie').textContent = d.error || 'No se pudieron leer las solicitudes.'; return; }
+  D.datos = d;
+  opciones();
+  pintar();
+}
+
+// =====================================================================
+// LA SOLICITUD
+// =====================================================================
+async function abrirSolicitud(id) {
+  $('#modalSolicitud').classList.add('on');
+  $('#cuerpoSolicitud').innerHTML = '<p class="vacio">Cargando…</p>';
+  try {
+    D.solicitud = await api('ficha', {id});
+    dibujarSolicitud();
+  } catch (e) {
+    $('#cuerpoSolicitud').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+function dibujarSolicitud() {
+  const v = D.solicitud.solicitud, puede = D.datos.usuario.puede_aprobar;
+  $('#tituloSolicitud').textContent = `Solicitud ${v.id}`;
+  const dato = (t, x) => `<div><span>${t}</span><b>${x || '—'}</b></div>`;
+
+  let acciones = '';
+  if (v.estado === 'SOLICITADO' && puede)
+    acciones = `<button class="btn bien" data-op="aprobar">Aprobar</button>
+                <button class="btn mal" data-op="rechazar">Rechazar</button>`;
+  else if (v.estado === 'APROBADO')
+    acciones = `<button class="btn" data-op="iniciar">Empezó el trabajo</button>
+                <button class="btn alt" data-op="cerrar">Cerrar con factura</button>`;
+  else if (v.estado === 'EN_EJECUCION')
+    acciones = `<button class="btn" data-op="cerrar">Cerrar con factura</button>`;
+  else if (v.estado === 'RECHAZADO')
+    acciones = `<button class="btn alt" data-op="denuevo">Volver a pedirlo</button>`;
+
+  $('#cuerpoSolicitud').innerHTML = `
+    <div class="ficha-cab">
+      ${dato('Unidad', esc(pat(v.patente)) + (v.interno ? ' · Nº ' + esc(v.interno) : ''))}
+      ${dato('Kilómetros', nfm.format(v.km || 0))}
+      ${dato('Estado', `<span class="marca ${esc(v.estado)}">${esc(ESTADO[v.estado])}</span>`)}
+      ${dato('Urgencia', `<span class="marca ${esc(v.urgencia)}">${esc(URGENCIA[v.urgencia])}</span>`)}
+      ${dato('Sucursal', esc(v.sucursal || v.sucursal_codigo))}
+      ${dato('Tipo', esc(TIPO[v.tipo] || v.tipo) + ' · ' + esc(ORIGEN[v.origen] || v.origen))}
+      ${dato('Estimado', v.monto_estimado == null ? 'a presupuestar' : '$ ' + money(v.monto_estimado))}
+      ${dato('Autorizado', v.monto_autorizado == null ? '—' : '$ ' + money(v.monto_autorizado))}
+      ${dato('Solicitó', esc(v.solicitante || ''))}
+      ${dato('Autorizó', esc(v.aprobado_por || ''))}
+      ${dato('Taller', esc(v.taller || v.taller_sugerido || ''))}
+      ${dato('Factura', esc(v.factura_numero || ''))}
+    </div>
+
+    <div class="bloque">
+      <h3>Falla o tarea</h3>
+      <p style="margin:0;line-height:1.55">${esc(v.detalle)}</p>
+      ${v.nota ? `<p class="pista"><b>Nota:</b> ${esc(v.nota)}</p>` : ''}
+      ${v.solicitud_anterior ? `<p class="pista">Reemplaza a la solicitud
+        <button class="accion" data-solicitud="${esc(v.solicitud_anterior)}">${esc(v.solicitud_anterior)}</button>.</p>` : ''}
+      ${v.regularizacion_ruta ? `<p class="pista">Regularización de ruta: el hecho fue el
+        ${esc(fecha(v.fecha_hecho))} y se autorizó verbalmente.</p>` : ''}
+    </div>
+
+    <div class="bloque">
+      <h3>Historial</h3>
+      ${D.solicitud.eventos.map(e => `<div class="linea">
+        <span class="cuando">${esc(cuando(e.momento))}</span>
+        <span><b>${esc(ESTADO[e.estado] || e.estado)}</b>
+        ${e.usuario ? ' · ' + esc(e.usuario) : ''}
+        ${e.comentario ? `<div class="chico">${esc(e.comentario)}</div>` : ''}</span>
+      </div>`).join('')}
+    </div>
+
+    <div id="avisoSolicitud"></div>
+    <div class="pie-modal">
+      ${acciones}
+      <button class="btn alt" id="imprimirSolicitud">Imprimir</button>
+      <button class="btn alt" data-cerrar="modalSolicitud">Cerrar</button>
+    </div>`;
+}
+
+function avisoSolicitud(texto, bien) {
+  const caja = $('#avisoSolicitud');
+  if (caja) caja.innerHTML = `<div class="aviso ${bien ? 'bien' : 'mal'}">${esc(texto)}</div>`;
+}
+
+async function sobreSolicitud(op) {
+  const v = D.solicitud.solicitud;
+  const extra = {id: v.id};
+  if (op === 'aprobar') {
+    const monto = prompt('Monto autorizado (dejalo vacío si va a presupuesto):',
+      v.monto_estimado == null ? '' : v.monto_estimado);
+    if (monto === null) return;
+    const taller = prompt('Taller que hace el trabajo:', v.taller_sugerido || '');
+    if (taller === null) return;
+    extra.monto_autorizado = monto.trim() || null;
+    extra.taller = taller.trim() || null;
+    extra.nota = (prompt('Condiciones de la aprobación (opcional):', '') || '').trim() || null;
+  }
+  if (op === 'rechazar') {
+    const nota = (prompt('Por qué no va. La sucursal tiene que saber qué corregir:', '') || '').trim();
+    if (!nota) return avisoSolicitud('Un rechazo sin motivo no le sirve a la sucursal.');
+    extra.nota = nota;
+  }
+  if (op === 'cerrar') {
+    const factura = (prompt('Número de factura:', v.factura_numero || '') || '').trim();
+    if (!factura) return avisoSolicitud('Sin número de factura la solicitud no cierra.');
+    extra.factura_numero = factura;
+    const monto = prompt('Monto final de la factura:',
+      v.monto_autorizado == null ? '' : v.monto_autorizado);
+    if (monto === null) return;
+    extra.monto_autorizado = monto.trim() || null;
+  }
+  try {
+    const salida = await api(op, extra);
+    await cargar();
+    await abrirSolicitud(v.id);
+    if (salida.aviso) avisoSolicitud(salida.aviso);
+  } catch (e) {
+    avisoSolicitud(e.message);
+  }
+}
+
+// =====================================================================
+// LA FICHA DE LA UNIDAD
+// =====================================================================
+async function verHistorial(patente) {
+  const elegida = patente || (() => {
+    const sel = $('#vUnidad');
+    const u = D.datos.unidades.find(x => String(x.id) === sel.value);
+    return u && u.patente;
+  })();
+  const p = elegida || (prompt('Patente de la unidad:', '') || '').toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+  if (!p) return;
+  $('#modalHist').classList.add('on');
+  $('#cuerpoHist').innerHTML = '<p class="vacio">Cargando…</p>';
+  try {
+    const h = await api('historial', {patente: p});
+    $('#tituloHist').textContent = `Unidad ${pat(h.patente)}`;
+    $('#cuerpoHist').innerHTML = `
+      <div class="ficha-cab">
+        <div><span>Solicitudes</span><b>${h.solicitudes.length}</b></div>
+        <div><span>Preventivo</span><b>$ ${money(h.gasto.PREVENTIVO)}</b></div>
+        <div><span>Correctivo</span><b>$ ${money(h.gasto.CORRECTIVO)}</b></div>
+        <div><span>Total</span><b>$ ${money(h.total)}</b></div>
+      </div>
+      ${h.solicitudes.length ? `<table><thead><tr>
+        <th>Solicitud</th><th>Fecha</th><th class="num">Km</th><th>Tipo</th>
+        <th>Falla o tarea</th><th class="num">Monto</th><th>Estado</th></tr></thead>
+        <tbody>${h.solicitudes.map(v => `<tr>
+          <td><button class="accion" data-solicitud="${esc(v.id)}">${esc(v.id)}</button></td>
+          <td>${esc(fecha(v.fecha_hecho))}</td>
+          <td class="num">${nfm.format(v.km || 0)}</td>
+          <td>${esc(TIPO[v.tipo] || v.tipo)}</td>
+          <td>${esc(v.detalle)}</td>
+          <td class="num">${v.monto == null ? '—' : '$ ' + money(v.monto)}</td>
+          <td><span class="marca ${esc(v.estado)}">${esc(ESTADO[v.estado])}</span></td>
+        </tr>`).join('')}</tbody></table>`
+        : '<p class="vacio">Esta unidad todavía no tiene solicitudes.</p>'}`;
+  } catch (e) {
+    $('#cuerpoHist').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+// =====================================================================
+// LOS INDICADORES
+// =====================================================================
+async function verIndicadores() {
+  const panel = $('#panelIndicadores');
+  panel.innerHTML = '<p class="vacio">Calculando…</p>';
+  try {
+    const i = await api('indicadores', {});
+    const r = i.rendicion;
+    panel.innerHTML = `
+      <div class="kpi">
+        <div class="caja"><b>${r.porcentaje == null ? '—' : r.porcentaje + '%'}</b>
+          <span>Facturas de sucursal con solicitud</span></div>
+        <div class="caja"><b>${r.sin_solicitud}</b><span>Facturas sin solicitud previa</span></div>
+        <div class="caja"><b>${r.de_mantenimiento}</b>
+          <span>Facturas que mandó mantenimiento</span></div>
+        <div class="caja"><b>${i.sucursales.reduce((a, s) => a + s.regularizaciones, 0)}</b>
+          <span>Regularizaciones de ruta</span></div>
+        <div class="caja"><b>${i.sucursales.reduce((a, s) => a + s.correctivos_sin_aviso, 0)}</b>
+          <span>Correctivos sin aviso del check list</span></div>
+      </div>
+      <div class="bloque"><h3>Por sucursal</h3>
+        <table><thead><tr><th>Sucursal</th><th class="num">Solicitudes</th>
+          <th class="num">Rechazados</th><th class="num">Respuesta</th>
+          <th class="num">Correctivos</th><th class="num">Sin aviso previo</th>
+          <th class="num">Regularizaciones</th><th class="num">Cerrado</th></tr></thead>
+          <tbody>${i.sucursales.map(s => `<tr>
+            <td>${esc(s.sucursal)}</td>
+            <td class="num">${s.solicitudes}</td>
+            <td class="num">${s.rechazados}</td>
+            <td class="num">${s.horas_respuesta == null ? '—'
+              : Number(s.horas_respuesta).toFixed(1) + ' h'}</td>
+            <td class="num">${s.correctivos}</td>
+            <td class="num">${s.correctivos_sin_aviso}</td>
+            <td class="num">${s.regularizaciones}</td>
+            <td class="num">$ ${money(s.gastado)}</td></tr>`).join('')
+            || '<tr><td colspan="8" class="vacio">Todavía no hay solicitudes cargadas.</td></tr>'}
+          </tbody></table></div>
+      <div class="bloque"><h3>Correctivo por unidad</h3>
+        <table><thead><tr><th>Unidad</th><th class="num">Gasto</th>
+          <th class="num">Km</th><th class="num">$ / 1.000 km</th></tr></thead>
+          <tbody>${i.correctivo_por_unidad.map(u => `<tr>
+            <td>${esc(pat(u.patente))}</td>
+            <td class="num">$ ${money(u.pesos)}</td>
+            <td class="num">${u.km == null ? '—' : nfm.format(u.km)}</td>
+            <td class="num">${u.por_mil_km == null ? '<span class="chico">sin lecturas</span>'
+              : '$ ' + money(u.por_mil_km)}</td></tr>`).join('')
+            || '<tr><td colspan="4" class="vacio">Sin correctivos cerrados en el período.</td></tr>'}
+          </tbody></table></div>
+      <p class="pista">Desde el ${esc(fecha(i.desde))}. Los kilómetros son los del
+        satelital: la unidad sin lecturas no entra en el peso por kilómetro,
+        no se rellena con un número inventado.</p>`;
+  } catch (e) {
+    panel.innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+// =====================================================================
+// EL PAPEL
+// =====================================================================
+function imprimir() {
+  const v = D.solicitud.solicitud;
+  const dato = (t, x) => `<div><span>${t}</span><b>${x || '—'}</b></div>`;
+  $('#hoja').innerHTML = `
+    <div class="marco">
+      <div class="titulo">
+        <div class="casa">EXPRESO CATAMARCA<small>Solicitud de orden de compra · ${esc(v.sucursal || '')}</small></div>
+        <div class="nro">
+          <img src="/logo-cedula.png" alt="" onerror="this.style.display='none'">
+          <b>${esc(v.id)}</b><br>${esc(fecha(v.fecha_hecho))}
+        </div>
+      </div>
+      <div class="grilla">
+        ${dato('Unidad', esc(pat(v.patente)))}
+        ${dato('Interno', esc(v.interno || ''))}
+        ${dato('Kilómetros', nfm.format(v.km || 0))}
+        ${dato('Estado', esc(ESTADO[v.estado] || v.estado))}
+        ${dato('Tipo', esc(TIPO[v.tipo] || v.tipo))}
+        ${dato('Origen', esc(ORIGEN[v.origen] || v.origen))}
+        ${dato('Urgencia', esc(URGENCIA[v.urgencia] || ''))}
+        ${dato('Chofer', esc(v.chofer || ''))}
+        ${dato('Taller', esc(v.taller || v.taller_sugerido || ''))}
+        ${dato('Monto autorizado', v.monto_autorizado == null
+          ? 'a presupuestar' : '$ ' + money(v.monto_autorizado))}
+        ${dato('Factura', esc(v.factura_numero || ''))}
+        ${dato('Solicitado', esc(v.solicitante || ''))}
+      </div>
+      <div class="texto"><span>Falla o tarea</span>${esc(v.detalle)}</div>
+      ${v.nota ? `<div class="texto"><span>Nota</span>${esc(v.nota)}</div>` : ''}
+      <div class="firmas">
+        <div><em>Solicitó · ${esc(v.solicitante || '')}</em></div>
+        <div><em>Autorizó · ${esc(v.aprobado_por || '')}</em></div>
+      </div>
+      <div class="pie">Este número va escrito en la factura. La sucursal no rinde
+        una factura de taller sin su solicitud cerrada.</div>
+    </div>`;
+  window.print();
+}
+
+// =====================================================================
+// PANTALLA
+// =====================================================================
+function abrirNuevo(anterior) {
+  const v = anterior || null;
+  $('#tituloNuevo').textContent = v ? `Nueva solicitud citando ${v.id}` : 'Nueva solicitud';
+  $('#modalNuevo').dataset.anterior = v ? v.id : '';
+  $('#vUnidad').value = v && v.unidad_id ? v.unidad_id : '';
+  $('#vKm').value = v ? v.km : '';
+  $('#vTipo').value = v ? v.tipo : 'CORRECTIVO';
+  $('#vOrigen').value = v ? v.origen : 'CHECKLIST';
+  $('#vUrgencia').value = v ? v.urgencia : 'PUEDE_ESPERAR';
+  $('#vDetalle').value = v ? v.detalle : '';
+  $('#vTaller').value = v ? (v.taller_sugerido || '') : '';
+  $('#vMonto').value = '';
+  $('#vRegular').checked = false;
+  $('#cajaFecha').hidden = true;
+  $('#vFecha').value = hoy();
+  $('#avisoNuevo').innerHTML = '';
+  $('#modalNuevo').classList.add('on');
+  $('#vUnidad').focus();
+}
+
+async function guardarNuevo() {
+  const boton = $('#guardarNuevo');
+  const unidad = $('#vUnidad');
+  const datos = {
+    unidad_id: unidad.value || null,
+    km: $('#vKm').value,
+    tipo: $('#vTipo').value,
+    origen: $('#vOrigen').value,
+    urgencia: $('#vUrgencia').value,
+    detalle: $('#vDetalle').value,
+    taller_sugerido: $('#vTaller').value,
+    monto_estimado: $('#vMonto').value || null,
+    regularizacion_ruta: $('#vRegular').checked,
+    fecha_hecho: $('#vRegular').checked ? $('#vFecha').value : null,
+    solicitud_anterior: $('#modalNuevo').dataset.anterior || null,
+  };
+  if (!$('#cajaSucursal').hidden) datos.sucursal_codigo = $('#vSucursal').value;
+  boton.disabled = true;
+  try {
+    const salida = await api('crear', datos);
+    $('#modalNuevo').classList.remove('on');
+    await cargar();
+    await abrirSolicitud(salida.id);
+    if (salida.fuera_de_termino)
+      avisoSolicitud('Se cargó, pero pasaron más de 48 horas hábiles desde el hecho: '
+                + 'queda contado como regularización fuera de término.', false);
+  } catch (e) {
+    $('#avisoNuevo').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  } finally {
+    boton.disabled = false;
+  }
+}
+
+document.addEventListener('click', ev => {
+  const cerrar = ev.target.closest('[data-cerrar]');
+  if (cerrar) return document.getElementById(cerrar.dataset.cerrar).classList.remove('on');
+
+  const solapa = ev.target.closest('.solapa');
+  if (solapa) {
+    document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
+    D.vista = solapa.dataset.vista;
+    const indicadores = D.vista === 'indicadores';
+    $('#tabla').hidden = indicadores;
+    $('#panelIndicadores').hidden = !indicadores;
+    $('#barraFiltros').style.display = indicadores ? 'none' : '';
+    if (indicadores) verIndicadores(); else pintar();
+    return;
+  }
+
+  const solicitud = ev.target.closest('[data-solicitud]');
+  if (solicitud) return abrirSolicitud(solicitud.dataset.solicitud);
+
+  const op = ev.target.closest('[data-op]');
+  if (op) {
+    if (op.dataset.op === 'denuevo') {
+      $('#modalSolicitud').classList.remove('on');
+      return abrirNuevo(D.solicitud.solicitud);
+    }
+    return sobreSolicitud(op.dataset.op);
+  }
+
+  if (ev.target.id === 'imprimirSolicitud') return imprimir();
+  if (ev.target.id === 'nuevo') return abrirNuevo(null);
+  if (ev.target.id === 'verUnidad') return verHistorial(null);
+  if (ev.target.id === 'guardarNuevo') return guardarNuevo();
+});
+
+$('#buscar').addEventListener('input', pintar);
+$('#fSucursal').addEventListener('change', pintar);
+$('#fEstado').addEventListener('change', pintar);
+$('#vRegular').addEventListener('change', e => {
+  $('#cajaFecha').hidden = !e.target.checked;
+});
+// El kilometraje que ya sabe el maestro: se completa solo y se corrige si
+// el chofer leyó otro. Un campo menos para tipear es medio minuto menos.
+$('#vUnidad').addEventListener('change', e => {
+  const km = e.target.selectedOptions[0] && e.target.selectedOptions[0].dataset.km;
+  if (km && !$('#vKm').value) $('#vKm').value = km;
+});
+
+cargar();
+</script>
+</body>
+</html>
