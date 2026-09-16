@@ -46,9 +46,13 @@ import preferencias as prefs
 import unidades as uni
 import vencimientos as venc
 import servidor as gom
+from flota_vales.http import atender as atender_vales
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/vales": ("flota_vales/index.html", "text/html; charset=utf-8"),
+    "/vales.js": ("flota_vales/app.js", "text/javascript; charset=utf-8"),
+    "/vales.css": ("flota_vales/style.css", "text/css; charset=utf-8"),
     "/inicio-dashboard.css": ("inicio-dashboard.css", "text/css; charset=utf-8"),
     "/inicio-dashboard.js": ("inicio-dashboard.js", "text/javascript; charset=utf-8"),
     "/sistema.css": ("sistema.css", "text/css; charset=utf-8"),
@@ -173,6 +177,8 @@ class App(gom.Handler):
 
     def do_GET(self):
         ruta = urlparse(self.path).path
+        if ruta == "/api/vales":
+            return atender_vales(self, base, self.command == "POST")
         self.ruta_original = ruta
 
         if ruta == "/api/asistente":
@@ -633,6 +639,8 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        if ruta == "/api/vales":
+            return atender_vales(self, base, self.command == "POST")
         self.ruta_original = ruta
         if ruta == "/api/asistente":
             if not self._exigir_sesion():

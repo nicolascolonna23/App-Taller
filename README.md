@@ -135,3 +135,9 @@ detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
 Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` y `node tests/usuarios_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+
+## Vales auditables (borrador de integración)
+
+La propuesta de vales se revisa en `/vales`, sin reemplazar `/ordenes`, `/control`
+ni `/api/mantenimiento`. Ver [diseño y pendientes antes de fusionar](docs/MANTENIMIENTO.md).
+No aplicar la migración hasta resolver la unificación con los planes existentes.
