@@ -83,6 +83,27 @@ El asistente de consultas está en `/asistente`, detrás del login. Consultá [l
 
 Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
 
+## Vales de taller
+
+Ninguna compra ni trabajo de taller se hace sin un **vale aprobado**, y
+ninguna factura se rinde sin el número de vale escrito. El registro nace
+antes de la reparación, no después: el correctivo dejaba plata anotada y
+ninguna constancia de la intervención técnica.
+
+El circuito son cuatro pasos —**pedir, aprobar, reparar, rendir**— y vive
+en `/vales`. El número lo da el sistema y sale de quién pide:
+`CAT-00001`, correlativo por sucursal. Cada cambio de estado deja su
+renglón en un historial que no se edita ni se borra.
+
+La factura del taller se rinde como servicio externo en `/ordenes`,
+eligiendo el vale de la lista de cerrados sin rendir: ahí quedan atados el
+gasto y el trabajo que se autorizó.
+
+El detalle —los estados, la lista blanca de lo que no necesita vale, la
+excepción de ruta y los indicadores— está en
+[la guía de vales](gomeria/VALES.md). Las tablas salen de
+`gomeria/26_vales.sql`.
+
 ## Costos del taller en la portada
 
 La portada muestra los KPI de las órdenes de los últimos doce meses: total
@@ -92,4 +113,4 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs` y `node tests/costos_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Ambas pruebas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs` y `node tests/vales_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Ambas pruebas usan datos simulados, no credenciales ni la base de producción.

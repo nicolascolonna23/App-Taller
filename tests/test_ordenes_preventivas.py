@@ -27,9 +27,16 @@ class BaseFalsa:
         self.orden = orden
         self.consultas = []
 
+    def rollback(self):
+        pass
+
     def execute(self, consulta, valores=()):
         sql = " ".join(consulta.split())
         self.consultas.append((sql, valores))
+        # Sin el módulo de vales instalado no se le exige vale a nadie:
+        # estas pruebas miran el enganche con el service, no el circuito.
+        if sql.startswith("select exigir_vale from vales_ajustes"):
+            return Resultado({"exigir_vale": False})
         if sql.startswith("select * from ordenes_trabajo where id"):
             return Resultado(self.orden)
         if "select 1 from ordenes_tareas" in sql:

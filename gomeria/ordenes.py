@@ -10,6 +10,11 @@ Dos clases, la misma tabla (ver 15_ordenes.sql):
     externa   la hizo un tercero y de eso hay una factura; se anota
               patente, fecha, número y monto, y nace cerrada.
 
+Una orden externa es la rendición de una factura de taller, así que
+lleva el vale escrito: sin un vale cerrado que la respalde no entra (ver
+vales.py). Es la regla del circuito, y es la única manera de que la plata
+y la intervención técnica cuenten la misma historia.
+
 Lo importante de acá es el enganche con el stock: cada repuesto que se
 carga a una orden escribe una Salida en repuestos_movimientos, que es de
 donde sale el stock de todo el sistema. Sacar el renglón borra ese
@@ -18,6 +23,7 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 from datetime import date
 
 import alertas
+import vales as vls
 
 GESTORES = {"admin", "encargado"}
 
@@ -167,7 +173,19 @@ def listar(cx, usuario):
             from v_repuestos_stock where activo
             order by descripcion, codigo""").fetchall()],
         "puede_gestionar": puede_gestionar(usuario),
+        # Los vales cerrados que todavía no se rindieron: rendir una
+        # factura es elegir de esta lista, no tipear un número a mano.
+        # Sin el módulo instalado la pantalla sigue andando igual.
+        **_vales_pendientes(cx),
     }
+
+
+def _vales_pendientes(cx):
+    try:
+        return {"vales": vls.para_rendir(cx), "exigir_vale": vls.exigir_vale(cx)}
+    except Exception:
+        cx.rollback()
+        return {"vales": [], "exigir_vale": False}
 
 
 def ficha(cx, orden_id):
@@ -535,6 +553,10 @@ def externa(cx, datos, usuario):
     lo único que importa es que quede en la historia de la unidad.
     """
     _exigir_gestor(usuario, "cargar un servicio externo")
+    # El vale primero: si la factura no tiene con qué respaldarse no hay
+    # nada más que validar. Se pregunta antes de escribir nada.
+    vale_id = _texto(datos.get("vale_id"), 20)
+    exigido = vls.exigir_vale(cx)
     mantenimiento = _mantenimiento(datos.get("mantenimiento"))
     fecha = _fecha_requerida(datos.get("fecha"), "la fecha del servicio")
     km = _km_requeridos(datos.get("km"))
@@ -550,6 +572,14 @@ def externa(cx, datos, usuario):
     if not factura:
         raise ValueError("Falta el número de factura.")
 
+    if vale_id:
+        vls.validar_para_gasto(cx, vale_id, patente)
+    elif exigido:
+        raise ValueError(
+            "Esta factura de taller no tiene vale. Ninguna reparación se "
+            "rinde sin un vale cerrado: cargalo en /vales, cerralo con el "
+            "número de factura y volvé a rendirla acá.")
+
     # La misma factura dos veces es un error de carga, no dos servicios.
     repetida = cx.execute("""
         select numero from ordenes_trabajo
@@ -563,14 +593,14 @@ def externa(cx, datos, usuario):
         insert into ordenes_trabajo
           (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, fecha_cierre,
            taller, factura, monto, solicitado, observaciones,
-           usuario_id, usuario, cerrada_por)
-        values ('externa','cerrada',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           usuario_id, usuario, cerrada_por, vale_id)
+        values ('externa','cerrada',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         returning id, numero
     """, (mantenimiento, unidad_id, patente, km, fecha, fecha,
           _texto(datos.get("taller"), 120), factura, monto,
           _texto(datos.get("solicitado")), _texto(datos.get("observaciones")),
           (usuario or {}).get("id"), (usuario or {}).get("nombre"),
-          (usuario or {}).get("nombre"))).fetchone()
+          (usuario or {}).get("nombre"), vale_id or None)).fetchone()
 
     orden = {
         "id": fila["id"], "numero": fila["numero"], "mantenimiento": mantenimiento,

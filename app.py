@@ -12,6 +12,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
     /combustible cruce de remitos contra el listado de la estación (en prueba)
     /ordenes     órdenes de trabajo del taller y servicios externos
+    /vales       vales de taller: pedir, aprobar, reparar, rendir
     /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
 
 Configuración, toda por variables de entorno:
@@ -37,6 +38,7 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
+import vales as vls
 import mantenimiento as mant
 import preferencias as prefs
 import unidades as uni
@@ -65,6 +67,7 @@ PANTALLAS = {
     "/asistente/guia": ("docs/ASISTENTE.md", "text/plain; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
+    "/vales":      ("vales.html",              "text/html; charset=utf-8"),
     # El módulo liviano para el teléfono: solo gomería y órdenes.
     "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
@@ -477,6 +480,23 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las órdenes: {e}", 500)
 
+        # Los vales de taller. La misma lista para las cuatro vistas: la
+        # bandeja del taller, la sucursal, la red entera y la ficha de la
+        # unidad. Que cada responsable vea el resto es a propósito.
+        if ruta == "/api/vales":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(vls.listar(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de vales. Ejecutar "
+                    "gomeria/26_vales.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los vales: {e}", 500)
+
         if ruta == "/api/alertas":
             if not self._exigir_sesion():
                 return
@@ -673,6 +693,33 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la orden: {e}", 500)
+
+        # Los vales. Cada cambio de estado escribe además su renglón en el
+        # historial, y las dos cosas van en la misma transacción: un vale
+        # aprobado sin constancia de quién lo aprobó no sirve de nada.
+        if ruta == "/api/vales":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 256 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    resultado = vls.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de vales. Ejecutar "
+                    "gomeria/26_vales.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar el vale: {e}", 500)
 
         # La foto de la factura de un servicio externo. Va por su propia
         # dirección y no por /api/ordenes porque una foto de celular no
@@ -951,6 +998,8 @@ def preparar():
             "odómetros":    ("odometros",),
             "órdenes de trabajo": ("ordenes_trabajo", "ordenes_tareas",
                                    "ordenes_repuestos"),
+            "vales de taller": ("sucursales", "vales", "vale_eventos",
+                                "vales_contador"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):

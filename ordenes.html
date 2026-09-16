@@ -291,6 +291,11 @@
   </div>
 
   <div class="campos">
+    <div class="ancho"><label>Vale que respalda la factura</label>
+      <select id="xVale"></select>
+      <p class="pista" id="xValePista">El número de vale es lo que ata la factura al
+        trabajo que se autorizó. Si no está en la lista, cerralo primero en
+        <a href="/vales" style="color:inherit">Vales</a>.</p></div>
     <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
     <div><label>Tipo de mantenimiento</label><select id="xMantenimiento">
       <option value="">Seleccionar una opción</option>
@@ -419,6 +424,14 @@ function opciones() {
     x.marca ? ' · ' + esc([x.marca, x.modelo].filter(Boolean).join(' ')) : ''}</option>`).join('');
   $('#nUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
   $('#xUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
+  // Los vales cerrados que todavía no se rindieron. Rendir es elegir de
+  // acá: un número tipeado a mano puede no existir.
+  const vales = D.datos.vales || [];
+  $('#xVale').innerHTML =
+    `<option value="">${D.datos.exigir_vale ? 'Seleccionar el vale' : 'Sin vale'}</option>` +
+    vales.map(v => `<option value="${esc(v.id)}" data-patente="${esc(v.patente)}">${
+      esc(v.id)} · ${esc(pat(v.patente))} · ${esc(v.detalle || '').slice(0, 60)}</option>`).join('');
+  $('#xValePista').hidden = !D.datos.exigir_vale && !vales.length;
   $('#filtroUnidad').innerHTML = '<option value="">Todas las unidades</option>' +
     u.map(x => `<option value="${esc(x.patente)}">${esc(pat(x.patente))}${
       x.interno ? ' · ' + esc(x.interno) : ''}</option>`).join('');
@@ -867,7 +880,7 @@ $('#nuevaExterna').onclick = () => {
   $('#avisoExterna').innerHTML = '';
   $('#xFecha').value = hoy();
   $('#xMantenimiento').value = '';
-  ['xFactura','xMonto','xKm','xTaller','xDetalle'].forEach(c => $('#' + c).value = '');
+  ['xFactura','xMonto','xKm','xTaller','xDetalle','xVale'].forEach(c => $('#' + c).value = '');
   limpiarLector();
   $('#modalExterna').classList.add('on');
 };
@@ -1002,6 +1015,13 @@ function volcarFactura(f) {
     : 'Se leyó la factura entera. Igual conviene mirar el número y el total antes de guardar.';
   $('#avisoExterna').appendChild(caja);
 }
+$('#xVale').onchange = () => {
+  const patente = $('#xVale').selectedOptions[0] &&
+                  $('#xVale').selectedOptions[0].dataset.patente;
+  if (!patente) return;
+  const u = D.datos.unidades.find(x => x.patente === patente);
+  if (u) { $('#xUnidad').value = String(u.id); $('#xUnidad').onchange(); }
+};
 $('#xUnidad').onchange = () => {
   const u = D.datos.unidades.find(x => String(x.id) === $('#xUnidad').value);
   if (u && !$('#xKm').value && u.km_actual) $('#xKm').value = Math.round(u.km_actual);
@@ -1011,6 +1031,7 @@ $('#guardarExterna').onclick = async () => {
   try {
     const r = await api('externa', {
       unidad_id: Number($('#xUnidad').value) || null,
+      vale_id: $('#xVale').value || null,
       fecha: $('#xFecha').value, factura: $('#xFactura').value,
       monto: $('#xMonto').value, km: $('#xKm').value || null,
       mantenimiento: $('#xMantenimiento').value,
