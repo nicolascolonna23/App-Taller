@@ -29,9 +29,12 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 from datetime import date
 
 import alertas
+import permisos
 import solicitudes as sol
 
-GESTORES = {"admin", "encargado"}
+# Quién puede tocar una orden ya no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles (ver permisos.py).
+# En una base que todavía no corrió 27_roles.sql se cae al rol de siempre.
 
 # Lo que se puede escribir en la cabecera de una orden abierta. Está en un
 # solo lugar para que agregar un campo sea agregarlo acá y en el SQL.
@@ -43,7 +46,7 @@ CAMPOS = ("km", "chofer", "responsable", "taller",
 # AYUDAS
 # =====================================================================
 def puede_gestionar(usuario):
-    return (usuario or {}).get("rol") in GESTORES
+    return permisos.gestiona(usuario)
 
 
 def _exigir_gestor(usuario, que="tocar las órdenes de trabajo"):
@@ -395,7 +398,7 @@ def cerrar(cx, datos, usuario):
 
 def reabrir(cx, datos, usuario):
     """Se cerró de más. Solo un admin, y nunca una externa."""
-    if (usuario or {}).get("rol") != "admin":
+    if not permisos.administra(usuario):
         raise PermissionError("Solo un administrador puede reabrir una orden cerrada.")
     orden = _orden(cx, datos.get("id"))
     if orden["tipo"] == "externa":
@@ -430,7 +433,7 @@ def anular(cx, datos, usuario):
 
 def borrar(cx, datos, usuario):
     """Saca del medio una orden cargada por error. Solo un admin."""
-    if (usuario or {}).get("rol") != "admin":
+    if not permisos.administra(usuario):
         raise PermissionError("Solo un administrador puede borrar una orden.")
     orden = _orden(cx, datos.get("id"))
     _devolver_stock(cx, orden["id"])

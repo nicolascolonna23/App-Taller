@@ -18,7 +18,8 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, AQUI)
 
 import anthropic
-import auth, base, desgaste, interpretar, mapas
+import auth
+import permisos, base, desgaste, interpretar, mapas
 
 
 def jstr(d):
@@ -114,10 +115,19 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if ruta == "/api/yo":
+            # Lo que cada pantalla necesita saber del que está del otro
+            # lado: cómo se llama, qué puede hacer y qué módulos abre —el
+            # menú esconde lo que no—. Lo que no se ve igual se revisa en
+            # el servidor: esto es comodidad, no seguridad.
             return self._responder(jstr({
                 "usuario": self.usuario["usuario"], "nombre": self.usuario["nombre"],
                 "rol": self.usuario["rol"],
-                "puede_administrar": self.usuario["rol"] in ("encargado", "admin")}))
+                "rol_nombre": self.usuario.get("rol_nombre") or self.usuario["rol"],
+                "sucursal": self.usuario.get("sucursal_codigo"),
+                "modulos": self.usuario.get("modulos") or [],
+                "gestiona": permisos.gestiona(self.usuario),
+                "administra": permisos.administra(self.usuario),
+                "puede_administrar": permisos.gestiona(self.usuario)}))
 
         if ruta == "/api/tablero":
             try:

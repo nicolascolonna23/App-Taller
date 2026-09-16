@@ -13,6 +13,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /combustible cruce de remitos contra el listado de la estación (en prueba)
     /ordenes     órdenes de trabajo del taller y servicios externos
     /solicitudes solicitudes de orden de compra: pedir, aprobar, reparar, rendir
+    /usuarios    altas, bajas, roles y qué módulos abre cada uno
     /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
 
 Configuración, toda por variables de entorno:
@@ -38,6 +39,7 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
+import permisos
 import solicitudes as sol
 import mantenimiento as mant
 import preferencias as prefs
@@ -68,6 +70,7 @@ PANTALLAS = {
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/solicitudes":      ("solicitudes.html",              "text/html; charset=utf-8"),
+    "/usuarios":   ("usuarios.html",           "text/html; charset=utf-8"),
     # El módulo liviano para el teléfono: solo gomería y órdenes.
     "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
@@ -84,6 +87,32 @@ PANTALLAS = {
 }
 
 
+def _sin_permiso(modulo, usuario):
+    """La página que ve el que abre algo que su rol no tiene.
+
+    Dice el módulo y el rol, porque el que la ve va a tener que pedirlo:
+    un "no autorizado" pelado obliga a una llamada para averiguar qué.
+    """
+    rol = (usuario or {}).get("rol_nombre") or (usuario or {}).get("rol") or ""
+    return f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sin permiso | Gestión de flota</title>
+<link rel="icon" href="/favicon.png" type="image/png"></head>
+<body style="margin:0;background:#08090b;color:#edf0f2;
+  font:15px Inter,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh">
+<main style="max-width:430px;padding:26px;text-align:center">
+  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:#8d959e;font-weight:800;margin:0 0 10px">Sin permiso</p>
+  <h1 style="font-size:23px;font-weight:600;margin:0 0 12px">{modulo}</h1>
+  <p style="color:#a9b0b8;line-height:1.6;margin:0 0 22px">Tu rol
+    <b>{rol}</b> no abre este módulo. Si lo necesitás para trabajar,
+    pedíselo a un administrador: se habilita desde Usuarios y roles.</p>
+  <a href="/" style="display:inline-block;background:#ffd400;color:#fff;
+    text-decoration:none;font-weight:800;padding:11px 17px;border-radius:10px">
+    Volver al inicio</a>
+</main></body></html>"""
+
+
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
 
@@ -96,6 +125,27 @@ class App(gom.Handler):
         dice otra cosa.
         """
         return getattr(self, "ruta_original", None) or urlparse(self.path).path
+
+    def _exigir_sesion(self):
+        """La sesión, y además el permiso.
+
+        Cada dirección pertenece a un módulo (ver permisos.py) y el rol
+        dice qué módulos abre. Se revisa acá porque es el único lugar por
+        el que pasan todos los pedidos: esconder el botón en la pantalla
+        es comodidad, no seguridad.
+        """
+        if not super()._exigir_sesion():
+            return False
+        modulo = permisos.modulo_de(self._ruta_pedida())
+        if permisos.puede_ver(self.usuario, modulo):
+            return True
+        nombre = dict((m[0], m[1]) for m in permisos.MODULOS).get(modulo, modulo)
+        if self._ruta_pedida().startswith("/api/"):
+            self._error(f"Tu rol no tiene habilitado {nombre}.", 403)
+        else:
+            self._responder(_sin_permiso(nombre, self.usuario),
+                            "text/html; charset=utf-8", codigo=403)
+        return False
 
     def _responder(self, cuerpo, tipo="application/json; charset=utf-8", codigo=200, cookie=None):
         # Incluye las pantallas servidas por el manejador de Gomería.
@@ -499,6 +549,24 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las solicitudes: {e}", 500)
 
+        # Usuarios, roles y qué módulo abre cada uno. Lo de adentro ya
+        # está protegido por el rol; esta dirección, además, por su módulo.
+        if ruta == "/api/usuarios":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(permisos.panel(cx, self.usuario)))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de roles. Ejecutar "
+                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los usuarios: {e}", 500)
+
         if ruta == "/api/alertas":
             if not self._exigir_sesion():
                 return
@@ -723,6 +791,34 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la solicitud: {e}", 500)
+
+        # Altas, bajas, contraseñas y roles. Todo pasa por acá y todo
+        # exige administrar: la pantalla no decide nada, lo decide esto.
+        if ruta == "/api/usuarios":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 64 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    resultado = permisos.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except psycopg.errors.UniqueViolation:
+                return self._error("Ese usuario ya existe.")
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de roles. Ejecutar "
+                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar: {e}", 500)
 
         # La foto de la factura de un servicio externo. Va por su propia
         # dirección y no por /api/ordenes porque una foto de celular no
@@ -1003,6 +1099,7 @@ def preparar():
                                    "ordenes_repuestos"),
             "solicitudes de orden de compra": ("sucursales", "solicitudes_compra",
                                                "solicitud_eventos", "solicitudes_contador"),
+            "usuarios y roles": ("roles", "rol_modulos"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):

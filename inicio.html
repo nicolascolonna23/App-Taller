@@ -140,14 +140,15 @@ html[data-modo="claro"] .workspace::after{display:none}
     <p class="nav-label">Módulos</p>
     <nav class="nav" aria-label="Módulos principales">
       <a class="primary" href="/"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10Z"/><path d="M9 21v-7h6v7"/></svg><span>Inicio</span></a>
-      <a href="/unidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="9" width="13" height="7" rx="1"/><path d="M16 11h3l2 3v2h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>Flota</span></a>
-      <a href="/gomeria"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Gomería</span></a>
-      <a href="/repuestos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Repuestos</span></a>
-      <a href="/ordenes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg><span>Órdenes</span></a>
-      <a href="/solicitudes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 5h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z"/><path d="M7.5 9h9M7.5 12.5h5"/><path d="M8 19h8"/></svg><span>Solicitudes</span></a>
-      <a href="/combustible"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 21h10V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v17Z"/><path d="M13 9h3a2 2 0 0 1 2 2v6a2 2 0 0 0 3 1.7"/><path d="M6 8h4"/></svg><span>Combustible</span></a>
-      <a href="/control"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Services</span></a>
+      <a href="/unidades" data-modulo="unidades"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="9" width="13" height="7" rx="1"/><path d="M16 11h3l2 3v2h-5z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/></svg><span>Flota</span></a>
+      <a href="/gomeria" data-modulo="gomeria"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg><span>Gomería</span></a>
+      <a href="/repuestos" data-modulo="repuestos"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="m21 8-9 5-9-5 9-5 9 5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Repuestos</span></a>
+      <a href="/ordenes" data-modulo="ordenes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3h6v3H9z"/><path d="M8.5 12h7M8.5 16h4"/></svg><span>Órdenes</span></a>
+      <a href="/solicitudes" data-modulo="solicitudes"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M4 5h16v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z"/><path d="M7.5 9h9M7.5 12.5h5"/><path d="M8 19h8"/></svg><span>Solicitudes</span></a>
+      <a href="/combustible" data-modulo="combustible"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 21h10V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v17Z"/><path d="M13 9h3a2 2 0 0 1 2 2v6a2 2 0 0 0 3 1.7"/><path d="M6 8h4"/></svg><span>Combustible</span></a>
+      <a href="/control" data-modulo="flota"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M3 17V7a1 1 0 0 1 1-1h10v11H3z"/><path d="M14 10h4l3 3v4h-7z"/><circle cx="7" cy="17.5" r="2"/><circle cx="17" cy="17.5" r="2"/></svg><span>Services</span></a>
     </nav>
+      <a href="/usuarios" data-modulo="usuarios" hidden><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M17 11.5h4M19 9.5v4"/></svg><span>Usuarios</span></a>
     <a class="ajustes" href="/configuracion"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg><span>Configuración</span></a>
   </aside>
   <main>
@@ -204,7 +205,11 @@ html[data-modo="claro"] .workspace::after{display:none}
 </div>
 <script src="/inicio-dashboard.js"></script>
 <script>
-"use strict";const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));document.getElementById('fecha').textContent=new Intl.DateTimeFormat('es-AR',{weekday:'long',day:'numeric',month:'long'}).format(new Date());fetch('/api/yo').then(r=>r.ok?r.json():null).then(d=>{if(d)document.getElementById('quien').innerHTML=`<span class="avatar">${esc(d.nombre).slice(0,1).toUpperCase()}</span><span>${esc(d.nombre)}</span>`}).catch(()=>{});
+"use strict";const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));document.getElementById('fecha').textContent=new Intl.DateTimeFormat('es-AR',{weekday:'long',day:'numeric',month:'long'}).format(new Date());fetch('/api/yo').then(r=>r.ok?r.json():null).then(d=>{if(!d)return;document.getElementById('quien').innerHTML=`<span class="avatar">${esc(d.nombre).slice(0,1).toUpperCase()}</span><span title="${esc(d.rol_nombre||d.rol||'')}">${esc(d.nombre)}</span>`;
+/* El menú muestra lo que el rol abre y esconde el resto: chocarse con una
+   puerta cerrada es peor que no ver la puerta. El permiso de verdad lo
+   revisa el servidor en cada pedido, no esto. */
+const puede=new Set(d.modulos||[]);document.querySelectorAll('.nav a[data-modulo]').forEach(a=>{a.hidden=!(d.administra||puede.has(a.dataset.modulo))});}).catch(()=>{});
 /* Los kilómetros que recorrió la flota, de las lecturas Telemetría que
    entran a la base todos los días. Se pide todo junto con el resto del
    resumen: una sola llamada y el selector de período cambia sin ir al server. */

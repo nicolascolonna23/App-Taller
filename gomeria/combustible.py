@@ -35,7 +35,10 @@ import datetime
 import io
 import re
 
-GESTORES = {"admin", "encargado"}
+import permisos
+
+# Quién puede escribir no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles.
 
 # Cómo se llama cada dato en los archivos que llegan. Cada estación arma su
 # listado a su manera, así que se busca por lo que contiene el título, no
@@ -55,7 +58,7 @@ ALIAS = {
 
 
 def _exigir_gestor(usuario, que="cargar combustible"):
-    if (usuario or {}).get("rol") not in GESTORES:
+    if not permisos.gestiona(usuario):
         raise PermissionError(f"Solo un encargado o administrador puede {que}.")
 
 

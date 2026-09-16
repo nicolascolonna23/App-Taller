@@ -83,6 +83,25 @@ El asistente de consultas está en `/asistente`, detrás del login. Consultá [l
 
 Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
 
+## Quién entra y qué abre
+
+Las altas, las bajas, las contraseñas y los roles se manejan en
+**`/usuarios`**, con la sesión de alguien que administra. El rol dejó de
+ser una constante del código: es una fila que se edita, con **los módulos
+que abre** marcados uno por uno.
+
+Vienen cuatro roles hechos —administrador, encargado de taller, operario y
+responsable de sucursal— y se pueden crear otros. El de sucursal es el que
+faltaba: abre solicitudes y la ficha de sus unidades, y necesita tener su
+sucursal asignada, porque la solicitud se numera según quién la pide.
+
+Lo que un rol no tiene marcado **no se abre**, ni escribiendo la dirección
+a mano: el permiso lo revisa el servidor en cada pedido y la pantalla solo
+esconde el botón. El detalle está en
+[la guía de usuarios](gomeria/USUARIOS.md); las tablas salen de
+`gomeria/27_roles.sql`. Sin ese script corrido el sistema anda como
+siempre: todos abren todo.
+
 ## Solicitudes de orden de compra
 
 Una sucursal no manda a hacer un trabajo de taller sin una **solicitud
@@ -115,4 +134,4 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs` y `node tests/solicitudes_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` y `node tests/usuarios_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.

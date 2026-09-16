@@ -60,7 +60,19 @@ comment on table sucursales is
 -- tenga cargada —administración, mantenimiento— la pantalla se la
 -- pregunta.
 alter table usuarios
-  add column if not exists sucursal_codigo char(3) references sucursales(codigo);
+  add column if not exists sucursal_codigo char(3);
+
+-- La clave foránea va aparte: si la columna ya existía —la crea también
+-- 27_roles.sql, que puede correrse primero— el `add column` no la habría
+-- puesto nunca.
+do $$
+begin
+  alter table usuarios
+    add constraint usuarios_sucursal_fkey
+    foreign key (sucursal_codigo) references sucursales(codigo);
+exception
+  when duplicate_object then null;
+end $$;
 
 comment on column usuarios.sucursal_codigo is
   'Sucursal del usuario. Define el prefijo de las solicitudes que carga.';

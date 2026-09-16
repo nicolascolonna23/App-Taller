@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Usuarios y roles | Gestión de flota</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62; --frio:#7db3ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+
+  main{max-width:1200px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px;line-height:1.55}
+
+  .solapas{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
+    border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+  .solapa.on{background:var(--brand-soft);border-color:var(--brand);color:var(--ink)}
+
+  .barra{display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
+    font:inherit;outline:none;width:100%}
+  textarea{resize:vertical;min-height:58px;line-height:1.45}
+  input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
+  .barra input{max-width:320px}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
+  .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .espacio{margin-left:auto}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:15px;overflow:auto}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
+    white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  tr.baja td{opacity:.55}
+  .chico{color:var(--ink-muted);font-size:11.5px}
+  .marca{display:inline-block;border-radius:99px;padding:4px 9px;font-size:10.5px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+  .marca.activo{color:var(--ok);background:rgba(49,189,101,.12)}
+  .marca.baja{color:var(--ink-muted);background:rgba(255,255,255,.06)}
+  .marca.admin{color:var(--brand);background:var(--brand-soft)}
+  .marca.gestiona{color:var(--frio);background:rgba(125,179,239,.13)}
+  .marca.sucursal{color:var(--warn);background:rgba(240,180,41,.13)}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0 7px 0 0}
+  .accion:hover{color:var(--brand)}
+  .vacio{text-align:center;color:var(--ink-muted);padding:34px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{border-radius:7px;padding:3px 7px;font-size:11px;background:var(--surface-3);
+    border:1px solid var(--hairline);color:var(--ink-2)}
+
+  .fondo{position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:30;
+    display:none;align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+  .fondo.on{display:flex}
+  .modal{width:min(620px,100%);background:var(--surface-1);
+    border:1px solid var(--hairline-2);border-radius:16px;padding:20px;margin:auto}
+  .modal h2{margin:0;font-size:19px}
+  .cabecera{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+  .cerrar{border:0;background:none;color:var(--ink-muted);font-size:25px;cursor:pointer}
+  .campos{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .campos .ancho{grid-column:1/-1}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--ink-muted);font-weight:700;margin-bottom:5px}
+  .pista{color:var(--ink-muted);font-size:12px;margin:6px 0 0;line-height:1.5}
+  .aviso{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+  .aviso.mal{background:rgba(227,93,98,.12);color:var(--bad);
+    border:1px solid rgba(227,93,98,.3)}
+  .aviso.bien{background:rgba(49,189,101,.12);color:var(--ok);
+    border:1px solid rgba(49,189,101,.3)}
+
+  /* Los permisos se marcan, no se escriben: una casilla por módulo, con
+     el para qué al lado. Es la pantalla que alguien va a mirar una vez
+     por año, así que tiene que explicarse sola. */
+  .permisos{display:grid;gap:8px;margin-top:4px}
+  .permiso{display:flex;gap:10px;align-items:flex-start;background:var(--surface-2);
+    border:1px solid var(--hairline);border-radius:11px;padding:10px 12px}
+  .permiso input{width:auto;margin-top:2px;flex:none}
+  .permiso b{display:block;font-size:13px;font-weight:600}
+  .permiso span{color:var(--ink-muted);font-size:11.5px;line-height:1.45}
+  .nivel{display:grid;gap:8px}
+
+  @media (max-width:760px){
+    .campos{grid-template-columns:1fr}
+    main{padding:14px}
+    td,th{padding:9px 6px}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Usuarios y roles</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Usuarios y roles</h1>
+  <p class="sub" id="pie">Cargando…</p>
+
+  <div class="solapas">
+    <button class="solapa on" data-vista="usuarios">Usuarios</button>
+    <button class="solapa" data-vista="roles">Roles y módulos</button>
+  </div>
+
+  <div class="barra">
+    <input id="buscar" placeholder="Buscar usuario, nombre o rol">
+    <button class="btn espacio" id="nuevoUsuario">+ Nuevo usuario</button>
+    <button class="btn alt" id="nuevoRol" hidden>+ Nuevo rol</button>
+  </div>
+
+  <div class="caja" id="cajaUsuarios">
+    <table>
+      <thead><tr>
+        <th>Usuario</th><th>Nombre</th><th>Rol</th><th>Sucursal</th>
+        <th>Último ingreso</th><th>Estado</th><th></th>
+      </tr></thead>
+      <tbody id="filas"><tr><td colspan="7" class="vacio">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="caja" id="cajaRoles" hidden>
+    <table>
+      <thead><tr>
+        <th>Rol</th><th>Nivel</th><th>Módulos que abre</th>
+        <th>Usuarios</th><th></th>
+      </tr></thead>
+      <tbody id="filasRoles"></tbody>
+    </table>
+  </div>
+</main>
+
+<!-- -------------------------------------------------------- el usuario -->
+<div class="fondo" id="modalUsuario"><div class="modal">
+  <div class="cabecera"><h2 id="tituloUsuario">Nuevo usuario</h2>
+    <button class="cerrar" data-cerrar="modalUsuario">×</button></div>
+  <div class="campos">
+    <div><label>Usuario</label><input id="uUsuario" placeholder="ramon" autocomplete="off">
+      <p class="pista">Con lo que entra. Minúsculas, sin espacios.</p></div>
+    <div><label>Nombre y apellido</label><input id="uNombre" placeholder="Ramón Gómez">
+      <p class="pista">Es el que firma los partes y las órdenes.</p></div>
+    <div><label>Rol</label><select id="uRol"></select>
+      <p class="pista" id="uRolDetalle"></p></div>
+    <div id="cajaSucursal"><label>Sucursal</label><select id="uSucursal"></select>
+      <p class="pista">De acá sale el número de sus solicitudes.</p></div>
+    <div class="ancho" id="cajaClave"><label>Contraseña</label>
+      <input id="uClave" type="text" autocomplete="new-password">
+      <p class="pista">Al menos 8 caracteres y que no sean solo números. Se la
+        decís y la cambia cuando quiera desde su sesión.</p></div>
+  </div>
+  <div id="avisoUsuario"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarUsuario">Guardar</button>
+    <button class="btn alt" data-cerrar="modalUsuario">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- ------------------------------------------------------ la contraseña -->
+<div class="fondo" id="modalClave"><div class="modal">
+  <div class="cabecera"><h2 id="tituloClave">Contraseña</h2>
+    <button class="cerrar" data-cerrar="modalClave">×</button></div>
+  <p class="pista" style="margin:0 0 12px">Al guardarla se cierran las sesiones
+    que tenga abiertas: es lo que se espera cuando se cambia porque se la vieron.</p>
+  <label>Contraseña nueva</label><input id="cClave" type="text" autocomplete="new-password">
+  <div id="avisoClave"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarClave">Cambiar contraseña</button>
+    <button class="btn alt" data-cerrar="modalClave">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- ------------------------------------------------------------ el rol -->
+<div class="fondo" id="modalRol"><div class="modal">
+  <div class="cabecera"><h2 id="tituloRol">Nuevo rol</h2>
+    <button class="cerrar" data-cerrar="modalRol">×</button></div>
+  <div class="campos">
+    <div><label>Código</label><input id="rCodigo" placeholder="sucursal_norte">
+      <p class="pista">Interno, no se cambia después.</p></div>
+    <div><label>Nombre</label><input id="rNombre" placeholder="Responsable de sucursal"></div>
+    <div class="ancho"><label>Para qué es</label>
+      <textarea id="rDescripcion" placeholder="Pide, sigue y rinde las solicitudes de su boca."></textarea></div>
+
+    <div class="ancho"><label>Nivel</label>
+      <div class="nivel">
+        <div class="permiso"><input type="checkbox" id="rGestiona">
+          <span><b>Gestiona</b><span>Aprueba solicitudes, cierra órdenes, corrige lo
+            que cargó otro. Es el nivel del taller y de mantenimiento.</span></span></div>
+        <div class="permiso"><input type="checkbox" id="rAdministra">
+          <span><b>Administra</b><span>Además, usuarios, roles, borrar y reabrir.
+            Dáselo a los menos que puedas.</span></span></div>
+        <div class="permiso"><input type="checkbox" id="rSucursal">
+          <span><b>Es de una sucursal</b><span>A los usuarios de este rol hay que
+            asignarles una sucursal: de ahí sale el número de sus solicitudes.</span></span></div>
+      </div>
+    </div>
+
+    <div class="ancho"><label>Módulos que abre</label>
+      <div class="permisos" id="rModulos"></div>
+      <p class="pista">Lo que no está marcado no se abre, ni escribiendo la
+        dirección a mano: el servidor lo revisa en cada pedido.</p></div>
+  </div>
+  <div id="avisoRol"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarRol">Guardar rol</button>
+    <button class="btn alt" data-cerrar="modalRol">Cancelar</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const D = { datos:null, vista:'usuarios', editando:null, rol:null };
+
+const fecha = f => !f ? 'nunca' : new Date(f).toLocaleDateString('es-AR',
+  {day:'2-digit', month:'2-digit', year:'2-digit'});
+
+async function api(op, extra) {
+  const r = await fetch('/api/usuarios', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+async function cargar() {
+  const r = await fetch('/api/usuarios');
+  const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
+  if (!r.ok) { $('#pie').textContent = d.error || 'No se pudo leer.'; return; }
+  D.datos = d;
+  pintar();
+}
+
+function rolDe(codigo) {
+  return (D.datos.roles || []).find(r => r.codigo === codigo);
+}
+
+function pintar() {
+  const texto = ($('#buscar').value || '').trim().toLowerCase();
+  const usuarios = D.datos.usuarios.filter(u => !texto ||
+    [u.usuario, u.nombre, u.rol_nombre, u.sucursal_codigo]
+      .some(x => String(x || '').toLowerCase().includes(texto)));
+
+  $('#filas').innerHTML = usuarios.length ? usuarios.map(u => `
+    <tr class="${u.activo ? '' : 'baja'}">
+      <td><b>${esc(u.usuario)}</b>
+        ${u.sesiones ? `<div class="chico">${u.sesiones} sesión(es) abierta(s)</div>` : ''}</td>
+      <td>${esc(u.nombre)}</td>
+      <td>${esc(u.rol_nombre || u.rol)}
+        ${u.administra ? '<span class="marca admin">administra</span>' : ''}</td>
+      <td>${esc(u.sucursal_codigo || '—')}</td>
+      <td>${esc(fecha(u.ultimo_ingreso))}</td>
+      <td><span class="marca ${u.activo ? 'activo' : 'baja'}">${
+        u.activo ? 'Activo' : 'De baja'}</span></td>
+      <td style="white-space:nowrap">
+        <button class="accion" data-editar="${u.id}">Editar</button>
+        <button class="accion" data-clave="${u.id}">Contraseña</button>
+        <button class="accion" data-estado="${u.id}">${u.activo ? 'Dar de baja' : 'Reactivar'}</button>
+      </td>
+    </tr>`).join('')
+    : '<tr><td colspan="7" class="vacio">No hay usuarios que coincidan.</td></tr>';
+
+  const nombres = Object.fromEntries(D.datos.modulos.map(m => [m.codigo, m.nombre]));
+  $('#filasRoles').innerHTML = D.datos.roles.map(r => `
+    <tr>
+      <td><b>${esc(r.nombre)}</b>
+        <div class="chico">${esc(r.codigo)}${r.de_sistema ? ' · de fábrica' : ''}</div>
+        ${r.descripcion ? `<div class="chico">${esc(r.descripcion)}</div>` : ''}</td>
+      <td>${r.administra ? '<span class="marca admin">administra</span>' : ''}
+          ${r.gestiona ? '<span class="marca gestiona">gestiona</span>' : ''}
+          ${r.pide_sucursal ? '<span class="marca sucursal">sucursal</span>' : ''}
+          ${!r.administra && !r.gestiona && !r.pide_sucursal ? '<span class="chico">solo lectura de sus módulos</span>' : ''}</td>
+      <td><div class="chips">${(r.modulos || []).map(m =>
+            `<span class="chip">${esc(nombres[m] || m)}</span>`).join('')
+            || '<span class="chico">ninguno</span>'}</div></td>
+      <td class="chico">${r.usuarios}</td>
+      <td style="white-space:nowrap">
+        <button class="accion" data-rol="${esc(r.codigo)}">Editar</button>
+        ${r.de_sistema || r.usuarios ? ''
+          : `<button class="accion" data-borrar-rol="${esc(r.codigo)}">Borrar</button>`}
+      </td>
+    </tr>`).join('');
+
+  const activos = D.datos.usuarios.filter(u => u.activo).length;
+  $('#pie').textContent = `${activos} usuarios activos de ${D.datos.usuarios.length} · ` +
+    `${D.datos.roles.length} roles. Lo que un rol no tiene marcado no se abre.`;
+}
+
+// =====================================================================
+// USUARIOS
+// =====================================================================
+function opcionesUsuario() {
+  $('#uRol').innerHTML = D.datos.roles.filter(r => r.activo).map(r =>
+    `<option value="${esc(r.codigo)}">${esc(r.nombre)}</option>`).join('');
+  $('#uSucursal').innerHTML = '<option value="">Sin sucursal</option>' +
+    D.datos.sucursales.map(s =>
+      `<option value="${esc(s.codigo)}">${esc(s.nombre)}</option>`).join('');
+}
+
+function pintarRolElegido() {
+  const r = rolDe($('#uRol').value);
+  $('#uRolDetalle').textContent = r ? (r.descripcion || '') : '';
+  // La sucursal solo se pregunta cuando el rol la necesita. Preguntarla
+  // siempre es un campo de más que se completa mal.
+  $('#cajaSucursal').hidden = !(r && r.pide_sucursal) && !$('#uSucursal').value;
+}
+
+function abrirUsuario(id) {
+  const u = id ? D.datos.usuarios.find(x => String(x.id) === String(id)) : null;
+  D.editando = u ? u.id : null;
+  opcionesUsuario();
+  $('#tituloUsuario').textContent = u ? `Editar ${u.usuario}` : 'Nuevo usuario';
+  $('#uUsuario').value = u ? u.usuario : '';
+  $('#uUsuario').disabled = !!u;
+  $('#uNombre').value = u ? u.nombre : '';
+  $('#uRol').value = u ? u.rol : 'operario';
+  $('#uSucursal').value = (u && u.sucursal_codigo) || '';
+  $('#uClave').value = '';
+  $('#cajaClave').hidden = !!u;
+  $('#avisoUsuario').innerHTML = '';
+  pintarRolElegido();
+  $('#modalUsuario').classList.add('on');
+  (u ? $('#uNombre') : $('#uUsuario')).focus();
+}
+
+async function guardarUsuario() {
+  const datos = {
+    nombre: $('#uNombre').value,
+    rol: $('#uRol').value,
+    sucursal_codigo: $('#uSucursal').value || null,
+  };
+  try {
+    if (D.editando) await api('guardar', Object.assign({id: D.editando}, datos));
+    else await api('crear', Object.assign({
+      usuario: $('#uUsuario').value, clave: $('#uClave').value}, datos));
+    $('#modalUsuario').classList.remove('on');
+    await cargar();
+  } catch (e) {
+    $('#avisoUsuario').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+async function cambiarEstado(id) {
+  const u = D.datos.usuarios.find(x => String(x.id) === String(id));
+  if (u.activo && !confirm(`¿Dar de baja a ${u.nombre}? No va a poder entrar más, `
+      + 'pero lo que cargó sigue firmado por él.')) return;
+  try {
+    await api('estado', {id: u.id, activo: !u.activo});
+    await cargar();
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+// =====================================================================
+// ROLES
+// =====================================================================
+function abrirRol(codigo) {
+  const r = codigo ? rolDe(codigo) : null;
+  D.rol = r ? r.codigo : null;
+  $('#tituloRol').textContent = r ? `Editar ${r.nombre}` : 'Nuevo rol';
+  $('#rCodigo').value = r ? r.codigo : '';
+  $('#rCodigo').disabled = !!r;
+  $('#rNombre').value = r ? r.nombre : '';
+  $('#rDescripcion').value = (r && r.descripcion) || '';
+  $('#rGestiona').checked = !!(r && r.gestiona);
+  $('#rAdministra').checked = !!(r && r.administra);
+  $('#rSucursal').checked = !!(r && r.pide_sucursal);
+  const tiene = new Set((r && r.modulos) || []);
+  $('#rModulos').innerHTML = D.datos.modulos.map(m => `
+    <label class="permiso">
+      <input type="checkbox" value="${esc(m.codigo)}" ${tiene.has(m.codigo) ? 'checked' : ''}>
+      <span><b>${esc(m.nombre)}</b><span>${esc(m.detalle)}</span></span>
+    </label>`).join('');
+  $('#avisoRol').innerHTML = '';
+  $('#modalRol').classList.add('on');
+}
+
+async function guardarRol() {
+  const modulos = [...$('#rModulos').querySelectorAll('input:checked')].map(i => i.value);
+  try {
+    await api('guardar_rol', {
+      codigo: D.rol || $('#rCodigo').value,
+      nombre: $('#rNombre').value,
+      descripcion: $('#rDescripcion').value,
+      gestiona: $('#rGestiona').checked,
+      administra: $('#rAdministra').checked,
+      pide_sucursal: $('#rSucursal').checked,
+      modulos,
+    });
+    $('#modalRol').classList.remove('on');
+    await cargar();
+  } catch (e) {
+    $('#avisoRol').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+// =====================================================================
+document.addEventListener('click', async ev => {
+  const cerrar = ev.target.closest('[data-cerrar]');
+  if (cerrar) return document.getElementById(cerrar.dataset.cerrar).classList.remove('on');
+
+  const solapa = ev.target.closest('.solapa');
+  if (solapa) {
+    document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
+    D.vista = solapa.dataset.vista;
+    const roles = D.vista === 'roles';
+    $('#cajaRoles').hidden = !roles;
+    $('#cajaUsuarios').hidden = roles;
+    $('#nuevoRol').hidden = !roles;
+    $('#nuevoUsuario').hidden = roles;
+    $('#buscar').hidden = roles;
+    return;
+  }
+
+  const editar = ev.target.closest('[data-editar]');
+  if (editar) return abrirUsuario(editar.dataset.editar);
+
+  const clave = ev.target.closest('[data-clave]');
+  if (clave) {
+    const u = D.datos.usuarios.find(x => String(x.id) === clave.dataset.clave);
+    D.editando = u.id;
+    $('#tituloClave').textContent = `Contraseña de ${u.usuario}`;
+    $('#cClave').value = '';
+    $('#avisoClave').innerHTML = '';
+    $('#modalClave').classList.add('on');
+    $('#cClave').focus();
+    return;
+  }
+
+  const estado = ev.target.closest('[data-estado]');
+  if (estado) return cambiarEstado(estado.dataset.estado);
+
+  const rol = ev.target.closest('[data-rol]');
+  if (rol) return abrirRol(rol.dataset.rol);
+
+  const borrar = ev.target.closest('[data-borrar-rol]');
+  if (borrar) {
+    if (!confirm(`¿Borrar el rol ${borrar.dataset.borrarRol}?`)) return;
+    try { await api('borrar_rol', {codigo: borrar.dataset.borrarRol}); await cargar(); }
+    catch (e) { alert(e.message); }
+    return;
+  }
+
+  if (ev.target.id === 'nuevoUsuario') return abrirUsuario(null);
+  if (ev.target.id === 'nuevoRol') return abrirRol(null);
+  if (ev.target.id === 'guardarUsuario') return guardarUsuario();
+  if (ev.target.id === 'guardarRol') return guardarRol();
+  if (ev.target.id === 'guardarClave') {
+    try {
+      await api('clave', {id: D.editando, clave: $('#cClave').value});
+      $('#modalClave').classList.remove('on');
+      await cargar();
+    } catch (e) {
+      $('#avisoClave').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+    }
+  }
+});
+
+$('#buscar').addEventListener('input', pintar);
+$('#uRol').addEventListener('change', pintarRolElegido);
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
+  if (d) $('#quien').textContent = [d.nombre, d.rol_nombre].filter(Boolean).join(' · ');
+});
+cargar();
+</script>
+</body>
+</html>

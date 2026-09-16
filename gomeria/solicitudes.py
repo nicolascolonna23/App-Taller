@@ -32,10 +32,12 @@ reutiliza—, por eso no hay ningún borrado de solicitudes en este archivo.
 from datetime import date, datetime, timedelta, timezone
 
 import alertas
+import permisos
 
-# El taller y mantenimiento aprueban. La sucursal pide, y también puede
-# iniciar y cerrar: el que tiene la factura en la mano es el que la carga.
-GESTORES = {"admin", "encargado"}
+# El taller y mantenimiento aprueban: es el permiso «gestiona» del rol,
+# que se marca desde Usuarios y roles (ver permisos.py). La sucursal pide,
+# y también puede iniciar y cerrar: el que tiene la factura en la mano es
+# el que la carga.
 
 TIPOS = ("PREVENTIVO", "CORRECTIVO", "GOMERIA", "SINIESTRO")
 ORIGENES = ("CHECKLIST", "RUTA", "RUTINA_SEMANAL", "PREVENTIVO_KM", "CONTROL_MENSUAL")
@@ -78,7 +80,7 @@ VENTANA_MESES = 12
 # AYUDAS
 # =====================================================================
 def puede_aprobar(usuario):
-    return (usuario or {}).get("rol") in GESTORES
+    return permisos.gestiona(usuario)
 
 
 def _texto(valor, limite=2000):

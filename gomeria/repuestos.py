@@ -2,13 +2,16 @@
 
 from datetime import date
 
+import permisos
 
-GESTORES = {"admin", "encargado"}
+
+# Quién puede escribir no es una lista de roles: es el permiso
+# «gestiona» del rol, que se marca desde Usuarios y roles.
 TIPOS = {"Entrada", "Salida", "Ajuste"}
 
 
 def puede_gestionar(usuario):
-    return usuario.get("rol") in GESTORES
+    return permisos.gestiona(usuario)
 
 
 def _exigir_gestor(usuario):
