@@ -291,11 +291,20 @@
   </div>
 
   <div class="campos">
-    <div class="ancho"><label>Vale que respalda la factura</label>
-      <select id="xVale"></select>
-      <p class="pista" id="xValePista">El número de vale es lo que ata la factura al
-        trabajo que se autorizó. Si no está en la lista, cerralo primero en
-        <a href="/vales" style="color:inherit">Vales</a>.</p></div>
+    <div class="ancho"><label>Quién lo mandó a hacer</label>
+      <select id="xGestion">
+        <option value="">Seleccionar una opción</option>
+        <option value="mantenimiento">Mantenimiento</option>
+        <option value="sucursal">Una sucursal</option>
+      </select>
+      <p class="pista">Lo que manda a hacer mantenimiento se carga acá y listo.
+        Lo que manda a hacer una sucursal va con su solicitud de orden de compra.</p></div>
+    <div class="ancho" id="cajaSolicitud" hidden>
+      <label>Solicitud de orden de compra</label>
+      <select id="xSolicitud"></select>
+      <p class="pista" id="xSolicitudPista">El número de solicitud es lo que ata la factura
+        al trabajo que se autorizó. Si no está en la lista, cerrala primero en
+        <a href="/solicitudes" style="color:inherit">Solicitudes</a>.</p></div>
     <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
     <div><label>Tipo de mantenimiento</label><select id="xMantenimiento">
       <option value="">Seleccionar una opción</option>
@@ -424,14 +433,14 @@ function opciones() {
     x.marca ? ' · ' + esc([x.marca, x.modelo].filter(Boolean).join(' ')) : ''}</option>`).join('');
   $('#nUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
   $('#xUnidad').innerHTML = '<option value="">Seleccionar la unidad</option>' + lista;
-  // Los vales cerrados que todavía no se rindieron. Rendir es elegir de
+  // Las solicitudes cerradas que todavía no se rindieron. Rendir es elegir de
   // acá: un número tipeado a mano puede no existir.
-  const vales = D.datos.vales || [];
-  $('#xVale').innerHTML =
-    `<option value="">${D.datos.exigir_vale ? 'Seleccionar el vale' : 'Sin vale'}</option>` +
-    vales.map(v => `<option value="${esc(v.id)}" data-patente="${esc(v.patente)}">${
+  const solicitudes = D.datos.solicitudes || [];
+  $('#xSolicitud').innerHTML =
+    `<option value="">${D.datos.exigir_solicitud ? 'Seleccionar la solicitud' : 'Sin solicitud'}</option>` +
+    solicitudes.map(v => `<option value="${esc(v.id)}" data-patente="${esc(v.patente)}">${
       esc(v.id)} · ${esc(pat(v.patente))} · ${esc(v.detalle || '').slice(0, 60)}</option>`).join('');
-  $('#xValePista').hidden = !D.datos.exigir_vale && !vales.length;
+  $('#xSolicitudPista').hidden = !D.datos.exigir_solicitud && !solicitudes.length;
   $('#filtroUnidad').innerHTML = '<option value="">Todas las unidades</option>' +
     u.map(x => `<option value="${esc(x.patente)}">${esc(pat(x.patente))}${
       x.interno ? ' · ' + esc(x.interno) : ''}</option>`).join('');
@@ -880,7 +889,9 @@ $('#nuevaExterna').onclick = () => {
   $('#avisoExterna').innerHTML = '';
   $('#xFecha').value = hoy();
   $('#xMantenimiento').value = '';
-  ['xFactura','xMonto','xKm','xTaller','xDetalle','xVale'].forEach(c => $('#' + c).value = '');
+  ['xFactura','xMonto','xKm','xTaller','xDetalle','xSolicitud','xGestion']
+    .forEach(c => $('#' + c).value = '');
+  $('#cajaSolicitud').hidden = true;
   limpiarLector();
   $('#modalExterna').classList.add('on');
 };
@@ -1015,9 +1026,14 @@ function volcarFactura(f) {
     : 'Se leyó la factura entera. Igual conviene mirar el número y el total antes de guardar.';
   $('#avisoExterna').appendChild(caja);
 }
-$('#xVale').onchange = () => {
-  const patente = $('#xVale').selectedOptions[0] &&
-                  $('#xVale').selectedOptions[0].dataset.patente;
+$('#xGestion').onchange = () => {
+  const sucursal = $('#xGestion').value === 'sucursal';
+  $('#cajaSolicitud').hidden = !sucursal;
+  if (!sucursal) $('#xSolicitud').value = '';
+};
+$('#xSolicitud').onchange = () => {
+  const patente = $('#xSolicitud').selectedOptions[0] &&
+                  $('#xSolicitud').selectedOptions[0].dataset.patente;
   if (!patente) return;
   const u = D.datos.unidades.find(x => x.patente === patente);
   if (u) { $('#xUnidad').value = String(u.id); $('#xUnidad').onchange(); }
@@ -1031,7 +1047,8 @@ $('#guardarExterna').onclick = async () => {
   try {
     const r = await api('externa', {
       unidad_id: Number($('#xUnidad').value) || null,
-      vale_id: $('#xVale').value || null,
+      gestion: $('#xGestion').value,
+      solicitud_id: $('#xSolicitud').value || null,
       fecha: $('#xFecha').value, factura: $('#xFactura').value,
       monto: $('#xMonto').value, km: $('#xKm').value || null,
       mantenimiento: $('#xMantenimiento').value,

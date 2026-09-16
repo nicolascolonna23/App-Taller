@@ -1,24 +1,24 @@
 -- =====================================================================
--- VALES DE TALLER
+-- SOLICITUDES DE TALLER
 -- ---------------------------------------------------------------------
 -- El registro nace antes de la reparación, no después.
 --
 -- El preventivo ya estaba procedimentado (DM-MAN-001). El correctivo se
 -- hacía y se rendía como un gasto más de la sucursal: la plata quedaba
--- anotada, la intervención técnica no. El vale corrige eso: ninguna
--- compra ni trabajo de taller se hace sin un vale aprobado, y ninguna
--- factura se rinde sin el número de vale escrito.
+-- anotada, la intervención técnica no. La solicitud corrige eso: ninguna
+-- compra ni trabajo de taller se hace sin una solicitud aprobada, y ninguna
+-- factura se rinde sin el número de solicitud escrito.
 --
 -- Tres tablas y un contador:
 --
 --   sucursales       las siete bocas, con el código de tres letras que
---                    es el prefijo del vale.
---   vales_contador   una fila por sucursal con el último número dado.
+--                    es el prefijo de la solicitud.
+--   solicitudes_contador   una fila por sucursal con el último número dado.
 --                    El correlativo es por sucursal, no global.
---   vales            el vale: quién pidió, qué unidad, qué falla, en qué
+--   solicitudes            la solicitud: quién pidió, qué unidad, qué falla, en qué
 --                    estado está y con qué factura se rindió.
---   vale_eventos     el historial, append-only. Es la evidencia del
---                    circuito: sin esto el vale es una opinión.
+--   solicitud_eventos     el historial, append-only. Es la evidencia del
+--                    circuito: sin esto la solicitud es una opinión.
 --
 -- Se pega entero en Supabase → SQL Editor → Run. Se puede correr las
 -- veces que haga falta: no borra nada.
@@ -33,7 +33,7 @@
 -- ---------------------------------------------------------------------
 -- El código de tres letras es el mismo que ya usa el maestro de unidades
 -- en `unidades.sucursal`: sin eso serían dos listas de sucursales y la
--- ficha de la unidad no cruzaría con el vale.
+-- ficha de la unidad no cruzaría con la solicitud.
 create table if not exists sucursales (
   codigo  char(3) primary key,
   nombre  text not null,
@@ -52,10 +52,10 @@ insert into sucursales (codigo, nombre, orden) values
 on conflict (codigo) do nothing;
 
 comment on table sucursales is
-  'Las bocas de la red. El código de tres letras es el prefijo del vale.';
+  'Las bocas de la red. El código de tres letras es el prefijo de la solicitud.';
 
 
--- A cada usuario se le puede poner su sucursal: el que carga un vale no
+-- A cada usuario se le puede poner su sucursal: el que carga una solicitud no
 -- elige de dónde sale el número, sale de quién lo pide. Al que no la
 -- tenga cargada —administración, mantenimiento— la pantalla se la
 -- pregunta.
@@ -63,47 +63,47 @@ alter table usuarios
   add column if not exists sucursal_codigo char(3) references sucursales(codigo);
 
 comment on column usuarios.sucursal_codigo is
-  'Sucursal del usuario. Define el prefijo de los vales que carga.';
+  'Sucursal del usuario. Define el prefijo de las solicitudes que carga.';
 
 
 -- ---------------------------------------------------------------------
 -- 2. EL CONTADOR
 -- ---------------------------------------------------------------------
 -- Una fila por sucursal. El número se toma bloqueando esta fila dentro de
--- la misma transacción que inserta el vale: dos sucursales cargando en el
+-- la misma transacción que inserta la solicitud: dos sucursales cargando en el
 -- mismo segundo no se pisan, y dos usuarios de la misma sucursal esperan
 -- uno al otro.
 --
 -- No se usa max(numero)+1: sin bloqueo, dos cargas simultáneas leen el
 -- mismo máximo y escriben el mismo número.
-create table if not exists vales_contador (
+create table if not exists solicitudes_contador (
   sucursal_codigo char(3) primary key references sucursales(codigo),
   ultimo          integer not null default 0 check (ultimo >= 0)
 );
 
-insert into vales_contador (sucursal_codigo)
+insert into solicitudes_contador (sucursal_codigo)
 select codigo from sucursales
 on conflict (sucursal_codigo) do nothing;
 
-comment on table vales_contador is
-  'Último número de vale dado por sucursal. Se bloquea para numerar.';
+comment on table solicitudes_contador is
+  'Último número de solicitud dado por sucursal. Se bloquea para numerar.';
 
 
 -- ---------------------------------------------------------------------
--- 3. EL VALE
+-- 3. LA SOLICITUD
 -- ---------------------------------------------------------------------
 -- El id es el número que se escribe en la factura: CAT-00001. Es texto y
 -- es la clave: el papel y la base dicen lo mismo, sin traducción.
 --
--- El correlativo es inmutable: el número de un vale rechazado o anulado
--- no se reutiliza. Por eso no hay borrado de vales en ningún lado.
-create table if not exists vales (
+-- El correlativo es inmutable: el número de una solicitud rechazada o anulado
+-- no se reutiliza. Por eso no hay borrado de solicitudes en ningún lado.
+create table if not exists solicitudes_compra (
   id              text primary key,        -- 'CAT-00001'
   sucursal_codigo char(3) not null references sucursales(codigo),
   numero          integer not null check (numero > 0),
 
   -- La unidad. Igual que en las órdenes, la patente se guarda además del
-  -- id: un vale viejo tiene que poder leerse aunque la unidad se haya
+  -- id: una solicitud vieja tiene que poder leerse aunque la unidad se haya
   -- dado de baja, y puede pedirse por algo que no está en el maestro.
   unidad_id       bigint references unidades(id),
   patente         text not null,
@@ -134,7 +134,7 @@ create table if not exists vales (
 
   -- Cuándo pasó el hecho. En la regularización de ruta es anterior a la
   -- fecha de carga: la falla fue el jueves a las tres de la mañana y el
-  -- vale se cargó el viernes.
+  -- solicitud se cargó el viernes.
   fecha_hecho     date not null default current_date,
   creado_en       timestamptz not null default now(),
 
@@ -142,9 +142,9 @@ create table if not exists vales (
   factura_numero  text,                    -- se escribe al cerrar
   regularizacion_ruta boolean not null default false,
 
-  -- Un vale rechazado es terminal. Si la sucursal insiste carga uno
+  -- Una solicitud rechazada es terminal. Si la sucursal insiste carga uno
   -- nuevo citando el anterior, y así se ve cuántas veces se insistió.
-  vale_anterior   text references vales(id),
+  solicitud_anterior   text references solicitudes_compra(id),
 
   aprobado_en     timestamptz,
   aprobado_por    text,
@@ -161,126 +161,181 @@ create table if not exists vales (
   check (estado <> 'RECHAZADO' or nota is not null)
 );
 
-create index if not exists ix_vales_sucursal on vales (sucursal_codigo, numero desc);
-create index if not exists ix_vales_estado   on vales (estado, creado_en);
-create index if not exists ix_vales_patente  on vales (patente, creado_en desc);
-create index if not exists ix_vales_unidad   on vales (unidad_id, creado_en desc);
+create index if not exists ix_solicitudes_sucursal on solicitudes_compra (sucursal_codigo, numero desc);
+create index if not exists ix_solicitudes_estado   on solicitudes_compra (estado, creado_en);
+create index if not exists ix_solicitudes_patente  on solicitudes_compra (patente, creado_en desc);
+create index if not exists ix_solicitudes_unidad   on solicitudes_compra (unidad_id, creado_en desc);
 
-create or replace function _vale_tocado() returns trigger as $$
+create or replace function _solicitud_tocada() returns trigger as $$
 begin
   new.actualizado_en := now();
   return new;
 end $$ language plpgsql;
 
-drop trigger if exists tg_vale_tocado on vales;
-create trigger tg_vale_tocado before update on vales
-  for each row execute function _vale_tocado();
+drop trigger if exists tg_solicitud_tocada on solicitudes_compra;
+create trigger tg_solicitud_tocada before update on solicitudes_compra
+  for each row execute function _solicitud_tocada();
 
 
 -- ---------------------------------------------------------------------
 -- 4. EL HISTORIAL
 -- ---------------------------------------------------------------------
--- Una fila por cada cosa que le pasó al vale. No se edita ni se borra:
+-- Una fila por cada cosa que le pasó a la solicitud. No se edita ni se borra:
 -- el trigger de abajo lo impide en la base, no solo en la aplicación.
 -- Sin esto no se puede contestar quién aprobó un gasto, que es la
 -- pregunta que aparece cuando el gasto ya se hizo.
-create table if not exists vale_eventos (
+create table if not exists solicitud_eventos (
   id        bigint generated always as identity primary key,
-  vale_id   text not null references vales(id),
+  solicitud_id   text not null references solicitudes_compra(id),
   estado    text not null,
   usuario   text,
   momento   timestamptz not null default now(),
   comentario text
 );
 
-create index if not exists ix_vale_eventos on vale_eventos (vale_id, id);
+create index if not exists ix_solicitud_eventos on solicitud_eventos (solicitud_id, id);
 
-create or replace function _vale_evento_inmutable() returns trigger as $$
+create or replace function _solicitud_evento_inmutable() returns trigger as $$
 begin
-  raise exception 'El historial de un vale no se edita ni se borra.';
+  raise exception 'El historial de una solicitud no se edita ni se borra.';
 end $$ language plpgsql;
 
-drop trigger if exists tg_vale_evento_inmutable on vale_eventos;
-create trigger tg_vale_evento_inmutable before update or delete on vale_eventos
-  for each row execute function _vale_evento_inmutable();
+drop trigger if exists tg_solicitud_evento_inmutable on solicitud_eventos;
+create trigger tg_solicitud_evento_inmutable before update or delete on solicitud_eventos
+  for each row execute function _solicitud_evento_inmutable();
 
-comment on table vale_eventos is
-  'Historial append-only del vale: quién pidió, quién aprobó y cuándo.';
+comment on table solicitud_eventos is
+  'Historial append-only de la solicitud: quién pidió, quién aprobó y cuándo.';
 
 
 -- ---------------------------------------------------------------------
 -- 5. EL ENGANCHE CON LO QUE YA EXISTE
 -- ---------------------------------------------------------------------
+-- Quién gestionó el servicio externo. Es la pregunta que decide si hace
+-- falta una solicitud:
+--
+--   mantenimiento  lo mandó a hacer el área, que ya decide y controla el
+--                  gasto. Se carga la factura y listo.
+--   sucursal       lo mandó a hacer una boca. Ahí sí va la solicitud: es
+--                  el gasto que antes se rendía sin constancia técnica.
+--
+-- Va en la orden y no en la solicitud porque describe a la factura y no al
+-- pedido: una orden vieja, sin gestión anotada, se sigue leyendo igual.
+alter table ordenes_trabajo
+  add column if not exists gestion text;
+
+alter table ordenes_trabajo
+  drop constraint if exists ordenes_trabajo_gestion_check;
+alter table ordenes_trabajo
+  add constraint ordenes_trabajo_gestion_check
+  check (gestion is null or gestion in ('mantenimiento', 'sucursal'));
+
+comment on column ordenes_trabajo.gestion is
+  'Quién mandó a hacer el servicio externo: mantenimiento o una sucursal.';
+
 -- La rendición: la factura del taller entra al sistema como una orden
--- externa, y esa orden lleva el vale escrito. Es el mismo número que va
+-- externa, y esa orden lleva la solicitud escrita. Es el mismo número que va
 -- en el papel.
 alter table ordenes_trabajo
-  add column if not exists vale_id text references vales(id);
+  add column if not exists solicitud_id text references solicitudes_compra(id);
 
-create index if not exists ix_ordenes_vale on ordenes_trabajo (vale_id);
+create index if not exists ix_ordenes_solicitud on ordenes_trabajo (solicitud_id);
 
-comment on column ordenes_trabajo.vale_id is
-  'Vale cerrado que respalda esta factura de taller.';
+comment on column ordenes_trabajo.solicitud_id is
+  'Solicitud cerrada que respalda esta factura de taller.';
 
--- Un vale preventivo cerrado es también el último service de la unidad.
+-- Una solicitud preventiva cerrada es también el último service de la unidad.
 alter table services
-  add column if not exists vale_id text references vales(id) on delete set null;
+  add column if not exists solicitud_id text references solicitudes_compra(id) on delete set null;
 
-create unique index if not exists ux_services_vale on services (vale_id)
-  where vale_id is not null;
+create unique index if not exists ux_services_solicitud on services (solicitud_id)
+  where solicitud_id is not null;
 
-comment on column services.vale_id is
-  'Vale preventivo que originó este registro de service.';
+comment on column services.solicitud_id is
+  'Solicitud preventiva que originó este registro de service.';
 
 
 -- ---------------------------------------------------------------------
--- 6. SI EL VALE ES OBLIGATORIO PARA RENDIR
+-- 6. SI LA SOLICITUD ES OBLIGATORIA PARA RENDIR
 -- ---------------------------------------------------------------------
--- Una sola fila. Nace en `true`, que es la regla: no se rinde una factura
--- de taller sin vale cerrado. Mientras la red se acostumbra se puede
--- aflojar con:
+-- Una sola fila. Nace en `true`, que es la regla: una sucursal no rinde
+-- una factura de taller sin solicitud cerrada.
 --
---   update vales_ajustes set exigir_vale = false;
+-- Ojo con el alcance: **solo las de sucursal**. Lo que manda a hacer
+-- mantenimiento se carga como siempre, porque el área que decide el gasto
+-- es la misma que lo controla. El circuito existe para lo que se resolvía
+-- lejos del taller, no para trabarle la carga al taller.
+--
+-- Si hiciera falta apagarlo del todo mientras la red se acostumbra:
+--
+--   update solicitudes_ajustes set exigir_solicitud = false;
 --
 -- Es a propósito que sea una línea de SQL y no un botón en la pantalla:
 -- apagar el circuito tiene que costar más que usarlo.
-create table if not exists vales_ajustes (
+create table if not exists solicitudes_ajustes (
   unica       boolean primary key default true check (unica),
-  exigir_vale boolean not null default true
+  exigir_solicitud boolean not null default true
 );
 
-insert into vales_ajustes (unica) values (true) on conflict do nothing;
+insert into solicitudes_ajustes (unica) values (true) on conflict do nothing;
 
 
 -- ---------------------------------------------------------------------
 -- 7. LA VISTA QUE LEE LA PANTALLA
 -- ---------------------------------------------------------------------
--- El vale con lo que sabe el maestro de la unidad, los días que lleva
+-- La solicitud con lo que sabe el maestro de la unidad, los días que lleva
 -- esperando respuesta y el número de la orden con la que se rindió.
-create or replace view v_vales as
+create or replace view v_solicitudes as
 select
   v.id, v.sucursal_codigo, v.numero, v.unidad_id, v.patente, v.km,
   v.tipo, v.origen, v.urgencia, v.detalle, v.taller_sugerido, v.taller,
   v.monto_estimado, v.monto_autorizado, v.estado, v.solicitante,
   v.fecha_hecho, v.creado_en, v.nota, v.factura_numero,
-  v.regularizacion_ruta, v.vale_anterior,
+  v.regularizacion_ruta, v.solicitud_anterior,
   v.aprobado_en, v.aprobado_por, v.cerrado_en, v.cerrado_por,
   s.nombre as sucursal,
   u.interno, u.marca, u.modelo, u.chofer,
   -- Lo que se gastó de verdad: el autorizado si lo hay, si no el
-  -- estimado. Sirve para sumar por unidad sin abrir vale por vale.
+  -- estimado. Sirve para sumar por unidad sin abrir solicitud por solicitud.
   coalesce(v.monto_autorizado, v.monto_estimado) as monto,
   case when v.estado = 'SOLICITADO'
        then (now() - v.creado_en) end as espera,
   o.numero as orden_numero,
   o.id     as orden_id
-from vales v
+from solicitudes_compra v
 join sucursales s on s.codigo = v.sucursal_codigo
 left join unidades u on u.id = v.unidad_id
 left join lateral (
   select id, numero from ordenes_trabajo
-  where vale_id = v.id and estado <> 'anulada'
+  where solicitud_id = v.id and estado <> 'anulada'
   order by numero limit 1) o on true;
 
-comment on view v_vales is
-  'Cada vale con su unidad, su espera y la orden con la que se rindió.';
+-- La vista de órdenes suma las dos columnas nuevas al final, para no
+-- cambiarle el contrato a lo que ya la lee.
+create or replace view v_ordenes as
+select
+  o.id, o.numero, o.tipo, o.estado, o.unidad_id, o.patente, o.km,
+  o.fecha, o.fecha_cierre, o.chofer, o.responsable, o.taller,
+  o.solicitado, o.diagnostico, o.observaciones, o.factura, o.monto,
+  o.usuario, o.cerrada_por, o.creado_en, o.actualizado_en,
+  u.interno, u.marca, u.modelo, u.sucursal, u.chasis,
+  coalesce(t.importe, 0)::numeric as total_tareas,
+  coalesce(t.cuantas, 0)::integer as cuantas_tareas,
+  coalesce(r.importe, 0)::numeric as total_repuestos,
+  coalesce(r.cuantos, 0)::integer as cuantos_repuestos,
+  case when o.tipo = 'externa' then coalesce(o.monto, 0)
+       else coalesce(t.importe, 0) + coalesce(r.importe, 0) end::numeric as total,
+  case when o.estado = 'abierta'
+       then (current_date - o.fecha)::integer end as dias_abierta,
+  o.mantenimiento, o.gestion, o.solicitud_id
+from ordenes_trabajo o
+left join unidades u on u.id = o.unidad_id
+left join lateral (
+  select sum(coalesce(importe, 0)) as importe, count(*) as cuantas
+  from ordenes_tareas where orden_id = o.id) t on true
+left join lateral (
+  select sum(coalesce(precio, 0) * cantidad) as importe, count(*) as cuantos
+  from ordenes_repuestos where orden_id = o.id) r on true;
+
+comment on view v_solicitudes is
+  'Cada solicitud con su unidad, su espera y la orden con la que se rindió.';

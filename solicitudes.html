@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Vales de taller | Gestión de flota</title>
+<title>Solicitudes de orden de compra | Gestión de flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -147,7 +147,7 @@
   }
 
   /* ------------------------------------------------------------------
-     EL VALE IMPRESO
+     LA SOLICITUD IMPRESA
      Una carilla: número, unidad, falla, taller, monto y las dos firmas.
      Es lo que se grapa a la factura, así que va en blanco y negro y con
      los colores puestos a mano, sin depender del tema de la pantalla.
@@ -191,12 +191,12 @@
 <header class="top">
   <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
-  <span class="brand">Vales de taller</span>
+  <span class="brand">Solicitudes de orden de compra</span>
   <span class="who" id="quien"></span>
 </header>
 
 <main>
-  <h1>Vales de taller</h1>
+  <h1>Solicitudes de orden de compra</h1>
   <p class="sub" id="pie">Cargando…</p>
 
   <div class="tarjetas">
@@ -214,7 +214,7 @@
   </div>
 
   <div class="barra" id="barraFiltros">
-    <input id="buscar" placeholder="Buscar patente, número de vale, falla o taller">
+    <input id="buscar" placeholder="Buscar patente, número de solicitud, falla o taller">
     <select id="fSucursal"><option value="">Todas las sucursales</option></select>
     <select id="fEstado">
       <option value="">Todos los estados</option>
@@ -225,13 +225,13 @@
       <option value="RECHAZADO">Rechazados</option>
     </select>
     <button class="btn alt" id="verUnidad">Ficha de unidad</button>
-    <button class="btn espacio" id="nuevo">+ Nuevo vale</button>
+    <button class="btn espacio" id="nuevo">+ Nueva solicitud</button>
   </div>
 
   <div class="caja" id="caja">
     <table id="tabla">
       <thead><tr>
-        <th>Vale</th><th>Unidad</th><th>Pedido</th><th>Tipo</th>
+        <th>Solicitud</th><th>Unidad</th><th>Pedido</th><th>Tipo</th>
         <th>Urgencia</th><th class="num">Monto</th><th>Estado</th><th></th>
       </tr></thead>
       <tbody id="filas"><tr><td colspan="8" class="vacio">Cargando…</td></tr></tbody>
@@ -240,16 +240,16 @@
   </div>
 </main>
 
-<!-- --------------------------------------------------------- nuevo vale -->
+<!-- --------------------------------------------------------- nueva solicitud -->
 <div class="fondo" id="modalNuevo"><div class="modal">
-  <div class="cabecera"><h2 id="tituloNuevo">Nuevo vale</h2>
+  <div class="cabecera"><h2 id="tituloNuevo">Nueva solicitud</h2>
     <button class="cerrar" data-cerrar="modalNuevo">×</button></div>
 
-  <!-- La lista blanca arriba del formulario: lo que no necesita vale se
+  <!-- La lista blanca arriba del formulario: lo que no necesita solicitud se
        resuelve y se informa en el control mensual. La lista decide, no el
        monto: un tope de plata se interpreta, se discute y se esquiva. -->
   <div class="blanca">
-    <b>Esto no necesita vale</b>
+    <b>Esto no necesita solicitud</b>
     <ul id="listaBlanca"></ul>
   </div>
 
@@ -286,7 +286,7 @@
         <input type="checkbox" id="vRegular" style="width:auto">
         Se autorizó en ruta y se está cargando después
       </label>
-      <p class="pista">Unidad parada fuera de la sucursal: se autoriza verbalmente y el vale
+      <p class="pista">Unidad parada fuera de la sucursal: se autoriza verbalmente y la solicitud
         se carga dentro de las 48 horas hábiles. Poné la fecha en que pasó.</p>
     </div>
     <div class="ancho" id="cajaFecha" hidden><label>Fecha del hecho</label>
@@ -294,16 +294,16 @@
   </div>
   <div id="avisoNuevo"></div>
   <div class="barra" style="margin:14px 0 0">
-    <button class="btn" id="guardarNuevo">Pedir el vale</button>
+    <button class="btn" id="guardarNuevo">Pedir la solicitud</button>
     <button class="btn alt" data-cerrar="modalNuevo">Cancelar</button>
   </div>
 </div></div>
 
-<!-- --------------------------------------------------------------- vale -->
-<div class="fondo" id="modalVale"><div class="modal ancho">
-  <div class="cabecera"><h2 id="tituloVale">Vale</h2>
-    <button class="cerrar" data-cerrar="modalVale">×</button></div>
-  <div id="cuerpoVale"></div>
+<!-- --------------------------------------------------------------- solicitud -->
+<div class="fondo" id="modalSolicitud"><div class="modal ancho">
+  <div class="cabecera"><h2 id="tituloSolicitud">Solicitud</h2>
+    <button class="cerrar" data-cerrar="modalSolicitud">×</button></div>
+  <div id="cuerpoSolicitud"></div>
 </div></div>
 
 <!-- ----------------------------------------------------------- historial -->
@@ -313,7 +313,7 @@
   <div id="cuerpoHist"></div>
 </div></div>
 
-<!-- El vale de papel. Se arma al imprimir y no se ve en pantalla. -->
+<!-- La solicitud de papel. Se arma al imprimir y no se ve en pantalla. -->
 <div id="hoja"></div>
 
 <script>
@@ -321,7 +321,7 @@
 const $ = s => document.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const D = { datos:null, vista:'bandeja', vale:null };
+const D = { datos:null, vista:'bandeja', solicitud:null };
 
 const money = n => n == null || n === '' ? '—'
   : Number(n).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -331,8 +331,8 @@ const cuando = f => !f ? '' : new Date(f).toLocaleString('es-AR',
   {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'});
 const hoy = () => new Date().toISOString().slice(0,10);
 
-const ESTADO = {SOLICITADO:'Solicitado', APROBADO:'Aprobado',
-  EN_EJECUCION:'En ejecución', CERRADO:'Cerrado', RECHAZADO:'Rechazado'};
+const ESTADO = {SOLICITADO:'Solicitada', APROBADO:'Aprobada',
+  EN_EJECUCION:'En ejecución', CERRADO:'Cerrada', RECHAZADO:'Rechazada'};
 const TIPO = {PREVENTIVO:'Preventivo', CORRECTIVO:'Correctivo',
   GOMERIA:'Gomería', SINIESTRO:'Siniestro'};
 const ORIGEN = {CHECKLIST:'Check list', RUTA:'Ruta', RUTINA_SEMANAL:'Rutina semanal',
@@ -350,7 +350,7 @@ function pat(p) {
 }
 
 async function api(op, extra) {
-  const r = await fetch('/api/vales', {
+  const r = await fetch('/api/solicitudes', {
     method:'POST', headers:{'Content-Type':'application/json'},
     body: JSON.stringify(Object.assign({op}, extra || {}))});
   const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
@@ -362,11 +362,11 @@ async function api(op, extra) {
 // LA LISTA
 // =====================================================================
 function visibles() {
-  const vales = (D.datos && D.datos.vales) || [];
+  const solicitudes = (D.datos && D.datos.solicitudes) || [];
   const mia = D.datos && D.datos.usuario && D.datos.usuario.sucursal_codigo;
-  let lista = vales;
-  if (D.vista === 'bandeja') lista = vales.filter(v => v.estado === 'SOLICITADO');
-  if (D.vista === 'mia' && mia) lista = vales.filter(v => v.sucursal_codigo === mia);
+  let lista = solicitudes;
+  if (D.vista === 'bandeja') lista = solicitudes.filter(v => v.estado === 'SOLICITADO');
+  if (D.vista === 'mia' && mia) lista = solicitudes.filter(v => v.sucursal_codigo === mia);
 
   const texto = ($('#buscar').value || '').trim().toLowerCase();
   const suc = $('#fSucursal').value, est = $('#fEstado').value;
@@ -400,8 +400,8 @@ function pintar() {
   const cuerpo = $('#filas');
   if (!lista.length) {
     cuerpo.innerHTML = `<tr><td colspan="8" class="vacio">${
-      D.vista === 'bandeja' ? 'No hay vales esperando respuesta.'
-                            : 'No hay vales que coincidan.'}</td></tr>`;
+      D.vista === 'bandeja' ? 'No hay solicitudes esperando respuesta.'
+                            : 'No hay solicitudes que coincidan.'}</td></tr>`;
   } else {
     cuerpo.innerHTML = lista.map(v => `
       <tr class="${v.urgencia === 'UNIDAD_PARADA' && v.estado === 'SOLICITADO' ? 'urgente' : ''}">
@@ -421,12 +421,12 @@ function pintar() {
                                           : '$ ' + money(v.monto)}</td>
         <td><span class="marca ${esc(v.estado)}">${esc(ESTADO[v.estado] || v.estado)}</span>
             ${v.orden_numero ? `<div class="chico">rendido · OT ${esc(v.orden_numero)}</div>` : ''}</td>
-        <td><button class="accion" data-vale="${esc(v.id)}">Abrir</button></td>
+        <td><button class="accion" data-solicitud="${esc(v.id)}">Abrir</button></td>
       </tr>`).join('');
   }
 
-  const total = ((D.datos && D.datos.vales) || []).length;
-  $('#pie').textContent = `${lista.length} de ${total} vales · ` + (
+  const total = ((D.datos && D.datos.solicitudes) || []).length;
+  $('#pie').textContent = `${lista.length} de ${total} solicitudes · ` + (
     D.vista === 'bandeja' ? 'los que esperan respuesta del taller, el más urgente arriba'
     : D.vista === 'mia' ? 'los de tu sucursal'
     : 'toda la red');
@@ -442,7 +442,7 @@ function opciones() {
   $('#vSucursal').innerHTML = '<option value="">Seleccionar sucursal</option>' + sucs;
   $('#fSucursal').innerHTML = '<option value="">Todas las sucursales</option>' + sucs;
   $('#listaBlanca').innerHTML = d.lista_blanca.map(x => `<li>${esc(x)}</li>`).join('');
-  // Al que tiene sucursal cargada no se le pregunta: el vale se numera
+  // Al que tiene sucursal cargada no se le pregunta: la solicitud se numera
   // según quién lo pide, no según lo que se elija en un desplegable.
   $('#cajaSucursal').hidden = !!d.usuario.sucursal_codigo;
   $('#quien').textContent = [d.usuario.nombre, d.usuario.sucursal_codigo]
@@ -450,31 +450,31 @@ function opciones() {
 }
 
 async function cargar() {
-  const r = await fetch('/api/vales');
+  const r = await fetch('/api/solicitudes');
   const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
-  if (!r.ok) { $('#pie').textContent = d.error || 'No se pudieron leer los vales.'; return; }
+  if (!r.ok) { $('#pie').textContent = d.error || 'No se pudieron leer las solicitudes.'; return; }
   D.datos = d;
   opciones();
   pintar();
 }
 
 // =====================================================================
-// EL VALE
+// LA SOLICITUD
 // =====================================================================
-async function abrirVale(id) {
-  $('#modalVale').classList.add('on');
-  $('#cuerpoVale').innerHTML = '<p class="vacio">Cargando…</p>';
+async function abrirSolicitud(id) {
+  $('#modalSolicitud').classList.add('on');
+  $('#cuerpoSolicitud').innerHTML = '<p class="vacio">Cargando…</p>';
   try {
-    D.vale = await api('ficha', {id});
-    dibujarVale();
+    D.solicitud = await api('ficha', {id});
+    dibujarSolicitud();
   } catch (e) {
-    $('#cuerpoVale').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+    $('#cuerpoSolicitud').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
   }
 }
 
-function dibujarVale() {
-  const v = D.vale.vale, puede = D.datos.usuario.puede_aprobar;
-  $('#tituloVale').textContent = `Vale ${v.id}`;
+function dibujarSolicitud() {
+  const v = D.solicitud.solicitud, puede = D.datos.usuario.puede_aprobar;
+  $('#tituloSolicitud').textContent = `Solicitud ${v.id}`;
   const dato = (t, x) => `<div><span>${t}</span><b>${x || '—'}</b></div>`;
 
   let acciones = '';
@@ -489,7 +489,7 @@ function dibujarVale() {
   else if (v.estado === 'RECHAZADO')
     acciones = `<button class="btn alt" data-op="denuevo">Volver a pedirlo</button>`;
 
-  $('#cuerpoVale').innerHTML = `
+  $('#cuerpoSolicitud').innerHTML = `
     <div class="ficha-cab">
       ${dato('Unidad', esc(pat(v.patente)) + (v.interno ? ' · Nº ' + esc(v.interno) : ''))}
       ${dato('Kilómetros', nfm.format(v.km || 0))}
@@ -509,15 +509,15 @@ function dibujarVale() {
       <h3>Falla o tarea</h3>
       <p style="margin:0;line-height:1.55">${esc(v.detalle)}</p>
       ${v.nota ? `<p class="pista"><b>Nota:</b> ${esc(v.nota)}</p>` : ''}
-      ${v.vale_anterior ? `<p class="pista">Reemplaza al vale
-        <button class="accion" data-vale="${esc(v.vale_anterior)}">${esc(v.vale_anterior)}</button>.</p>` : ''}
+      ${v.solicitud_anterior ? `<p class="pista">Reemplaza a la solicitud
+        <button class="accion" data-solicitud="${esc(v.solicitud_anterior)}">${esc(v.solicitud_anterior)}</button>.</p>` : ''}
       ${v.regularizacion_ruta ? `<p class="pista">Regularización de ruta: el hecho fue el
         ${esc(fecha(v.fecha_hecho))} y se autorizó verbalmente.</p>` : ''}
     </div>
 
     <div class="bloque">
       <h3>Historial</h3>
-      ${D.vale.eventos.map(e => `<div class="linea">
+      ${D.solicitud.eventos.map(e => `<div class="linea">
         <span class="cuando">${esc(cuando(e.momento))}</span>
         <span><b>${esc(ESTADO[e.estado] || e.estado)}</b>
         ${e.usuario ? ' · ' + esc(e.usuario) : ''}
@@ -525,21 +525,21 @@ function dibujarVale() {
       </div>`).join('')}
     </div>
 
-    <div id="avisoVale"></div>
+    <div id="avisoSolicitud"></div>
     <div class="pie-modal">
       ${acciones}
-      <button class="btn alt" id="imprimirVale">Imprimir</button>
-      <button class="btn alt" data-cerrar="modalVale">Cerrar</button>
+      <button class="btn alt" id="imprimirSolicitud">Imprimir</button>
+      <button class="btn alt" data-cerrar="modalSolicitud">Cerrar</button>
     </div>`;
 }
 
-function avisoVale(texto, bien) {
-  const caja = $('#avisoVale');
+function avisoSolicitud(texto, bien) {
+  const caja = $('#avisoSolicitud');
   if (caja) caja.innerHTML = `<div class="aviso ${bien ? 'bien' : 'mal'}">${esc(texto)}</div>`;
 }
 
-async function sobreVale(op) {
-  const v = D.vale.vale;
+async function sobreSolicitud(op) {
+  const v = D.solicitud.solicitud;
   const extra = {id: v.id};
   if (op === 'aprobar') {
     const monto = prompt('Monto autorizado (dejalo vacío si va a presupuesto):',
@@ -553,12 +553,12 @@ async function sobreVale(op) {
   }
   if (op === 'rechazar') {
     const nota = (prompt('Por qué no va. La sucursal tiene que saber qué corregir:', '') || '').trim();
-    if (!nota) return avisoVale('Un rechazo sin motivo no le sirve a la sucursal.');
+    if (!nota) return avisoSolicitud('Un rechazo sin motivo no le sirve a la sucursal.');
     extra.nota = nota;
   }
   if (op === 'cerrar') {
     const factura = (prompt('Número de factura:', v.factura_numero || '') || '').trim();
-    if (!factura) return avisoVale('Sin número de factura el vale no cierra.');
+    if (!factura) return avisoSolicitud('Sin número de factura la solicitud no cierra.');
     extra.factura_numero = factura;
     const monto = prompt('Monto final de la factura:',
       v.monto_autorizado == null ? '' : v.monto_autorizado);
@@ -568,10 +568,10 @@ async function sobreVale(op) {
   try {
     const salida = await api(op, extra);
     await cargar();
-    await abrirVale(v.id);
-    if (salida.aviso) avisoVale(salida.aviso);
+    await abrirSolicitud(v.id);
+    if (salida.aviso) avisoSolicitud(salida.aviso);
   } catch (e) {
-    avisoVale(e.message);
+    avisoSolicitud(e.message);
   }
 }
 
@@ -594,16 +594,16 @@ async function verHistorial(patente) {
     $('#tituloHist').textContent = `Unidad ${pat(h.patente)}`;
     $('#cuerpoHist').innerHTML = `
       <div class="ficha-cab">
-        <div><span>Vales</span><b>${h.vales.length}</b></div>
+        <div><span>Solicitudes</span><b>${h.solicitudes.length}</b></div>
         <div><span>Preventivo</span><b>$ ${money(h.gasto.PREVENTIVO)}</b></div>
         <div><span>Correctivo</span><b>$ ${money(h.gasto.CORRECTIVO)}</b></div>
         <div><span>Total</span><b>$ ${money(h.total)}</b></div>
       </div>
-      ${h.vales.length ? `<table><thead><tr>
-        <th>Vale</th><th>Fecha</th><th class="num">Km</th><th>Tipo</th>
+      ${h.solicitudes.length ? `<table><thead><tr>
+        <th>Solicitud</th><th>Fecha</th><th class="num">Km</th><th>Tipo</th>
         <th>Falla o tarea</th><th class="num">Monto</th><th>Estado</th></tr></thead>
-        <tbody>${h.vales.map(v => `<tr>
-          <td><button class="accion" data-vale="${esc(v.id)}">${esc(v.id)}</button></td>
+        <tbody>${h.solicitudes.map(v => `<tr>
+          <td><button class="accion" data-solicitud="${esc(v.id)}">${esc(v.id)}</button></td>
           <td>${esc(fecha(v.fecha_hecho))}</td>
           <td class="num">${nfm.format(v.km || 0)}</td>
           <td>${esc(TIPO[v.tipo] || v.tipo)}</td>
@@ -611,7 +611,7 @@ async function verHistorial(patente) {
           <td class="num">${v.monto == null ? '—' : '$ ' + money(v.monto)}</td>
           <td><span class="marca ${esc(v.estado)}">${esc(ESTADO[v.estado])}</span></td>
         </tr>`).join('')}</tbody></table>`
-        : '<p class="vacio">Esta unidad todavía no tiene vales.</p>'}`;
+        : '<p class="vacio">Esta unidad todavía no tiene solicitudes.</p>'}`;
   } catch (e) {
     $('#cuerpoHist').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
   }
@@ -629,21 +629,23 @@ async function verIndicadores() {
     panel.innerHTML = `
       <div class="kpi">
         <div class="caja"><b>${r.porcentaje == null ? '—' : r.porcentaje + '%'}</b>
-          <span>Facturas rendidas con vale</span></div>
-        <div class="caja"><b>${r.sin_vale}</b><span>Facturas sin vale previo</span></div>
+          <span>Facturas de sucursal con solicitud</span></div>
+        <div class="caja"><b>${r.sin_solicitud}</b><span>Facturas sin solicitud previa</span></div>
+        <div class="caja"><b>${r.de_mantenimiento}</b>
+          <span>Facturas que mandó mantenimiento</span></div>
         <div class="caja"><b>${i.sucursales.reduce((a, s) => a + s.regularizaciones, 0)}</b>
           <span>Regularizaciones de ruta</span></div>
         <div class="caja"><b>${i.sucursales.reduce((a, s) => a + s.correctivos_sin_aviso, 0)}</b>
           <span>Correctivos sin aviso del check list</span></div>
       </div>
       <div class="bloque"><h3>Por sucursal</h3>
-        <table><thead><tr><th>Sucursal</th><th class="num">Vales</th>
+        <table><thead><tr><th>Sucursal</th><th class="num">Solicitudes</th>
           <th class="num">Rechazados</th><th class="num">Respuesta</th>
           <th class="num">Correctivos</th><th class="num">Sin aviso previo</th>
           <th class="num">Regularizaciones</th><th class="num">Cerrado</th></tr></thead>
           <tbody>${i.sucursales.map(s => `<tr>
             <td>${esc(s.sucursal)}</td>
-            <td class="num">${s.vales}</td>
+            <td class="num">${s.solicitudes}</td>
             <td class="num">${s.rechazados}</td>
             <td class="num">${s.horas_respuesta == null ? '—'
               : Number(s.horas_respuesta).toFixed(1) + ' h'}</td>
@@ -651,7 +653,7 @@ async function verIndicadores() {
             <td class="num">${s.correctivos_sin_aviso}</td>
             <td class="num">${s.regularizaciones}</td>
             <td class="num">$ ${money(s.gastado)}</td></tr>`).join('')
-            || '<tr><td colspan="8" class="vacio">Todavía no hay vales cargados.</td></tr>'}
+            || '<tr><td colspan="8" class="vacio">Todavía no hay solicitudes cargadas.</td></tr>'}
           </tbody></table></div>
       <div class="bloque"><h3>Correctivo por unidad</h3>
         <table><thead><tr><th>Unidad</th><th class="num">Gasto</th>
@@ -676,12 +678,12 @@ async function verIndicadores() {
 // EL PAPEL
 // =====================================================================
 function imprimir() {
-  const v = D.vale.vale;
+  const v = D.solicitud.solicitud;
   const dato = (t, x) => `<div><span>${t}</span><b>${x || '—'}</b></div>`;
   $('#hoja').innerHTML = `
     <div class="marco">
       <div class="titulo">
-        <div class="casa">EXPRESO CATAMARCA<small>Vale de taller · ${esc(v.sucursal || '')}</small></div>
+        <div class="casa">EXPRESO CATAMARCA<small>Solicitud de orden de compra · ${esc(v.sucursal || '')}</small></div>
         <div class="nro">
           <img src="/logo-cedula.png" alt="" onerror="this.style.display='none'">
           <b>${esc(v.id)}</b><br>${esc(fecha(v.fecha_hecho))}
@@ -708,8 +710,8 @@ function imprimir() {
         <div><em>Solicitó · ${esc(v.solicitante || '')}</em></div>
         <div><em>Autorizó · ${esc(v.aprobado_por || '')}</em></div>
       </div>
-      <div class="pie">Este número va escrito en la factura. Sin vale cerrado la
-        factura de taller no se rinde.</div>
+      <div class="pie">Este número va escrito en la factura. La sucursal no rinde
+        una factura de taller sin su solicitud cerrada.</div>
     </div>`;
   window.print();
 }
@@ -719,7 +721,7 @@ function imprimir() {
 // =====================================================================
 function abrirNuevo(anterior) {
   const v = anterior || null;
-  $('#tituloNuevo').textContent = v ? `Nuevo vale citando ${v.id}` : 'Nuevo vale';
+  $('#tituloNuevo').textContent = v ? `Nueva solicitud citando ${v.id}` : 'Nueva solicitud';
   $('#modalNuevo').dataset.anterior = v ? v.id : '';
   $('#vUnidad').value = v && v.unidad_id ? v.unidad_id : '';
   $('#vKm').value = v ? v.km : '';
@@ -751,7 +753,7 @@ async function guardarNuevo() {
     monto_estimado: $('#vMonto').value || null,
     regularizacion_ruta: $('#vRegular').checked,
     fecha_hecho: $('#vRegular').checked ? $('#vFecha').value : null,
-    vale_anterior: $('#modalNuevo').dataset.anterior || null,
+    solicitud_anterior: $('#modalNuevo').dataset.anterior || null,
   };
   if (!$('#cajaSucursal').hidden) datos.sucursal_codigo = $('#vSucursal').value;
   boton.disabled = true;
@@ -759,9 +761,9 @@ async function guardarNuevo() {
     const salida = await api('crear', datos);
     $('#modalNuevo').classList.remove('on');
     await cargar();
-    await abrirVale(salida.id);
+    await abrirSolicitud(salida.id);
     if (salida.fuera_de_termino)
-      avisoVale('Se cargó, pero pasaron más de 48 horas hábiles desde el hecho: '
+      avisoSolicitud('Se cargó, pero pasaron más de 48 horas hábiles desde el hecho: '
                 + 'queda contado como regularización fuera de término.', false);
   } catch (e) {
     $('#avisoNuevo').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
@@ -786,19 +788,19 @@ document.addEventListener('click', ev => {
     return;
   }
 
-  const vale = ev.target.closest('[data-vale]');
-  if (vale) return abrirVale(vale.dataset.vale);
+  const solicitud = ev.target.closest('[data-solicitud]');
+  if (solicitud) return abrirSolicitud(solicitud.dataset.solicitud);
 
   const op = ev.target.closest('[data-op]');
   if (op) {
     if (op.dataset.op === 'denuevo') {
-      $('#modalVale').classList.remove('on');
-      return abrirNuevo(D.vale.vale);
+      $('#modalSolicitud').classList.remove('on');
+      return abrirNuevo(D.solicitud.solicitud);
     }
-    return sobreVale(op.dataset.op);
+    return sobreSolicitud(op.dataset.op);
   }
 
-  if (ev.target.id === 'imprimirVale') return imprimir();
+  if (ev.target.id === 'imprimirSolicitud') return imprimir();
   if (ev.target.id === 'nuevo') return abrirNuevo(null);
   if (ev.target.id === 'verUnidad') return verHistorial(null);
   if (ev.target.id === 'guardarNuevo') return guardarNuevo();
