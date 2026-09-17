@@ -315,6 +315,9 @@ def abrir(cx, datos, usuario):
     if mantenimiento == "preventivo" and not unidad_id:
         raise ValueError("Un mantenimiento preventivo necesita una unidad del maestro.")
 
+    # Compartido por altas manuales y reportes, incluso para patentes sin maestro.
+    cx.execute('select pg_advisory_xact_lock(hashtextextended(%s,0))', ('ot:' + patente,))
+
     # Una unidad con una orden abierta no puede tener otra: si no, los
     # repuestos de un mismo trabajo terminan repartidos en dos hojas.
     abierta = cx.execute("""

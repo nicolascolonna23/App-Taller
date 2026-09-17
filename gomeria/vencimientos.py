@@ -8,6 +8,7 @@ Una renovación nunca pisa a la anterior: se inserta una fila nueva y la
 vista se queda con la última. Así queda el historial de cuándo se hizo
 cada VTV y en qué planta.
 """
+from calendar import monthrange
 from datetime import date, timedelta
 
 import permisos
@@ -45,7 +46,7 @@ def listar(cx):
     filas = cx.execute("""
         select id, tipo_id, tipo, ambito, unidad_id, patente, interno,
                persona_id, persona, identificador, detalle,
-               desde, vence, dias, estado, donde, observaciones,
+               desde, vence, coalesce(aviso_fecha, vence - aviso_dias) as aviso_fecha, dias, estado, donde, observaciones,
                coalesce(sucursal_unidad, sucursal_persona) as sucursal
         from v_vencimientos_hoy
         order by estado = 'vigente', dias, orden, tipo
@@ -79,7 +80,7 @@ def historial(cx, tipo_id, unidad_id=None, persona_id=None, identificador=None):
     """Todas las renovaciones de una misma cosa, de la última a la primera."""
     return [dict(f) for f in cx.execute("""
         select v.id, v.desde, v.vence, v.identificador, v.detalle,
-               v.donde, v.costo, v.observaciones, v.usuario, v.creado
+               v.aviso_fecha, v.donde, v.costo, v.observaciones, v.usuario, v.creado
         from vencimientos v
         where v.tipo_id = %s
           and v.unidad_id is not distinct from %s
@@ -111,6 +112,12 @@ def guardar(cx, datos, usuario):
         else:
             raise ValueError("Falta la fecha de vencimiento.")
 
+    aviso = _fecha(datos.get("aviso_fecha"), "aviso")
+    if desde and desde > vence:
+        raise ValueError("La emisión no puede ser posterior al vencimiento.")
+    if aviso and aviso > vence:
+        raise ValueError("El aviso no puede ser posterior al vencimiento.")
+
     unidad_id = datos.get("unidad_id") or None
     persona_id = datos.get("persona_id") or None
     if tipo["ambito"] == "unidad":
@@ -133,14 +140,14 @@ def guardar(cx, datos, usuario):
     fila = cx.execute("""
         insert into vencimientos
           (tipo_id, unidad_id, persona_id, identificador, detalle,
-           desde, vence, costo, donde, observaciones, usuario)
-        values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+           desde, vence, costo, donde, observaciones, usuario, aviso_fecha)
+        values (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
         returning id
     """, (tipo_id, unidad_id, persona_id, identificador,
           _texto(datos.get("detalle")), desde, vence,
           _numero(datos.get("costo")), _texto(datos.get("donde")),
           _texto(datos.get("observaciones"), 500),
-          (usuario or {}).get("usuario"))).fetchone()
+          (usuario or {}).get("usuario"), aviso)).fetchone()
 
     return {"ok": True, "id": fila["id"], "vence": vence.isoformat()}
 
@@ -185,17 +192,16 @@ def _sumar_meses(desde, meses):
     """La misma fecha, tantos meses después. El 31 cae al último día del mes."""
     año = desde.year + (desde.month - 1 + meses) // 12
     mes = (desde.month - 1 + meses) % 12 + 1
-    dia = desde.day
-    while True:
-        try:
-            return date(año, mes, dia)
-        except ValueError:
-            dia -= 1
+    if not 1 <= año <= 9999:
+        raise ValueError("El vencimiento calculado queda fuera del rango de fechas.")
+    return date(año, mes, min(desde.day, monthrange(año, mes)[1]))
 
 
 def aplicar(cx, datos, usuario):
     """Punto de entrada de la API."""
     op = (datos.get("op") or "").strip()
+    if op == "configurar_tipo":
+        return configurar_tipo(cx, datos, usuario)
     if op == "guardar":
         return guardar(cx, datos, usuario)
     if op == "borrar":
@@ -208,3 +214,20 @@ def aplicar(cx, datos, usuario):
                                        datos.get("persona_id") or None,
                                        datos.get("identificador") or None)}
     raise ValueError("No entiendo qué hay que hacer.")
+
+
+def configurar_tipo(cx, datos, usuario):
+    """La vigencia se aplica a nuevas cargas; el aviso a registros sin excepción."""
+    _exigir_gestor(usuario)
+    def entero(v, campo, minimo, maximo):
+        if isinstance(v, bool) or not str(v).isdigit() or not minimo <= int(v) <= maximo:
+            raise ValueError(f"{campo}: usá un entero entre {minimo} y {maximo}.")
+        return int(v)
+    dias = entero(datos.get("aviso_dias"), "Anticipación", 0, 3650)
+    meses = datos.get("meses")
+    meses = None if meses in (None, "") else entero(meses, "Vigencia", 1, 120)
+    fila = cx.execute("update tipos_vencimiento set meses=%s, aviso_dias=%s where id=%s and activo returning id",
+                      (meses, dias, datos.get("tipo_id"))).fetchone()
+    if not fila:
+        raise ValueError("Tipo inexistente.")
+    return {"ok": True}

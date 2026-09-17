@@ -198,3 +198,11 @@ ni `/api/mantenimiento`. Ver [diseño y pendientes antes de fusionar](docs/MANTE
 No aplicar su migración hasta resolver la unificación: sus tablas (`mt_*`)
 son otra versión de lo que ya hace `/solicitudes`, y tener las dos andando
 sería tener dos verdades del mismo gasto. Hay que elegir una y sacar la otra.
+
+## Reportes de choferes y configuración de vencimientos
+
+La primera versión para teléfonos está en `/choferes/`; el taller recibe las fallas en
+`/fallas`, desde Solicitudes. Incluye fotos, dictado según el navegador, cola offline
+y conversión a OT. Vencimientos permite configurar vigencia y anticipación por tipo
+y fecha de aviso particular. Requiere la migración `gomeria/30_avisos_y_reportes.sql`.
+Ver [instalación, permisos, pruebas y límites de la versión móvil](docs/CHOFERES_Y_AVISOS.md).

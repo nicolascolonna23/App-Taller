@@ -49,12 +49,14 @@ import mantenimiento as mant
 import preferencias as prefs
 import unidades as uni
 import urea as ure
+import reportes_chofer as reportes
 import vencimientos as venc
 import servidor as gom
 from flota_vales.http import atender as atender_vales
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/fallas": ("choferes/bandeja.html", "text/html; charset=utf-8"),
     "/vales": ("flota_vales/index.html", "text/html; charset=utf-8"),
     "/vales.js": ("flota_vales/app.js", "text/javascript; charset=utf-8"),
     "/vales.css": ("flota_vales/style.css", "text/css; charset=utf-8"),
@@ -188,12 +190,71 @@ class App(gom.Handler):
                 cuerpo = html + script
         return super()._responder(cuerpo, tipo, codigo, cookie)
 
+    def _reportes(self, escritura=False):
+        if not self._exigir_sesion():
+            return
+        try:
+            with base.conectar() as cx:
+                if escritura:
+                    origen = self.headers.get('Origin')
+                    if (origen and urlparse(origen).netloc != self.headers.get('Host')) or self.headers.get('Sec-Fetch-Site') == 'cross-site':
+                        raise PermissionError('Origen no autorizado.')
+                    if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
+                        return self._error('Se requiere JSON.', 415)
+                    n = int(self.headers.get('Content-Length', 0))
+                    if not 0 < n <= 9*1024*1024:
+                        return self._error('Tamaño inválido.', 413)
+                    d = json.loads(self.rfile.read(n))
+                    if not isinstance(d, dict):
+                        raise ValueError('Pedido inválido.')
+                    op = d.get('op')
+                    if op == 'recibir':
+                        salida = reportes.recibir(cx, self.usuario, d)
+                    elif op in ('crear_orden', 'desestimar'):
+                        salida = reportes.resolver(cx, self.usuario, d)
+                    else:
+                        raise ValueError('Operación inválida.')
+                    cx.commit()
+                else:
+                    q = parse_qs(urlparse(self.path).query)
+                    op = q.get('op', ['listar'])[0]
+                    if op == 'contexto':
+                        salida = reportes.contexto(cx, self.usuario)
+                    elif op == 'fotos':
+                        salida = reportes.fotos(cx, self.usuario, q.get('id', [''])[0])
+                    else:
+                        salida = reportes.listar(cx, self.usuario)
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except (ValueError, TypeError, psycopg.errors.InvalidTextRepresentation, psycopg.errors.ForeignKeyViolation) as e:
+            return self._error(str(e) if isinstance(e, ValueError) else 'Datos inválidos.', 400)
+        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+            return self._error('Aplicar gomeria/30_avisos_y_reportes.sql.', 503)
+        except Exception:
+            traceback.print_exc()
+            return self._error('No se pudo completar la operación. Reintentá.', 500)
+
     def do_GET(self):
         ruta = urlparse(self.path).path
         # La dirección pedida se anota siempre primero: el portero de
         # permisos la mira, y en una conexión reutilizada la anterior
         # seguiría diciendo otra cosa.
         self.ruta_original = ruta
+        if ruta == '/api/reportes-chofer':
+            return self._reportes()
+        # Shell público sin datos ni sesión incrustada; el API exige sesión.
+        publicos = {'/choferes/': ('index.html','text/html; charset=utf-8'),
+                    '/choferes/app.js': ('app.js','text/javascript'),
+                    '/choferes/cola.js': ('cola.js','text/javascript'),
+                    '/choferes/sw.js': ('sw.js','text/javascript'),
+                    '/choferes/style.css': ('style.css','text/css'),
+                    '/choferes/manifest.webmanifest': ('manifest.webmanifest','application/manifest+json'),
+                    '/choferes/icon.svg': ('icon.svg','image/svg+xml')}
+        if ruta in publicos:
+            archivo, tipo = publicos[ruta]
+            with open(os.path.join(AQUI, 'choferes', archivo), 'rb') as recurso:
+                return super()._responder(recurso.read(), tipo)
         if ruta == "/api/vales":
             return atender_vales(self, base, self.command == "POST")
 
@@ -660,10 +721,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(venc.listar(cx)))
-            except psycopg.errors.UndefinedTable:
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
                 return self._error(
-                    "Falta crear las tablas de vencimientos. Ejecutar "
-                    "gomeria/06_vencimientos.sql en el SQL Editor de Supabase.", 503)
+                    "Falta actualizar vencimientos. Ejecutar 06_vencimientos.sql y "
+                    "gomeria/30_avisos_y_reportes.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los vencimientos: {e}", 500)
@@ -706,6 +767,8 @@ class App(gom.Handler):
         # permisos la mira, y en una conexión reutilizada la anterior
         # seguiría diciendo otra cosa.
         self.ruta_original = ruta
+        if ruta == '/api/reportes-chofer':
+            return self._reportes(True)
         if ruta == "/api/vales":
             return atender_vales(self, base, self.command == "POST")
         if ruta == "/api/asistente":

@@ -35,6 +35,7 @@ import auth
 
 # (código, nombre, la dirección de la pantalla, para qué es)
 MODULOS = (
+    ("choferes", "Reportar fallas", "/choferes/", "Fallas y fotos con envío pendiente sin conexión."),
     ("flota",        "Flota y services",   "/flota",
      "Panel general, control de flota y mantenimiento."),
     ("unidades",     "Maestro de unidades", "/unidades",
@@ -76,6 +77,7 @@ LIBRES = ("/", "/configuracion", "/movil", "/salir")
 # prefijo, así `/api/unidades/exportar` cae en el módulo de unidades sin
 # tener que nombrarla.
 RUTAS = {
+    "/fallas": "solicitudes", "/choferes/": "choferes",
     "/flota": "flota", "/control": "flota", "/api/flota": "flota",
     "/unidades": "unidades", "/api/unidades": "unidades",
     "/gomeria": "gomeria", "/api/tablero": "gomeria", "/api/movimiento": "gomeria",
