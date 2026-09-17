@@ -990,8 +990,8 @@ def mover_cubierta(cx, datos, usuario=None):
     if not unidad_id or not posicion_id:
         raise ValueError("Falta la unidad o la posición.")
 
-    unidad = cx.execute("select * from unidades where id = %s", (unidad_id,)).fetchone()
-    if not unidad:
+    unidad = cx.execute("select * from unidades where id = %s for update", (unidad_id,)).fetchone()
+    if not unidad or not unidad.get("activa", True):
         raise ValueError("Esa unidad no existe.")
 
     # La posición tiene que ser del mapa de esta unidad. Sin esto, un id
@@ -1003,6 +1003,17 @@ def mover_cubierta(cx, datos, usuario=None):
     if not de_esta:
         raise ValueError("Esa posición no es de esta unidad.")
 
+    puesta = _base.montaje_abierto(cx, unidad_id, posicion_id)
+    if "cubierta_esperada" in datos:
+        actual = puesta["cubierta_id"] if puesta else None
+        esperado = datos["cubierta_esperada"]
+        if (str(actual) if actual is not None else None) != (str(esperado) if esperado is not None else None):
+            raise ValueError("La posición cambió desde que abriste el mapa. Actualizá antes de continuar.")
+    nota = _texto(datos.get("nota"), 300)
+    if accion == "desmontar" and not nota:
+        raise ValueError("Indicá el motivo del retiro de la cubierta.")
+    if accion == "montar" and datos.get("solo_vacia") and puesta:
+        raise ValueError("La posición está ocupada. Retirá primero la cubierta con su motivo.")
     quien = (usuario or {}).get("nombre")
 
     if accion == "desmontar":
@@ -1025,10 +1036,12 @@ def mover_cubierta(cx, datos, usuario=None):
         cubierta_id = datos.get("cubierta_id")
         if not cubierta_id:
             raise ValueError("Seleccionar qué cubierta va.")
-        cubierta = cx.execute("select * from cubiertas where id = %s",
+        cubierta = cx.execute("select * from cubiertas where id = %s for update",
                               (cubierta_id,)).fetchone()
         if not cubierta:
             raise ValueError("Esa cubierta no existe.")
+        if cubierta["estado"] not in ("stock", "recapado"):
+            raise ValueError("La cubierta no está disponible en stock.")
         # Una cubierta puesta en otra unidad no se puede poner acá sin
         # sacarla antes: quedaría en dos lugares a la vez.
         otra = cx.execute("""
@@ -1076,7 +1089,7 @@ def _con_medidas(cx, unidad):
     return con
 
 
-def stock_para(cx, medida=None, limite=200):
+def stock_para(cx, medida=None, limite=200, buscar=None):
     """Las cubiertas que se pueden poner: en stock o recapadas, y libres.
 
     El estado no alcanza para saber si está libre. Los mapas se cargaron a
@@ -1090,6 +1103,9 @@ def stock_para(cx, medida=None, limite=200):
     if medida:
         filtro = "and c.medida = %s"
         valores.append(medida)
+    if buscar:
+        filtro += " and concat_ws(' ',c.codigo,c.marca,c.modelo,c.medida) ilike %s"
+        valores.append('%' + str(buscar).strip()[:120] + '%')
     valores.append(limite)
     return _bloque(cx, f"""
         select c.id, c.codigo, c.marca, c.modelo, c.medida, c.remanente_mm,

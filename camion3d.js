@@ -737,6 +737,29 @@ function armarVisor(clave, archivo, opciones){
     const dio = rayo.intersectObjects(V.ruedas, false);
     return dio.length ? dio[0] : null;
   };
+  // Integración opcional con la mesa de montaje. Otros visores sólo giran.
+  if (VISOR.alArrastrar || VISOR.alSoltar) {
+    ren.domElement.addEventListener('pointerdown', e => {
+      if (VISOR.puedeArrastrar?.() && enRueda(e)) V.control.enabled = false;
+    }, true);
+    const terminar = () => { if(V.control) V.control.enabled = true; };
+    ren.domElement.addEventListener('pointerup', terminar);
+    ren.domElement.addEventListener('pointercancel', terminar);
+    ren.domElement.addEventListener('dragend', terminar);
+    ren.domElement.addEventListener('dragstart', e => {
+      const hit = enRueda(e);
+      if (!VISOR.puedeArrastrar?.() || !hit || !VISOR.alArrastrar?.(e, esquinaDelPunto(hit.point,hit.object))) {
+        e.preventDefault(); terminar();
+      }
+    });
+    ren.domElement.addEventListener('dragover', e => {
+      if (enRueda(e) && e.dataTransfer.types.includes('application/x-taller-cubierta')) e.preventDefault();
+    });
+    ren.domElement.addEventListener('drop', e => {
+      const hit = enRueda(e); if (!hit) return;
+      e.preventDefault(); VISOR.alSoltar?.(e, esquinaDelPunto(hit.point,hit.object)); terminar();
+    });
+  }
   /* Se distingue el clic del arrastre: girar el camión no tiene que abrir
      el panel de una rueda cada vez. */
   let desde = null;

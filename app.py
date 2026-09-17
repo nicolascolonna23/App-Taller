@@ -56,6 +56,7 @@ from flota_vales.http import atender as atender_vales
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/gomeria-mesa.js": ("gomeria/mesa.js", "text/javascript; charset=utf-8"),
     "/fallas": ("choferes/bandeja.html", "text/html; charset=utf-8"),
     "/vales": ("flota_vales/index.html", "text/html; charset=utf-8"),
     "/vales.js": ("flota_vales/app.js", "text/javascript; charset=utf-8"),
@@ -476,7 +477,7 @@ class App(gom.Handler):
             medida = (parse_qs(urlparse(self.path).query).get("medida") or [None])[0]
             try:
                 with base.conectar() as cx:
-                    return self._responder(gom.jstr(uni.stock_para(cx, medida)))
+                    return self._responder(gom.jstr(uni.stock_para(cx, medida, buscar=(parse_qs(urlparse(self.path).query).get("buscar") or [None])[0])))
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el stock: {e}", 500)

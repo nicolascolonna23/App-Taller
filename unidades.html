@@ -845,6 +845,7 @@ function formSacar(fila, p){
         <option value="reparacion">Reparación</option>
         <option value="baja">Baja — no da para más</option>
       </select></label>
+    <label>Motivo del retiro<input class="motivo" maxlength="300" placeholder="Indicar el motivo"></label>
     <div class="acc-pie">
       <button type="button" class="mini gris cancelar">Cancelar</button>
       <button type="button" class="mini confirmar">Sacar de ${esc(p.posicion)}</button>
@@ -853,7 +854,7 @@ function formSacar(fila, p){
   caja.querySelector('.cancelar').onclick = cerrarForms;
   caja.querySelector('.confirmar').onclick = () => mover({
     accion:'desmontar', posicion_id:p.posicion_id,
-    destino: caja.querySelector('.destino').value }, caja);
+    destino: caja.querySelector('.destino').value, nota:caja.querySelector('.motivo').value, cubierta_esperada:p.cubierta_id }, caja);
 }
 
 async function formPoner(fila, p){
