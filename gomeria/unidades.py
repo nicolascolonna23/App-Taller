@@ -207,6 +207,56 @@ MEDIDAS = {
 }
 
 
+def _comose(familias):
+    """Cómo se le dice a una persona qué medidas lleva esa unidad.
+
+    Una familia con una sola medida se nombra por la medida —600x9—; la
+    que tiene varias, por el número que las junta, porque enumerarlas no
+    le dice nada a nadie: 295 (295/80R22.5 y las de esa familia).
+    """
+    partes = [ejemplos[0] if len(ejemplos) == 1
+              else f"{corta} ({ejemplos[0]} y las de esa familia)"
+              for corta, ejemplos in familias.items()]
+    return " o ".join(partes) or None
+
+
+def reglas_de_medidas(cx):
+    """Qué números entran en cada clase, según lo cargado en Parámetros.
+
+    La regla del taller ahora se carga: es la solapa de gomería de
+    `/parametros`, donde cada medida dice de qué familia es. Acá se lee
+    una vez y se le pasa a `medida_va`, que en un aviso se llama una vez
+    por cubierta puesta de toda la flota.
+
+    Sin la tabla corrida —o sin ninguna medida cargada con su familia—
+    vale MEDIDAS, que es la regla escrita a mano y la que rige desde antes
+    de que esto se pudiera parametrizar. Nunca se queda sin regla: sin
+    ninguna no se controlaría nada y una 700x12 entraría en un camión.
+    """
+    try:
+        filas = cx.execute("""
+            select clase, corta, medida from cubiertas_medidas
+            where activa and clase in ('camion', 'autoelevador')
+              and coalesce(btrim(corta), '') <> ''
+            order by orden, medida""").fetchall()
+    except Exception:
+        cx.rollback()
+        return MEDIDAS
+
+    familias = {}
+    for f in filas:
+        numero = _primer_numero(f["corta"])
+        if numero is None:
+            continue
+        familias.setdefault(f["clase"], {}).setdefault(numero, []).append(f["medida"])
+    if not familias:
+        return MEDIDAS
+    reglas = dict(MEDIDAS)
+    for clase, porfamilia in familias.items():
+        reglas[clase] = (tuple(porfamilia), _comose(porfamilia))
+    return reglas
+
+
 def clase_de_gomas(unidad):
     """Qué medidas lleva esta unidad: 'camion', 'autoelevador' o None.
 
@@ -240,12 +290,12 @@ def _primer_numero(medida):
     return entero
 
 
-def medida_va(unidad, medida):
+def medida_va(unidad, medida, reglas=None):
     """(entra, qué se esperaba). Sin regla para esa unidad, entra todo."""
     clase = clase_de_gomas(unidad)
     if not clase:
         return True, None
-    validos, comose = MEDIDAS[clase]
+    validos, comose = (reglas or MEDIDAS).get(clase) or MEDIDAS[clase]
     return _primer_numero(medida) in validos, comose
 
 
@@ -416,11 +466,12 @@ def medidas_que_no_van(cx):
     for f in filas:
         puestas.setdefault(f["id"], []).append(f["medida"])
 
+    reglas = reglas_de_medidas(cx)
     avisos = []
     for f in filas:
         unidad = dict(f)
         unidad["medidas"] = puestas[f["id"]]
-        entra, comose = medida_va(unidad, f["medida"])
+        entra, comose = medida_va(unidad, f["medida"], reglas)
         if entra:
             continue
         avisos.append({
@@ -559,6 +610,7 @@ def ficha(cx, unidad_id):
     quiere = modelo_3d(contada)
     archivo, version = _archivo_3d(quiere)
     ejes, por = ejes_de(contada)
+    reglas = reglas_de_medidas(cx)
     salida = {"unidad": unidad,
               "modelo_3d": quiere if archivo else None,
               "modelo_3d_archivo": archivo,
@@ -581,8 +633,7 @@ def ficha(cx, unidad_id):
               # Qué medida lleva esta unidad. La pantalla lo usa para no
               # ofrecer una cubierta que no va.
               "medida_clase": clase_de_gomas(contada),
-              "medida_espera": (MEDIDAS[clase_de_gomas(contada)][1]
-                                if clase_de_gomas(contada) else None)}
+              "medida_espera": medida_va(contada, None, reglas)[1]}
 
     salida["mapa"] = mapa
 
@@ -1053,7 +1104,8 @@ def mover_cubierta(cx, datos, usuario=None):
         # movimiento está mal: o se tipeó el número de fuego de otra
         # cubierta, o se eligió la unidad equivocada. Se corta acá y no
         # después, cuando ya quedó anotado y hay que rastrearlo.
-        entra, comose = medida_va(_con_medidas(cx, unidad), cubierta["medida"])
+        entra, comose = medida_va(_con_medidas(cx, unidad), cubierta["medida"],
+                                  reglas_de_medidas(cx))
         if not entra:
             raise ValueError(
                 f"La {cubierta['codigo']} es {cubierta['medida'] or 'sin medida'} y "

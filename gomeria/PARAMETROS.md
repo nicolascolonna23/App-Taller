@@ -157,11 +157,25 @@ una foto subida por error—.
 **Las medidas** son con cuáles se trabaja y de qué familia es cada una. Lo
 que identifica es el **primer número** —una 295/80R22.5 es una **295**—,
 porque el perfil y la llanta cambian de una marca a otra y no hacen a la
-cuestión de si la goma entra o no en esa unidad. La familia es lo que
-evita que se ofrezca una goma de camión para un autoelevador: el sistema
-ya lo sabía, pero lo sabía escrito en el código. Arranca con la 295 de los
-camiones y las dos de los autoelevadores, más las que ya estuvieran
-cargadas en las cubiertas.
+cuestión de si la goma entra o no en esa unidad.
+
+La familia es la que **corta el movimiento**: montar una 700x12 en un
+camión se rechaza en el momento, no después, cuando ya quedó anotado y hay
+que rastrearlo. Eso el sistema ya lo hacía, pero con la regla escrita en
+el código: sumar una medida era tocar un archivo. Ahora sale de esta
+tabla, y sumar la 315 a los camiones es cargarla y elegirle la familia.
+Darla de baja la saca de la regla.
+
+Dos recaudos, porque una regla que se puede vaciar no es una regla:
+
+- Sin el script corrido, o sin ninguna medida con familia cargada, rige la
+  regla de siempre —295 en camiones, 600x9 y 700x12 en autoelevadores—.
+- La clase que nadie cargó conserva la suya. Cargar solo las de camión no
+  deja al autoelevador aceptando cualquier cosa.
+
+Arranca con la 295 de los camiones y las dos de los autoelevadores, más
+las que ya estuvieran cargadas en las cubiertas, que entran como *otro* y
+se corrigen desde la pantalla.
 
 Tocar las marcas y las medidas es de quien **gestiona**. Verlas, de
 cualquiera: las pantallas de gomería las leen para sus desplegables.

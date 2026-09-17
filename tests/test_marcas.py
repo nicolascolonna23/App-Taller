@@ -14,6 +14,7 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "gomeria"))
 import marcas
+import unidades
 
 # El PNG más chico que un navegador acepta: un pixel.
 PIXEL = base64.b64decode(
@@ -245,6 +246,81 @@ class Catalogo(unittest.TestCase):
     def test_una_operacion_que_no_existe_se_rechaza(self):
         with self.assertRaises(ValueError):
             marcas.aplicar(BaseFalsa(), {"op": "volar_todo"}, JEFE)
+
+
+class QueMedidaVaEnQue(unittest.TestCase):
+    """La regla del taller ahora se carga, y sigue habiendo regla sin ella."""
+
+    CAMION = {"id": 1, "patente": "AD247MQ", "tipo": "vehiculo",
+              "marca": "SCANIA", "modelo": "R450", "modelo_3d": "6x2",
+              "medidas": ["295/80R22.5"]}
+    EQUIPO = {"id": 2, "patente": "EQ01", "tipo": "equipo", "marca": "CLARK",
+              "modelo": "C25", "medidas": ["600x9"]}
+
+    class Base:
+        def __init__(self, filas=None, rota=False):
+            self.filas, self.rota, self.rollbacks = filas or [], rota, 0
+
+        def rollback(self):
+            self.rollbacks += 1
+
+        def execute(self, consulta, valores=()):
+            if self.rota:
+                raise RuntimeError('relation "cubiertas_medidas" does not exist')
+            return Resultado(muchas=self.filas)
+
+    def test_sin_la_tabla_rige_la_regla_escrita_a_mano(self):
+        cx = self.Base(rota=True)
+        self.assertEqual(unidades.reglas_de_medidas(cx), unidades.MEDIDAS)
+        self.assertEqual(cx.rollbacks, 1, "hay que soltar la transacción abortada")
+
+    def test_sin_medidas_con_familia_tambien(self):
+        # Todo cargado como 'otro': si eso valiera como regla, no se
+        # controlaría nada y una 700x12 entraría en un camión.
+        cx = self.Base([])
+        self.assertEqual(unidades.reglas_de_medidas(cx), unidades.MEDIDAS)
+
+    def test_la_familia_cargada_es_la_que_manda(self):
+        cx = self.Base([
+            {"clase": "camion", "corta": "295", "medida": "295/80R22.5"},
+            {"clase": "camion", "corta": "315", "medida": "315/80R22.5"},
+            {"clase": "autoelevador", "corta": "600", "medida": "600x9"}])
+        reglas = unidades.reglas_de_medidas(cx)
+        self.assertEqual(reglas["camion"][0], (295, 315))
+        self.assertEqual(reglas["autoelevador"][0], (600,))
+        # La 315 entra en el camión porque la cargaron, no porque esté en
+        # el código: en la regla escrita a mano no entra.
+        self.assertTrue(unidades.medida_va(self.CAMION, "315/80R22.5", reglas)[0])
+        self.assertFalse(unidades.medida_va(self.CAMION, "315/80R22.5")[0])
+        self.assertFalse(unidades.medida_va(self.CAMION, "700x12", reglas)[0])
+        self.assertFalse(unidades.medida_va(self.EQUIPO, "295/80R22.5", reglas)[0])
+
+    def test_la_clase_que_no_se_cargo_conserva_su_regla(self):
+        # Cargaron las de camión y ninguna de autoelevador. El autoelevador
+        # no se queda sin regla: eso lo dejaría entrar cualquier cosa.
+        cx = self.Base([{"clase": "camion", "corta": "295", "medida": "295/80R22.5"}])
+        reglas = unidades.reglas_de_medidas(cx)
+        self.assertEqual(reglas["autoelevador"], unidades.MEDIDAS["autoelevador"])
+
+    def test_se_le_dice_a_la_persona_que_medida_esperaba(self):
+        cx = self.Base([
+            {"clase": "camion", "corta": "295", "medida": "295/80R22.5"},
+            {"clase": "camion", "corta": "295", "medida": "295/75R22.5"},
+            {"clase": "autoelevador", "corta": "600", "medida": "600x9"},
+            {"clase": "autoelevador", "corta": "700", "medida": "700x12"}])
+        reglas = unidades.reglas_de_medidas(cx)
+        # Varias de la misma familia se nombran por el número que las junta.
+        self.assertEqual(reglas["camion"][1], "295 (295/80R22.5 y las de esa familia)")
+        # Dos familias de una medida cada una, por su medida.
+        self.assertEqual(reglas["autoelevador"][1], "600x9 o 700x12")
+
+    def test_la_unidad_sin_regla_sigue_aceptando_todo(self):
+        # Un camión chico de reparto: no está en ninguna de las dos clases.
+        chico = {"id": 3, "patente": "AA111BB", "tipo": "vehiculo",
+                 "marca": "MERCEDES BENZ", "modelo": "L1114", "medidas": []}
+        entra, comose = unidades.medida_va(chico, "215/75R17.5")
+        self.assertTrue(entra)
+        self.assertIsNone(comose)
 
 
 if __name__ == "__main__":
