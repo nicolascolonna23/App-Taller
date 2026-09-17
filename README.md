@@ -125,7 +125,34 @@ la excepción de ruta y los indicadores— está en
 [la guía de solicitudes](gomeria/SOLICITUDES.md). Las tablas salen de
 `gomeria/26_solicitudes.sql`.
 
+## Urea: el tacho propio
+
+Combustible se controla contra un tercero; la urea no, porque el tacho es
+nuestro. Así que no hay remitos que cruzar: hay un **stock**. Vive en
+`/combustible#urea` y funciona como el depósito de repuestos: **nadie
+edita el saldo**, el saldo es la suma de los movimientos.
+
+Entra por compra, sale por despacho a cada unidad —o por derrame o
+préstamo, que también salen y también se anotan— y cuando el tacho medido
+no da, la diferencia se anota con su motivo en vez de corregir el número.
+Esa diferencia es el dato: la merma existe y taparla es perderla.
+
+Avisa en `/alertas` de las dos maneras en que uno se queda sin urea: el
+tacho bajo del mínimo, y el que al ritmo de este mes no llega a la semana.
+
+De regalo, cruzando con lo que ya hay: el **% de urea sobre gasoil** por
+unidad. Un camión moderno anda entre 3% y 6%; el que da mucho menos tiene
+el sistema anulado y el que da mucho más pierde. El detalle está en
+[la guía de urea](gomeria/UREA.md) y las tablas salen de
+`gomeria/28_urea.sql`.
+
 ## Costos del taller en la portada
+
+En la ficha de cada unidad, además, está su **historial de taller**: las
+órdenes abiertas y cerradas con lo que costó cada una, qué se le hizo y
+qué repuestos llevó. Sale del módulo de órdenes, no de una consulta
+nueva: dos consultas que dicen lo mismo terminan diciendo cosas
+distintas.
 
 La portada muestra los KPI de las órdenes de los últimos doce meses: total
 gastado por patente y pesos por kilómetro separados en preventivo y
@@ -134,7 +161,7 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` y `node tests/usuarios_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` y `node tests/urea_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
 
 ## Vales auditables (borrador de integración)
 

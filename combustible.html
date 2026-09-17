@@ -135,6 +135,35 @@
     border-bottom:1px solid var(--hairline)}
   .lote:last-child{border:0}
   .lote .der{margin-left:auto;color:var(--ink-muted);font-size:11px}
+/* EL TACHO DE UREA. El saldo es el número grande de la pantalla: lo
+   primero que hay que poder leer desde lejos es cuánto queda. */
+.tacho{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;
+  padding:22px;align-items:center}
+.tacho .litros{font-size:44px;font-weight:700;letter-spacing:-1.5px;line-height:1}
+.tacho .litros small{font-size:15px;font-weight:600;color:var(--ink-muted);margin-left:6px}
+.tacho .nombre{font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:10px}
+.nivel{height:16px;border-radius:9px;background:#f1f4f7;overflow:hidden;margin:14px 0 8px;
+  border:1px solid var(--hairline)}
+.nivel i{display:block;height:100%;background:#2e9e5b;transition:width .3s}
+.nivel.aviso i{background:#d9a017}
+.nivel.critico i,.nivel.vacio i{background:#c8414b}
+.tacho .datos-tacho{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:14px}
+.tacho .datos-tacho div span{display:block;font-size:9px;font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
+.tacho .datos-tacho div b{font-size:15px;font-weight:600}
+.estado-urea{border-radius:5px;padding:5px 9px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px}
+.estado-urea.ok{background:#e7f6ec;color:#1d6b3c}
+.estado-urea.aviso{background:#fff2d9;color:#775d2c}
+.estado-urea.critico,.estado-urea.vacio{background:#fff0f1;color:#a32935}
+.pastilla.entrada{background:#e7f6ec;color:#1d6b3c}
+.pastilla.salida{background:#e9f2fc;color:#23629b}
+.pastilla.ajuste{background:#fff2d9;color:#775d2c}
+.fuera{color:#a32935;font-weight:700}
+.acciones-urea{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+@media(max-width:760px){.tacho{grid-template-columns:1fr;gap:16px}
+  .tacho .litros{font-size:36px}}
 </style>
 <style>
 :root{color-scheme:light;--plane:#f3f5f7;--surface-1:#fff;--surface-2:#f7f9fb;--surface-3:#edf1f5;--hairline:#e3e8ee;--hairline-2:#cbd4de;--ink:#172b40;--ink-2:#42566b;--ink-muted:#617387;--brand:#ffd400;--brand-soft:#fff6e8;--ok:#147d57;--warn:#996000;--bad:#bb3744;--info:#2266aa}
@@ -166,6 +195,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     <a href="#tickets" data-view="tickets">Tickets <span>01</span></a>
     <a href="#cruce" data-view="cruce">Cruce de remitos <span>02</span></a>
     <a href="#resumen" data-view="resumen">Resumen <span>03</span></a>
+    <a href="#urea" data-view="urea">Urea <span>04</span></a>
   </nav>
 
   <div id="error" class="error" hidden></div>
@@ -281,6 +311,130 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     <div style="padding:12px 12px 0"><h2>Archivos cargados</h2></div>
     <div id="lotes"></div>
   </div>
+
+  <!-- ------------------------------------------------------------ UREA
+       El tacho es propio, así que no hay nada que cruzar con nadie: lo
+       que hay que controlar es un stock. Nadie edita el saldo; el saldo
+       es el resultado de los movimientos. -->
+  <section id="urea-view" hidden>
+    <div class="section-head">
+      <div><h2>El tacho</h2>
+        <p class="muted" id="u-resumen">Cargando…</p></div>
+      <button class="btn gris" id="u-editar" hidden>Editar tacho</button>
+    </div>
+
+    <div class="caja tacho" id="u-tacho"></div>
+
+    <div class="section-head">
+      <div><h2>Movimientos</h2>
+        <p class="muted">Entra por compra, sale por despacho. Si el tacho medido no
+          da, se anota la diferencia con su motivo: el saldo no se corrige a mano.</p></div>
+    </div>
+
+    <div class="acciones-urea">
+      <button class="btn" id="u-despachar">+ Despachar a una unidad</button>
+      <button class="btn gris" id="u-cargar" hidden>+ Cargar urea al tacho</button>
+      <button class="btn gris" id="u-medir" hidden>Medí el tacho</button>
+    </div>
+
+    <form id="u-form-salida" class="zona manual" hidden>
+      <h2>Despachar urea</h2>
+      <p class="que">Lo que se le puso a una unidad. Si no fue a ninguna —derrame,
+        préstamo, devolución— dejá la unidad vacía y escribí el motivo: igual salió
+        del tacho.</p>
+      <div class="form-grid">
+        <label>Unidad<select name="unidad_id" id="u-s-unidad"></select></label>
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Litros<input name="litros" type="number" min="0.01" step="0.01" required></label>
+        <label>Kilómetros<input name="km" type="number" min="0" step="1"></label>
+        <label style="grid-column:span 2">Motivo, si no fue a una unidad
+          <input name="motivo" maxlength="200" placeholder="Derrame, préstamo, devolución…"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Despachar</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-salida">Cancelar</button></div>
+    </form>
+
+    <form id="u-form-entrada" class="zona manual" hidden>
+      <h2>Cargar urea al tacho</h2>
+      <p class="que">Lo que descargó el proveedor. El importe es opcional; sirve para
+        saber cuánto cuesta el litro cuando se mira el gasto por unidad.</p>
+      <div class="form-grid">
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Litros<input name="litros" type="number" min="0.01" step="0.01" required></label>
+        <label>Proveedor<input name="proveedor" maxlength="120"></label>
+        <label>Remito o factura<input name="remito" maxlength="60"></label>
+        <label>Importe ($)<input name="importe" type="number" min="0" step="0.01"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Cargar</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-entrada">Cancelar</button></div>
+    </form>
+
+    <form id="u-form-medicion" class="zona manual" hidden>
+      <h2>Medí el tacho</h2>
+      <p class="que">Cuántos litros hay de verdad. Si no coincide con el saldo, la
+        diferencia se anota como un movimiento más, con su motivo. Esa diferencia es
+        el dato: la merma de un tacho de urea existe y taparla es perderla.</p>
+      <div class="form-grid">
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Litros medidos<input name="medido_litros" type="number" min="0" step="0.01" required></label>
+        <label>Motivo de la diferencia
+          <input name="motivo" maxlength="200" placeholder="Merma, derrame, carga sin anotar…"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Anotar la medición</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-medicion">Cancelar</button></div>
+    </form>
+
+    <form id="u-form-tacho" class="zona manual" hidden>
+      <h2>El tacho</h2>
+      <p class="que">La capacidad y el mínimo con el que empieza a avisar. Si el mínimo
+        se deja vacío, avisa al 20% de la capacidad.</p>
+      <div class="form-grid">
+        <label>Nombre<input name="nombre" maxlength="80" required></label>
+        <label>Capacidad (litros)<input name="capacidad_litros" type="number" min="1" step="1" required></label>
+        <label>Mínimo (litros)<input name="minimo_litros" type="number" min="0" step="1"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Guardar</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-tacho">Cancelar</button></div>
+    </form>
+
+    <div id="u-aviso" class="error" hidden></div>
+
+    <div class="toolbar">
+      <label class="search">Buscar unidad, proveedor o motivo
+        <input type="search" id="u-buscar" placeholder="Ej. AB 123 CD, YPF, derrame"></label>
+      <label>Tipo<select id="u-tipo">
+        <option value="">Todos</option>
+        <option value="salida">Despachos</option>
+        <option value="entrada">Cargas al tacho</option>
+        <option value="ajuste">Mediciones</option>
+      </select></label>
+    </div>
+    <div class="caja">
+      <table class="datos"><thead><tr>
+        <th>Fecha</th><th>Tipo</th><th>Unidad o motivo</th>
+        <th class="num">Litros</th><th class="num">Km</th><th>Quién</th><th></th>
+      </tr></thead><tbody id="u-movimientos"></tbody></table>
+      <p class="vacio" id="u-vacio" hidden>Todavía no hay movimientos del tacho.</p>
+    </div>
+
+    <div class="section-head">
+      <div><h2>Urea por unidad</h2>
+        <p class="muted">Un camión moderno consume entre 3% y 6% del gasoil. El que da
+          mucho menos tiene el sistema anulado —y eso es una multa esperando—; el que da
+          mucho más pierde, o alguien se está llevando bidones.</p></div>
+      <label style="font-size:11px;font-weight:600;color:var(--ink-muted)">Mes
+        <select id="u-mes" style="margin-left:8px"></select></label>
+    </div>
+    <div class="caja">
+      <table class="datos"><thead><tr>
+        <th>Unidad</th><th>Chofer</th>
+        <th class="num">Despachos</th><th class="num">Urea (L)</th>
+        <th class="num">Gasoil (L)</th><th class="num">% sobre gasoil</th>
+        <th class="num">Km</th><th class="num">L / 100 km</th>
+      </tr></thead><tbody id="u-unidades"></tbody></table>
+      <p class="vacio" id="u-unidades-vacio" hidden>Todavía no se despachó urea a ninguna unidad.</p>
+    </div>
+  </section>
 </main>
 
 <div id="globo"></div>
@@ -783,13 +937,17 @@ function renderTickets(){
   $('#next-page').disabled = (ticketPage+1)*50 >= rows.length;
 }
 function navigate(){
-  const view = ['tickets','cruce','resumen'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tickets';
+  const view = ['tickets','cruce','resumen','urea'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tickets';
   $('#tickets-view').hidden = view !== 'tickets'; $('#cross-view').hidden = view !== 'cruce'; $('#summary-view').hidden = view !== 'resumen';
+  $('#urea-view').hidden = view !== 'urea';
   $('#z-estacion').hidden = view !== 'cruce'; $('#z-planilla').hidden = view !== 'tickets';
-  $('#imports').style.display = view === 'resumen' ? 'none' : 'grid';
-  $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible'}[view];
-  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.',cruce:'Controlá lo facturado y encontrá diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.'}[view];
+  // La urea no se importa de ningún archivo: se carga a mano, son dos o
+  // tres movimientos por día. Las zonas de importación no van en su solapa.
+  $('#imports').style.display = (view === 'resumen' || view === 'urea') ? 'none' : 'grid';
+  $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible',urea:'Urea'}[view];
+  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.',cruce:'Controlá lo facturado y encontrá diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.',urea:'El tacho es propio: entra por compra, sale por despacho y el saldo se calcula solo.'}[view];
   if(view === 'resumen') cargarFlota().catch(()=>{ $('#error').textContent='No se pudo cargar el resumen.'; $('#error').hidden=false; });
+  if(view === 'urea') cargarUrea().catch(()=>{ $('#u-resumen').textContent='No se pudo leer el tacho.'; });
   document.querySelectorAll('[data-view]').forEach(a=>{a.classList.toggle('active',a.dataset.view===view);a.setAttribute('aria-current',a.dataset.view===view?'page':'false');});
 }
 window.addEventListener('hashchange',navigate);
@@ -808,6 +966,204 @@ $('#ticket-form').onsubmit=async e=>{
   $('#p-planilla').scrollIntoView({behavior:'smooth',block:'center'});
 };
 $('#mes').onchange=()=>cargarFlota($('#mes').value).catch(()=>{$('#error').textContent='No se pudo cargar el mes.';$('#error').hidden=false;});
+/* ====================================================================
+   UREA — el tacho propio
+   El saldo no se guarda en ningún lado: es la suma de los movimientos.
+   Por eso después de cada carga se vuelve a pedir todo: no hay un número
+   local que se pueda quedar diciendo otra cosa.
+   ==================================================================== */
+const UREA = { datos: null, mes: null };
+const HOY = new Date().toISOString().slice(0, 10);
+const TIPO_UREA = { entrada: 'Carga', salida: 'Despacho', ajuste: 'Medición' };
+
+async function apiUrea(op, extra) {
+  const r = await fetch('/api/urea', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ op }, extra || {})) });
+  const d = await r.json().catch(() => ({ error: 'Respuesta ilegible del servidor.' }));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+function avisoUrea(texto, malo) {
+  const caja = $('#u-aviso');
+  caja.hidden = !texto;
+  caja.className = malo === false ? 'aviso-rep zona' : 'error';
+  caja.textContent = texto || '';
+}
+
+async function cargarUrea() {
+  const r = await fetch('/api/urea');
+  const d = await r.json().catch(() => ({ error: 'Respuesta ilegible del servidor.' }));
+  if (!r.ok) { $('#u-resumen').textContent = d.error || 'No se pudo leer el tacho.'; return; }
+  UREA.datos = d;
+  const gestiona = !!d.puede_gestionar;
+  ['#u-cargar', '#u-medir', '#u-editar'].forEach(id => { $(id).hidden = !gestiona; });
+  $('#u-s-unidad').innerHTML = '<option value="">Sin unidad (derrame, préstamo…)</option>' +
+    d.unidades.map(u => `<option value="${u.id}" data-km="${u.km_actual || ''}">${
+      esc(fmtPat(u.patente))}${u.interno ? ' · ' + esc(u.interno) : ''}</option>`).join('');
+  const meses = [...new Set(d.por_unidad.map(x => x.mes))].sort().reverse();
+  if (!meses.includes(UREA.mes)) UREA.mes = meses[0] || null;
+  $('#u-mes').innerHTML = meses.map(m => `<option value="${m}"${m === UREA.mes ? ' selected' : ''}>${
+    new Date(m + 'T12:00').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+    }</option>`).join('') || '<option value="">—</option>';
+  pintarUrea();
+}
+
+function pintarUrea() {
+  const d = UREA.datos;
+  if (!d) return;
+
+  $('#u-tacho').innerHTML = d.tanques.map(t => {
+    const lleno = Math.max(0, Math.min(100, Number(t.porcentaje) || 0));
+    const dias = t.dias_restantes;
+    return `
+      <div>
+        <div class="nombre">${esc(t.nombre)}${
+          t.sucursal_codigo ? ' · ' + esc(t.sucursal_codigo) : ''}</div>
+        <div class="litros">${nf0.format(t.saldo)}<small>litros</small></div>
+        <div class="nivel ${esc(t.estado)}"><i style="width:${lleno}%"></i></div>
+        <p class="muted">${lleno.toFixed(0)}% de ${nf0.format(t.capacidad_litros)} litros ·
+          <span class="estado-urea ${esc(t.estado)}">${
+            { ok: 'Con urea', aviso: 'Hay que pedir', critico: 'Urgente', vacio: 'Vacío' }[t.estado]
+          }</span></p>
+      </div>
+      <div class="datos-tacho">
+        <div><span>Alcanza para</span><b>${dias == null ? 'sin ritmo aún' : dias + ' días'}</b></div>
+        <div><span>Se va por día</span><b>${
+          t.consumo_diario ? nf0.format(t.consumo_diario) + ' L' : '—'}</b></div>
+        <div><span>Avisa en</span><b>${nf0.format(t.minimo_litros)} L</b></div>
+        <div><span>Última carga</span><b>${fecha(t.ultima_entrada)}</b></div>
+        <div><span>Última medición</span><b>${fecha(t.ultima_medicion)}</b></div>
+      </div>`;
+  }).join('') || '<p class="vacio">Todavía no hay ningún tacho cargado.</p>';
+
+  const t = d.tanques[0];
+  $('#u-resumen').textContent = t
+    ? (t.dias_restantes == null
+        ? `Quedan ${nf0.format(t.saldo)} litros. Todavía no hay consumo para estimar días.`
+        : `Quedan ${nf0.format(t.saldo)} litros: unos ${t.dias_restantes} días al ritmo de este mes.`)
+    : 'Sin tacho cargado.';
+
+  const texto = ($('#u-buscar').value || '').trim().toLowerCase();
+  const tipo = $('#u-tipo').value;
+  const filas = d.movimientos.filter(m => {
+    if (tipo && m.tipo !== tipo) return false;
+    if (!texto) return true;
+    return [m.patente, m.interno, m.proveedor, m.remito, m.motivo, m.usuario]
+      .some(x => String(x || '').toLowerCase().includes(texto));
+  });
+
+  $('#u-movimientos').innerHTML = filas.map(m => `
+    <tr>
+      <td>${fecha(m.fecha)}</td>
+      <td><span class="pastilla ${esc(m.tipo)}">${TIPO_UREA[m.tipo]}</span></td>
+      <td>${m.patente
+            ? `<span class="plate">${esc(fmtPat(m.patente))}</span>${
+                m.interno ? ` <span class="muted">· ${esc(m.interno)}</span>` : ''}`
+            : `<span class="muted">${esc(m.motivo || m.proveedor || '—')}</span>`}
+          ${m.tipo === 'entrada' && m.proveedor
+            ? `<div class="muted">${esc(m.proveedor)}${m.remito ? ' · remito ' + esc(m.remito) : ''}</div>` : ''}
+          ${m.tipo === 'ajuste'
+            ? `<div class="muted">medido: ${nf0.format(m.medido_litros)} L${
+                m.motivo ? ' · ' + esc(m.motivo) : ''}</div>` : ''}</td>
+      <td class="num" style="text-align:right;font-variant-numeric:tabular-nums">${
+        (Number(m.delta) > 0 ? '+' : '') + nf.format(m.delta)}</td>
+      <td class="num" style="text-align:right">${m.km ? nf0.format(m.km) : '—'}</td>
+      <td>${esc(m.usuario || '')}</td>
+      <td>${d.puede_gestionar
+            ? `<button class="btn gris chico" data-borrar-urea="${m.id}">Borrar</button>` : ''}</td>
+    </tr>`).join('');
+  $('#u-vacio').hidden = filas.length > 0;
+
+  const delMes = d.por_unidad.filter(u => u.mes === UREA.mes);
+  const [bajo, alto] = d.banda_gasoil;
+  $('#u-unidades').innerHTML = delMes.map(u => {
+    const pct = u.porcentaje_gasoil;
+    const fuera = pct != null && (Number(pct) < bajo || Number(pct) > alto);
+    return `<tr>
+      <td><span class="plate">${esc(fmtPat(u.patente))}</span>${
+        u.interno ? ` <span class="muted">· ${esc(u.interno)}</span>` : ''}</td>
+      <td>${esc(u.chofer || '')}</td>
+      <td style="text-align:right">${u.despachos}</td>
+      <td style="text-align:right">${nf.format(u.litros_urea)}</td>
+      <td style="text-align:right">${u.litros_gasoil == null ? '—' : nf.format(u.litros_gasoil)}</td>
+      <td style="text-align:right" class="${fuera ? 'fuera' : ''}">${
+        pct == null ? '—' : nf.format(pct) + '%'}</td>
+      <td style="text-align:right">${u.km == null ? '—' : nf0.format(u.km)}</td>
+      <td style="text-align:right">${u.litros_100km == null ? '—' : nf.format(u.litros_100km)}</td>
+    </tr>`;
+  }).join('');
+  $('#u-unidades-vacio').hidden = delMes.length > 0;
+}
+
+function formUrea(cual) {
+  ['u-form-salida', 'u-form-entrada', 'u-form-medicion', 'u-form-tacho']
+    .forEach(id => { $('#' + id).hidden = id !== cual; });
+  avisoUrea('');
+  if (!cual) return;
+  const form = $('#' + cual);
+  if (form.fecha) form.fecha.value = HOY;
+  const primero = form.querySelector('input, select');
+  if (primero) primero.focus();
+}
+
+async function mandarUrea(op, form) {
+  const datos = Object.fromEntries(new FormData(form).entries());
+  try {
+    const salida = await apiUrea(op, datos);
+    form.reset();
+    formUrea(null);
+    await cargarUrea();
+    if (salida.aviso) avisoUrea(salida.aviso);
+  } catch (e) {
+    avisoUrea(e.message);
+  }
+}
+
+$('#u-despachar').onclick = () => formUrea('u-form-salida');
+$('#u-cargar').onclick = () => formUrea('u-form-entrada');
+$('#u-medir').onclick = () => formUrea('u-form-medicion');
+$('#u-editar').onclick = () => {
+  const t = (UREA.datos && UREA.datos.tanques[0]) || null;
+  formUrea('u-form-tacho');
+  const form = $('#u-form-tacho');
+  form.nombre.value = t ? t.nombre : '';
+  form.capacidad_litros.value = t ? t.capacidad_litros : '';
+  form.minimo_litros.value = t && t.minimo_litros != null ? t.minimo_litros : '';
+  form.dataset.id = t ? t.tanque_id : '';
+};
+$('#u-form-salida').onsubmit = e => { e.preventDefault(); mandarUrea('despachar', e.target); };
+$('#u-form-entrada').onsubmit = e => { e.preventDefault(); mandarUrea('cargar', e.target); };
+$('#u-form-medicion').onsubmit = e => { e.preventDefault(); mandarUrea('medir', e.target); };
+$('#u-form-tacho').onsubmit = async e => {
+  e.preventDefault();
+  const datos = Object.fromEntries(new FormData(e.target).entries());
+  if (e.target.dataset.id) datos.id = e.target.dataset.id;
+  try {
+    await apiUrea('tanque', datos);
+    formUrea(null);
+    await cargarUrea();
+  } catch (err) { avisoUrea(err.message); }
+};
+/* El kilometraje que ya sabe el maestro: un campo menos para tipear. */
+$('#u-s-unidad').onchange = e => {
+  const km = e.target.selectedOptions[0] && e.target.selectedOptions[0].dataset.km;
+  const campo = $('#u-form-salida').km;
+  if (km && !campo.value) campo.value = Math.round(km);
+};
+$('#u-buscar').oninput = $('#u-tipo').onchange = pintarUrea;
+$('#u-mes').onchange = e => { UREA.mes = e.target.value; pintarUrea(); };
+document.addEventListener('click', async ev => {
+  const cancelar = ev.target.closest('[data-cancelar]');
+  if (cancelar) return formUrea(null);
+  const borrar = ev.target.closest('[data-borrar-urea]');
+  if (!borrar) return;
+  if (!confirm('¿Borrar este movimiento? El saldo del tacho se recalcula solo.')) return;
+  try { await apiUrea('borrar', { id: borrar.dataset.borrarUrea }); await cargarUrea(); }
+  catch (e) { avisoUrea(e.message); }
+});
+
 navigate();
 cargar();
 </script>

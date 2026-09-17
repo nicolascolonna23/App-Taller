@@ -10,7 +10,8 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /repuestos   stock de repuestos
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
-    /combustible cruce de remitos contra el listado de la estación (en prueba)
+    /combustible cruce de remitos contra el listado de la estación, y el
+                 tacho de urea en su solapa
     /ordenes     órdenes de trabajo del taller y servicios externos
     /solicitudes solicitudes de orden de compra: pedir, aprobar, reparar, rendir
     /usuarios    altas, bajas, roles y qué módulos abre cada uno
@@ -44,6 +45,7 @@ import solicitudes as sol
 import mantenimiento as mant
 import preferencias as prefs
 import unidades as uni
+import urea as ure
 import vencimientos as venc
 import servidor as gom
 from flota_vales.http import atender as atender_vales
@@ -594,6 +596,22 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las alertas: {e}", 500)
 
+        # El tacho de urea. Vive adentro de Combustible —es su solapa— y
+        # por eso comparte su permiso: el que carga gasoil carga urea.
+        if ruta == "/api/urea":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(ure.panel(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de urea. Ejecutar "
+                    "gomeria/28_urea.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo leer el tacho de urea: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -839,6 +857,33 @@ class App(gom.Handler):
         # entra en los 256 KB que alcanzan para el resto.
         if ruta == "/api/factura":
             return self._leer_factura()
+
+        # Los movimientos del tacho. Cada uno es una fila más: el saldo no
+        # se guarda en ningún lado, se calcula, así que no hay dos números
+        # que se puedan contradecir.
+        if ruta == "/api/urea":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 64 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    salida = ure.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(salida))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except ValueError as e:
+                return self._error(str(e))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear las tablas de urea. Ejecutar "
+                    "gomeria/28_urea.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar el movimiento: {e}", 500)
 
         if ruta == "/api/alertas":
             return self._alertas()
@@ -1114,6 +1159,7 @@ def preparar():
             "solicitudes de orden de compra": ("sucursales", "solicitudes_compra",
                                                "solicitud_eventos", "solicitudes_contador"),
             "usuarios y roles": ("roles", "rol_modulos"),
+            "urea": ("urea_tanques", "urea_movimientos"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):

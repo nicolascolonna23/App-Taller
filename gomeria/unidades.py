@@ -14,6 +14,7 @@ import io
 import os
 import re
 
+import ordenes
 import permisos
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -607,6 +608,24 @@ def ficha(cx, unidad_id):
     salida["lecturas"] = _bloque(cx, """
         select fecha, km from odometros
         where unidad_id = %s order by fecha desc limit 10""", (unidad_id,))
+
+    # Lo que pasó por el taller, abierto y cerrado, con lo que costó. Es
+    # la pregunta que se hace de verdad cuando se abre una unidad —¿qué le
+    # hicimos a este camión y cuánto salió?— y hasta ahora había que ir a
+    # buscarla a otra pantalla.
+    #
+    # Sale del módulo de órdenes y no de una consulta nueva: el historial
+    # por patente ya estaba escrito ahí, y dos consultas que dicen lo
+    # mismo terminan diciendo cosas distintas. Va por patente porque una
+    # unidad dada de baja y vuelta a cargar cambia de id y sigue siendo el
+    # mismo camión.
+    salida["ordenes"] = None
+    try:
+        salida["ordenes"] = ordenes.historial(cx, unidad["patente"])
+    except Exception:
+        # El módulo de órdenes todavía no está instalado en esta base: la
+        # ficha se dibuja igual, sin ese bloque.
+        cx.rollback()
 
     # El semi es texto: puede o no estar cargado como unidad. Si está, se
     # devuelve su id para poder saltar; si no, queda la patente sola.

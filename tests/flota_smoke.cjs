@@ -51,7 +51,25 @@ const unidades = [
       if (ficha) {
         const u = unidades.find(x => String(x.id) === ficha[1]);
         return route.fulfill({ json:{ unidad:u, modelo_3d:null, modelo_3d_falta:null,
-          odometro:null, lecturas:[], cubiertas:[], vencimientos:[], ordenes:[],
+          odometro:null, lecturas:[], cubiertas:[], vencimientos:[],
+          // Lo que pasó por el taller, como lo arma el módulo de órdenes.
+          ordenes:{ patente:u.patente, total:340000,
+            ordenes:[
+              { numero:91, fecha:'2026-09-14', estado:'abierta', tipo:'interna',
+                mantenimiento:'correctivo', taller:null, total:90000,
+                solicitado:'Pierde aire el sistema de frenos', diagnostico:null,
+                factura:null },
+              { numero:82, fecha:'2026-08-02', estado:'cerrada', tipo:'externa',
+                mantenimiento:'preventivo', taller:'Iveco Catamarca', total:250000,
+                solicitado:'Service de 130.000', diagnostico:null, factura:'A-7' },
+              { numero:70, fecha:'2026-05-11', estado:'anulada', tipo:'interna',
+                mantenimiento:'correctivo', taller:null, total:12000,
+                solicitado:'Cargada por error', diagnostico:null, factura:null },
+            ],
+            trabajos:[{ numero:82, fecha:'2026-08-02', estado:'cerrada',
+                        detalle:'Cambio de aceite y filtros' }],
+            repuestos:[{ numero:82, fecha:'2026-08-02', codigo:'F-101',
+                         descripcion:'Filtro de aceite', cantidad:2 }] },
           services:[], posiciones:[] } });
       }
       if (p.startsWith('/api/')) return route.fulfill({ json:{} });
@@ -110,6 +128,25 @@ const unidades = [
     await vent.screenshot({ path:'/tmp/flota-pdf.png', fullPage:true });
     await vent.close();
 
+    // ---- el historial de taller de la unidad --------------------------
+    // Abrir un camión y no ver qué se le hizo obligaba a ir a otra
+    // pantalla. Acá tiene que estar: abiertas, cerradas y lo que costó.
+    await page.click('#cuerpo tr:has-text("AH 522 SI")');
+    await page.locator('#c-estado').waitFor({ state:'visible' });
+    const taller = page.locator('.bloque', { hasText:'Órdenes de trabajo' });
+    await taller.waitFor();
+    const texto = await taller.innerText();
+    for (const x of ['1', 'abiertas', 'cerradas', 'Nº 91', 'Nº 82',
+                     'Pierde aire', 'Cambio de aceite y filtros',
+                     'Filtro de aceite', 'Iveco Catamarca', 'Factura A-7'])
+      assert(texto.includes(x), `falta "${x}" en el historial de taller: ${texto}`);
+    // La anulada se lista, pero su monto no suma: el trabajo no existió.
+    assert(texto.includes('Nº 70') && texto.includes('anulada'),
+           'la orden anulada no aparece');
+    assert(texto.includes('340.000'), 'el gastado no es el de las no anuladas: ' + texto);
+    assert(!texto.includes('$ 12.000'), 'la anulada está mostrando monto');
+    await page.click('#cerrar');
+
     // ---- dar de baja y reactivar --------------------------------------
     page.on('dialog', d => d.accept());
     await page.selectOption('#f-estado', 'activas');
@@ -131,6 +168,6 @@ const unidades = [
     await page.click('#cerrar');
     await page.screenshot({ path:'/tmp/flota-listado.png', fullPage:true });
     assert.deepEqual(errores, [], 'errores de JS: ' + errores.join(' | '));
-    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; baja y reactivación avisan qué queda colgando.');
+    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; baja y reactivación avisan qué queda colgando.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

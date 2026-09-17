@@ -6,7 +6,7 @@ services en una planilla de Google, las cargas raras de combustible en
 ningún lado y las gomas al límite en Gomería. Nadie mira cuatro pantallas
 todos los días, así que en la práctica no se miraba ninguna.
 
-Acá entran las cuatro fuentes con la misma forma —qué es, de qué unidad,
+Acá entran las cinco fuentes con la misma forma —qué es, de qué unidad,
 cuán urgente y adónde ir a resolverlo— y salen ordenadas por urgencia, no
 por fuente. Al que abre la pantalla a la mañana no le importa si lo que
 tiene encima es una VTV o un service: le importa cuál lo deja tirado
@@ -28,9 +28,13 @@ SEVERIDADES = {"grave": 0, "media": 1, "leve": 2}
 # la misma escala—, así que dentro de cada nivel manda la consecuencia:
 # el papel para el camión hoy, la goma al mínimo puede reventar, el service
 # pasado lo rompe en algún momento, y la carga rara ya pasó.
-PRIORIDAD = {"vencimiento": 0, "cubierta": 1, "service": 2, "combustible": 3}
+# La urea va arriba de todo a igual gravedad: un tacho vacío no deja a un
+# camión a medias, lo deja parado antes de salir. Y se resuelve con un
+# llamado al proveedor, si se avisa a tiempo.
+PRIORIDAD = {"urea": 0, "vencimiento": 1, "cubierta": 2, "service": 3,
+             "combustible": 4}
 
-FUENTES = ("vencimiento", "service", "combustible", "cubierta")
+FUENTES = ("vencimiento", "service", "combustible", "cubierta", "urea")
 
 # Cómo se llama cada fuente en pantalla y adónde manda.
 DONDE = {
@@ -38,6 +42,7 @@ DONDE = {
     "service":     ("Services",     "/alertas#services"),
     "combustible": ("Combustible",  "/combustible"),
     "cubierta":    ("Gomería",      "/gomeria#wear"),
+    "urea":        ("Urea",         "/combustible#urea"),
 }
 
 
@@ -308,15 +313,60 @@ def _cubiertas(cx):
     return salida
 
 
+def _urea(cx):
+    """El tacho que se está quedando sin urea.
+
+    No es una alerta por unidad como las otras cuatro: es por tacho, y
+    por eso no lleva patente. Igual entra acá, porque el que abre la
+    pantalla a la mañana necesita saberlo antes de que el primer camión
+    pida y no haya.
+    """
+    filas = _tabla(cx, """
+        select * from v_urea_saldo
+        where activo and estado <> 'ok'
+        order by case estado when 'vacio' then 0 when 'critico' then 1 else 2 end,
+                 dias_restantes nulls last, saldo
+    """)
+    if filas is None:
+        return None
+    salida = []
+    for f in filas:
+        saldo = float(f["saldo"] or 0)
+        dias = f["dias_restantes"]
+        detalle = (f"{_miles(f['minimo_litros'])} litros es el mínimo"
+                   if dias is None else
+                   f"alcanza para unos {dias} días al ritmo de este mes")
+        salida.append({
+            "fuente": "urea",
+            "clave": str(f["tanque_id"]),
+            # Vacío no es un aviso: es una parada. El camión que pide urea
+            # y no hay, no sale.
+            "severidad": "grave" if f["estado"] in ("vacio", "critico") else "media",
+            "titulo": (f"{f['nombre']} sin urea" if saldo <= 0
+                       else f"{f['nombre']}: quedan {_miles(saldo)} litros"),
+            "detalle": detalle,
+            "patente": None,
+            "interno": None,
+            "sucursal": f["sucursal_codigo"],
+            "de_quien": None,
+            "fecha": f["ultima_entrada"],
+            # Primero el que menos días aguanta; sin ritmo, el más vacío.
+            "orden": dias if dias is not None else saldo,
+            "extra": f"{f['porcentaje']}% de {_miles(f['capacidad_litros'])} litros",
+        })
+    return salida
+
+
 LECTORES = {"vencimiento": _vencimientos, "service": _services,
-            "combustible": _combustible, "cubierta": _cubiertas}
+            "combustible": _combustible, "cubierta": _cubiertas,
+            "urea": _urea}
 
 
 # =====================================================================
 # LA LISTA
 # =====================================================================
 def listar(cx, incluir_silenciadas=False):
-    """Las cuatro fuentes juntas, ordenadas por urgencia."""
+    """Las cinco fuentes juntas, ordenadas por urgencia."""
     if not instalado(cx):
         return {"instalado": False,
                 "aviso": "Falta correr gomeria/20_alertas.sql en Supabase."}

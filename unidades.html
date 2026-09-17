@@ -1002,6 +1002,61 @@ async function pintarEstado(id){
       : '<p class="nada">Sin documentos cargados para esta unidad.</p>',
     ['Vencimientos', '/vencimientos']));
 
+  /* Lo que pasó por el taller. Abiertas primero: son las que todavía
+     tienen algo que hacer. El monto de cada una y, debajo, qué se le
+     hizo: sin eso es una lista de números de orden. */
+  const ot = d.ordenes;
+  if (ot){
+    const ordenes = ot.ordenes || [];
+    const abiertas = ordenes.filter(o => o.estado === 'abierta').length;
+    const cerradas = ordenes.filter(o => o.estado === 'cerrada').length;
+    const trabajos = {}, repuestos = {};
+    (ot.trabajos || []).forEach(t => (trabajos[t.numero] ||= []).push(t.detalle));
+    (ot.repuestos || []).forEach(r => (repuestos[r.numero] ||= []).push(
+      `${r.cantidad}× ${r.descripcion || r.codigo || ''}`.trim()));
+
+    const renglon = o => {
+      const detalle = [o.solicitado, o.diagnostico].filter(Boolean).join(' · ');
+      const hechos = (trabajos[o.numero] || []).join(' · ');
+      const puestos = (repuestos[o.numero] || []).join(', ');
+      const bajo = [
+        detalle,
+        hechos && `Se hizo: ${hechos}`,
+        puestos && `Repuestos: ${puestos}`,
+        o.factura && `Factura ${o.factura}`,
+      ].filter(Boolean).map(esc).join(' — ');
+      return `<div class="fila ${o.estado === 'abierta' ? 'por_vencer' : ''}"
+                   style="align-items:flex-start">
+          <span class="izq">Nº ${esc(o.numero)}</span>
+          <span>${fecha(o.fecha)}${o.taller ? ' · ' + esc(o.taller) : ''}
+            ${o.mantenimiento ? ' · ' + esc(o.mantenimiento) : ''}
+            ${o.tipo === 'externa' ? ' · externa' : ''}
+            ${o.estado === 'abierta' ? ' · <b>abierta</b>'
+              : o.estado === 'anulada' ? ' · anulada' : ''}
+            ${bajo ? `<small style="display:block;color:var(--ink-muted);margin-top:3px;
+                        line-height:1.45">${bajo}</small>` : ''}</span>
+          <span class="der">${o.estado === 'anulada' ? '—'
+            : '$ ' + nf0.format(Math.round(Number(o.total) || 0))}</span>
+        </div>`;
+    };
+
+    const visibles = ordenes.slice(0, 8);
+    partes.push(bloque('Órdenes de trabajo',
+      `<div class="numeros">
+         <div><b>${abiertas}</b><span>abiertas</span></div>
+         <div><b>${cerradas}</b><span>cerradas</span></div>
+         <div><b>$ ${nf0.format(Math.round(ot.total || 0))}</b>
+              <span>gastado, sin las anuladas</span></div>
+       </div>` +
+      (ordenes.length
+        ? '<div class="lista" style="margin-top:11px">' + visibles.map(renglon).join('') +
+          (ordenes.length > visibles.length
+            ? `<p class="nada" style="margin:9px 0 0">y ${ordenes.length - visibles.length} más.</p>`
+            : '') + '</div>'
+        : '<p class="nada" style="margin:9px 0 0">Esta unidad todavía no entró al taller.</p>'),
+      ['Órdenes', '/ordenes']));
+  }
+
   /* El semi, si lo hay. */
   if (u.semi){
     const s = d.semi_unidad;
