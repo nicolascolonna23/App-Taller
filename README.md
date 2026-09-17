@@ -141,6 +141,6 @@ Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navega
 Hay un **segundo borrador** del mismo circuito, hecho aparte, que vive en
 `flota_vales/` y se revisa en `/vales`. No reemplaza `/ordenes`, `/control`
 ni `/api/mantenimiento`. Ver [diseño y pendientes antes de fusionar](docs/MANTENIMIENTO.md).
-No aplicar su migración: sus tablas (`mt_*`) son otra versión de lo que ya
-hace `/solicitudes`, y tener las dos andando sería tener dos verdades del
-mismo gasto. Hay que elegir una y sacar la otra.
+No aplicar su migración hasta resolver la unificación: sus tablas (`mt_*`)
+son otra versión de lo que ya hace `/solicitudes`, y tener las dos andando
+sería tener dos verdades del mismo gasto. Hay que elegir una y sacar la otra.
