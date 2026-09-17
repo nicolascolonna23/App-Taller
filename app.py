@@ -15,6 +15,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /ordenes     órdenes de trabajo del taller y servicios externos
     /solicitudes solicitudes de orden de compra: pedir, aprobar, reparar, rendir
     /usuarios    altas, bajas, roles y qué módulos abre cada uno
+    /parametros  de dónde salen los km, los planes y los umbrales de aviso
     /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
 
 Configuración, toda por variables de entorno:
@@ -40,6 +41,8 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
+import enganches as eng
+import parametros as par
 import permisos
 import solicitudes as sol
 import mantenimiento as mant
@@ -77,6 +80,7 @@ PANTALLAS = {
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/solicitudes":      ("solicitudes.html",              "text/html; charset=utf-8"),
     "/usuarios":   ("usuarios.html",           "text/html; charset=utf-8"),
+    "/parametros": ("parametros.html",         "text/html; charset=utf-8"),
     # El módulo liviano para el teléfono: solo gomería y órdenes.
     "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
@@ -90,6 +94,9 @@ PANTALLAS = {
     "/camion3d.js": ("camion3d.js",             "text/javascript; charset=utf-8"),
     # Cómo ve cada uno la aplicación. Lo cargan todas las pantallas.
     "/tema.js":     ("tema.js",                 "text/javascript; charset=utf-8"),
+    # La barra de arriba: los accesos de administración, en todas las
+    # pantallas y para el que los tenga habilitados.
+    "/barra.js":    ("barra.js",                "text/javascript; charset=utf-8"),
 }
 
 
@@ -158,7 +165,11 @@ class App(gom.Handler):
         if tipo.startswith("text/html") and getattr(self, "usuario", None):
             html = cuerpo.decode("utf-8") if isinstance(cuerpo, bytes) else cuerpo
             tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
-            estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
+            # Los accesos de administración van arriba en todas las
+            # pantallas, no solo en la portada: el que maneja el sistema no
+            # tiene por qué volver al inicio para llegar a ellos.
+            barra = '' if 'src="/barra.js"' in html else '<script defer src="/barra.js"></script>'
+            estilos = tema + barra + '<link rel="stylesheet" href="/sistema.css">'
             # El logo de la empresa en la solapa del navegador. Va acá y no
             # en cada archivo porque cada pantalla que se agregue se lo iba
             # a olvidar: Gomería y Configuración no lo tenían, y en la
@@ -509,7 +520,7 @@ class App(gom.Handler):
                 return
             try:
                 with base.conectar() as cx:
-                    return self._responder(gom.jstr(uni.listar(cx)))
+                    return self._responder(gom.jstr(uni.listar(cx, self.usuario)))
             except psycopg.errors.UndefinedColumn:
                 return self._error(
                     "Al maestro de unidades le faltan columnas. Ejecutar "
@@ -585,7 +596,7 @@ class App(gom.Handler):
                 ver = (parse_qs(urlparse(self.path).query).get("silenciadas")
                        or ["0"])[0] in ("1", "true", "si")
                 with base.conectar() as cx:
-                    salida = alr.listar(cx, incluir_silenciadas=ver)
+                    salida = alr.listar(cx, incluir_silenciadas=ver, usuario=self.usuario)
                     if salida.get("instalado"):
                         salida["services"] = alr.services(cx)
                         salida["unidades"] = cx.execute("""
@@ -611,6 +622,37 @@ class App(gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el tacho de urea: {e}", 500)
+
+        # Los parámetros: de dónde salen los km, los planes y los
+        # umbrales. Es una pantalla sola porque son la misma pregunta.
+        if ruta == "/api/parametros":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(par.panel(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Faltan los parámetros. Ejecutar gomeria/29_parametros.sql "
+                    "en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los parámetros: {e}", 500)
+
+        # El enganche tractor–semi, submódulo de Flota.
+        if ruta == "/api/enganches":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(eng.panel(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Falta crear la tabla de enganches. Ejecutar "
+                    "gomeria/29_parametros.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los enganches: {e}", 500)
 
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
@@ -885,6 +927,17 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el movimiento: {e}", 500)
 
+        if ruta == "/api/parametros":
+            return self._escribir(par.aplicar, "el parámetro",
+                                  "gomeria/29_parametros.sql")
+
+        # Enganchar y desenganchar. Cada cambio rehace los kilómetros del
+        # semi: un enganche corregido cambia el pasado, y la serie tiene
+        # que decir lo que el semi rodó de verdad.
+        if ruta == "/api/enganches":
+            return self._escribir(eng.aplicar, "el enganche",
+                                  "gomeria/29_parametros.sql")
+
         if ruta == "/api/alertas":
             return self._alertas()
 
@@ -978,6 +1031,36 @@ class App(gom.Handler):
         if ruta == "/api/combustible":
             return self._combustible(borrar=True)
         return self._error("No existe", 404)
+
+    def _escribir(self, aplicar, que, script):
+        """El POST de un módulo: leer el JSON, aplicarlo y contestar.
+
+        Es el mismo bloque para todos —permisos, datos mal cargados, SQL
+        que falta— y escribirlo una vez por módulo era copiarlo mal la
+        quinta vez.
+        """
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 64 * 1024:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            with base.conectar() as cx:
+                salida = aplicar(cx, datos, self.usuario)
+                cx.commit()
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except ValueError as e:
+            return self._error(str(e))
+        except psycopg.errors.UniqueViolation as e:
+            return self._error("Eso ya estaba cargado.", 409)
+        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+            return self._error(f"Falta correr {script} en el SQL Editor de Supabase.", 503)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo guardar {que}: {e}", 500)
 
     def _alertas(self):
         """Silenciar una alerta, cambiar un umbral o anotar un service.
@@ -1160,6 +1243,7 @@ def preparar():
                                                "solicitud_eventos", "solicitudes_contador"),
             "usuarios y roles": ("roles", "rol_modulos"),
             "urea": ("urea_tanques", "urea_movimientos"),
+            "parámetros y enganches": ("parametros", "enganches"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):

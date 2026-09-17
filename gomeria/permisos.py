@@ -7,13 +7,20 @@ Tres ideas, y el módulo entero sale de ellas:
      termina mal configurado, que es lo mismo que no tenerlo.
 
   2. El rol es una **fila**, no una constante del código. Se crea, se le
-     marcan módulos y se le asignan usuarios desde la pantalla. Los cuatro
-     que vienen de fábrica —admin, encargado, operario y sucursal— no se
-     borran: hay gente colgando de ellos.
+     marcan módulos y se le asignan usuarios desde la pantalla. Los que
+     vienen de fábrica —admin, encargado, operario, sucursal, taller,
+     mecánico y chofer— no se borran: hay gente colgando de ellos.
 
-  3. Dos permisos no son módulos sino **nivel**, porque atraviesan todo:
-     `gestiona` (aprueba, cierra, corrige) y `administra` (usuarios,
-     roles, borrar, reabrir).
+  3. Cuatro permisos no son módulos sino **nivel**, porque atraviesan
+     todo:
+
+         repara            carga trabajos y repuestos en una orden
+                           abierta. Es el mecánico: hace, no aprueba.
+         gestiona          aprueba, cierra y corrige. El responsable de
+                           taller y mantenimiento.
+         administra        usuarios, roles, parámetros, borrar y reabrir.
+         solo_su_sucursal  ve lo de su boca y nada más. El responsable de
+                           sucursal y el chofer.
 
 El catálogo de módulos vive acá y no en la base: un módulo es una pantalla
 con sus direcciones, y eso lo sabe el código. La base guarda a quién se le
@@ -50,6 +57,8 @@ MODULOS = (
      "Consultas en castellano sobre los datos del sistema."),
     ("usuarios",     "Usuarios y roles",   "/usuarios",
      "Altas, bajas, contraseñas y qué abre cada rol."),
+    ("parametros",   "Parámetros",         "/parametros",
+     "De dónde salen los kilómetros, los planes de mantenimiento y los umbrales de aviso."),
 )
 
 CODIGOS = tuple(m[0] for m in MODULOS)
@@ -81,6 +90,10 @@ RUTAS = {
     "/vencimientos": "vencimientos", "/api/vencimientos": "vencimientos",
     "/asistente": "asistente", "/api/asistente": "asistente",
     "/usuarios": "usuarios", "/api/usuarios": "usuarios",
+    "/parametros": "parametros", "/api/parametros": "parametros",
+    # El enganche tractor–semi es un submódulo de Flota: se abre desde el
+    # maestro de unidades y vive de sus mismos datos.
+    "/api/enganches": "unidades",
 }
 
 PREFIJOS = (
@@ -119,6 +132,8 @@ def permisos(cx, rol):
     try:
         fila = cx.execute("""
             select r.codigo, r.nombre, r.gestiona, r.administra, r.pide_sucursal,
+                   coalesce(r.repara, r.gestiona) as repara,
+                   coalesce(r.solo_su_sucursal, false) as solo_su_sucursal,
                    r.activo,
                    coalesce(array_agg(m.modulo) filter (where m.modulo is not null),
                             '{}') as modulos
@@ -126,7 +141,7 @@ def permisos(cx, rol):
             left join rol_modulos m on m.rol_codigo = r.codigo
             where r.codigo = %s
             group by r.codigo, r.nombre, r.gestiona, r.administra,
-                     r.pide_sucursal, r.activo
+                     r.pide_sucursal, r.repara, r.solo_su_sucursal, r.activo
         """, (str(rol or ""),)).fetchone()
     except Exception:
         cx.rollback()
@@ -134,6 +149,7 @@ def permisos(cx, rol):
     if not fila:
         # El rol no existe: no se le inventan permisos.
         return {"codigo": rol, "nombre": rol, "gestiona": False, "administra": False,
+                "repara": False, "solo_su_sucursal": False,
                 "pide_sucursal": False, "activo": False, "modulos": []}
     return dict(fila)
 
@@ -154,12 +170,18 @@ def con_permisos(cx, usuario):
         usuario["modulos"] = list(CODIGOS)
         usuario["gestiona"] = usuario.get("rol") in ("admin", "encargado")
         usuario["administra"] = usuario.get("rol") == "admin"
+        usuario["repara"] = usuario["gestiona"]
+        usuario["solo_su_sucursal"] = False
         usuario["rol_nombre"] = usuario.get("rol")
         return usuario
     usuario["modulos"] = list(p["modulos"])
     usuario["gestiona"] = bool(p["gestiona"])
-    usuario["administra"] = bool(p["administra"])
+    usuario["repara"] = bool(p.get("repara")) or bool(p["gestiona"])
+    usuario["solo_su_sucursal"] = bool(p.get("solo_su_sucursal"))
     usuario["rol_nombre"] = p["nombre"]
+    # El maestro administra siempre, aunque alguien le toque los permisos
+    # al rol: es el seguro contra quedarse afuera del propio sistema.
+    usuario["administra"] = bool(p["administra"]) or bool(usuario.get("es_maestro"))
     return usuario
 
 
@@ -185,8 +207,37 @@ def gestiona(usuario):
     return usuario.get("rol") in ("admin", "encargado")
 
 
+def repara(usuario):
+    """Nivel mecánico: carga en la orden lo que hizo y lo que puso.
+
+    El que gestiona repara también: el que cierra una orden puede cargarle
+    un renglón.
+    """
+    usuario = usuario or {}
+    if "repara" in usuario:
+        return bool(usuario["repara"]) or gestiona(usuario)
+    return gestiona(usuario)
+
+
+def solo_su_sucursal(usuario):
+    """¿Este rol ve solo lo de su boca?
+
+    Sin sucursal cargada no hay nada que recortar: se deja ver todo antes
+    que dejar a alguien mirando una pantalla vacía sin entender por qué.
+    """
+    usuario = usuario or {}
+    return bool(usuario.get("solo_su_sucursal")) and bool(usuario.get("sucursal_codigo"))
+
+
+def sucursal_de(usuario):
+    """La sucursal por la que hay que filtrar, o None si ve toda la red."""
+    return (usuario or {}).get("sucursal_codigo") if solo_su_sucursal(usuario) else None
+
+
 def administra(usuario):
     usuario = usuario or {}
+    if usuario.get("es_maestro"):
+        return True
     if "administra" in usuario:
         return bool(usuario["administra"])
     return usuario.get("rol") == "admin"
@@ -287,6 +338,7 @@ def panel(cx, usuario):
     usuarios = cx.execute("""
         select u.id, u.usuario, u.nombre, u.rol, u.activo, u.creado,
                u.ultimo_ingreso, u.sucursal_codigo,
+               coalesce(u.es_maestro, false) as es_maestro,
                coalesce(r.nombre, u.rol) as rol_nombre,
                coalesce(r.administra, false) as administra,
                (select count(*) from sesiones s
@@ -320,6 +372,7 @@ def panel(cx, usuario):
     return {
         "usuarios": [dict(u) for u in usuarios],
         "roles": [dict(r) for r in roles],
+        "yo_maestro": bool((usuario or {}).get("es_maestro")),
         "modulos": [{"codigo": c, "nombre": n, "ruta": ruta, "detalle": d}
                     for c, n, ruta, d in MODULOS],
         "sucursales": sucursales,
@@ -372,6 +425,12 @@ def guardar(cx, datos, usuario):
         sucursal = fila["sucursal_codigo"]
     _exigir_sucursal(cx, rol, sucursal)
 
+    # El maestro es el seguro del sistema: su rol no se toca desde la
+    # pantalla, ni siquiera él mismo. Se mueve con una línea de SQL, que
+    # está escrita en 29_parametros.sql.
+    if fila.get("es_maestro") and rol != fila["rol"]:
+        raise ValueError("Ese es el usuario maestro: su rol no se cambia desde acá.")
+
     if not _quedan_administradores(cx, excepto_id=fila["id"], rol_nuevo=rol):
         raise ValueError("Es el único administrador activo. Nombrá otro antes "
                          "de cambiarle el rol a este.")
@@ -392,6 +451,8 @@ def estado(cx, datos, usuario):
     fila = _usuario(cx, datos.get("id"))
     activo = bool(datos.get("activo"))
     if not activo:
+        if fila.get("es_maestro"):
+            raise ValueError("Ese es el usuario maestro: no se da de baja.")
         if fila["id"] == (usuario or {}).get("id"):
             raise ValueError("No podés darte de baja a vos mismo.")
         if not _quedan_administradores(cx, excepto_id=fila["id"]):

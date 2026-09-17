@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Parámetros | Gestión de flota</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62; --frio:#7db3ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+
+  main{max-width:1080px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px;line-height:1.55}
+
+  .solapas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
+  .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
+    border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+  .solapa.on{background:var(--brand-soft);border-color:var(--brand);color:var(--ink)}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:18px;margin-bottom:16px}
+  .caja h2{margin:0 0 4px;font-size:16px;font-weight:600}
+  .caja .que{color:var(--ink-muted);font-size:12.5px;line-height:1.6;margin:0 0 14px}
+
+  input,select,textarea{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:10px 12px;
+    font:inherit;outline:none;width:100%}
+  textarea{resize:vertical;min-height:72px;line-height:1.5}
+  input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
+  label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.7px;
+    color:var(--ink-muted);font-weight:700;margin-bottom:5px}
+  .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
+  .campos .ancho{grid-column:1/-1}
+  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
+  .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
+  .btn:disabled{opacity:.45;cursor:default}
+  .fila{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:14px}
+
+  /* La elección grande: de dónde salen los kilómetros. Son dos opciones y
+     cambian cómo funciona medio sistema, así que se eligen como se elige
+     en un tablero: dos tarjetas, no un desplegable escondido. */
+  .opciones{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .opcion{background:var(--surface-2);border:1px solid var(--hairline-2);
+    border-radius:12px;padding:14px;cursor:pointer;display:flex;gap:11px;align-items:flex-start}
+  .opcion.on{border-color:var(--brand);background:var(--brand-soft)}
+  .opcion input{width:auto;margin-top:2px;flex:none}
+  .opcion b{display:block;font-size:14px;font-weight:600;margin-bottom:3px}
+  .opcion span{color:var(--ink-muted);font-size:12px;line-height:1.5}
+
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);white-space:nowrap}
+  td{padding:11px 8px;border-bottom:1px solid var(--hairline);vertical-align:top}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  .num{text-align:right;font-variant-numeric:tabular-nums}
+  .chico{color:var(--ink-muted);font-size:11.5px}
+  .marca{display:inline-block;border-radius:99px;padding:4px 9px;font-size:10.5px;
+    font-weight:800;text-transform:uppercase;letter-spacing:.5px}
+  .marca.preventivo{color:var(--ok);background:rgba(49,189,101,.12)}
+  .marca.correctivo{color:var(--warn);background:rgba(240,180,41,.13)}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0 7px 0 0}
+  .accion:hover{color:var(--brand)}
+  .vacio{text-align:center;color:var(--ink-muted);padding:28px}
+  .aviso{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
+  .aviso.mal{background:rgba(227,93,98,.12);color:var(--bad);border:1px solid rgba(227,93,98,.3)}
+  .aviso.bien{background:rgba(49,189,101,.12);color:var(--ok);border:1px solid rgba(49,189,101,.3)}
+  @media(max-width:760px){.opciones{grid-template-columns:1fr}main{padding:14px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Parámetros</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Parámetros</h1>
+  <p class="sub">Lo que antes decidía el código: de dónde salen los kilómetros, cada
+    cuánto le toca a cada unidad y cuándo el sistema empieza a avisar.</p>
+
+  <div class="solapas">
+    <button class="solapa on" data-vista="km">Kilometraje</button>
+    <button class="solapa" data-vista="planes">Planes de mantenimiento</button>
+    <button class="solapa" data-vista="avisos">Umbrales de aviso</button>
+  </div>
+
+  <div id="aviso"></div>
+
+  <!-- ------------------------------------------------------- kilometraje -->
+  <section id="v-km">
+    <div class="caja">
+      <h2>De dónde salen los kilómetros</h2>
+      <p class="que">El kilometraje es la base de todo lo demás: el próximo service,
+        el consumo, el desgaste de las cubiertas y el costo por kilómetro. Si sale
+        del satelital, entra solo todas las mañanas. Si se carga a mano, el job no
+        escribe nada y manda lo que cargó la persona.</p>
+      <div class="opciones" id="km-opciones">
+        <label class="opcion" data-origen="automatico">
+          <input type="radio" name="km_origen" value="automatico">
+          <span><b>Automático</b><span>Lo trae el satelital todas las mañanas. Es lo
+            que conviene donde hay equipo instalado: nadie se olvida y nadie tipea
+            un número de más.</span></span>
+        </label>
+        <label class="opcion" data-origen="manual">
+          <input type="radio" name="km_origen" value="manual">
+          <span><b>Manual</b><span>Lo carga una persona. Para la unidad sin equipo,
+            o cuando el satelital deja de reportar: sin esto esa unidad se queda sin
+            services y sin consumo.</span></span>
+        </label>
+      </div>
+      <div class="campos" style="margin-top:14px;max-width:260px">
+        <div><label>Hora de la consulta</label><input id="km-hora" type="time" value="05:00">
+          <p class="chico" style="margin:6px 0 0">Informativa: la corrida real la agenda
+            GitHub Actions.</p></div>
+      </div>
+      <div class="fila">
+        <button class="btn" id="km-guardar">Guardar</button>
+        <span class="chico" id="km-estado"></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ planes -->
+  <section id="v-planes" hidden>
+    <div class="caja">
+      <h2>Planes de mantenimiento</h2>
+      <p class="que">El <b>preventivo</b> se agenda: cada tantos kilómetros o cada
+        tantos días —el aceite se vence aunque el camión no ruede—. El
+        <b>correctivo</b> no se agenda, porque una rotura no se agenda: es el catálogo
+        de trabajos con lo que deberían llevar de tiempo y de plata, para poder
+        comparar contra lo que salieron.</p>
+      <div class="fila" style="margin:0 0 14px">
+        <button class="btn" id="plan-nuevo">+ Nuevo plan</button>
+      </div>
+
+      <form id="plan-form" hidden style="background:var(--surface-2);
+        border:1px solid var(--hairline-2);border-radius:12px;padding:15px;margin-bottom:16px">
+        <div class="campos">
+          <div><label>Clase</label><select id="p-clase">
+            <option value="preventivo">Preventivo · se agenda</option>
+            <option value="correctivo">Correctivo · catálogo</option>
+          </select></div>
+          <div><label>Nombre</label><input id="p-nombre" maxlength="60"
+            placeholder="Service M6, cambio de embrague…" required></div>
+          <div class="km-solo"><label>Cada cuántos km</label>
+            <input id="p-km" type="number" min="1" step="100" placeholder="20000"></div>
+          <div class="km-solo"><label>O cada cuántos días</label>
+            <input id="p-dias" type="number" min="1" step="1" placeholder="180"></div>
+          <div class="corr-solo" hidden><label>Horas estimadas</label>
+            <input id="p-horas" type="number" min="0" step="0.5"></div>
+          <div class="corr-solo" hidden><label>Costo estimado ($)</label>
+            <input id="p-costo" type="number" min="0" step="1000"></div>
+          <div class="ancho"><label>Qué incluye</label>
+            <textarea id="p-tareas" maxlength="2000"
+              placeholder="Aceite de motor, filtro de aceite, filtro de aire, filtro de combustible…"></textarea></div>
+          <div class="ancho"><label>Nota</label><input id="p-descripcion" maxlength="300"></div>
+        </div>
+        <div class="fila">
+          <button class="btn" type="submit">Guardar plan</button>
+          <button class="btn alt" type="button" id="plan-cancelar">Cancelar</button>
+        </div>
+      </form>
+
+      <table><thead><tr>
+        <th>Plan</th><th>Clase</th><th class="num">Cada</th>
+        <th class="num">Estimado</th><th class="num">Unidades</th><th></th>
+      </tr></thead><tbody id="planes"></tbody></table>
+      <p class="vacio" id="planes-vacio" hidden>Todavía no hay planes cargados.</p>
+    </div>
+
+    <div class="caja">
+      <h2>Qué plan tiene cada unidad</h2>
+      <p class="que">Solo los preventivos se asignan: son los que avisan. Una unidad
+        sin plan no puede reclamar service, y por eso aparece marcada.</p>
+      <table><thead><tr>
+        <th>Unidad</th><th>Sucursal</th><th>Plan preventivo</th><th class="num">Cada</th>
+      </tr></thead><tbody id="asignaciones"></tbody></table>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------ avisos -->
+  <section id="v-avisos" hidden>
+    <div class="caja">
+      <h2>Cuándo el sistema empieza a avisar</h2>
+      <p class="que">Los mismos números que usa la pantalla de Alertas. Subirlos hace
+        que avise antes; bajarlos, que avise menos. Un aviso que llega tarde no sirve,
+        y uno que llega siempre deja de mirarse.</p>
+      <div class="campos">
+        <div><label>Service urgente a (km)</label>
+          <input id="r-urgente" type="number" min="0" step="500"></div>
+        <div><label>Service próximo a (km)</label>
+          <input id="r-aviso" type="number" min="0" step="500"></div>
+        <div><label>Carga de combustible grande (litros)</label>
+          <input id="r-litros" type="number" min="0" step="10"></div>
+        <div><label>Cargas raras: mirar los últimos (días)</label>
+          <input id="r-dias" type="number" min="1" step="1"></div>
+      </div>
+      <div class="fila"><button class="btn" id="reglas-guardar">Guardar umbrales</button></div>
+    </div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf0 = new Intl.NumberFormat('es-AR', {maximumFractionDigits: 0});
+/** AD247MQ -> AD 247 MQ, como lo lee una persona. */
+const pat = p => {
+  const n = String(p || '').toUpperCase();
+  const m = n.match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);
+  if (m) return `${m[1]} ${m[2]} ${m[3]}`;
+  const o = n.match(/^([A-Z]{3})(\d{3})$/);
+  return o ? `${o[1]} ${o[2]}` : n;
+};
+const D = {datos: null, plan: null};
+
+async function api(op, extra) {
+  const r = await fetch('/api/parametros', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar.');
+  return d;
+}
+
+function aviso(texto, bien) {
+  $('#aviso').innerHTML = texto
+    ? `<div class="aviso ${bien ? 'bien' : 'mal'}">${esc(texto)}</div>` : '';
+  if (texto && bien) setTimeout(() => { $('#aviso').innerHTML = ''; }, 4000);
+}
+
+async function cargar() {
+  const r = await fetch('/api/parametros');
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) return aviso(d.error || 'No se pudieron leer los parámetros.');
+  D.datos = d;
+  pintar();
+}
+
+function pintar() {
+  const d = D.datos, p = d.parametros || {};
+  document.querySelectorAll('.opcion').forEach(o => {
+    const elegida = o.dataset.origen === p.km_origen;
+    o.classList.toggle('on', elegida);
+    o.querySelector('input').checked = elegida;
+  });
+  $('#km-hora').value = p.km_hora || '05:00';
+  const lecturas = d.lecturas || {};
+  $('#km-estado').textContent = p.km_origen === 'manual'
+    ? 'El satelital no está escribiendo kilómetros.'
+    : lecturas.ayer
+      ? `${lecturas.ayer} lecturas del satelital en las últimas 24 horas.`
+      : 'Sin lecturas del satelital en las últimas 24 horas: revisá el job.';
+  ['#km-guardar', '#reglas-guardar', '#r-urgente', '#r-aviso', '#r-litros', '#r-dias']
+    .forEach(s => { const e = $(s); if (e) e.disabled = !d.puede_administrar; });
+  $('#plan-nuevo').disabled = !d.puede_gestionar;
+
+  $('#planes').innerHTML = d.planes.map(p => `
+    <tr>
+      <td><b>${esc(p.nombre)}</b>${p.activo ? '' : ' <span class="chico">· inactivo</span>'}
+        ${p.tareas ? `<div class="chico">${esc(p.tareas).slice(0, 110)}</div>` : ''}</td>
+      <td><span class="marca ${esc(p.clase)}">${esc(p.clase)}</span></td>
+      <td class="num">${p.cada_km ? nf0.format(p.cada_km) + ' km' : ''}
+        ${p.cada_dias ? `<div class="chico">${p.cada_dias} días</div>` : ''}
+        ${!p.cada_km && !p.cada_dias ? '<span class="chico">no se agenda</span>' : ''}</td>
+      <td class="num">${p.horas_estimadas ? p.horas_estimadas + ' h' : ''}
+        ${p.costo_estimado ? `<div class="chico">$ ${nf0.format(p.costo_estimado)}</div>` : ''}
+        ${!p.horas_estimadas && !p.costo_estimado ? '—' : ''}</td>
+      <td class="num">${p.unidades}</td>
+      <td>${d.puede_gestionar ? `
+        <button class="accion" data-plan="${p.id}">Editar</button>
+        <button class="accion" data-borrar="${p.id}">Borrar</button>` : ''}</td>
+    </tr>`).join('');
+  $('#planes-vacio').hidden = d.planes.length > 0;
+
+  const preventivos = d.planes.filter(p => p.clase === 'preventivo' && p.activo);
+  $('#asignaciones').innerHTML = d.asignaciones.map(a => `
+    <tr>
+      <td><b>${esc(pat(a.patente))}</b>${a.interno ? ` <span class="chico">· ${esc(a.interno)}</span>` : ''}</td>
+      <td class="chico">${esc(a.sucursal || '')}</td>
+      <td><select data-asignar="${a.unidad_id}" ${d.puede_gestionar ? '' : 'disabled'}>
+        <option value="">Sin plan</option>
+        ${preventivos.map(p => `<option value="${p.id}"${
+          String(p.id) === String(a.plan_id) ? ' selected' : ''}>${esc(p.nombre)}</option>`).join('')}
+      </select></td>
+      <td class="num">${a.cada_km ? nf0.format(a.cada_km) + ' km'
+        : a.cada_dias ? a.cada_dias + ' días'
+        : '<span class="chico">no reclama service</span>'}</td>
+    </tr>`).join('');
+
+  const r = d.reglas || {};
+  $('#r-urgente').value = r.service_urgente_km ?? '';
+  $('#r-aviso').value = r.service_aviso_km ?? '';
+  $('#r-litros').value = r.litros_maximos ?? '';
+  $('#r-dias').value = r.combustible_dias ?? '';
+}
+
+function formPlan(plan) {
+  D.plan = plan;
+  $('#plan-form').hidden = false;
+  $('#p-clase').value = plan ? plan.clase : 'preventivo';
+  $('#p-nombre').value = plan ? plan.nombre : '';
+  $('#p-km').value = plan && plan.cada_km ? plan.cada_km : '';
+  $('#p-dias').value = plan && plan.cada_dias ? plan.cada_dias : '';
+  $('#p-horas').value = plan && plan.horas_estimadas ? plan.horas_estimadas : '';
+  $('#p-costo').value = plan && plan.costo_estimado ? plan.costo_estimado : '';
+  $('#p-tareas').value = (plan && plan.tareas) || '';
+  $('#p-descripcion').value = (plan && plan.descripcion) || '';
+  segunClase();
+  $('#p-nombre').focus();
+}
+
+/* Un correctivo no tiene intervalo y un preventivo no tiene presupuesto:
+   mostrar los cuatro campos siempre invita a llenar los que no van. */
+function segunClase() {
+  const correctivo = $('#p-clase').value === 'correctivo';
+  document.querySelectorAll('.km-solo').forEach(e => { e.hidden = correctivo; });
+  document.querySelectorAll('.corr-solo').forEach(e => { e.hidden = !correctivo; });
+}
+
+document.addEventListener('click', async ev => {
+  const solapa = ev.target.closest('.solapa');
+  if (solapa) {
+    document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
+    ['km', 'planes', 'avisos'].forEach(v => {
+      $('#v-' + v).hidden = v !== solapa.dataset.vista;
+    });
+    return;
+  }
+  const opcion = ev.target.closest('.opcion');
+  if (opcion) {
+    document.querySelectorAll('.opcion').forEach(o => o.classList.toggle('on', o === opcion));
+    return;
+  }
+  const editar = ev.target.closest('[data-plan]');
+  if (editar)
+    return formPlan(D.datos.planes.find(p => String(p.id) === editar.dataset.plan));
+
+  const borrar = ev.target.closest('[data-borrar]');
+  if (borrar) {
+    if (!confirm('¿Borrar el plan? Las unidades que lo tenían quedan sin plan.')) return;
+    try {
+      const salida = await api('plan_borrar', {id: borrar.dataset.borrar});
+      await cargar();
+      aviso(salida.unidades
+        ? `Plan borrado. ${salida.unidades} unidad(es) quedaron sin plan.`
+        : 'Plan borrado.', true);
+    } catch (e) { aviso(e.message); }
+    return;
+  }
+
+  if (ev.target.id === 'plan-nuevo') return formPlan(null);
+  if (ev.target.id === 'plan-cancelar') { $('#plan-form').hidden = true; D.plan = null; return; }
+
+  if (ev.target.id === 'km-guardar') {
+    const elegida = document.querySelector('.opcion.on');
+    try {
+      await api('guardar', {km_origen: elegida && elegida.dataset.origen,
+                            km_hora: $('#km-hora').value});
+      await cargar();
+      aviso('Listo. ' + (elegida.dataset.origen === 'manual'
+        ? 'Los kilómetros se cargan a mano: el satelital no escribe más.'
+        : 'Los kilómetros vuelven a entrar solos todas las mañanas.'), true);
+    } catch (e) { aviso(e.message); }
+    return;
+  }
+
+  if (ev.target.id === 'reglas-guardar') {
+    try {
+      await api('reglas', {
+        service_urgente_km: $('#r-urgente').value,
+        service_aviso_km: $('#r-aviso').value,
+        litros_maximos: $('#r-litros').value,
+        combustible_dias: $('#r-dias').value});
+      await cargar();
+      aviso('Umbrales guardados.', true);
+    } catch (e) { aviso(e.message); }
+  }
+});
+
+$('#plan-form').onsubmit = async e => {
+  e.preventDefault();
+  const datos = {
+    clase: $('#p-clase').value, nombre: $('#p-nombre').value,
+    cada_km: $('#p-km').value || null, cada_dias: $('#p-dias').value || null,
+    horas_estimadas: $('#p-horas').value || null, costo_estimado: $('#p-costo').value || null,
+    tareas: $('#p-tareas').value, descripcion: $('#p-descripcion').value};
+  if (D.plan) datos.id = D.plan.id;
+  try {
+    await api('plan_guardar', datos);
+    $('#plan-form').hidden = true; D.plan = null;
+    await cargar();
+    aviso('Plan guardado.', true);
+  } catch (err) { aviso(err.message); }
+};
+
+$('#p-clase').onchange = segunClase;
+document.addEventListener('change', async ev => {
+  const select = ev.target.closest('[data-asignar]');
+  if (!select) return;
+  try {
+    await api('asignar', {unidad_id: select.dataset.asignar, plan_id: select.value || null});
+    await cargar();
+    aviso('Plan asignado.', true);
+  } catch (e) { aviso(e.message); await cargar(); }
+});
+
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
+  if (d) $('#quien').textContent = [d.nombre, d.rol_nombre].filter(Boolean).join(' · ');
+});
+cargar();
+</script>
+</body>
+</html>

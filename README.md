@@ -83,6 +83,33 @@ El asistente de consultas está en `/asistente`, detrás del login. Consultá [l
 
 Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
 
+## Parámetros, planes y roles
+
+Arriba de todas las pantallas hay dos accesos —**Usuarios** y
+**Parámetros**— para el que los tenga habilitados.
+
+En `/parametros` se define **de dónde salen los kilómetros**: del satelital
+todas las mañanas, o a mano. En manual el job deja de escribir, porque si
+escribiera le pisaría el número al que lo cargó. Ahí mismo están los
+**planes de mantenimiento** —el preventivo se agenda por kilómetros o por
+días; el correctivo no se agenda, es el catálogo de trabajos con su tiempo
+y su costo esperados— y los **umbrales** con los que Alertas avisa.
+
+Los roles con los que se trabaja son cuatro más los de sistema:
+**responsable de taller** (gestiona), **mecánico** (carga en la orden lo
+que hizo, no aprueba ni cierra), **responsable de sucursal** y **chofer**
+(ven lo de su boca y nada más). El detalle está en
+[la guía de parámetros](gomeria/PARAMETROS.md) y las tablas salen de
+`gomeria/29_parametros.sql`.
+
+## Tractor y semi
+
+Un semi no reporta, pero sus gomas se gastan igual. En Flota, solapa
+**Tractor y semi**, se anota qué semi lleva cada tractor y desde cuándo, y
+el semi toma los kilómetros que hizo el tractor mientras lo llevaba
+puesto. Quedan escritos en `odometros`, así que el semi entra en services,
+cubiertas y alertas como cualquier otra unidad.
+
 ## Quién entra y qué abre
 
 Las altas, las bajas, las contraseñas y los roles se manejan en
@@ -161,7 +188,7 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` y `node tests/urea_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` `node tests/urea_smoke.cjs` y `node tests/parametros_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
 
 ## Vales auditables (borrador de integración)
 

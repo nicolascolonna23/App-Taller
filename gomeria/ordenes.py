@@ -54,6 +54,17 @@ def _exigir_gestor(usuario, que="tocar las órdenes de trabajo"):
         raise PermissionError(f"Solo un encargado o administrador puede {que}.")
 
 
+def _exigir_mecanico(usuario, que="cargar en una orden"):
+    """Los renglones de una orden abierta los carga el que repara.
+
+    El mecánico hace y anota lo que hizo; aprobar, cerrar y corregir lo
+    ajeno siguen siendo del que gestiona. Separarlo es lo que permite que
+    el taller cargue su trabajo sin darle a cada uno la llave de todo.
+    """
+    if not permisos.repara(usuario):
+        raise PermissionError(f"Solo un mecánico, encargado o administrador puede {que}.")
+
+
 def _texto(valor, limite=2000):
     texto = str(valor or "").strip()
     return texto[:limite] or None
@@ -446,7 +457,7 @@ def borrar(cx, datos, usuario):
 # ESCRITURA — los renglones
 # =====================================================================
 def tarea_agregar(cx, datos, usuario):
-    _exigir_gestor(usuario, "cargar trabajos")
+    _exigir_mecanico(usuario, "cargar trabajos")
     orden = _orden(cx, datos.get("id"), abierta=True)
     detalle = _texto(datos.get("detalle"), 500)
     if not detalle:
@@ -461,7 +472,7 @@ def tarea_agregar(cx, datos, usuario):
 
 
 def tarea_borrar(cx, datos, usuario):
-    _exigir_gestor(usuario, "sacar trabajos")
+    _exigir_mecanico(usuario, "sacar trabajos")
     orden = _orden(cx, datos.get("id"), abierta=True)
     fila = cx.execute("""delete from ordenes_tareas
                          where id = %s and orden_id = %s returning id""",
@@ -478,7 +489,7 @@ def repuesto_agregar(cx, datos, usuario):
     stock se escriben juntos, y el renglón se queda con el número del
     movimiento para poder deshacerlo entero.
     """
-    _exigir_gestor(usuario, "cargar repuestos")
+    _exigir_mecanico(usuario, "cargar repuestos")
     orden = _orden(cx, datos.get("id"), abierta=True)
 
     cantidad = _numero(datos.get("cantidad"), "La cantidad", entero=True)
@@ -534,7 +545,7 @@ def repuesto_agregar(cx, datos, usuario):
 
 def repuesto_borrar(cx, datos, usuario):
     """Saca el renglón y devuelve el repuesto al estante."""
-    _exigir_gestor(usuario, "sacar repuestos")
+    _exigir_mecanico(usuario, "sacar repuestos")
     orden = _orden(cx, datos.get("id"), abierta=True)
     fila = cx.execute("""delete from ordenes_repuestos
                          where id = %s and orden_id = %s

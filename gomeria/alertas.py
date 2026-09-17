@@ -16,6 +16,7 @@ Cada fuente se lee por separado y a prueba de balas. Los módulos se van
 prendiendo de a uno y el SQL se corre a mano: que falte una tabla apaga
 esa fuente y lo dice, no la pantalla entera.
 """
+import permisos
 
 # El orden en que se miran las cosas. Es el de la consecuencia: un papel
 # vencido puede parar el camión en un control de ruta hoy, un service
@@ -365,8 +366,14 @@ LECTORES = {"vencimiento": _vencimientos, "service": _services,
 # =====================================================================
 # LA LISTA
 # =====================================================================
-def listar(cx, incluir_silenciadas=False):
-    """Las cinco fuentes juntas, ordenadas por urgencia."""
+def listar(cx, incluir_silenciadas=False, usuario=None):
+    """Las cinco fuentes juntas, ordenadas por urgencia.
+
+    Al rol que solo ve su sucursal se le recorta la lista: la goma de un
+    camión de Córdoba no es su problema y llenarle la pantalla con eso
+    hace que deje de mirarla. Lo que no tiene sucursal —una carga rara de
+    combustible, el tacho de urea— se deja pasar: es de todos.
+    """
     if not instalado(cx):
         return {"instalado": False,
                 "aviso": "Falta correr gomeria/20_alertas.sql en Supabase."}
@@ -397,6 +404,12 @@ def listar(cx, incluir_silenciadas=False):
         return (SEVERIDADES.get(a["severidad"], 9),
                 PRIORIDAD.get(a["fuente"], 9),
                 a["orden"])
+
+    solo = permisos.sucursal_de(usuario)
+    if solo:
+        de_la_boca = lambda a: not a.get("sucursal") or a["sucursal"] == solo
+        alertas = [a for a in alertas if de_la_boca(a)]
+        dormidas = [a for a in dormidas if de_la_boca(a)]
 
     alertas.sort(key=urgencia)
     dormidas.sort(key=urgencia)

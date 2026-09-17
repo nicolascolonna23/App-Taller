@@ -52,16 +52,23 @@ def _texto(valor, limite=120):
 # =====================================================================
 # LECTURA
 # =====================================================================
-def listar(cx):
-    """Todo el maestro, más las listas que la pantalla usa en los selectores."""
+def listar(cx, usuario=None):
+    """Todo el maestro, más las listas que la pantalla usa en los selectores.
+
+    Al rol que solo ve su sucursal se le muestran sus unidades. No es un
+    secreto lo que pasa en las otras: es que no son suyas y le ensucian la
+    pantalla donde busca la propia.
+    """
+    solo = permisos.sucursal_de(usuario)
     filas = cx.execute("""
         select v.*, u.mantenimiento_plan_id, p.nombre as mantenimiento_plan,
                p.cada_km as mantenimiento_cada_km
         from v_unidades v join unidades u on u.id=v.id
         left join mantenimiento_planes p on p.id=u.mantenimiento_plan_id
+        where %s::text is null or v.sucursal = %s
         -- Los equipos al final: son pocos y no se miran todos los días.
         order by v.tipo, coalesce(nullif(v.interno,'')::text, 'zzz'), v.patente
-    """).fetchall()
+    """, (solo, solo)).fetchall()
 
     # Los valores de sucursal y uso salen de lo que ya está cargado, no de
     # una lista fija: si mañana abren una sucursal, aparece sola.

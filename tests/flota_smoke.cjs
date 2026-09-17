@@ -23,7 +23,7 @@ const unidades = [
     ...(process.env.BROWSER_PATH ? { executablePath: process.env.BROWSER_PATH } : {}) });
   try {
     const page = await browser.newPage({ viewport:{ width:1440, height:1000 } });
-    const errores = []; page.on('pageerror', e => errores.push(e.message));
+    const errores = [], enganches = []; page.on('pageerror', e => errores.push(e.message));
     let pedidoExcel = null; const bajas = [];
 
     await page.route('**/*', route => {
@@ -71,6 +71,28 @@ const unidades = [
             repuestos:[{ numero:82, fecha:'2026-08-02', codigo:'F-101',
                          descripcion:'Filtro de aceite', cantidad:2 }] },
           services:[], posiciones:[] } });
+      }
+      // El submódulo tractor–semi: el semi no reporta, sus km son los
+      // del tractor que lo llevó.
+      if (p === '/api/enganches') {
+        if (route.request().method() === 'POST') {
+          enganches.push(route.request().postDataJSON());
+          return route.fulfill({ json:{ ok:true } });
+        }
+        return route.fulfill({ json:{
+          semis:[{ semi_id:9, patente:'AE456MJ', interno:'S1', marca:'RANDON', modelo:'SR',
+                   sucursal:'CAT', km_actual:1600, activa:true, enganche_id:3, tractor_id:1,
+                   desde:'2026-09-14', tractor:'AH522SI', tractor_interno:'17',
+                   km_enganchado:1600, ultimo_dia:'2026-09-17', enganches:2 },
+                 { semi_id:10, patente:'AE456MK', interno:'S2', marca:'RANDON', modelo:'SR',
+                   sucursal:'CAT', km_actual:null, activa:true, enganche_id:null,
+                   tractor_id:null, desde:null, tractor:null, tractor_interno:null,
+                   km_enganchado:0, ultimo_dia:null, enganches:0 }],
+          tractores:[{ id:1, patente:'AH522SI', interno:'17', sucursal:'CAT', km_actual:412300,
+                       semi_id:9, semi:'AE456MJ' }],
+          candidatos:[{ id:9, patente:'AE456MJ', interno:'S1', es_semi:true },
+                      { id:10, patente:'AE456MK', interno:'S2', es_semi:true }],
+          puede_gestionar:true } });
       }
       if (p.startsWith('/api/')) return route.fulfill({ json:{} });
       const archivo = { '/unidades':'unidades.html', '/sistema.css':'sistema.css',
@@ -147,6 +169,24 @@ const unidades = [
     assert(!texto.includes('$ 12.000'), 'la anulada está mostrando monto');
     await page.click('#cerrar');
 
+    // ---- tractor y semi -----------------------------------------------
+    await page.click('[data-vista="semis"]');
+    await page.locator('#cuerpo-semis tr').first().waitFor();
+    const semis = await page.locator('#cuerpo-semis').innerText();
+    for (const x of ['AE 456 MJ', 'AH 522 SI', '1.600', 'suelto'])
+      assert(semis.includes(x), `falta "${x}" en el submódulo tractor–semi: ${semis}`);
+    // El que está suelto no ofrece desenganchar: no hay nada que soltar.
+    assert.equal(await page.locator('[data-desenganchar]').count(), 1);
+    await page.click('#enganchar');
+    await page.selectOption('#e-tractor', '1');
+    await page.selectOption('#e-semi', '10');
+    await page.click('#form-enganche button[type="submit"]');
+    await page.waitForTimeout(250);
+    const enganche = enganches.find(e => e.op === 'enganchar');
+    assert.equal(enganche.tractor_id, '1');
+    assert.equal(enganche.semi_id, '10');
+    await page.click('[data-vista="unidades"]');
+
     // ---- dar de baja y reactivar --------------------------------------
     page.on('dialog', d => d.accept());
     await page.selectOption('#f-estado', 'activas');
@@ -168,6 +208,6 @@ const unidades = [
     await page.click('#cerrar');
     await page.screenshot({ path:'/tmp/flota-listado.png', fullPage:true });
     assert.deepEqual(errores, [], 'errores de JS: ' + errores.join(' | '));
-    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; baja y reactivación avisan qué queda colgando.');
+    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; el semi toma los km del tractor; baja y reactivación avisan qué queda colgando.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });
