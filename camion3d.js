@@ -875,6 +875,7 @@ function esquinaDeLaRueda(malla){
    Cuatro colores, y cada uno contesta una pregunta distinta:
 
      naranja   la que se está mirando
+     celeste   la esquina dual con una cubierta montada y otra vacía
      azul      la esquina que ya tiene puestas todas sus cubiertas
      rojiza    la esquina a la que le falta alguna
      gris      la rueda de la que el mapa no sabe nada
@@ -892,7 +893,7 @@ function esquinaDeLaRueda(malla){
    elegida es de ese eje, del lado que sea: no se puede pintar media
    pieza, y por eso tampoco se le puede decir si está ocupada o no. */
 const RUEDA = {
-  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: GOMA,
+  elegida: 0xff7a1a, puesta: 0x2b5a76, parcial: 0x36abc7, falta: 0x6d3a34, sin_datos: GOMA,
 };
 
 function pintarRuedas(){
@@ -905,8 +906,10 @@ function pintarRuedas(){
       color = RUEDA.elegida;
     } else if (e.lado !== 'ambos') {
       const posiciones = posicionesDe(e);
-      if (posiciones.some(p => !p.cubierta_id))  color = RUEDA.falta;
-      else if (posiciones.length)                color = RUEDA.puesta;
+      const montadas = posiciones.filter(p => p.cubierta_id).length;
+      if (montadas === posiciones.length && montadas) color = RUEDA.puesta;
+      else if (montadas) color = RUEDA.parcial;
+      else if (posiciones.length) color = RUEDA.falta;
     }
     m.material.color.setHex(color);
     // Luz propia solo la elegida. El azul se apoya en el color y nada más:

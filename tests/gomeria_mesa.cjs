@@ -7,8 +7,11 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  const stock=[{id:103,codigo:'BRI-103',marca:'BRIDGESTONE',modelo:'R268',medida:'295/80 R22.5',remanente_mm:16,estado:'stock'},{id:101,codigo:'MIC-101',marca:'MICHELIN',modelo:'X Multi',medida:'295/80 R22.5',remanente_mm:14,estado:'stock'},{id:102,codigo:'FAT-102',marca:'FATE',modelo:'DR400',medida:'295/80 R22.5',remanente_mm:11,estado:'stock'}];
  const unit={id:1,patente:'AA472IP',marca:'SEMIRREMOLQUE',sucursal:'CAT',posiciones:13,montadas:0};
  const map=[];let id=1;for(let eje=1;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map.push({posicion_id:id++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id,cubierta_id:null});map.push({posicion_id:id,posicion:'AUX',eje:0,lado:'X',es_auxilio:true,orden:id,cubierta_id:null});
+ Object.assign(map.find(p=>p.posicion==='2DE'),{cubierta_id:319,cubierta:'319',marca:'FATE'});
  await page.route('**/*',route=>{
  const req=route.request(),u=new URL(req.url()),p=u.pathname;
+ if(p==='/api/interpretar')return route.fulfill({json:{parte_id:77,propuesta:{resumen:'Montar cubierta',acciones:[{tipo:'montaje',posicion:'2DE',cubierta:'319'}]}}});
+ if(p==='/api/confirmar'){assert.equal(req.postDataJSON().parte_id,77);return route.fulfill({json:{hecho:['Movimiento confirmado']}});}
  if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba',rol:admin?'admin':'operario',puede_administrar:admin}});
  if(p==='/api/preferencias')return route.fulfill({json:{tema:'claro',paleta:'diemar'}});
  if(p==='/api/tablero')return route.fulfill({json:{unidades:[unit],configuraciones:[],resumen_stock:{stock:stock.filter(t=>t.estado==='stock').length}}});
@@ -26,6 +29,17 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  if(fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({path:file});return route.fulfill({body:'',status:404});
  });
  await page.goto('http://taller.test/gomeria');await page.waitForFunction(()=>V.ruedas.length>0);await page.locator('[data-stock-id="101"]').waitFor();
+ // Regression: one mounted tire in a dual must not look empty in 3D.
+ assert.equal(await page.locator('.map [data-pos="8"] .code').textContent(),'319');
+ assert.equal(await page.locator('.map [data-pos="8"] .mounted-label').textContent(),'MONTADA');
+ assert(await page.evaluate(()=>V.ruedas.some(m=>{const e=esquinaDeLaRueda(m);return posicionesDe(e).some(p=>p.cubierta_id===319)&&m.material.color.getHex()===RUEDA.parcial;})));
+ await page.locator('[data-ver-pos="8"]').click();await page.waitForFunction(()=>document.querySelector('#tireInspector').textContent.includes('319'));
+ // Icon-only navigation keeps accessible names and hover titles.
+ await page.route('**/api/yo',route=>route.fulfill({json:{nombre:'Prueba',administra:true,puede_administrar:admin}}));
+ await page.addScriptTag({path:path.join(root,'barra.js')});await page.locator('.barra-admin').waitFor();
+ for(const label of ['Usuarios','Parámetros']){const link=page.getByRole('link',{name:label,exact:true});assert.equal(await link.getAttribute('title'),label);assert.equal((await link.textContent()).trim(),'');}
+ // Existing Claude workflow remains available: text → preview → confirm.
+ await page.click('[data-tab="register"]');await page.selectOption('#workUnit','AA472IP');await page.fill('#workText','Entra Fate 319 en 2DE');await page.click('#interpret');await page.locator('#confirm').waitFor();await page.click('#confirm');await page.waitForFunction(()=>document.querySelector('#workResult').textContent.includes('Guardado.'));await page.click('[data-tab="fleet"]');await page.waitForFunction(()=>V.ruedas.length>0);
  // Click flow with exact position.
  await page.click('[data-stock-id="101"]');await page.locator('.map [data-pos="1"]').click();await page.click('#mountSelected');assert.equal(writes.length,0);await page.click('#movementSave');await page.waitForFunction(()=>document.querySelector('.map [data-pos="1"]')?.dataset.tire==='101');assert.equal(writes.length,1);
  // Native HTML drag back to stock: cancel does not write; reason required.

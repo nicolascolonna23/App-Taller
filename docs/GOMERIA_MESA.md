@@ -30,3 +30,9 @@ El motivo también se exige en el formulario de retiro de **Unidades**, que comp
 - `node tests/gomeria_mesa.cjs` con Playwright y Chrome: carga del OBJ real y WebGL; montaje por clic; arrastres nativos de stock a casillero y al 3D; retiro desde casillero y desde la rueda 3D; elección dual; cancelación; motivo; destino reparación; modo consulta y tamaños 1600/390 px. Las respuestas de la API son simuladas.
 
 No requiere migración. Se publica desplegando los archivos actualizados de la rama. No se realizaron movimientos sobre datos de producción ni una prueba concurrente contra PostgreSQL real.
+
+## Lectura de la ocupación
+
+El 3D distingue una dual parcialmente ocupada (celeste), una completa (azul), una esquina vacía (rojizo) y la selección (naranja). Los casilleros ocupados muestran **Montada**. La posición en la tabla de cubiertas puestas permite localizarla en el visor y en el panel lateral. Usuarios y Parámetros usan íconos con nombre accesible y título al pasar el cursor.
+
+El registro de trabajo por texto conserva la integración Anthropic existente y su confirmación previa a guardar. La prueba de navegador cubre también texto → propuesta → confirmación con respuestas simuladas, además del caso de una sola cubierta 319 en la dual 2DE. No ejecuta llamadas pagas al proveedor.

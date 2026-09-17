@@ -39,9 +39,9 @@
       'margin-left:auto;font-size:12px;font-weight:700}' +
       '.barra-admin+.who,.barra-admin+.person{margin-left:14px}' +
       '.barra-admin a{color:inherit;opacity:.65;text-decoration:none;' +
-      'padding:5px 9px;border:1px solid currentColor;border-radius:8px;' +
+      'display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;padding:7px;border:1px solid currentColor;border-radius:8px;' +
       'white-space:nowrap;line-height:1}' +
-      '.barra-admin a:hover{opacity:1}' +
+      '.barra-admin a:hover,.barra-admin a:focus-visible{opacity:1}' +
       '.barra-admin a.aca{opacity:1}' +
       '@media(max-width:700px){.barra-admin a span{display:none}' +
       '.barra-admin a{padding:5px 7px}}';
@@ -50,11 +50,11 @@
 
   function icono(modulo) {
     if (modulo === 'usuarios')
-      return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+      return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" ' +
         'stroke="currentColor" stroke-width="1.9" aria-hidden="true">' +
         '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/>' +
         '<path d="M17 11.5h4M19 9.5v4"/></svg>';
-    return '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" ' +
+    return '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" ' +
       'stroke="currentColor" stroke-width="1.9" aria-hidden="true">' +
       '<circle cx="12" cy="12" r="3"/>' +
       '<path d="M12 3v2.5M12 18.5V21M4.2 7.5l2.2 1.3M17.6 15.2l2.2 1.3' +
@@ -78,8 +78,8 @@
     caja.setAttribute('aria-label', 'Administración');
     caja.innerHTML = visibles.map(function (a) {
       var aca = location.pathname === a.href ? ' aca' : '';
-      return '<a class="' + aca.trim() + '" href="' + a.href + '" title="' + a.texto + '">' +
-             icono(a.modulo) + ' <span>' + a.texto + '</span></a>';
+      return '<a class="' + aca.trim() + '" href="' + a.href + '" title="' + a.texto + '" aria-label="' + a.texto + '">' +
+             icono(a.modulo) + '</a>';
     }).join('');
     donde.caja.insertBefore(caja, donde.antes);
   }

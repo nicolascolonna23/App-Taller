@@ -37,6 +37,7 @@ function pintarInspector(){
  if($('#inspectTire'))$('#inspectTire').onclick=()=>openTire(t?.id||p.cubierta_id);
 }
 function engancharMesa(){
+ for(const b of $$('[data-ver-pos]'))b.onclick=()=>{elegirPosicion(b.dataset.verPos);$('#visor')?.scrollIntoView({behavior:'smooth',block:'center'});};
  for(const b of $$('.tire[data-pos]')){
    const p=position(b.dataset.pos);b.onclick=()=>elegirPosicion(b.dataset.pos);
    b.draggable=!!(editable()&&p?.cubierta_id);
