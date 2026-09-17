@@ -135,3 +135,12 @@ detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
 Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` y `node tests/usuarios_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+
+## Vales auditables (borrador de integración)
+
+Hay un **segundo borrador** del mismo circuito, hecho aparte, que vive en
+`flota_vales/` y se revisa en `/vales`. No reemplaza `/ordenes`, `/control`
+ni `/api/mantenimiento`. Ver [diseño y pendientes antes de fusionar](docs/MANTENIMIENTO.md).
+No aplicar su migración: sus tablas (`mt_*`) son otra versión de lo que ya
+hace `/solicitudes`, y tener las dos andando sería tener dos verdades del
+mismo gasto. Hay que elegir una y sacar la otra.
