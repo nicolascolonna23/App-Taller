@@ -3,7 +3,27 @@ let shelf=[],dragged=null,chosenStock=null,movePending=null;
 const benchMessage=t=>$('#benchStatus').textContent=t;
 const editable=()=>!!D.user?.puede_administrar;
 const position=id=>(D.map||[]).find(p=>String(p.posicion_id)===String(id));
-function tireArt(){return `<svg class="tire-art" viewBox="0 0 260 200" aria-label="Neumático" role="img"><defs><linearGradient id="rubber" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient></defs><ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber)" stroke="#6c7884" stroke-width="2"/>${Array.from({length:12},(_,i)=>`<path d="M${76+i%2*3} ${27+i*12}l32 5 23-8" fill="none" stroke="#111820" stroke-width="5"/>`).join('')}<ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/><ellipse cx="157" cy="95" rx="29" ry="51" fill="#10151b" stroke="#778590" stroke-width="8"/><ellipse cx="157" cy="95" rx="17" ry="33" fill="#303e49" stroke="#64727e" stroke-width="2"/></svg>`;}
+/* La goma del inspector. No es un ícono: es lo que el gomero está por
+   tocar, así que gira. Los tacos corren por la banda —que es el signo de
+   que rueda— y las tuercas giran con la llanta. El paso de los tacos es
+   el mismo que el desplazamiento de la animación, para que el ciclo cierre
+   sin salto. Quien pidió menos movimiento en su sistema no ve ninguno:
+   está contemplado en el CSS. */
+function tireArt(){
+ const tacos=Array.from({length:16},(_,i)=>`<path d="M${76+i%2*3} ${15+i*12}l32 5 23-8" fill="none" stroke="#111820" stroke-width="5"/>`).join('');
+ const tuercas=Array.from({length:5},(_,i)=>{const a=i*72*Math.PI/180;return `<circle cx="${(26*Math.cos(a)).toFixed(1)}" cy="${(26*Math.sin(a)).toFixed(1)}" r="4.4" fill="#93a2ad"/>`;}).join('');
+ return `<svg class="tire-art" viewBox="0 0 260 200" aria-label="Neumático" role="img"><defs><linearGradient id="rubber" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient><clipPath id="banda"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs><ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber)" stroke="#6c7884" stroke-width="2"/><g class="tacos" clip-path="url(#banda)">${tacos}</g><ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/><ellipse cx="157" cy="95" rx="29" ry="51" fill="#10151b" stroke="#778590" stroke-width="8"/><g transform="translate(157 95) scale(1 1.72)"><g class="llanta">${tuercas}</g></g><ellipse cx="157" cy="95" rx="17" ry="33" fill="#303e49" stroke="#64727e" stroke-width="2"/></svg>`;
+}
+
+/* El logo de la marca, y el nombre si no hay logo cargado. El servidor
+   sirve el que se subió desde Parámetros y, si no hay, el que vino con el
+   repositorio; cuando no hay ninguno, el onerror deja el texto. */
+function logoMarca(nombre){
+ const m=String(nombre||'').trim();if(!m)return '—';
+ const slug=m.toLowerCase().replace(/[^a-z0-9]/g,'');
+ if(!slug)return esc(m);
+ return `<span class="logo-marca" title="${esc(m)}"><img src="/marcas/${esc(slug)}.png" alt="${esc(m)}" onerror="this.closest('.logo-marca').replaceWith(document.createTextNode(${esc(JSON.stringify(m))}))"></span>`;
+}
 let shelfRequest=0;
 async function cargarEstante(){
  const request=++shelfRequest;
@@ -31,7 +51,7 @@ function pintarInspector(){
  const p=position(D.benchPosition),t=shelf.find(t=>String(t.id)===String(chosenStock));
  const mounted=p?.cubierta_id&&!t;
  const code=t?.codigo||(mounted?p.cubierta:null);
- $('#tireInspector').innerHTML=`<h3>${code?'Cubierta '+esc(code):'Neumático seleccionado'}</h3>${tireArt()}<p class="workbench-help">${t?'En stock · lista para montar':p?esc(fmtPat(D.selected)+' · '+p.posicion)+(mounted?' · Montada':' · Posición vacía'):'Elegí una cubierta del stock o una posición del vehículo.'}</p>${(t||mounted)?`<div class="details"><div class="detail"><span>Marca</span><b>${esc((t||p).marca||'—')}</b></div><div class="detail"><span>Medida</span><b>${esc((t||p).medida||'—')}</b></div><div class="detail"><span>Remanente</span><b>${(t||p).remanente_mm==null?'—':esc((t||p).remanente_mm)+' mm'}</b></div><div class="detail"><span>Posición</span><b>${p?esc(p.posicion):'Elegir'}</b></div></div>`:''}${editable()&&t?'<button class="btn" id="mountSelected">Montar en posición elegida</button>':''}${editable()&&mounted?'<button class="btn" id="removeSelected">Retirar cubierta</button>':''}${code?'<button class="btn alt" id="inspectTire">Ver historial y mediciones</button>':''}<p class="workbench-help">${editable()?'También podés arrastrar entre el stock y los casilleros.':'Consulta: tu rol no permite cambiar cubiertas.'}</p>`;
+ $('#tireInspector').innerHTML=`<h3>${code?'Cubierta '+esc(code):'Neumático seleccionado'}</h3>${tireArt()}<p class="workbench-help">${t?'En stock · lista para montar':p?esc(fmtPat(D.selected)+' · '+p.posicion)+(mounted?' · Montada':' · Posición vacía'):'Elegí una cubierta del stock o una posición del vehículo.'}</p>${(t||mounted)?`<div class="details"><div class="detail"><span>Marca</span><b>${logoMarca((t||p).marca)}</b></div><div class="detail"><span>Medida</span><b>${esc((t||p).medida||'—')}</b></div><div class="detail"><span>Remanente</span><b>${(t||p).remanente_mm==null?'—':esc((t||p).remanente_mm)+' mm'}</b></div><div class="detail"><span>Posición</span><b>${p?esc(p.posicion):'Elegir'}</b></div></div>`:''}${editable()&&t?'<button class="btn" id="mountSelected">Montar en posición elegida</button>':''}${editable()&&mounted?'<button class="btn" id="removeSelected">Retirar cubierta</button>':''}${code?'<button class="btn alt" id="inspectTire">Ver historial y mediciones</button>':''}<p class="workbench-help">${editable()?'También podés arrastrar entre el stock y los casilleros.':'Consulta: tu rol no permite cambiar cubiertas.'}</p>`;
  if($('#mountSelected'))$('#mountSelected').onclick=()=>{if(!p)return benchMessage('Primero elegí un casillero vacío debajo del modelo.');proponerMontaje(t.id,p);};
  if($('#removeSelected'))$('#removeSelected').onclick=()=>proponerRetiro(p);
  if($('#inspectTire'))$('#inspectTire').onclick=()=>openTire(t?.id||p.cubierta_id);

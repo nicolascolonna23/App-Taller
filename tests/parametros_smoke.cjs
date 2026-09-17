@@ -1,8 +1,9 @@
-// La pantalla de parámetros contra /api/parametros simulada.
+// La pantalla de parámetros contra /api/parametros y /api/marcas simuladas.
 // Verifica lo que la pantalla promete: que el kilometraje se elija entre
 // dos opciones y no en un desplegable escondido, que un plan correctivo no
-// pida intervalo ni un preventivo pida presupuesto, y que el que solo
-// gestiona pueda tocar los planes pero no los umbrales.
+// pida intervalo ni un preventivo pida presupuesto, que el que solo
+// gestiona pueda tocar los planes pero no los umbrales, y que la solapa de
+// gomería muestre el logo de cada marca y no deje borrar una que se usa.
 const {chromium} = require('playwright');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 const dir = path.resolve(__dirname, '..');
@@ -31,6 +32,22 @@ const datos = (quien) => ({
   puede_administrar: quien === 'admin',
 });
 
+const marcas = () => ({
+  marcas: [
+    {id: 1, nombre: 'Fate', slug: 'fate', activa: true, logo_tipo: 'image/png',
+     tiene_logo: true, cubiertas: 12},
+    {id: 2, nombre: 'Kumho', slug: 'kumho', activa: false, logo_tipo: null,
+     tiene_logo: false, cubiertas: 0},
+  ],
+  medidas: [
+    {id: 1, medida: '295/80R22.5', corta: '295', clase: 'camion',
+     descripcion: 'La de los camiones.', activa: true, orden: 1, cubiertas: 9},
+    {id: 2, medida: '600x9', corta: '600', clase: 'autoelevador',
+     descripcion: null, activa: true, orden: 10, cubiertas: 0},
+  ],
+  puede_gestionar: true,
+});
+
 (async () => {
   const browser = await chromium.launch({headless: true,
     ...(process.env.BROWSER_PATH ? {executablePath: process.env.BROWSER_PATH} : {})});
@@ -46,6 +63,14 @@ const datos = (quien) => ({
         pedidos.push(req.postDataJSON());
         return route.fulfill({json: {ok: true}});
       }
+      if (url.pathname === '/api/marcas') {
+        if (req.method() === 'GET') return route.fulfill({json: marcas()});
+        pedidos.push(req.postDataJSON());
+        return route.fulfill({json: {ok: true}});
+      }
+      if (url.pathname.startsWith('/marcas/'))
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+                              contentType: 'image/png'});
       if (url.pathname === '/api/yo')
         return route.fulfill({json: {nombre: 'Nicolás', rol: 'admin',
                                      rol_nombre: 'Administrador', administra: true,
@@ -112,13 +137,55 @@ const datos = (quien) => ({
     assert(await page.locator('#plan-nuevo').isEnabled(),
            'el responsable de taller sí parametriza los planes');
 
+    // Gomería: el logo en lugar del nombre, y la marca que se usa no se borra.
+    quien = 'admin';
+    await page.reload();
+    await page.locator('.opcion.on').waitFor();
+    await page.click('[data-vista="gomeria"]');
+    await page.locator('#marcas tr').first().waitFor();
+    assert((await page.locator('#v-gomeria .modulo').innerText())
+             .toLowerCase().includes('gomería'),
+           'la solapa tiene que decir de qué módulo son estos parámetros');
+    assert.equal(await page.locator('#marcas td .logo-marca img').count(), 2,
+                 'cada marca se muestra con su logo');
+    assert.equal(await page.locator('[data-borrar-marca="1"]').count(), 0,
+                 'una marca con 12 cubiertas no se borra: se da de baja');
+    assert.equal(await page.locator('[data-borrar-marca="2"]').count(), 1);
+    assert((await page.locator('#marcas').innerText()).includes('de baja'),
+           'tiene que verse cuál está de baja');
+
+    // Editar carga el formulario con lo que hay, y guardar no manda logo vacío.
+    await page.click('[data-marca="1"]');
+    assert.equal(await page.inputValue('#m-nombre'), 'Fate');
+    assert(await page.locator('#marca-sin-logo').isVisible(),
+           'la marca con logo tiene que poder quedarse sin él');
+    await page.uncheck('#m-activa');
+    await page.click('#marca-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const marca = pedidos.find(p => p.op === 'guardar' && p.nombre === 'Fate');
+    assert.equal(marca.id, 1);
+    assert.equal(marca.activa, false);
+    assert.equal(marca.logo, undefined, 'sin subir un logo nuevo no se manda ninguno');
+
+    // Las medidas: la familia se elige, y el número que identifica es opcional.
+    assert((await page.locator('#medidas').innerText()).includes('identifica: 295'));
+    await page.click('#medida-nueva');
+    await page.fill('#d-medida', '11R22.5');
+    await page.selectOption('#d-clase', 'camion');
+    await page.click('#medida-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const medida = pedidos.find(p => p.op === 'medida_guardar');
+    assert.equal(medida.medida, '11R22.5');
+    assert.equal(medida.clase, 'camion');
+
     await page.setViewportSize({width: 390, height: 844});
     assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
            'la pantalla de parámetros desborda a lo ancho en el celular');
     assert.deepEqual(errores, []);
     console.log('PASS: kilometraje en dos opciones con su estado, plan correctivo sin ' +
                 'intervalo y preventivo sin presupuesto, asignación solo de preventivos, ' +
-                'umbrales del que administra y celular.');
+                'umbrales del que administra, marcas con logo que se dan de baja en vez ' +
+                'de borrarse, medidas con su familia y celular.');
   } finally {
     await browser.close();
   }

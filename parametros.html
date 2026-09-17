@@ -34,6 +34,16 @@
   h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
   .sub{color:var(--ink-muted);margin:5px 0 18px;line-height:1.55}
 
+  .modulo{margin:0 0 12px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:700}
+  .modulo b{color:var(--brand);font-weight:800}
+  /* El logo de la marca, sobre un fondo claro: casi todos vienen con el
+     fondo blanco recortado y sobre el panel oscuro no se verían. */
+  .logo-marca{width:74px;height:40px;border-radius:8px;background:#fff;
+    display:grid;place-items:center;padding:5px;flex:none}
+  .logo-marca img{max-width:100%;max-height:100%;object-fit:contain}
+  .sin-logo{width:74px;height:40px;border-radius:8px;border:1px dashed var(--hairline-2);
+    display:grid;place-items:center;color:var(--ink-muted);font-size:10px;flex:none}
   .solapas{display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap}
   .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
     border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
@@ -89,7 +99,14 @@
   .aviso{border-radius:10px;padding:10px 12px;margin-top:12px;font-size:13px}
   .aviso.mal{background:rgba(227,93,98,.12);color:var(--bad);border:1px solid rgba(227,93,98,.3)}
   .aviso.bien{background:rgba(49,189,101,.12);color:var(--ok);border:1px solid rgba(49,189,101,.3)}
-  @media(max-width:760px){.opciones{grid-template-columns:1fr}main{padding:14px}}
+  /* En el celular las tablas de gomería son las más anchas: el encabezado
+     se parte en dos líneas, la celda respira menos y el logo va chico. Nada
+     se esconde: la marca, cuántas cubiertas tiene y su estado se leen igual. */
+  @media(max-width:760px){.opciones{grid-template-columns:1fr}main{padding:14px}
+    th{white-space:normal;padding:9px 5px;font-size:9px;letter-spacing:.3px}
+    td{padding:10px 5px;overflow-wrap:anywhere}
+    .logo-marca,.sin-logo{width:50px;height:30px}
+    .accion{padding:0 5px 0 0}}
 </style>
 </head>
 <body>
@@ -107,15 +124,17 @@
     cuánto le toca a cada unidad y cuándo el sistema empieza a avisar.</p>
 
   <div class="solapas">
-    <button class="solapa on" data-vista="km">Kilometraje</button>
-    <button class="solapa" data-vista="planes">Planes de mantenimiento</button>
-    <button class="solapa" data-vista="avisos">Umbrales de aviso</button>
+    <button class="solapa on" data-vista="km">Flota</button>
+    <button class="solapa" data-vista="planes">Mantenimiento</button>
+    <button class="solapa" data-vista="gomeria">Gomería</button>
+    <button class="solapa" data-vista="avisos">Alertas</button>
   </div>
 
   <div id="aviso"></div>
 
   <!-- ------------------------------------------------------- kilometraje -->
   <section id="v-km">
+    <p class="modulo">Parametrizaciones de <b>Flota</b></p>
     <div class="caja">
       <h2>De dónde salen los kilómetros</h2>
       <p class="que">El kilometraje es la base de todo lo demás: el próximo service,
@@ -150,6 +169,7 @@
 
   <!-- ------------------------------------------------------------ planes -->
   <section id="v-planes" hidden>
+    <p class="modulo">Parametrizaciones de <b>Mantenimiento</b></p>
     <div class="caja">
       <h2>Planes de mantenimiento</h2>
       <p class="que">El <b>preventivo</b> se agenda: cada tantos kilómetros o cada
@@ -208,6 +228,7 @@
 
   <!-- ------------------------------------------------------------ avisos -->
   <section id="v-avisos" hidden>
+    <p class="modulo">Parametrizaciones de <b>Alertas</b></p>
     <div class="caja">
       <h2>Cuándo el sistema empieza a avisar</h2>
       <p class="que">Los mismos números que usa la pantalla de Alertas. Subirlos hace
@@ -224,6 +245,93 @@
           <input id="r-dias" type="number" min="1" step="1"></div>
       </div>
       <div class="fila"><button class="btn" id="reglas-guardar">Guardar umbrales</button></div>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- gomería -->
+  <section id="v-gomeria" hidden>
+    <p class="modulo">Parametrizaciones de <b>Gomería</b></p>
+
+    <div class="caja">
+      <h2>Marcas de cubierta</h2>
+      <p class="que">El logo se sube acá y se ve en la mesa de montaje y en la ficha
+        de la unidad. La marca que ya tiene cubiertas cargadas no se borra: se da de
+        baja, y deja de ofrecerse al cargar una cubierta nueva.</p>
+      <div class="fila" style="margin:0 0 14px">
+        <button class="btn" id="marca-nueva">+ Nueva marca</button>
+      </div>
+
+      <form id="marca-form" hidden style="background:var(--surface-2);
+        border:1px solid var(--hairline-2);border-radius:12px;padding:15px;margin-bottom:16px">
+        <div class="campos">
+          <div><label>Nombre</label><input id="m-nombre" maxlength="60"
+            placeholder="Bridgestone" required></div>
+          <div><label>Logo</label><input id="m-logo" type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml,image/gif">
+            <p class="chico" style="margin:6px 0 0">PNG, JPG, WEBP o SVG, hasta 300 KB.
+              Si no se sube ninguno, se muestra el nombre en texto.</p></div>
+          <div class="ancho">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;
+              font-size:13px;letter-spacing:0">
+              <input type="checkbox" id="m-activa" checked style="width:auto">
+              Se ofrece al cargar una cubierta</label></div>
+        </div>
+        <div class="fila">
+          <div class="logo-marca" id="m-preview" hidden><img alt=""></div>
+          <button class="btn" type="submit">Guardar marca</button>
+          <button class="btn alt" type="button" id="marca-cancelar">Cancelar</button>
+          <button class="btn mal" type="button" id="marca-sin-logo" hidden>Quitar el logo</button>
+        </div>
+      </form>
+
+      <table><thead><tr>
+        <th>Logo</th><th>Marca</th><th class="num">Cubiertas</th><th>Estado</th><th></th>
+      </tr></thead><tbody id="marcas"></tbody></table>
+      <p class="vacio" id="marcas-vacio" hidden>Todavía no hay marcas cargadas.</p>
+    </div>
+
+    <div class="caja">
+      <h2>Medidas</h2>
+      <p class="que">Con qué medidas se trabaja, y de qué familia es cada una. La
+        familia es lo que evita que se ofrezca una goma de camión para un
+        autoelevador: lo que identifica es el primer número —una 295/80R22.5 es una
+        <b>295</b>—, porque el perfil y la llanta cambian de una marca a otra.</p>
+      <div class="fila" style="margin:0 0 14px">
+        <button class="btn" id="medida-nueva">+ Nueva medida</button>
+      </div>
+
+      <form id="medida-form" hidden style="background:var(--surface-2);
+        border:1px solid var(--hairline-2);border-radius:12px;padding:15px;margin-bottom:16px">
+        <div class="campos">
+          <div><label>Medida</label><input id="d-medida" maxlength="40"
+            placeholder="295/80R22.5" required></div>
+          <div><label>Familia</label><select id="d-clase">
+            <option value="camion">Camión</option>
+            <option value="autoelevador">Autoelevador</option>
+            <option value="otro">Otro</option>
+          </select></div>
+          <div><label>Número que identifica</label><input id="d-corta" maxlength="10"
+            placeholder="295">
+            <p class="chico" style="margin:6px 0 0">Si se deja vacío, sale solo del
+              primer número de la medida.</p></div>
+          <div class="ancho"><label>Nota</label><input id="d-descripcion" maxlength="300"
+            placeholder="La medida de los camiones de la flota."></div>
+          <div class="ancho">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;
+              font-size:13px;letter-spacing:0">
+              <input type="checkbox" id="d-activa" checked style="width:auto">
+              Se ofrece al cargar una cubierta</label></div>
+        </div>
+        <div class="fila">
+          <button class="btn" type="submit">Guardar medida</button>
+          <button class="btn alt" type="button" id="medida-cancelar">Cancelar</button>
+        </div>
+      </form>
+
+      <table><thead><tr>
+        <th>Medida</th><th>Familia</th><th class="num">Cubiertas</th><th>Estado</th><th></th>
+      </tr></thead><tbody id="medidas"></tbody></table>
+      <p class="vacio" id="medidas-vacio" hidden>Todavía no hay medidas cargadas.</p>
     </div>
   </section>
 </main>
@@ -352,9 +460,10 @@ document.addEventListener('click', async ev => {
   const solapa = ev.target.closest('.solapa');
   if (solapa) {
     document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
-    ['km', 'planes', 'avisos'].forEach(v => {
+    ['km', 'planes', 'gomeria', 'avisos'].forEach(v => {
       $('#v-' + v).hidden = v !== solapa.dataset.vista;
     });
+    if (solapa.dataset.vista === 'gomeria' && !G.datos) cargarGomeria();
     return;
   }
   const opcion = ev.target.closest('.opcion');
@@ -433,6 +542,179 @@ document.addEventListener('change', async ev => {
     await cargar();
     aviso('Plan asignado.', true);
   } catch (e) { aviso(e.message); await cargar(); }
+});
+
+
+/* ====================================================================
+   GOMERÍA — marcas y medidas
+   El logo se sube acá y lo sirve el servidor desde la base: el disco de
+   Render se borra en cada publicación, así que un archivo dejado a mano
+   duraría hasta el próximo deploy.
+   ==================================================================== */
+const G = {datos: null, marca: null, medida: null, logo: null};
+const CLASE = {camion: 'Camión', autoelevador: 'Autoelevador', otro: 'Otro'};
+
+async function apiMarcas(op, extra) {
+  const r = await fetch('/api/marcas', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar.');
+  return d;
+}
+
+async function cargarGomeria() {
+  const r = await fetch('/api/marcas?todas=1');
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) return aviso(d.error || 'No se pudieron leer las marcas.');
+  G.datos = d;
+  pintarGomeria();
+}
+
+/* El logo se pide con la hora de guardado pegada atrás: sin eso, el
+   navegador sigue mostrando el que tenía cacheado. */
+const urlLogo = m => `/marcas/${encodeURIComponent(m.slug)}.png?v=${G.sello || ''}`;
+
+function pintarGomeria() {
+  const d = G.datos;
+  const puede = !!d.puede_gestionar;
+  $('#marca-nueva').disabled = !puede;
+  $('#medida-nueva').disabled = !puede;
+
+  $('#marcas').innerHTML = d.marcas.map(m => `
+    <tr>
+      <td><div class="logo-marca"><img src="${urlLogo(m)}" alt="${esc(m.nombre)}"
+            onerror="this.closest('.logo-marca').outerHTML=&quot;<div class='sin-logo'>sin logo</div>&quot;"></div></td>
+      <td><b>${esc(m.nombre)}</b><div class="chico">${esc(m.slug)}</div></td>
+      <td class="num">${m.cubiertas}</td>
+      <td>${m.activa ? '<span class="marca preventivo">activa</span>'
+                     : '<span class="chico">de baja</span>'}</td>
+      <td>${puede ? `<button class="accion" data-marca="${m.id}">Editar</button>
+        ${m.cubiertas ? '' : `<button class="accion" data-borrar-marca="${m.id}">Borrar</button>`}` : ''}</td>
+    </tr>`).join('');
+  $('#marcas-vacio').hidden = d.marcas.length > 0;
+
+  $('#medidas').innerHTML = d.medidas.map(m => `
+    <tr>
+      <td><b>${esc(m.medida)}</b>${m.descripcion ? `<div class="chico">${esc(m.descripcion)}</div>` : ''}</td>
+      <td>${esc(CLASE[m.clase] || m.clase || '—')}
+        ${m.corta ? `<div class="chico">identifica: ${esc(m.corta)}</div>` : ''}</td>
+      <td class="num">${m.cubiertas}</td>
+      <td>${m.activa ? '<span class="marca preventivo">activa</span>'
+                     : '<span class="chico">de baja</span>'}</td>
+      <td>${puede ? `<button class="accion" data-medida="${m.id}">Editar</button>
+        ${m.cubiertas ? '' : `<button class="accion" data-borrar-medida="${m.id}">Borrar</button>`}` : ''}</td>
+    </tr>`).join('');
+  $('#medidas-vacio').hidden = d.medidas.length > 0;
+}
+
+function formMarca(marca) {
+  G.marca = marca; G.logo = null;
+  $('#marca-form').hidden = false;
+  $('#m-nombre').value = marca ? marca.nombre : '';
+  $('#m-logo').value = '';
+  $('#m-activa').checked = marca ? !!marca.activa : true;
+  $('#marca-sin-logo').hidden = !(marca && marca.tiene_logo);
+  const previo = $('#m-preview');
+  previo.hidden = !(marca && marca.tiene_logo);
+  if (marca && marca.tiene_logo) previo.querySelector('img').src = urlLogo(marca);
+  $('#m-nombre').focus();
+}
+
+function formMedida(medida) {
+  G.medida = medida;
+  $('#medida-form').hidden = false;
+  $('#d-medida').value = medida ? medida.medida : '';
+  $('#d-clase').value = (medida && medida.clase) || 'camion';
+  $('#d-corta').value = (medida && medida.corta) || '';
+  $('#d-descripcion').value = (medida && medida.descripcion) || '';
+  $('#d-activa').checked = medida ? !!medida.activa : true;
+  $('#d-medida').focus();
+}
+
+/* El archivo se lee acá y viaja como data URL en el mismo JSON: son unos
+   pocos KB y evita un segundo camino de subida solo para esto. */
+$('#m-logo').onchange = e => {
+  const archivo = e.target.files && e.target.files[0];
+  if (!archivo) { G.logo = null; return; }
+  if (archivo.size > 300 * 1024)
+    return aviso(`El logo pesa ${Math.round(archivo.size / 1024)} KB y el máximo es 300 KB.`);
+  const lector = new FileReader();
+  lector.onload = () => {
+    G.logo = lector.result;
+    const previo = $('#m-preview');
+    previo.hidden = false;
+    previo.querySelector('img').src = G.logo;
+  };
+  lector.readAsDataURL(archivo);
+};
+
+$('#marca-form').onsubmit = async e => {
+  e.preventDefault();
+  const datos = {nombre: $('#m-nombre').value, activa: $('#m-activa').checked};
+  if (G.logo) datos.logo = G.logo;
+  if (G.marca) datos.id = G.marca.id;
+  try {
+    await apiMarcas('guardar', datos);
+    $('#marca-form').hidden = true;
+    G.sello = Date.now();
+    await cargarGomeria();
+    aviso('Marca guardada.', true);
+  } catch (err) { aviso(err.message); }
+};
+
+$('#medida-form').onsubmit = async e => {
+  e.preventDefault();
+  const datos = {
+    medida: $('#d-medida').value, clase: $('#d-clase').value,
+    corta: $('#d-corta').value, descripcion: $('#d-descripcion').value,
+    activa: $('#d-activa').checked};
+  if (G.medida) datos.id = G.medida.id;
+  try {
+    await apiMarcas('medida_guardar', datos);
+    $('#medida-form').hidden = true;
+    await cargarGomeria();
+    aviso('Medida guardada.', true);
+  } catch (err) { aviso(err.message); }
+};
+
+document.addEventListener('click', async ev => {
+  if (ev.target.id === 'marca-nueva') return formMarca(null);
+  if (ev.target.id === 'marca-cancelar') { $('#marca-form').hidden = true; return; }
+  if (ev.target.id === 'medida-nueva') return formMedida(null);
+  if (ev.target.id === 'medida-cancelar') { $('#medida-form').hidden = true; return; }
+  if (ev.target.id === 'marca-sin-logo') {
+    if (!G.marca || !confirm('¿Quitar el logo? La pantalla vuelve a mostrar el nombre.')) return;
+    try {
+      await apiMarcas('borrar_logo', {id: G.marca.id});
+      $('#marca-form').hidden = true;
+      G.sello = Date.now();
+      await cargarGomeria();
+      aviso('Logo quitado.', true);
+    } catch (e) { aviso(e.message); }
+    return;
+  }
+
+  const editar = ev.target.closest('[data-marca]');
+  if (editar)
+    return formMarca(G.datos.marcas.find(m => String(m.id) === editar.dataset.marca));
+  const editarM = ev.target.closest('[data-medida]');
+  if (editarM)
+    return formMedida(G.datos.medidas.find(m => String(m.id) === editarM.dataset.medida));
+
+  const borrar = ev.target.closest('[data-borrar-marca]');
+  if (borrar) {
+    if (!confirm('¿Borrar la marca?')) return;
+    try { await apiMarcas('borrar', {id: borrar.dataset.borrarMarca}); await cargarGomeria(); }
+    catch (e) { aviso(e.message); }
+    return;
+  }
+  const borrarM = ev.target.closest('[data-borrar-medida]');
+  if (borrarM) {
+    if (!confirm('¿Borrar la medida?')) return;
+    try { await apiMarcas('medida_borrar', {id: borrarM.dataset.borrarMedida}); await cargarGomeria(); }
+    catch (e) { aviso(e.message); }
+  }
 });
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {

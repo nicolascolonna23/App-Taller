@@ -1,9 +1,14 @@
 # Parámetros, planes y roles
 
-Tres cosas que antes decidía el código y ahora se cargan, y una pantalla
-nueva para cada una. Todo sale de `gomeria/29_parametros.sql`, que se pega
-entero en Supabase → SQL Editor → Run y se puede correr las veces que
+Lo que antes decidía el código y ahora se carga. Sale de
+`gomeria/29_parametros.sql` y `gomeria/31_marcas_medidas.sql`, que se pegan
+enteros en Supabase → SQL Editor → Run y se pueden correr las veces que
 haga falta.
+
+La pantalla `/parametros` está **separada por módulo** —*Flota*,
+*Mantenimiento*, *Gomería*, *Alertas*—, porque el que va a cargar una
+marca de cubierta no tiene por qué pasar por los planes de mantenimiento
+para llegar.
 
 Los accesos están **arriba, en todas las pantallas**: *Usuarios* y
 *Parámetros*, para el que los tenga habilitados. El permiso lo revisa el
@@ -11,7 +16,7 @@ servidor en cada pedido; la barra solo esconde lo que no corresponde.
 
 ## 1. De dónde salen los kilómetros
 
-En `/parametros`, primera solapa. Dos opciones y nada más:
+En `/parametros`, solapa **Flota**. Dos opciones y nada más:
 
 | | Qué hace |
 |---|---|
@@ -27,8 +32,8 @@ Cambiarlo es de quien **administra**.
 
 ## 2. Los planes de mantenimiento
 
-Segunda solapa. Un plan tiene **clase**, y la clase decide qué campos
-tienen sentido:
+Solapa **Mantenimiento**. Un plan tiene **clase**, y la clase decide qué
+campos tienen sentido:
 
 **Preventivo.** Se agenda: cada tantos kilómetros, **o cada tantos días**
 —el aceite se vence aunque el camión no ruede—. Alcanza con uno de los
@@ -48,7 +53,7 @@ del dueño del sistema.
 
 ## 3. Los umbrales de aviso
 
-Tercera solapa: los mismos números que ya usaba Alertas. A cuántos
+Solapa **Alertas**: los mismos números que ya usaba ese módulo. A cuántos
 kilómetros del service empieza a avisar, cuándo se pone urgente, y qué
 carga de combustible es demasiado grande. Subirlos hace que avise antes;
 bajarlos, que avise menos. Un aviso que llega tarde no sirve, y uno que
@@ -122,3 +127,46 @@ Detalles que importan:
   quedaría diciendo kilómetros que el semi no hizo.
 - El punto de partida es el kilometraje que el semi ya tuviera cargado,
   así el número no arranca de cero cuando tiene medio millón encima.
+
+## 7. Gomería: marcas y medidas
+
+Solapa **Gomería**. Sale de `gomeria/31_marcas_medidas.sql`.
+
+Hasta acá la marca de una cubierta era un texto que cada uno escribía como
+quería —*FATE*, *Fate*, *fate*— y el logo era un archivo que había que
+dejar en la carpeta `marcas/` del repositorio: sumar una marca era hacer
+un deploy.
+
+**Las marcas** ahora son filas, con su logo subido desde la pantalla. El
+logo se guarda **en la base y no en el disco**, porque el disco de Render
+se borra en cada publicación: un archivo subido a mano duraría hasta el
+próximo deploy. PNG, JPG, WEBP, GIF o SVG, hasta 300 KB —más que eso es
+una foto subida por error—.
+
+- El nombre se junta por lo que es: *FATE*, *Fate* y *F.A.T.E.* son una
+  sola marca. De ahí sale también el nombre con el que se sirve el logo
+  (`/marcas/fate.png`).
+- **Guardar el nombre no borra el logo.** Solo lo pisa una imagen nueva, y
+  hay un botón aparte para sacarlo.
+- La marca con cubiertas cargadas **se da de baja, no se borra**: deja de
+  ofrecerse al cargar una cubierta, y las fichas que ya la nombran siguen
+  diciendo lo mismo. Borrarla dejaría fichas nombrando algo que no existe.
+- Sin logo cargado se sigue mostrando el nombre en texto. Que falte no
+  rompe nada.
+
+**Las medidas** son con cuáles se trabaja y de qué familia es cada una. Lo
+que identifica es el **primer número** —una 295/80R22.5 es una **295**—,
+porque el perfil y la llanta cambian de una marca a otra y no hacen a la
+cuestión de si la goma entra o no en esa unidad. La familia es lo que
+evita que se ofrezca una goma de camión para un autoelevador: el sistema
+ya lo sabía, pero lo sabía escrito en el código. Arranca con la 295 de los
+camiones y las dos de los autoelevadores, más las que ya estuvieran
+cargadas en las cubiertas.
+
+Tocar las marcas y las medidas es de quien **gestiona**. Verlas, de
+cualquiera: las pantallas de gomería las leen para sus desplegables.
+
+**En la mesa de montaje**, el inspector de la derecha muestra el **logo**
+en lugar del nombre, y la goma **rueda**: los tacos corren por la banda y
+las tuercas giran con la llanta. Quien pidió menos movimiento en su
+sistema no ve ninguno.

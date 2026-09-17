@@ -18,6 +18,7 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  if(p==='/api/desgaste')return route.fulfill({json:{instalado:false,aviso:'Sin mediciones',montadas:[]}});
  if(p==='/api/mapa')return route.fulfill({json:{unidad:unit,mapa:map,modelo_3d:'semi',modelo_3d_archivo:'trailer.obj',modelo_3d_por:'mapa',historial:[],movimientos:[]}});
  if(p==='/api/gomeria/stock')return route.fulfill({json:stock.filter(t=>t.estado==='stock')});
+ if(p==='/api/marcas')return route.fulfill({json:{marcas:[{id:1,nombre:'Fate',slug:'fate'},{id:2,nombre:'Michelin',slug:'michelin'}],medidas:[{id:1,medida:'295/80R22.5',descripcion:'La de los camiones.'}],puede_gestionar:false}});
  if(p==='/api/inventario-cubiertas')return route.fulfill({json:{cubiertas:stock,resumen:{stock:stock.filter(t=>t.estado==='stock').length}}});
  if(p==='/api/gomeria/posicion'){
  const d=req.postDataJSON();writes.push(d);const pos=map.find(p=>p.posicion_id===Number(d.posicion_id));
@@ -34,6 +35,16 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.map [data-pos="8"] .mounted-label').textContent(),'MONTADA');
  assert(await page.evaluate(()=>V.ruedas.some(m=>{const e=esquinaDeLaRueda(m);return posicionesDe(e).some(p=>p.cubierta_id===319)&&m.material.color.getHex()===RUEDA.parcial;})));
  await page.locator('[data-ver-pos="8"]').click();await page.waitForFunction(()=>document.querySelector('#tireInspector').textContent.includes('319'));
+ // La marca se muestra con su logo, no con el nombre, y la goma rueda.
+ await page.locator('#tireInspector .logo-marca img').waitFor();
+ assert.equal(new URL(await page.locator('#tireInspector .logo-marca img').getAttribute('src'),'http://taller.test').pathname,'/marcas/fate.png');
+ assert(await page.locator('#tireInspector .logo-marca img').evaluate(i=>i.complete&&i.naturalWidth>0),'el logo tiene que llegar: si no, queda el nombre en texto');
+ assert(!(await page.locator('#tireInspector .details').innerText()).includes('FATE'),'el nombre tendría que haber quedado reemplazado por el logo');
+ for(const clase of ['.tacos','.llanta']){const dur=await page.locator('.tire-art '+clase).evaluate(e=>getComputedStyle(e).animationDuration);assert(parseFloat(dur)>0,'la goma no se mueve: '+clase+' sin animación');}
+ // La marca sin logo cargado vuelve a mostrarse en texto.
+ await page.evaluate(()=>{document.querySelector('#tireInspector .logo-marca img').dispatchEvent(new Event('error'));});
+ assert((await page.locator('#tireInspector .details').innerText()).includes('FATE'),'sin logo tiene que quedar el nombre');
+ await page.locator('[data-ver-pos="8"]').click();
  // Icon-only navigation keeps accessible names and hover titles.
  await page.route('**/api/yo',route=>route.fulfill({json:{nombre:'Prueba',administra:true,puede_administrar:admin}}));
  await page.addScriptTag({path:path.join(root,'barra.js')});await page.locator('.barra-admin').waitFor();
@@ -59,7 +70,17 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  await page.locator('#visor canvas').dragTo(page.locator('#returnStock'),{sourcePosition:mounted});await page.locator('#movementDialog').waitFor();await page.fill('#movementNote','Desgaste irregular');await page.selectOption('#movementDestination','reparacion');await page.click('#movementSave');await page.waitForFunction(id=>!document.querySelector('.map [data-pos="'+id+'"]')?.dataset.tire,spot.positions[1]);assert.equal(writes.at(-1).destino,'reparacion');
  await page.waitForFunction(()=>V.ruedas.length>0);await page.locator('.map [data-pos="2"]').click();await page.screenshot({path:'/tmp/gomeria-mesa-desktop.png',fullPage:true});
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'/tmp/gomeria-mesa-mobile.png',fullPage:true});
+ // El alta de cubierta sugiere las marcas y medidas cargadas en Parámetros.
+ await page.click('[data-tab="stock"]');
+ assert.deepEqual(await page.locator('#catMarcas option').evaluateAll(o=>o.map(x=>x.value)),['Fate','Michelin']);
+ assert.deepEqual(await page.locator('#catMedidas option').evaluateAll(o=>o.map(x=>x.value)),['295/80R22.5']);
+ assert.equal(await page.locator('#nBrand').getAttribute('list'),'catMarcas');
+ await page.click('[data-tab="fleet"]');await page.waitForFunction(()=>V.ruedas.length>0);
+ // Quien pidió menos movimiento en su sistema no ve ninguno.
+ await page.emulateMedia({reducedMotion:'reduce'});await page.locator('.map [data-pos="2"]').click();
+ assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
+ await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca y goma que rueda');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

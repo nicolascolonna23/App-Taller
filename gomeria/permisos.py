@@ -93,6 +93,9 @@ RUTAS = {
     "/asistente": "asistente", "/api/asistente": "asistente",
     "/usuarios": "usuarios", "/api/usuarios": "usuarios",
     "/parametros": "parametros", "/api/parametros": "parametros",
+    # El catálogo de marcas y medidas no pide módulo: lo leen todas las
+    # pantallas de gomería para sus desplegables. Tocarlo exige gestionar,
+    # y eso lo revisa marcas.py.
     # El enganche tractor–semi es un submódulo de Flota: se abre desde el
     # maestro de unidades y vive de sus mismos datos.
     "/api/enganches": "unidades",

@@ -42,6 +42,7 @@ import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
 import enganches as eng
+import marcas as mcs
 import parametros as par
 import permisos
 import solicitudes as sol
@@ -414,19 +415,34 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la parametrización: {e}", 500)
 
-        # Los logos de las marcas de cubierta. Que falte uno no es un
-        # error: la pantalla muestra el nombre en texto y sigue.
-        if ruta.startswith("/marcas/") and ruta.endswith(".png"):
+        # Los logos de las marcas de cubierta. Primero el que se subió
+        # desde la pantalla, que vive en la base; si no hay, el archivo
+        # que vino con el repositorio. Que falte uno no es un error: la
+        # pantalla muestra el nombre en texto y sigue.
+        if ruta.startswith("/marcas/"):
             if not self._exigir_sesion():
                 return
-            camino = os.path.join(AQUI, "marcas", os.path.basename(ruta))
-            if not os.path.isfile(camino):
-                return self._error("No hay logo de esa marca.", 404)
-            cuerpo = open(camino, "rb").read()
+            nombre = os.path.basename(ruta)
+            cuerpo = tipo = None
+            try:
+                with base.conectar() as cx:
+                    subido = mcs.logo_de(cx, os.path.splitext(nombre)[0])
+                if subido:
+                    cuerpo, tipo = subido
+            except Exception:
+                # Sin 31_marcas_medidas.sql corrido se sigue como siempre.
+                pass
+            if cuerpo is None:
+                camino = os.path.join(AQUI, "marcas", nombre)
+                if not os.path.isfile(camino):
+                    return self._error("No hay logo de esa marca.", 404)
+                cuerpo, tipo = open(camino, "rb").read(), "image/png"
             self.send_response(200)
-            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Type", tipo)
             self.send_header("Content-Length", str(len(cuerpo)))
-            self.send_header("Cache-Control", "public, max-age=604800")
+            # Poco tiempo: un logo que se acaba de cambiar tiene que
+            # verse hoy, no la semana que viene.
+            self.send_header("Cache-Control", "public, max-age=300")
             self.end_headers()
             return self.wfile.write(cuerpo)
 
@@ -716,6 +732,30 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los enganches: {e}", 500)
 
+        # El catálogo de marcas y medidas. Lo leen las pantallas de
+        # gomería para sus desplegables, así que no pide más que sesión;
+        # tocarlo sí, y eso lo revisa el módulo.
+        if ruta == "/api/marcas":
+            if not self._exigir_sesion():
+                return
+            try:
+                # Con ?todas=1 entran también las de baja: es lo que
+                # mira la parametrización, que tiene que poder revivir una.
+                todas = (parse_qs(urlparse(self.path).query).get("todas")
+                         or ["0"])[0] in ("1", "true", "si")
+                with base.conectar() as cx:
+                    salida = {"marcas": mcs.listar(cx, todas),
+                              "medidas": mcs.medidas(cx, todas),
+                              "puede_gestionar": permisos.gestiona(self.usuario)}
+                    return self._responder(gom.jstr(salida))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                return self._error(
+                    "Faltan las marcas y medidas. Ejecutar "
+                    "gomeria/31_marcas_medidas.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las marcas: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
@@ -995,6 +1035,12 @@ class App(gom.Handler):
             return self._escribir(par.aplicar, "el parámetro",
                                   "gomeria/29_parametros.sql")
 
+        # Marcas y medidas de cubierta. El logo viaja en el mismo JSON, así
+        # que el pedido puede ser más grande que el resto.
+        if ruta == "/api/marcas":
+            return self._escribir(mcs.aplicar, "la marca",
+                                  "gomeria/31_marcas_medidas.sql", limite=1024 * 1024)
+
         # Enganchar y desenganchar. Cada cambio rehace los kilómetros del
         # semi: un enganche corregido cambia el pasado, y la serie tiene
         # que decir lo que el semi rodó de verdad.
@@ -1096,7 +1142,7 @@ class App(gom.Handler):
             return self._combustible(borrar=True)
         return self._error("No existe", 404)
 
-    def _escribir(self, aplicar, que, script):
+    def _escribir(self, aplicar, que, script, limite=64 * 1024):
         """El POST de un módulo: leer el JSON, aplicarlo y contestar.
 
         Es el mismo bloque para todos —permisos, datos mal cargados, SQL
@@ -1107,7 +1153,7 @@ class App(gom.Handler):
             return
         try:
             largo = int(self.headers.get("Content-Length") or 0)
-            if largo > 64 * 1024:
+            if largo > limite:
                 return self._error("El pedido es demasiado grande.", 413)
             datos = json.loads(self.rfile.read(largo) or b"{}")
             with base.conectar() as cx:
@@ -1308,6 +1354,7 @@ def preparar():
             "usuarios y roles": ("roles", "rol_modulos"),
             "urea": ("urea_tanques", "urea_movimientos"),
             "parámetros y enganches": ("parametros", "enganches"),
+            "marcas y medidas": ("cubiertas_marcas", "cubiertas_medidas"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):
