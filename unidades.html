@@ -50,6 +50,14 @@
 
   /* Filtros: buscador, sucursal, uso y estado. Todo en una barra. */
   .barra{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin-bottom:14px}
+  .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
+    font-size:12px;text-decoration:underline;padding:0 8px 0 0}
+  .accion:hover{color:var(--brand)}
+  .solapas{display:flex;gap:6px;margin:0 0 16px;flex-wrap:wrap}
+  .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
+    border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
+  .solapa.on{background:color-mix(in srgb,var(--brand) 13%,transparent);
+    border-color:var(--brand);color:var(--ink)}
   input,select,textarea{background:var(--surface-2);color:var(--ink);
     border:1px solid var(--hairline-2);border-radius:9px;padding:9px 11px;font:inherit}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
@@ -259,6 +267,11 @@
   <h1>Flota</h1>
   <p class="sub">Toda la información de las unidades. Es el origen de los datos del resto del sistema.</p>
 
+  <div class="solapas">
+    <button class="solapa on" data-vista="unidades">Unidades</button>
+    <button class="solapa" data-vista="semis">Tractor y semi</button>
+  </div>
+
   <div id="error" class="error" hidden></div>
 
   <details class="revisar" id="revisar" hidden>
@@ -297,6 +310,47 @@
     </table>
     <p class="vacio" id="vacio" hidden>No hay unidades que entren en ese filtro.</p>
   </div>
+
+  <!-- --------------------------------------------------- tractor y semi
+       Un semi no tiene satelital: no tiene motor, no reporta, y sin
+       embargo sus gomas se gastan y sus papeles vencen. Sus kilómetros
+       son los del tractor que lo llevó, mientras lo llevó. -->
+  <section id="v-semis" hidden>
+    <p class="sub" id="semis-sub">Cargando…</p>
+    <div class="barra">
+      <button class="btn" id="enganchar" hidden>+ Enganchar</button>
+      <button class="btn gris" id="recalcular" hidden
+              title="Rehace la serie de kilómetros de todos los semis">Recalcular km</button>
+    </div>
+
+    <form id="form-enganche" class="caja" hidden style="margin-bottom:14px">
+      <div class="campos">
+        <div class="campo"><label>Tractor</label><select id="e-tractor"></select></div>
+        <div class="campo"><label>Semi</label><select id="e-semi"></select></div>
+        <div class="campo"><label>Desde</label><input id="e-desde" type="date"></div>
+        <div class="campo"><label>Nota</label><input id="e-nota" maxlength="200"></div>
+      </div>
+      <p class="sub" style="margin:10px 0 0">El día del enganche no suma: el recorrido
+        de esa fecha lo hizo el tractor antes de llevarlo.</p>
+      <div class="barra" style="margin:12px 0 0">
+        <button class="btn" type="submit">Enganchar</button>
+        <button class="btn gris" type="button" id="cancelar-enganche">Cancelar</button>
+      </div>
+    </form>
+
+    <div class="caja">
+      <table>
+        <thead><tr>
+          <th>Semi</th><th>Tractor de hoy</th><th>Desde</th>
+          <th style="text-align:right">Km enganchado</th>
+          <th style="text-align:right">Km del semi</th><th></th>
+        </tr></thead>
+        <tbody id="cuerpo-semis"></tbody>
+      </table>
+      <p class="vacio" id="vacio-semis" hidden>Todavía no hay semis registrados.
+        Enganchá uno y aparece acá.</p>
+    </div>
+  </section>
 </main>
 
 <div class="fondo" id="fondo" hidden>
@@ -791,6 +845,7 @@ function formSacar(fila, p){
         <option value="reparacion">Reparación</option>
         <option value="baja">Baja — no da para más</option>
       </select></label>
+    <label>Motivo del retiro<input class="motivo" maxlength="300" placeholder="Indicar el motivo"></label>
     <div class="acc-pie">
       <button type="button" class="mini gris cancelar">Cancelar</button>
       <button type="button" class="mini confirmar">Sacar de ${esc(p.posicion)}</button>
@@ -799,7 +854,7 @@ function formSacar(fila, p){
   caja.querySelector('.cancelar').onclick = cerrarForms;
   caja.querySelector('.confirmar').onclick = () => mover({
     accion:'desmontar', posicion_id:p.posicion_id,
-    destino: caja.querySelector('.destino').value }, caja);
+    destino: caja.querySelector('.destino').value, nota:caja.querySelector('.motivo').value, cubierta_esperada:p.cubierta_id }, caja);
 }
 
 async function formPoner(fila, p){
@@ -1002,6 +1057,61 @@ async function pintarEstado(id){
       : '<p class="nada">Sin documentos cargados para esta unidad.</p>',
     ['Vencimientos', '/vencimientos']));
 
+  /* Lo que pasó por el taller. Abiertas primero: son las que todavía
+     tienen algo que hacer. El monto de cada una y, debajo, qué se le
+     hizo: sin eso es una lista de números de orden. */
+  const ot = d.ordenes;
+  if (ot){
+    const ordenes = ot.ordenes || [];
+    const abiertas = ordenes.filter(o => o.estado === 'abierta').length;
+    const cerradas = ordenes.filter(o => o.estado === 'cerrada').length;
+    const trabajos = {}, repuestos = {};
+    (ot.trabajos || []).forEach(t => (trabajos[t.numero] ||= []).push(t.detalle));
+    (ot.repuestos || []).forEach(r => (repuestos[r.numero] ||= []).push(
+      `${r.cantidad}× ${r.descripcion || r.codigo || ''}`.trim()));
+
+    const renglon = o => {
+      const detalle = [o.solicitado, o.diagnostico].filter(Boolean).join(' · ');
+      const hechos = (trabajos[o.numero] || []).join(' · ');
+      const puestos = (repuestos[o.numero] || []).join(', ');
+      const bajo = [
+        detalle,
+        hechos && `Se hizo: ${hechos}`,
+        puestos && `Repuestos: ${puestos}`,
+        o.factura && `Factura ${o.factura}`,
+      ].filter(Boolean).map(esc).join(' — ');
+      return `<div class="fila ${o.estado === 'abierta' ? 'por_vencer' : ''}"
+                   style="align-items:flex-start">
+          <span class="izq">Nº ${esc(o.numero)}</span>
+          <span>${fecha(o.fecha)}${o.taller ? ' · ' + esc(o.taller) : ''}
+            ${o.mantenimiento ? ' · ' + esc(o.mantenimiento) : ''}
+            ${o.tipo === 'externa' ? ' · externa' : ''}
+            ${o.estado === 'abierta' ? ' · <b>abierta</b>'
+              : o.estado === 'anulada' ? ' · anulada' : ''}
+            ${bajo ? `<small style="display:block;color:var(--ink-muted);margin-top:3px;
+                        line-height:1.45">${bajo}</small>` : ''}</span>
+          <span class="der">${o.estado === 'anulada' ? '—'
+            : '$ ' + nf0.format(Math.round(Number(o.total) || 0))}</span>
+        </div>`;
+    };
+
+    const visibles = ordenes.slice(0, 8);
+    partes.push(bloque('Órdenes de trabajo',
+      `<div class="numeros">
+         <div><b>${abiertas}</b><span>abiertas</span></div>
+         <div><b>${cerradas}</b><span>cerradas</span></div>
+         <div><b>$ ${nf0.format(Math.round(ot.total || 0))}</b>
+              <span>gastado, sin las anuladas</span></div>
+       </div>` +
+      (ordenes.length
+        ? '<div class="lista" style="margin-top:11px">' + visibles.map(renglon).join('') +
+          (ordenes.length > visibles.length
+            ? `<p class="nada" style="margin:9px 0 0">y ${ordenes.length - visibles.length} más.</p>`
+            : '') + '</div>'
+        : '<p class="nada" style="margin:9px 0 0">Esta unidad todavía no entró al taller.</p>'),
+      ['Órdenes', '/ordenes']));
+  }
+
   /* El semi, si lo hay. */
   if (u.semi){
     const s = d.semi_unidad;
@@ -1170,11 +1280,128 @@ for (const id of ['#buscar','#f-sucursal','#f-uso','#f-estado'])
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   if (!d) return;
-  PUEDE = ['admin','encargado'].includes(d.rol);
-  $('#quien').textContent = `${d.nombre} · ${d.rol}`;
+  /* Quién puede editar sale del permiso del rol, no de una lista de
+     nombres de rol: un rol nuevo —taller, mecánico— no tiene por qué
+     obligar a tocar esta pantalla. */
+  PUEDE = d.gestiona !== undefined ? !!d.gestiona : ['admin','encargado'].includes(d.rol);
+  $('#quien').textContent = `${d.nombre} · ${d.rol_nombre || d.rol}`;
   $('#nueva').hidden = !PUEDE;
   if (!PUEDE) $('.sub').textContent += ' Solo lectura: para editar hace falta ser encargado.';
 }).catch(() => {});
+
+/* ====================================================================
+   TRACTOR Y SEMI
+   El semi no reporta. Sus kilómetros son los que hizo el tractor
+   mientras lo llevaba puesto, y de eso vive el resto: services,
+   cubiertas y papeles del semi.
+   ==================================================================== */
+const SEMIS = {datos: null};
+
+async function apiEnganche(op, extra) {
+  const r = await fetch('/api/enganches', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+async function cargarSemis() {
+  const r = await fetch('/api/enganches');
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) { $('#semis-sub').textContent = d.error || 'No se pudo leer.'; return; }
+  SEMIS.datos = d;
+  $('#enganchar').hidden = !d.puede_gestionar;
+  $('#recalcular').hidden = !d.puede_gestionar;
+
+  const opcion = u => `<option value="${u.id}">${esc(fmtPat(u.patente))}${
+    u.interno ? ' · ' + esc(u.interno) : ''}${u.semi ? ' (lleva ' + esc(fmtPat(u.semi)) + ')' : ''}</option>`;
+  $('#e-tractor').innerHTML = '<option value="">Elegir tractor</option>' +
+    d.tractores.map(opcion).join('');
+  $('#e-semi').innerHTML = '<option value="">Elegir semi</option>' +
+    d.candidatos.filter(u => !d.tractores.some(t => t.id === u.id) || u.es_semi)
+      .map(u => `<option value="${u.id}">${esc(fmtPat(u.patente))}${
+        u.interno ? ' · ' + esc(u.interno) : ''}</option>`).join('');
+
+  const enganchados = d.semis.filter(s => s.tractor_id).length;
+  $('#semis-sub').textContent = d.semis.length
+    ? `${d.semis.length} semis · ${enganchados} enganchados hoy. Los kilómetros salen ` +
+      'del tractor que los llevó.'
+    : 'Ningún semi registrado todavía. Al enganchar uno por primera vez, queda acá.';
+
+  $('#cuerpo-semis').innerHTML = d.semis.map(s => `
+    <tr>
+      <td><b>${esc(fmtPat(s.patente))}</b>${s.interno ? ` <span class="apagado">· ${esc(s.interno)}</span>` : ''}
+        <div class="apagado">${esc([s.marca, s.modelo].filter(Boolean).join(' '))}</div></td>
+      <td>${s.tractor
+            ? `<b>${esc(fmtPat(s.tractor))}</b>${s.tractor_interno
+                ? ` <span class="apagado">· ${esc(s.tractor_interno)}</span>` : ''}`
+            : '<span class="apagado">suelto</span>'}</td>
+      <td>${s.desde ? fecha(s.desde) : '—'}</td>
+      <td style="text-align:right">${nf0.format(Math.round(s.km_enganchado || 0))}
+        ${s.ultimo_dia ? `<div class="apagado">al ${fecha(s.ultimo_dia)}</div>` : ''}</td>
+      <td style="text-align:right">${s.km_actual != null
+        ? nf0.format(Math.round(s.km_actual)) : '—'}</td>
+      <td style="white-space:nowrap">${d.puede_gestionar && s.enganche_id
+        ? `<button class="accion" data-desenganchar="${s.enganche_id}">Desenganchar</button>` : ''}
+        <button class="accion" data-hist-semi="${s.semi_id}">Historial</button></td>
+    </tr>`).join('');
+  $('#vacio-semis').hidden = d.semis.length > 0;
+}
+
+document.addEventListener('click', async ev => {
+  const solapa = ev.target.closest('.solapa');
+  if (solapa) {
+    document.querySelectorAll('.solapa').forEach(x => x.classList.toggle('on', x === solapa));
+    const semis = solapa.dataset.vista === 'semis';
+    $('#v-semis').hidden = !semis;
+    document.querySelectorAll('main > .barra, main > .caja, main > .revisar')
+      .forEach(e => { e.hidden = semis; });
+    if (semis && !SEMIS.datos) cargarSemis();
+    return;
+  }
+  if (ev.target.id === 'enganchar') {
+    $('#form-enganche').hidden = false;
+    $('#e-desde').value = new Date().toISOString().slice(0, 10);
+    return;
+  }
+  if (ev.target.id === 'cancelar-enganche') { $('#form-enganche').hidden = true; return; }
+  if (ev.target.id === 'recalcular') {
+    try { await apiEnganche('recalcular'); await cargarSemis(); }
+    catch (e) { alert(e.message); }
+    return;
+  }
+  const soltar = ev.target.closest('[data-desenganchar]');
+  if (soltar) {
+    if (!confirm('¿Se bajó el semi? Desde mañana, lo que rode el tractor no es suyo.')) return;
+    try { await apiEnganche('desenganchar', {id: soltar.dataset.desenganchar}); await cargarSemis(); }
+    catch (e) { alert(e.message); }
+    return;
+  }
+  const hist = ev.target.closest('[data-hist-semi]');
+  if (hist) {
+    try {
+      const h = await apiEnganche('historial', {semi_id: hist.dataset.histSemi});
+      alert(h.enganches.length
+        ? h.enganches.map(e => `${fecha(e.desde)} → ${e.hasta ? fecha(e.hasta) : 'hoy'}` +
+            ` · ${fmtPat(e.tractor)} · ${nf0.format(Math.round(e.km || 0))} km`).join('\n')
+          + `\n\nTotal: ${nf0.format(Math.round(h.km))} km`
+        : 'Este semi todavía no tuvo enganches.');
+    } catch (e) { alert(e.message); }
+  }
+});
+
+$('#form-enganche').onsubmit = async e => {
+  e.preventDefault();
+  try {
+    await apiEnganche('enganchar', {
+      tractor_id: $('#e-tractor').value, semi_id: $('#e-semi').value,
+      desde: $('#e-desde').value, nota: $('#e-nota').value});
+    $('#form-enganche').hidden = true;
+    $('#e-nota').value = '';
+    await cargarSemis();
+  } catch (err) { alert(err.message); }
+};
 
 pintarCabecera();
 cargar();

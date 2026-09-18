@@ -214,15 +214,22 @@
 
     <div class="ancho"><label>Nivel</label>
       <div class="nivel">
+        <div class="permiso"><input type="checkbox" id="rRepara">
+          <span><b>Repara</b><span>Carga en una orden abierta lo que hizo y los repuestos
+            que puso. Es el mecánico: hace, no aprueba.</span></span></div>
         <div class="permiso"><input type="checkbox" id="rGestiona">
           <span><b>Gestiona</b><span>Aprueba solicitudes, cierra órdenes, corrige lo
-            que cargó otro. Es el nivel del taller y de mantenimiento.</span></span></div>
+            que cargó otro. Es el nivel del responsable de taller.</span></span></div>
         <div class="permiso"><input type="checkbox" id="rAdministra">
           <span><b>Administra</b><span>Además, usuarios, roles, borrar y reabrir.
             Dáselo a los menos que puedas.</span></span></div>
         <div class="permiso"><input type="checkbox" id="rSucursal">
           <span><b>Es de una sucursal</b><span>A los usuarios de este rol hay que
             asignarles una sucursal: de ahí sale el número de sus solicitudes.</span></span></div>
+        <div class="permiso"><input type="checkbox" id="rSoloSuya">
+          <span><b>Ve solo lo de su sucursal</b><span>Las unidades y las alertas de su
+            boca, no las de toda la red. Lo que no es suyo le ensucia la pantalla donde
+            busca lo propio.</span></span></div>
       </div>
     </div>
 
@@ -281,7 +288,8 @@ function pintar() {
         ${u.sesiones ? `<div class="chico">${u.sesiones} sesión(es) abierta(s)</div>` : ''}</td>
       <td>${esc(u.nombre)}</td>
       <td>${esc(u.rol_nombre || u.rol)}
-        ${u.administra ? '<span class="marca admin">administra</span>' : ''}</td>
+        ${u.es_maestro ? '<span class="marca admin">maestro</span>'
+          : u.administra ? '<span class="marca admin">administra</span>' : ''}</td>
       <td>${esc(u.sucursal_codigo || '—')}</td>
       <td>${esc(fecha(u.ultimo_ingreso))}</td>
       <td><span class="marca ${u.activo ? 'activo' : 'baja'}">${
@@ -289,7 +297,9 @@ function pintar() {
       <td style="white-space:nowrap">
         <button class="accion" data-editar="${u.id}">Editar</button>
         <button class="accion" data-clave="${u.id}">Contraseña</button>
-        <button class="accion" data-estado="${u.id}">${u.activo ? 'Dar de baja' : 'Reactivar'}</button>
+        ${u.es_maestro ? ''
+          : `<button class="accion" data-estado="${u.id}">${
+              u.activo ? 'Dar de baja' : 'Reactivar'}</button>`}
       </td>
     </tr>`).join('')
     : '<tr><td colspan="7" class="vacio">No hay usuarios que coincidan.</td></tr>';
@@ -302,8 +312,10 @@ function pintar() {
         ${r.descripcion ? `<div class="chico">${esc(r.descripcion)}</div>` : ''}</td>
       <td>${r.administra ? '<span class="marca admin">administra</span>' : ''}
           ${r.gestiona ? '<span class="marca gestiona">gestiona</span>' : ''}
-          ${r.pide_sucursal ? '<span class="marca sucursal">sucursal</span>' : ''}
-          ${!r.administra && !r.gestiona && !r.pide_sucursal ? '<span class="chico">solo lectura de sus módulos</span>' : ''}</td>
+          ${r.repara && !r.gestiona ? '<span class="marca gestiona">repara</span>' : ''}
+          ${r.solo_su_sucursal ? '<span class="marca sucursal">su sucursal</span>' : ''}
+          ${!r.administra && !r.gestiona && !r.repara && !r.solo_su_sucursal
+            ? '<span class="chico">solo lectura de sus módulos</span>' : ''}</td>
       <td><div class="chips">${(r.modulos || []).map(m =>
             `<span class="chip">${esc(nombres[m] || m)}</span>`).join('')
             || '<span class="chico">ninguno</span>'}</div></td>
@@ -398,6 +410,8 @@ function abrirRol(codigo) {
   $('#rNombre').value = r ? r.nombre : '';
   $('#rDescripcion').value = (r && r.descripcion) || '';
   $('#rGestiona').checked = !!(r && r.gestiona);
+  $('#rRepara').checked = !!(r && r.repara);
+  $('#rSoloSuya').checked = !!(r && r.solo_su_sucursal);
   $('#rAdministra').checked = !!(r && r.administra);
   $('#rSucursal').checked = !!(r && r.pide_sucursal);
   const tiene = new Set((r && r.modulos) || []);
@@ -418,6 +432,8 @@ async function guardarRol() {
       nombre: $('#rNombre').value,
       descripcion: $('#rDescripcion').value,
       gestiona: $('#rGestiona').checked,
+      repara: $('#rRepara').checked,
+      solo_su_sucursal: $('#rSoloSuya').checked,
       administra: $('#rAdministra').checked,
       pide_sucursal: $('#rSucursal').checked,
       modulos,

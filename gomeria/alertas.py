@@ -6,7 +6,7 @@ services en una planilla de Google, las cargas raras de combustible en
 ningún lado y las gomas al límite en Gomería. Nadie mira cuatro pantallas
 todos los días, así que en la práctica no se miraba ninguna.
 
-Acá entran las cuatro fuentes con la misma forma —qué es, de qué unidad,
+Acá entran las cinco fuentes con la misma forma —qué es, de qué unidad,
 cuán urgente y adónde ir a resolverlo— y salen ordenadas por urgencia, no
 por fuente. Al que abre la pantalla a la mañana no le importa si lo que
 tiene encima es una VTV o un service: le importa cuál lo deja tirado
@@ -16,6 +16,7 @@ Cada fuente se lee por separado y a prueba de balas. Los módulos se van
 prendiendo de a uno y el SQL se corre a mano: que falte una tabla apaga
 esa fuente y lo dice, no la pantalla entera.
 """
+import permisos
 
 # El orden en que se miran las cosas. Es el de la consecuencia: un papel
 # vencido puede parar el camión en un control de ruta hoy, un service
@@ -28,9 +29,13 @@ SEVERIDADES = {"grave": 0, "media": 1, "leve": 2}
 # la misma escala—, así que dentro de cada nivel manda la consecuencia:
 # el papel para el camión hoy, la goma al mínimo puede reventar, el service
 # pasado lo rompe en algún momento, y la carga rara ya pasó.
-PRIORIDAD = {"vencimiento": 0, "cubierta": 1, "service": 2, "combustible": 3}
+# Los fluidos van arriba de todo a igual gravedad: sin urea o sin aceite
+# un camión no queda a medias, queda parado antes de salir. Y se resuelve
+# con un llamado al proveedor, si se avisa a tiempo.
+PRIORIDAD = {"fluido": 0, "vencimiento": 1, "cubierta": 2, "service": 3,
+             "combustible": 4}
 
-FUENTES = ("vencimiento", "service", "combustible", "cubierta")
+FUENTES = ("vencimiento", "service", "combustible", "cubierta", "fluido")
 
 # Cómo se llama cada fuente en pantalla y adónde manda.
 DONDE = {
@@ -38,6 +43,7 @@ DONDE = {
     "service":     ("Services",     "/alertas#services"),
     "combustible": ("Combustible",  "/combustible"),
     "cubierta":    ("Gomería",      "/gomeria#wear"),
+    "fluido":      ("Fluidos",      "/combustible#fluidos"),
 }
 
 
@@ -308,15 +314,74 @@ def _cubiertas(cx):
     return salida
 
 
+def _fluidos(cx):
+    """Lo que se está por terminar en el depósito.
+
+    No es una alerta por unidad como las otras cuatro: es por fluido, y
+    por eso no lleva patente. Igual entra acá, porque el que abre la
+    pantalla a la mañana necesita saberlo antes de que el primer camión
+    pida y no haya.
+
+    El fluido que nunca se cargó no avisa: no está vacío, está sin
+    estrenar, y cinco avisos de algo que nadie compró tapan al que sí
+    importa.
+    """
+    filas = _tabla(cx, """
+        select * from v_fluidos_saldo
+        where activo and estado not in ('ok', 'sin_cargar')
+        order by case estado when 'vacio' then 0 when 'critico' then 1 else 2 end,
+                 dias_restantes nulls last, saldo
+    """)
+    if filas is None:
+        return None
+    salida = []
+    for f in filas:
+        saldo = float(f["saldo"] or 0)
+        dias = f["dias_restantes"]
+        unidad = f["unidad"] or "litros"
+        detalle = (f"{_miles(f['minimo'])} {unidad} es el mínimo"
+                   if dias is None else
+                   f"alcanza para unos {dias} días al ritmo de este mes")
+        salida.append({
+            "fuente": "fluido",
+            "clave": str(f["fluido_id"]),
+            # Vacío no es un aviso: es una parada. El camión que pide urea
+            # y no hay, no sale.
+            "severidad": "grave" if f["estado"] in ("vacio", "critico") else "media",
+            "titulo": (f"Sin {f['nombre']}" if saldo <= 0
+                       else f"{f['nombre']}: quedan {_miles(saldo)} {unidad}"),
+            "detalle": detalle,
+            "patente": None,
+            "interno": None,
+            "sucursal": f["sucursal_codigo"],
+            "de_quien": None,
+            "fecha": f["ultima_entrada"],
+            # Primero el que menos días aguanta; sin ritmo, el más vacío.
+            "orden": dias if dias is not None else saldo,
+            "extra": (f"{f['sellados']} {f['envase']}(es) sin abrir"
+                      if f["sellados"] else
+                      f"{f['porcentaje']}% de un {f['envase']} de "
+                      f"{_miles(f['capacidad'])} {unidad}"),
+        })
+    return salida
+
+
 LECTORES = {"vencimiento": _vencimientos, "service": _services,
-            "combustible": _combustible, "cubierta": _cubiertas}
+            "combustible": _combustible, "cubierta": _cubiertas,
+            "fluido": _fluidos}
 
 
 # =====================================================================
 # LA LISTA
 # =====================================================================
-def listar(cx, incluir_silenciadas=False):
-    """Las cuatro fuentes juntas, ordenadas por urgencia."""
+def listar(cx, incluir_silenciadas=False, usuario=None):
+    """Las cinco fuentes juntas, ordenadas por urgencia.
+
+    Al rol que solo ve su sucursal se le recorta la lista: la goma de un
+    camión de Córdoba no es su problema y llenarle la pantalla con eso
+    hace que deje de mirarla. Lo que no tiene sucursal —una carga rara de
+    combustible, el tacho de urea— se deja pasar: es de todos.
+    """
     if not instalado(cx):
         return {"instalado": False,
                 "aviso": "Falta correr gomeria/20_alertas.sql en Supabase."}
@@ -347,6 +412,12 @@ def listar(cx, incluir_silenciadas=False):
         return (SEVERIDADES.get(a["severidad"], 9),
                 PRIORIDAD.get(a["fuente"], 9),
                 a["orden"])
+
+    solo = permisos.sucursal_de(usuario)
+    if solo:
+        de_la_boca = lambda a: not a.get("sucursal") or a["sucursal"] == solo
+        alertas = [a for a in alertas if de_la_boca(a)]
+        dormidas = [a for a in dormidas if de_la_boca(a)]
 
     alertas.sort(key=urgencia)
     dormidas.sort(key=urgencia)

@@ -135,14 +135,63 @@
     border-bottom:1px solid var(--hairline)}
   .lote:last-child{border:0}
   .lote .der{margin-left:auto;color:var(--ink-muted);font-size:11px}
+/* EL DEPÓSITO DE FLUIDOS. El saldo es el número grande: lo primero que
+   hay que poder leer desde lejos es cuánto queda. Y al lado el envase
+   dibujado, que es como lo mira el que va al depósito: un bin por la
+   mitad se entiende antes que «612 litros». */
+.fluidos{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px;
+  margin-bottom:24px}
+.fluido{display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:16px;
+  background:var(--surface-1);border:1px solid var(--hairline);border-radius:8px;
+  cursor:pointer;text-align:left;font:inherit;color:inherit;align-items:center}
+.fluido:hover{border-color:var(--hairline-2)}
+.fluido.on{border-color:var(--brand);box-shadow:0 0 0 2px color-mix(in srgb,var(--brand) 35%,transparent)}
+.fluido .envase{position:relative}
+.fluido .envase svg{display:block;width:100%;height:118px}
+.fluido .sellados{position:absolute;right:-2px;bottom:2px;background:var(--surface-3);
+  border:1px solid var(--hairline-2);border-radius:20px;padding:2px 7px;font-size:10px;
+  font-weight:700;color:var(--ink-2)}
+.fluido .litros{font-size:28px;font-weight:700;letter-spacing:-1px;line-height:1.05}
+.fluido .litros small{font-size:12px;font-weight:600;color:var(--ink-muted);margin-left:5px}
+.fluido .nombre{font-size:13px;font-weight:700;margin-bottom:6px}
+.fluido .pie{font-size:11px;color:var(--ink-muted);margin-top:8px;line-height:1.5}
+.tacho{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.3fr);gap:24px;
+  padding:22px;align-items:center}
+.tacho .litros{font-size:44px;font-weight:700;letter-spacing:-1.5px;line-height:1}
+.tacho .litros small{font-size:15px;font-weight:600;color:var(--ink-muted);margin-left:6px}
+.tacho .nombre{font-size:12px;font-weight:600;color:var(--ink-muted);margin-bottom:10px}
+.nivel{height:16px;border-radius:9px;background:#f1f4f7;overflow:hidden;margin:14px 0 8px;
+  border:1px solid var(--hairline)}
+.nivel i{display:block;height:100%;background:#2e9e5b;transition:width .3s}
+.nivel.aviso i{background:#d9a017}
+.nivel.critico i,.nivel.vacio i{background:#c8414b}
+.tacho .datos-tacho{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:14px}
+.tacho .datos-tacho div span{display:block;font-size:9px;font-weight:700;
+  letter-spacing:.8px;text-transform:uppercase;color:var(--ink-muted);margin-bottom:3px}
+.tacho .datos-tacho div b{font-size:15px;font-weight:600}
+.estado-urea{border-radius:5px;padding:5px 9px;font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;display:inline-block}
+.estado-urea.ok{background:#e7f6ec;color:#1d6b3c}
+.estado-urea.aviso{background:#fff2d9;color:#775d2c}
+.estado-urea.critico,.estado-urea.vacio{background:#fff0f1;color:#a32935}
+.estado-urea.sin_cargar{background:var(--surface-3);color:var(--ink-muted)}
+.pastilla.entrada{background:#e7f6ec;color:#1d6b3c}
+.pastilla.salida{background:#e9f2fc;color:#23629b}
+.pastilla.ajuste{background:#fff2d9;color:#775d2c}
+.fuera{color:#a32935;font-weight:700}
+.acciones-urea{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;align-items:center}
+@media(max-width:760px){.tacho{grid-template-columns:1fr;gap:16px}
+  .tacho .litros{font-size:36px}
+  .fluidos{grid-template-columns:1fr}}
 </style>
 <style>
 :root{color-scheme:light;--plane:#f3f5f7;--surface-1:#fff;--surface-2:#f7f9fb;--surface-3:#edf1f5;--hairline:#e3e8ee;--hairline-2:#cbd4de;--ink:#172b40;--ink-2:#42566b;--ink-muted:#617387;--brand:#ffd400;--brand-soft:#fff6e8;--ok:#147d57;--warn:#996000;--bad:#bb3744;--info:#2266aa}
 body{font-size:13px}.top{height:68px;background:#0b0b0b;border:0;padding:0 32px;gap:22px}.top .marca{color:#d4dfe9;letter-spacing:2px}.top .who{color:#b8c8d7}.top .back{color:#d4dfe9;border-color:#415365;border-radius:5px}.top img{height:30px}
 main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight:700;letter-spacing:1.7px;color:var(--ink-muted);margin-bottom:12px}h1{font-size:30px;font-weight:700;letter-spacing:-1px}.sub{margin:9px 0 26px;font-size:13px}.navigation{display:flex;gap:30px;border-bottom:1px solid var(--hairline-2);margin-bottom:24px}.navigation a{display:flex;gap:18px;align-items:center;padding:0 2px 15px;text-decoration:none;font-size:13px;font-weight:600;color:var(--ink-muted);border-bottom:3px solid transparent}.navigation a.active{color:var(--ink);border-color:var(--brand)}.navigation span{font-size:10px;color:#8795a3}
-.prueba{padding:10px 14px;border-radius:6px;background:#fff9ed;border:1px solid #efdfb9;align-items:center;margin-bottom:24px}.prueba .tag{background:#f6d995;color:#765000;font-size:8px;border-radius:3px}.prueba p,.prueba b{color:#775d2c;font-size:11px}.cargar{grid-template-columns:1fr;margin-bottom:24px}.zona{border:1px solid var(--hairline);border-radius:8px;background:#fff;padding:20px}.zona .que{font-size:12px}.zona .fila{gap:10px}.btn{color:#172b40;border-radius:5px;font-size:12px;padding:11px 16px}.btn:hover{filter:brightness(.96)}.btn.gris{border:1px solid var(--hairline-2);background:white}.btn.chico{border-radius:4px;padding:7px 12px}.btn:focus-visible,a:focus-visible{outline:3px solid #d1ae00;outline-offset:3px}input,select{font:inherit;color:var(--ink);background:white;border:1px solid var(--hairline-2);padding:10px 12px;border-radius:5px;min-width:0}input[type=text],select{background:white;border-radius:5px}input:focus-visible{outline:2px solid #d1ae00;outline-offset:1px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:28px 0 18px}.section-head h2{margin:0;font-size:18px;letter-spacing:-.4px}.muted{color:var(--ink-muted);font-size:12px;line-height:1.6;margin:6px 0 0}.toolbar{display:flex;gap:16px;align-items:flex-end;background:white;border:1px solid var(--hairline);border-bottom:0;border-radius:8px 8px 0 0;padding:18px 20px}.toolbar label,.form-grid label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:var(--ink-muted)}.search{flex:1;max-width:440px}.toolbar .btn{margin-left:auto}.toolbar+.caja{border-radius:0 0 8px 8px}.caja{border-radius:8px;box-shadow:0 2px 4px #0b0b0b03}table.datos th{padding:14px 18px;font-size:9px;font-weight:700;background:#f6f8fa}table.datos td{padding:16px 18px;font-size:12px}table.datos tbody tr:hover{background:#f8fafc}table.datos th.num{text-align:right}.plate{font-weight:600;letter-spacing:.5px}.pastilla{border-radius:4px;padding:5px 8px;font-size:10px}.pastilla.solo_planilla{background:#fff2d9}.pastilla.difiere_litros,.pastilla.difiere_importe,.porcarga{background:#e9f2fc;color:#23629b}.pagination{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;color:var(--ink-muted);font-size:11px}.manual{margin-bottom:20px;border-left:3px solid var(--brand)}.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:20px 0}.tarjetas{gap:12px}.tarjeta{border-radius:8px;padding:20px;box-shadow:0 2px 3px #0b0b0b03}.tarjeta b{font-size:26px;font-weight:700;letter-spacing:-.8px}.tarjeta span{font-size:9px;margin-top:9px}.tarjeta small{line-height:1.5;font-size:11px}#summary-cards .tarjeta{cursor:default}.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-row{display:grid;grid-template-columns:90px 1fr 70px;gap:12px;align-items:center;margin-top:20px;font-size:11px}.chart-row>div{height:9px;background:#f1f4f7;border-radius:2px;overflow:hidden}.chart-row i{display:block;height:100%;background:var(--brand);border-radius:2px}.chart-row b{text-align:right;font-variant-numeric:tabular-nums;font-size:10px}.lotes{margin-top:28px}.lote{padding:14px 18px;flex-wrap:wrap}.error{color:#a32935;background:#fff0f1}.aviso-rep{color:#775d2c}.previo{overflow:auto}.vacio{padding:48px 20px}
+.prueba{padding:10px 14px;border-radius:6px;background:#fff9ed;border:1px solid #efdfb9;align-items:center;margin-bottom:24px}.prueba .tag{background:#f6d995;color:#765000;font-size:8px;border-radius:3px}.prueba p,.prueba b{color:#775d2c;font-size:11px}.cargar{grid-template-columns:1fr;margin-bottom:24px}.zona{border:1px solid var(--hairline);border-radius:8px;background:#fff;padding:20px}.zona .que{font-size:12px}.zona .fila{gap:10px}.btn{color:#172b40;border-radius:5px;font-size:12px;padding:11px 16px}.btn:hover{filter:brightness(.96)}.btn.gris{border:1px solid var(--hairline-2);background:var(--surface-1)}.btn.chico{border-radius:4px;padding:7px 12px}.btn:focus-visible,a:focus-visible{outline:3px solid #d1ae00;outline-offset:3px}input,select{font:inherit;color:var(--ink);background:white;border:1px solid var(--hairline-2);padding:10px 12px;border-radius:5px;min-width:0}input[type=text],select{background:white;border-radius:5px}input:focus-visible{outline:2px solid #d1ae00;outline-offset:1px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:28px 0 18px}.section-head h2{margin:0;font-size:18px;letter-spacing:-.4px}.muted{color:var(--ink-muted);font-size:12px;line-height:1.6;margin:6px 0 0}.toolbar{display:flex;gap:16px;align-items:flex-end;background:white;border:1px solid var(--hairline);border-bottom:0;border-radius:8px 8px 0 0;padding:18px 20px}.toolbar label,.form-grid label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:var(--ink-muted)}.search{flex:1;max-width:440px}.toolbar .btn{margin-left:auto}.toolbar+.caja{border-radius:0 0 8px 8px}.caja{border-radius:8px;box-shadow:0 2px 4px #0b0b0b03}table.datos th{padding:14px 18px;font-size:9px;font-weight:700;background:#f6f8fa}table.datos td{padding:16px 18px;font-size:12px}table.datos tbody tr:hover{background:#f8fafc}table.datos th.num{text-align:right}.plate{font-weight:600;letter-spacing:.5px}.pastilla{border-radius:4px;padding:5px 8px;font-size:10px}.pastilla.solo_planilla{background:#fff2d9}.pastilla.difiere_litros,.pastilla.difiere_importe,.porcarga{background:#e9f2fc;color:#23629b}.pagination{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;color:var(--ink-muted);font-size:11px}.manual{margin-bottom:20px;border-left:3px solid var(--brand)}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.form-grid label{min-width:0}.form-grid input{width:100%}.tarjetas{gap:12px}.tarjeta{border-radius:8px;padding:20px;box-shadow:0 2px 3px #0b0b0b03}.tarjeta b{font-size:26px;font-weight:700;letter-spacing:-.8px}.tarjeta span{font-size:9px;margin-top:9px}.tarjeta small{line-height:1.5;font-size:11px}#summary-cards .tarjeta{cursor:default}.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-row{display:grid;grid-template-columns:90px 1fr 70px;gap:12px;align-items:center;margin-top:20px;font-size:11px}.chart-row>div{height:9px;background:#f1f4f7;border-radius:2px;overflow:hidden}.chart-row i{display:block;height:100%;background:var(--brand);border-radius:2px}.chart-row b{text-align:right;font-variant-numeric:tabular-nums;font-size:10px}.lotes{margin-top:28px}.lote{padding:14px 18px;flex-wrap:wrap}.error{color:#a32935;background:#fff0f1}.aviso-rep{color:#775d2c}.previo{overflow:auto}.vacio{padding:48px 20px}
 @media(min-width:1000px){.cargar>.zona{display:grid;grid-template-columns:1fr auto;column-gap:30px}.cargar>.zona h2{grid-column:1}.cargar>.zona .que{grid-column:1;margin-bottom:0}.cargar>.zona>.fila{grid-column:2;grid-row:1/3}.cargar>.zona>.previo{grid-column:1/-1}}
-@media(max-width:760px){main{padding:24px 16px}.top{padding:0 16px;gap:12px}.top .marca{display:none}.top .who{font-size:10px}h1{font-size:25px}.navigation{gap:20px}.navigation a{font-size:12px;gap:6px}.navigation span{display:none}.prueba{align-items:flex-start}.toolbar{flex-wrap:wrap;padding:14px}.toolbar .search{max-width:none;flex-basis:100%}.toolbar .btn{margin-left:0}.form-grid{grid-template-columns:1fr 1fr}.summary-grid{grid-template-columns:1fr}.lote .der{margin-left:0}.tarjetas{grid-template-columns:repeat(2,minmax(0,1fr))}.tarjeta{padding:14px}.tarjeta b{font-size:23px}.section-head{align-items:flex-start}}
+@media(max-width:760px){main{padding:24px 16px}.top{padding:0 16px;gap:12px}.top .marca{display:none}.top .who{font-size:10px}h1{font-size:25px}.navigation{gap:20px}.navigation a{font-size:12px;gap:6px}.navigation span{display:none}.prueba{align-items:flex-start}.toolbar{flex-wrap:wrap;padding:14px}.toolbar .search{max-width:none;flex-basis:100%}.toolbar .btn{margin-left:0}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-grid{grid-template-columns:1fr}.lote .der{margin-left:0}.tarjetas{grid-template-columns:repeat(2,minmax(0,1fr))}.tarjeta{padding:14px}.tarjeta b{font-size:23px}.section-head{align-items:flex-start}}
 </style>
 
 <style>
@@ -166,6 +215,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     <a href="#tickets" data-view="tickets">Tickets <span>01</span></a>
     <a href="#cruce" data-view="cruce">Cruce de remitos <span>02</span></a>
     <a href="#resumen" data-view="resumen">Resumen <span>03</span></a>
+    <a href="#fluidos" data-view="fluidos">Fluidos <span>04</span></a>
   </nav>
 
   <div id="error" class="error" hidden></div>
@@ -281,12 +331,129 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     <div style="padding:12px 12px 0"><h2>Archivos cargados</h2></div>
     <div id="lotes"></div>
   </div>
+
+  <!-- ------------------------------------------------------------ UREA
+       El tacho es propio, así que no hay nada que cruzar con nadie: lo
+       que hay que controlar es un stock. Nadie edita el saldo; el saldo
+       es el resultado de los movimientos. -->
+  <section id="fluidos-view" hidden>
+    <div class="section-head">
+      <div><h2>El depósito</h2>
+        <p class="muted" id="u-resumen">Cargando…</p></div>
+      <a class="btn gris" href="/parametros#combustible" id="u-editar" hidden
+         style="text-decoration:none">Parametrizar fluidos</a>
+    </div>
+
+    <div class="fluidos" id="u-deposito"></div>
+
+    <div class="section-head">
+      <div><h2 id="u-titulo">Movimientos</h2>
+        <p class="muted">Entra por compra, sale por despacho. Si lo medido no da, se
+          anota la diferencia con su motivo: el saldo no se corrige a mano.</p></div>
+    </div>
+
+    <div class="acciones-urea">
+      <button class="btn" id="u-despachar">+ Despachar a una unidad</button>
+      <button class="btn gris" id="u-cargar" hidden>+ Cargar al depósito</button>
+      <button class="btn gris" id="u-medir" hidden>Medí lo que hay</button>
+    </div>
+
+    <form id="u-form-salida" class="zona manual" hidden>
+      <h2>Despachar <span data-fluido></span></h2>
+      <p class="que">Lo que se le puso a una unidad. Si no fue a ninguna —derrame,
+        préstamo, devolución— dejá la unidad vacía y escribí el motivo: igual salió
+        del depósito.</p>
+      <div class="form-grid">
+        <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
+        <label>Unidad<select name="unidad_id" id="u-s-unidad"></select></label>
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Cantidad<input name="cantidad" type="number" min="0.01" step="0.01" required></label>
+        <label>Kilómetros<input name="km" type="number" min="0" step="1"></label>
+        <label style="grid-column:span 2">Motivo, si no fue a una unidad
+          <input name="motivo" maxlength="200" placeholder="Derrame, préstamo, devolución…"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Despachar</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-salida">Cancelar</button></div>
+    </form>
+
+    <form id="u-form-entrada" class="zona manual" hidden>
+      <h2>Cargar al depósito</h2>
+      <p class="que">Lo que descargó el proveedor. El importe es opcional; sirve para
+        saber cuánto cuesta el litro cuando se mira el gasto por unidad.</p>
+      <div class="form-grid">
+        <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Cantidad<input name="cantidad" type="number" min="0.01" step="0.01" required></label>
+        <label>Proveedor<select name="proveedor_id" data-proveedores></select></label>
+        <label>Remito o factura<input name="remito" maxlength="60"></label>
+        <label>Importe ($)<input name="importe" type="number" min="0" step="0.01"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Cargar</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-entrada">Cancelar</button></div>
+    </form>
+
+    <form id="u-form-medicion" class="zona manual" hidden>
+      <h2>Medí lo que hay</h2>
+      <p class="que">Cuánto hay de verdad. Si no coincide con el saldo, la diferencia se
+        anota como un movimiento más, con su motivo. Esa diferencia es el dato: la merma
+        existe y taparla es perderla.</p>
+      <div class="form-grid">
+        <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
+        <label>Fecha<input name="fecha" type="date" required></label>
+        <label>Lo medido<input name="medido" type="number" min="0" step="0.01" required></label>
+        <label>Motivo de la diferencia
+          <input name="motivo" maxlength="200" placeholder="Merma, derrame, carga sin anotar…"></label>
+      </div>
+      <div class="fila"><button class="btn" type="submit">Anotar la medición</button>
+        <button class="btn gris" type="button" data-cancelar="u-form-medicion">Cancelar</button></div>
+    </form>
+
+    <div id="u-aviso" class="error" hidden></div>
+
+    <div class="toolbar">
+      <label class="search">Buscar unidad, proveedor o motivo
+        <input type="search" id="u-buscar" placeholder="Ej. AB 123 CD, YPF, derrame"></label>
+      <label>Tipo<select id="u-tipo">
+        <option value="">Todos</option>
+        <option value="salida">Despachos</option>
+        <option value="entrada">Cargas</option>
+        <option value="ajuste">Mediciones</option>
+      </select></label>
+    </div>
+    <div class="caja">
+      <table class="datos"><thead><tr>
+        <th>Fecha</th><th>Fluido</th><th>Tipo</th><th>Unidad o motivo</th>
+        <th class="num">Cantidad</th><th class="num">Km</th><th>Quién</th><th></th>
+      </tr></thead><tbody id="u-movimientos"></tbody></table>
+      <p class="vacio" id="u-vacio" hidden>Todavía no hay movimientos.</p>
+    </div>
+
+    <div class="section-head">
+      <div><h2>Por unidad</h2>
+        <p class="muted" id="u-por-unidad-que">Un camión moderno consume entre 3% y 6% de
+          urea sobre el gasoil. El que da mucho menos tiene el sistema anulado —y eso es
+          una multa esperando—; el que da mucho más pierde, o alguien se está llevando
+          bidones. En los aceites el número a mirar es otro: lo que toma cada 100 km.</p></div>
+      <label style="font-size:11px;font-weight:600;color:var(--ink-muted)">Mes
+        <select id="u-mes" style="margin-left:8px"></select></label>
+    </div>
+    <div class="caja">
+      <table class="datos"><thead><tr>
+        <th>Unidad</th><th>Fluido</th><th>Chofer</th>
+        <th class="num">Despachos</th><th class="num">Cantidad</th>
+        <th class="num">Gasoil (L)</th><th class="num">% sobre gasoil</th>
+        <th class="num">Km</th><th class="num">Cada 100 km</th>
+      </tr></thead><tbody id="u-unidades"></tbody></table>
+      <p class="vacio" id="u-unidades-vacio" hidden>Todavía no se despachó nada a ninguna unidad.</p>
+    </div>
+  </section>
 </main>
 
 <div id="globo"></div>
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
   c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nf = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
@@ -783,13 +950,20 @@ function renderTickets(){
   $('#next-page').disabled = (ticketPage+1)*50 >= rows.length;
 }
 function navigate(){
-  const view = ['tickets','cruce','resumen'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'tickets';
+  let hash = location.hash.slice(1);
+  // Los enlaces viejos apuntaban a #urea: la urea ahora es un fluido más.
+  if(hash === 'urea') hash = 'fluidos';
+  const view = ['tickets','cruce','resumen','fluidos'].includes(hash) ? hash : 'tickets';
   $('#tickets-view').hidden = view !== 'tickets'; $('#cross-view').hidden = view !== 'cruce'; $('#summary-view').hidden = view !== 'resumen';
+  $('#fluidos-view').hidden = view !== 'fluidos';
   $('#z-estacion').hidden = view !== 'cruce'; $('#z-planilla').hidden = view !== 'tickets';
-  $('#imports').style.display = view === 'resumen' ? 'none' : 'grid';
-  $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible'}[view];
-  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.',cruce:'Controlá lo facturado y encontrá diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.'}[view];
+  // Los fluidos no se importan de ningún archivo: se cargan a mano, son
+  // dos o tres movimientos por día. Las zonas de importación no van ahí.
+  $('#imports').style.display = (view === 'resumen' || view === 'fluidos') ? 'none' : 'grid';
+  $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible',fluidos:'Fluidos'}[view];
+  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.',cruce:'Controlá lo facturado y encontrá diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.',fluidos:'El depósito es propio: entra por compra, sale por despacho y el saldo se calcula solo.'}[view];
   if(view === 'resumen') cargarFlota().catch(()=>{ $('#error').textContent='No se pudo cargar el resumen.'; $('#error').hidden=false; });
+  if(view === 'fluidos') cargarUrea().catch(()=>{ $('#u-resumen').textContent='No se pudo leer el depósito.'; });
   document.querySelectorAll('[data-view]').forEach(a=>{a.classList.toggle('active',a.dataset.view===view);a.setAttribute('aria-current',a.dataset.view===view?'page':'false');});
 }
 window.addEventListener('hashchange',navigate);
@@ -808,6 +982,287 @@ $('#ticket-form').onsubmit=async e=>{
   $('#p-planilla').scrollIntoView({behavior:'smooth',block:'center'});
 };
 $('#mes').onchange=()=>cargarFlota($('#mes').value).catch(()=>{$('#error').textContent='No se pudo cargar el mes.';$('#error').hidden=false;});
+/* ====================================================================
+   UREA — el tacho propio
+   El saldo no se guarda en ningún lado: es la suma de los movimientos.
+   Por eso después de cada carga se vuelve a pedir todo: no hay un número
+   local que se pueda quedar diciendo otra cosa.
+   ==================================================================== */
+/* =====================================================================
+   EL DEPÓSITO DE FLUIDOS
+   ---------------------------------------------------------------------
+   Urea, aceites, refrigerante, hidráulico y grasa. El saldo no se edita:
+   es el resultado de los movimientos, igual que en Repuestos.
+
+   El envase se dibuja porque es como lo mira el que va al depósito. Un
+   bin por la mitad se entiende antes que «612 litros», y el que ve siete
+   tambores sin abrir al lado sabe que no hay que pedir todavía.
+   ===================================================================== */
+const FL = { datos: null, mes: null, fluido: null };
+const HOY = new Date().toISOString().slice(0, 10);
+const TIPO_MOV = { entrada: 'Carga', salida: 'Despacho', ajuste: 'Medición' };
+const ESTADO_FL = { ok: 'Con stock', aviso: 'Hay que pedir', critico: 'Urgente',
+                    vacio: 'Vacío', sin_cargar: 'Sin estrenar' };
+
+/* El color del fluido, el que tiene en el tambor. No es decoración: es
+   con lo que se lo reconoce de lejos en el depósito. */
+const COLOR_FLUIDO = { urea: '#7fb2e5', aceite15w40: '#c9862b', aceite20w50: '#a86a18',
+                       refrigerante: '#2fa36b', hidraulico: '#b3574f', grasa: '#9aa1a8' };
+const colorDe = f => COLOR_FLUIDO[f.clave] || (f.unidad === 'kilos' ? '#9aa1a8' : '#5d8fbf');
+const cantidadDe = f => `${nf0.format(f.saldo)} ${f.unidad === 'kilos' ? 'kilos' : 'litros'}`;
+
+/* Cada envase con su forma. El líquido es un rectángulo recortado contra
+   la panza, así que subir el nivel es mover una sola coordenada. */
+const ENVASES = {
+  bin: {
+    dentro: 'M14 12h72v86H14z',
+    fondo: 98, alto: 86,
+    antes: '<rect x="12" y="10" width="76" height="90" rx="6" fill="#dfe6ed" stroke="#9aa5b0" stroke-width="2"/>',
+    despues: '<g fill="none" stroke="#8d99a5" stroke-width="2.4">' +
+      '<path d="M30 10v90M50 10v90M70 10v90M12 30h76M12 50h76M12 70h76"/></g>' +
+      '<rect x="12" y="10" width="76" height="90" rx="6" fill="none" stroke="#7c8896" stroke-width="2"/>' +
+      '<rect x="41" y="3" width="18" height="8" rx="2" fill="#4c5560"/>' +
+      '<rect x="8" y="100" width="84" height="9" rx="2" fill="#8a6f4b"/>' +
+      '<rect x="12" y="109" width="12" height="7" fill="#7a6142"/>' +
+      '<rect x="44" y="109" width="12" height="7" fill="#7a6142"/>' +
+      '<rect x="76" y="109" width="12" height="7" fill="#7a6142"/>',
+  },
+  tambor: {
+    dentro: 'M21 17h58v84H21z',
+    fondo: 101, alto: 84,
+    antes: '<rect x="20" y="16" width="60" height="86" fill="#e3e9ef" stroke="#98a3ae" stroke-width="2"/>',
+    despues: '<g fill="none" stroke="#8d99a5" stroke-width="3"><path d="M20 44h60M20 74h60"/></g>' +
+      '<rect x="20" y="16" width="60" height="86" fill="none" stroke="#7c8896" stroke-width="2"/>' +
+      '<ellipse cx="50" cy="16" rx="30" ry="8" fill="#cdd6de" stroke="#7c8896" stroke-width="2"/>' +
+      '<circle cx="62" cy="14" r="4" fill="#8d99a5"/>' +
+      '<ellipse cx="50" cy="102" rx="30" ry="8" fill="none" stroke="#7c8896" stroke-width="2"/>',
+  },
+  balde: {
+    dentro: 'M23 29h54l-6 70H29z',
+    fondo: 99, alto: 70,
+    antes: '<path d="M22 28h56l-7 74H29z" fill="#e3e9ef" stroke="#98a3ae" stroke-width="2"/>',
+    despues: '<path d="M22 28h56l-7 74H29z" fill="none" stroke="#7c8896" stroke-width="2"/>' +
+      '<ellipse cx="50" cy="28" rx="28" ry="7" fill="#cdd6de" stroke="#7c8896" stroke-width="2"/>' +
+      '<path d="M24 26C26 6 74 6 76 26" fill="none" stroke="#7c8896" stroke-width="2.5"/>',
+  },
+  tanque: {
+    dentro: 'M12 40h76v46H12z',
+    fondo: 86, alto: 46,
+    antes: '<rect x="10" y="38" width="80" height="50" rx="24" fill="#e3e9ef" stroke="#98a3ae" stroke-width="2"/>',
+    despues: '<rect x="10" y="38" width="80" height="50" rx="24" fill="none" stroke="#7c8896" stroke-width="2"/>' +
+      '<path d="M22 88v12M78 88v12" stroke="#7c8896" stroke-width="4"/>' +
+      '<rect x="44" y="31" width="12" height="8" rx="2" fill="#4c5560"/>',
+  },
+};
+ENVASES.tacho = ENVASES.tambor;
+
+function dibujoEnvase(f) {
+  const forma = ENVASES[f.envase] || ENVASES.tambor;
+  const pct = Math.max(0, Math.min(100, Number(f.porcentaje) || 0));
+  const alto = forma.alto * pct / 100;
+  const color = colorDe(f);
+  const id = 'env-' + f.fluido_id;
+  return `<svg viewBox="0 0 100 120" role="img" aria-label="${esc(f.envase)} ${
+      pct.toFixed(0)}% lleno">
+    <defs><clipPath id="${id}"><path d="${forma.dentro}"/></clipPath></defs>
+    ${forma.antes}
+    ${alto > 0 ? `<g clip-path="url(#${id})">
+      <rect x="0" y="${forma.fondo - alto}" width="100" height="${alto}" fill="${color}"/>
+      <rect x="0" y="${forma.fondo - alto}" width="100" height="3" fill="#ffffff" opacity=".45"/>
+    </g>` : ''}
+    ${forma.despues}
+  </svg>`;
+}
+
+async function apiUrea(op, extra) {
+  const r = await fetch('/api/fluidos', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({ op }, extra || {})) });
+  const d = await r.json().catch(() => ({ error: 'Respuesta ilegible del servidor.' }));
+  if (!r.ok) throw new Error(d.error || 'No se pudo completar.');
+  return d;
+}
+
+function avisoUrea(texto, malo) {
+  const caja = $('#u-aviso');
+  caja.hidden = !texto;
+  caja.className = malo === false ? 'aviso-rep zona' : 'error';
+  caja.textContent = texto || '';
+}
+
+async function cargarUrea() {
+  const r = await fetch('/api/fluidos');
+  const d = await r.json().catch(() => ({ error: 'Respuesta ilegible del servidor.' }));
+  if (!r.ok) { $('#u-resumen').textContent = d.error || 'No se pudo leer el depósito.'; return; }
+  FL.datos = d;
+  const gestiona = !!d.puede_gestionar;
+  ['#u-cargar', '#u-medir', '#u-editar'].forEach(id => { $(id).hidden = !gestiona; });
+  if (!d.fluidos.some(f => f.fluido_id === FL.fluido)) FL.fluido = null;
+
+  $('#u-s-unidad').innerHTML = '<option value="">Sin unidad (derrame, préstamo…)</option>' +
+    d.unidades.map(u => `<option value="${u.id}" data-km="${u.km_actual || ''}">${
+      esc(fmtPat(u.patente))}${u.interno ? ' · ' + esc(u.interno) : ''}</option>`).join('');
+  $$('[data-fluidos]').forEach(sel => {
+    sel.innerHTML = d.fluidos.map(f => `<option value="${f.fluido_id}">${esc(f.nombre)}</option>`).join('');
+  });
+  $$('[data-proveedores]').forEach(sel => {
+    sel.innerHTML = '<option value="">—</option>' +
+      d.proveedores.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  });
+
+  const meses = [...new Set(d.por_unidad.map(x => x.mes))].sort().reverse();
+  if (!meses.includes(FL.mes)) FL.mes = meses[0] || null;
+  $('#u-mes').innerHTML = meses.map(m => `<option value="${m}"${m === FL.mes ? ' selected' : ''}>${
+    new Date(m + 'T12:00').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
+    }</option>`).join('') || '<option value="">—</option>';
+  pintarUrea();
+}
+
+function pintarUrea() {
+  const d = FL.datos;
+  if (!d) return;
+
+  $('#u-deposito').innerHTML = d.fluidos.map(f => {
+    const dias = f.dias_restantes;
+    return `<button type="button" class="fluido${f.fluido_id === FL.fluido ? ' on' : ''}"
+              data-fluido="${f.fluido_id}" aria-pressed="${f.fluido_id === FL.fluido}">
+      <div class="envase">${dibujoEnvase(f)}${
+        f.sellados ? `<span class="sellados">+${f.sellados} sin abrir</span>` : ''}</div>
+      <div>
+        <div class="nombre">${esc(f.nombre)}</div>
+        <div class="litros">${nf0.format(f.saldo)}<small>${
+          f.unidad === 'kilos' ? 'kilos' : 'litros'}</small></div>
+        <span class="estado-urea ${esc(f.estado)}">${ESTADO_FL[f.estado] || f.estado}</span>
+        <p class="pie">${f.porcentaje.toFixed ? f.porcentaje.toFixed(0) : f.porcentaje}% de un
+          ${esc(f.envase)} de ${nf0.format(f.capacidad)}${
+          dias == null || dias > 120 ? '' : ` · alcanza ${dias} días`}</p>
+      </div>
+    </button>`;
+  }).join('') || '<p class="vacio">Todavía no hay fluidos cargados.</p>';
+
+  const elegido = d.fluidos.find(f => f.fluido_id === FL.fluido) || null;
+  $('#u-titulo').textContent = elegido ? `Movimientos de ${elegido.nombre}` : 'Movimientos';
+  const pedir = d.fluidos.filter(f => ['vacio', 'critico', 'aviso'].includes(f.estado));
+  $('#u-resumen').textContent = !d.fluidos.length ? 'Sin fluidos cargados.'
+    : pedir.length ? 'Hay que pedir: ' + pedir.map(f => `${f.nombre} (${cantidadDe(f)})`).join(', ') + '.'
+    : `${d.fluidos.length} fluidos en el depósito, ninguno bajo el mínimo.`;
+
+  const texto = ($('#u-buscar').value || '').trim().toLowerCase();
+  const tipo = $('#u-tipo').value;
+  const filas = d.movimientos.filter(m => {
+    if (FL.fluido && m.fluido_id !== FL.fluido) return false;
+    if (tipo && m.tipo !== tipo) return false;
+    if (!texto) return true;
+    return [m.patente, m.interno, m.proveedor, m.remito, m.motivo, m.usuario, m.fluido]
+      .some(x => String(x || '').toLowerCase().includes(texto));
+  });
+
+  $('#u-movimientos').innerHTML = filas.map(m => `
+    <tr>
+      <td>${fecha(m.fecha)}</td>
+      <td>${esc(m.fluido)}</td>
+      <td><span class="pastilla ${esc(m.tipo)}">${TIPO_MOV[m.tipo]}</span></td>
+      <td>${m.patente
+            ? `<span class="plate">${esc(fmtPat(m.patente))}</span>${
+                m.interno ? ` <span class="muted">· ${esc(m.interno)}</span>` : ''}`
+            : `<span class="muted">${esc(m.motivo || m.proveedor || '—')}</span>`}
+          ${m.tipo === 'entrada' && m.proveedor
+            ? `<div class="muted">${esc(m.proveedor)}${m.remito ? ' · remito ' + esc(m.remito) : ''}</div>` : ''}
+          ${m.tipo === 'ajuste'
+            ? `<div class="muted">medido: ${nf0.format(m.medido)}${
+                m.motivo ? ' · ' + esc(m.motivo) : ''}</div>` : ''}</td>
+      <td class="num" style="text-align:right;font-variant-numeric:tabular-nums">${
+        (Number(m.delta) > 0 ? '+' : '') + nf.format(m.delta)}</td>
+      <td class="num" style="text-align:right">${m.km ? nf0.format(m.km) : '—'}</td>
+      <td>${esc(m.usuario || '')}</td>
+      <td>${d.puede_gestionar
+            ? `<button class="btn gris chico" data-borrar-urea="${m.id}">Borrar</button>` : ''}</td>
+    </tr>`).join('');
+  $('#u-vacio').hidden = filas.length > 0;
+
+  const delMes = d.por_unidad.filter(u => u.mes === FL.mes
+    && (!FL.fluido || u.fluido_id === FL.fluido));
+  const [bajo, alto] = d.banda_gasoil;
+  $('#u-unidades').innerHTML = delMes.map(u => {
+    // El % sobre gasoil es una medida de la urea: en un aceite no dice nada.
+    const pct = u.clave === 'urea' ? u.porcentaje_gasoil : null;
+    const fuera = pct != null && (Number(pct) < bajo || Number(pct) > alto);
+    return `<tr>
+      <td><span class="plate">${esc(fmtPat(u.patente))}</span>${
+        u.interno ? ` <span class="muted">· ${esc(u.interno)}</span>` : ''}</td>
+      <td>${esc(u.fluido)}</td>
+      <td>${esc(u.chofer || '')}</td>
+      <td style="text-align:right">${u.despachos}</td>
+      <td style="text-align:right">${nf.format(u.cantidad)}</td>
+      <td style="text-align:right">${u.litros_gasoil == null ? '—' : nf.format(u.litros_gasoil)}</td>
+      <td style="text-align:right" class="${fuera ? 'fuera' : ''}">${
+        pct == null ? '—' : nf.format(pct) + '%'}</td>
+      <td style="text-align:right">${u.km == null ? '—' : nf0.format(u.km)}</td>
+      <td style="text-align:right">${u.cada_100km == null ? '—' : nf.format(u.cada_100km)}</td>
+    </tr>`;
+  }).join('');
+  $('#u-unidades-vacio').hidden = delMes.length > 0;
+}
+
+function formUrea(cual) {
+  ['u-form-salida', 'u-form-entrada', 'u-form-medicion']
+    .forEach(id => { $('#' + id).hidden = id !== cual; });
+  avisoUrea('');
+  if (!cual) return;
+  const form = $('#' + cual);
+  if (form.fecha) form.fecha.value = HOY;
+  // El fluido elegido arriba viene puesto: casi siempre es el que se va a mover.
+  if (form.fluido_id && FL.fluido) form.fluido_id.value = FL.fluido;
+  const elegido = (FL.datos.fluidos || []).find(f => String(f.fluido_id) === String(form.fluido_id && form.fluido_id.value));
+  $$('[data-fluido]').forEach(x => { x.textContent = elegido ? elegido.nombre.toLowerCase() : ''; });
+  const primero = form.querySelector('input, select');
+  if (primero) primero.focus();
+}
+
+async function mandarUrea(op, form) {
+  const datos = Object.fromEntries(new FormData(form).entries());
+  try {
+    const salida = await apiUrea(op, datos);
+    form.reset();
+    formUrea(null);
+    await cargarUrea();
+    if (salida.aviso) avisoUrea(salida.aviso);
+  } catch (e) {
+    avisoUrea(e.message);
+  }
+}
+
+$('#u-despachar').onclick = () => formUrea('u-form-salida');
+$('#u-cargar').onclick = () => formUrea('u-form-entrada');
+$('#u-medir').onclick = () => formUrea('u-form-medicion');
+$('#u-form-salida').onsubmit = e => { e.preventDefault(); mandarUrea('despachar', e.target); };
+$('#u-form-entrada').onsubmit = e => { e.preventDefault(); mandarUrea('cargar', e.target); };
+$('#u-form-medicion').onsubmit = e => { e.preventDefault(); mandarUrea('medir', e.target); };
+/* El kilometraje que ya sabe el maestro: un campo menos para tipear. */
+$('#u-s-unidad').onchange = e => {
+  const km = e.target.selectedOptions[0] && e.target.selectedOptions[0].dataset.km;
+  const campo = $('#u-form-salida').km;
+  if (km && !campo.value) campo.value = Math.round(km);
+};
+$('#u-buscar').oninput = $('#u-tipo').onchange = pintarUrea;
+$('#u-mes').onchange = e => { FL.mes = e.target.value; pintarUrea(); };
+document.addEventListener('click', async ev => {
+  const cancelar = ev.target.closest('[data-cancelar]');
+  if (cancelar) return formUrea(null);
+  const tarjeta = ev.target.closest('[data-fluido]');
+  if (tarjeta) {
+    // Volver a tocar el elegido muestra todo de nuevo.
+    const id = Number(tarjeta.dataset.fluido);
+    FL.fluido = FL.fluido === id ? null : id;
+    return pintarUrea();
+  }
+  const borrar = ev.target.closest('[data-borrar-urea]');
+  if (!borrar) return;
+  if (!confirm('¿Borrar este movimiento? El saldo se recalcula solo.')) return;
+  try { await apiUrea('borrar', { id: borrar.dataset.borrarUrea }); await cargarUrea(); }
+  catch (e) { avisoUrea(e.message); }
+});
+
 navigate();
 cargar();
 </script>

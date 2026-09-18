@@ -113,18 +113,42 @@ table.datos .flojo{color:var(--m)}
 @media(max-width:780px){.mov .cuando{width:100%}.mov .porque{text-align:left;max-width:none}}
 @media(max-width:780px){.visor3d{height:290px}
   table.puestas th:nth-child(3),table.puestas td:nth-child(3){display:none}}
+/* Mesa de montaje: depósito, vehículo y cubierta seleccionada. */
+dialog::backdrop{background:#0009}.move-dialog{color:var(--t)}
+main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{display:block;font-weight:800;margin-bottom:10px}.picker-box{position:relative}.fleet-picker .search{margin:0;padding-right:40px}.picker-abrir{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:0;border-radius:8px;background:none;color:var(--m);font-size:13px;cursor:pointer}.picker-abrir:hover{color:var(--t);background:var(--p2)}.fleet-picker .units{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 6px);display:block;max-height:340px;overflow:auto;background:var(--p);border:1px solid var(--l2);border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.35);margin:0;padding:4px}.fleet-picker .unit{border-radius:8px;padding:10px 8px}.fleet-picker .unit:last-child{border-bottom:0}.fleet-picker .unit.marcada{background:var(--p2)}.fleet-picker .unit.on{background:var(--os)}.fleet-picker .emptymsg{padding:14px 10px;color:var(--m)}.fleet-picker .sub{display:inline;margin-left:12px;font-weight:400;color:var(--m)}
+#fleet>.grid{grid-template-columns:250px minmax(0,1fr) 280px;align-items:start}#unitDetail{min-width:0}.stock-shelf,.tire-inspector{position:sticky;top:74px;max-height:calc(100vh - 95px);overflow:auto}.shelf-list{display:grid;gap:8px;max-height:520px;overflow:auto;margin-top:14px}.shelf-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--p2);border:1px solid var(--l2);color:var(--t);border-radius:10px;padding:12px;cursor:grab}.shelf-item.on,.tire.chosen{border-color:var(--o);background:var(--os);outline:3px solid var(--o);outline-offset:2px;position:relative}.tire.chosen::after{content:'ELEGIDA';display:block;margin-top:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;color:var(--t)}.shelf-item small{display:block;color:var(--m);margin-top:4px}.elegida-cual{color:var(--t);background:var(--os);border:1px solid var(--o);border-radius:6px;padding:2px 7px;text-transform:uppercase;font-size:11px;letter-spacing:.6px}
+.goma-arrastre{position:fixed;top:-400px;left:-400px;width:96px;padding:8px 6px 6px;border-radius:12px;background:var(--p2);border:1px solid var(--o);box-shadow:0 12px 26px rgba(0,0,0,.45);text-align:center;pointer-events:none;z-index:99}.goma-arrastre .tire-art{width:84px;height:66px}.goma-arrastre b{display:block;font-size:11px;margin-top:2px;color:var(--t)}.rubber-mini{display:block;width:24px;height:38px;border-radius:45%;background:repeating-linear-gradient(80deg,#30363b 0 3px,#11171c 3px 6px);border:3px solid #48515a;flex-shrink:0}.drop-stock{border:2px dashed var(--l2);border-radius:12px;padding:15px;margin:12px 0;color:var(--m);text-align:center}.drop-ready{outline:3px solid var(--o)!important;outline-offset:-3px;background:var(--os)!important}.workbench-help{font-size:12px;color:var(--m);line-height:1.5}.tire-inspector h3{margin:0 0 10px}.tire-art{width:100%;height:180px}.tire-inspector .details{grid-template-columns:1fr 1fr}.tire-inspector .btn{width:100%;margin-top:8px}.workbench-controls{display:flex;align-items:center;gap:12px;margin:12px 0;flex-wrap:wrap}.workbench-controls label{display:flex;align-items:center;gap:8px;margin:0;letter-spacing:0;font-size:12px;text-transform:none}.workbench-controls input{width:auto}.workbench-controls span{font-size:12px;color:var(--m)}#unitDetail .visor3d{height:400px}#unitDetail .map{padding:16px 8px}#unitDetail .tire{width:61px;flex-shrink:0}#unitDetail .bar{min-width:10px}.move-dialog label{font-size:12px;letter-spacing:0;text-transform:none}.move-dialog .actions{margin-top:18px}.btn{color:var(--t)}.btn:not(.alt){color:#181818}#benchStatus{margin:10px 0;min-height:18px}.stock-shelf h2{font-size:21px}
+/* La goma del inspector rueda: los tacos corren por la banda y las tuercas
+   giran con la llanta. El desplazamiento de los tacos es el paso con el que
+   están dibujados (12), así que el ciclo cierra sin salto. La llanta gira
+   sobre el centro de su grupo, que el SVG ya dejó en el eje de la rueda. */
+@keyframes rodar{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+@keyframes girar{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.tire-art .tacos{animation:rodar 1.1s linear infinite}
+.tire-art .llanta{transform-origin:0 0;animation:girar 5.5s linear infinite}
+/* El logo de la marca en lugar del nombre. La caja es clara porque casi
+   todos los logos vienen pensados para papel blanco, y de altura fija para
+   que una marca no corra la fila de al lado. */
+.logo-marca{display:inline-flex;align-items:center;justify-content:center;background:#fff;border-radius:6px;padding:4px 7px;min-width:56px;height:30px}
+.logo-marca img{max-width:74px;max-height:22px;display:block;object-fit:contain}
+/* Quien pidió menos movimiento en su sistema no ve ninguno. */
+@media(prefers-reduced-motion:reduce){.tire-art .tacos,.tire-art .llanta{animation:none}}
+@media(max-width:1150px){#fleet>.grid{grid-template-columns:210px minmax(0,1fr)}.tire-inspector{grid-column:1/-1;position:static;max-height:none}.tire-art{max-width:230px}.stock-shelf{max-height:none}#unitDetail .visor3d{height:330px}}
+@media(max-width:780px){#fleet>.grid{grid-template-columns:minmax(0,1fr)}.stock-shelf,.tire-inspector{position:static;grid-column:auto}.shelf-list{max-height:200px}.fleet-picker .units{display:block}.fleet-picker .sub{display:block;margin:6px 0}#unitDetail .tire{width:44px;font-size:10px}#unitDetail .ax{gap:3px}#unitDetail .visor3d{height:300px}.stock-shelf{order:1}#unitDetail{order:2}.tire-inspector{order:3}.workbench-controls{align-items:flex-start}.puestas{min-width:450px}}
+.tire.occupied{border:2px solid #269bbb;background:#269bbb18}.tire.occupied.low{border-color:var(--bad)}.tire.occupied.mid{border-color:var(--w)}.tire.occupied.chosen{outline:2px solid var(--o);outline-offset:2px}.tire .mounted-label{display:block;color:#1684a1;font-size:9px;font-weight:800;margin-top:4px}.wheel-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:8px 0 14px;color:var(--m)}.wheel-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.locate-tire{background:none;color:inherit;font:inherit;border:0;text-decoration:underline;cursor:pointer;padding:0;text-align:left}
 </style>
 <script src="/tema.js"></script></head><body>
 <header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
 <nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
-<main><section class="panel on" id="fleet"><div class="grid"><aside class="card side"><h1>Unidades</h1><p class="sub" id="unitCount">Cargando…</p><input class="search" id="unitSearch" placeholder="Buscar patente, interno o sucursal"><div class="units" id="unitList"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div></div></section>
+<main><section class="panel on" id="fleet"><div class="card fleet-picker" id="unitPicker"><label for="unitSearch">Elegir unidad <span class="sub" id="unitCount">Cargando…</span></label><div class="picker-box"><input class="search" id="unitSearch" role="combobox" aria-expanded="false" aria-controls="unitList" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" placeholder="Buscar patente, interno o sucursal"><button class="picker-abrir" id="unitToggle" type="button" tabindex="-1" aria-label="Ver todas las unidades">▾</button><div class="units" id="unitList" role="listbox" aria-label="Unidades" hidden></div></div></div><p id="benchStatus" role="status"></p><div class="grid"><aside class="card stock-shelf"><h2>Stock de cubiertas</h2><p class="workbench-help">Seleccioná una cubierta o arrastrala a un casillero vacío. Hasta 200 resultados; buscá para encontrar otras.</p><input id="shelfSearch" placeholder="Código, marca o medida" aria-label="Buscar cubierta en stock"><div class="drop-stock" id="returnStock">Arrastrá acá la cubierta que retirás.<br><small>Se pedirá destino y motivo.</small></div><div id="shelfList" class="shelf-list"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div><aside class="card tire-inspector" id="tireInspector"><h3>Neumático seleccionado</h3><p class="workbench-help">Elegí una cubierta del stock o una posición del vehículo.</p></aside></div></section>
 <section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
 <section class="panel" id="wear"><div id="wearBody"><div class="card loading"><span class="pulse"></span>Calculando desgaste…</div></div></section>
 <section class="panel" id="register"><div class="card register"><h1>Registrar trabajo</h1><p class="sub">Revisar la propuesta antes de guardar el movimiento.</p><label>Unidad <span class="help">(opcional si figura en el texto)</span></label><select id="workUnit"><option value="">Elegir patente</option></select><label>Trabajo realizado</label><textarea id="workText" placeholder="Patente: AD 900 UK&#10;3 eje lado izquierdo entran 2 Michelin 079 y 327 recapadas.. salen 2 Fate 380 y 381 para recapar.."></textarea><p class="help">Se escribe como el parte: la patente arriba y debajo qué entra y qué sale, con el número de fuego. Los kilómetros se toman automáticamente de Hawk según la fecha del movimiento.</p><button class="btn" id="interpret">Interpretar movimiento</button><div id="workResult"></div></div></section></main>
 <div class="modalbg" id="tireModal"><div class="modal"><div class="modaltop"><h2 id="tireTitle">Cubierta</h2><button class="close" data-close="tireModal">×</button></div><div id="tireBody"></div></div></div>
 <div class="modalbg" id="measureModal"><div class="modal"><div class="modaltop"><h2 id="measureTitle">Medir dibujo</h2><button class="close" data-close="measureModal">×</button></div><p class="sub">Milímetros remanentes. Determinan la alerta y el costo por milímetro.</p><div class="formgrid"><div><label>Remanente (mm)</label><input id="mMm" type="number" min="0" max="40" step=".5"></div></div><div id="measureError"></div><button class="btn" id="saveMeasure">Guardar medición</button></div></div>
 <div class="modalbg" id="retreadModal"><div class="modal"><div class="modaltop"><h2 id="retreadTitle">Volvió del recapador</h2><button class="close" data-close="retreadModal">×</button></div><p class="sub">Se cierra la vida anterior con su rendimiento y comienza la siguiente. Este valor permite comparar el rendimiento entre bandas.</p><div class="formgrid"><div><label>Marca de la banda</label><input id="rBrand" placeholder="BANDAG"></div><div><label>Banda / dibujo</label><input id="rBand" placeholder="BDR-HT"></div><div><label>Recapador</label><input id="rProv"></div><div><label>Costo del recapado</label><input id="rCost" type="number" min="0" step=".01"></div><div><label>Dibujo con el que volvió (mm)</label><input id="rMm" type="number" min="0" max="40" step=".5"></div><div><label>Nota</label><input id="rNote"></div></div><div id="retreadError"></div><button class="btn" id="saveRetread">Registrar recapado</button></div></div>
-<div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
+<datalist id="catMarcas"></datalist><datalist id="catMedidas"></datalist>
+<div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" list="catMedidas" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand" list="catMarcas"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
 <script src="/vendor/three.min.js"></script>
 <script src="/vendor/OrbitControls.js"></script>
 <script src="/vendor/OBJLoader.js"></script>
@@ -142,7 +166,62 @@ function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.data
 const SOLAPAS=['fleet','stock','wear','register'];
 function solapaDeLaUrl(){const h=location.hash.slice(1);return SOLAPAS.includes(h)?h:null}
 addEventListener('hashchange',()=>{const h=solapaDeLaUrl();if(h)tab(h,false)});
-function renderUnits(){let q=$('#unitSearch').value.toLowerCase().trim(),a=D.units.filter(u=>[u.patente,u.interno,u.marca,u.modelo,u.sucursal].join(' ').toLowerCase().includes(q));$('#unitCount').textContent=`${D.units.length} patentes activas`;$('#unitList').innerHTML=a.length?a.map(u=>`<button class="unit ${D.selected===u.patente?'on':''}" data-pat="${esc(u.patente)}"><i class="dot ${!u.posiciones?'warn':u.montadas===u.posiciones?'ok':''}"></i><span class="plate">${esc(fmtPat(u.patente))}</span><span class="um">${esc([u.interno&&'int. '+u.interno,u.sucursal].filter(Boolean).join(' · '))}</span><span class="oc">${u.posiciones?u.montadas+'/'+u.posiciones:'Sin mapa'}</span></button>`).join(''):'<div class="emptymsg">Sin coincidencias.</div>';$$('.unit').forEach(x=>x.onclick=()=>selectUnit(x.dataset.pat))}$('#unitSearch').oninput=renderUnits;
+/* El buscador de unidad es un desplegable: la lista aparece sobre la
+   pantalla mientras se escribe y se va al elegir. Antes se metía en la
+   página y empujaba la mesa de trabajo hacia abajo, así que había que
+   volver a subir después de cada búsqueda. */
+let unitAbierto=false,unitMarcada=-1,unitVistas=[];
+const etiquetaUnidad=pat=>{const u=(D.units||[]).find(x=>x.patente===pat);
+ return u?fmtPat(u.patente)+(u.interno?' · int. '+u.interno:''):pat?fmtPat(pat):''};
+/* Lo que se escribe se busca también contra la patente con espacios: el que
+   ve AH 787 DF en pantalla la escribe así. */
+function unitFiltradas(){
+ const q=$('#unitSearch').value.toLowerCase().trim();
+ if(!q||q===etiquetaUnidad(D.selected).toLowerCase())return D.units||[];
+ return (D.units||[]).filter(u=>[u.patente,fmtPat(u.patente),u.interno,u.marca,u.modelo,u.sucursal]
+   .join(' ').toLowerCase().includes(q));
+}
+function pintarLista(){
+ const caja=$('#unitList'),campo=$('#unitSearch');
+ campo.setAttribute('aria-expanded',unitAbierto?'true':'false');
+ if(!unitAbierto){caja.hidden=true;caja.innerHTML='';campo.removeAttribute('aria-activedescendant');return}
+ unitVistas=unitFiltradas();
+ if(unitMarcada>=unitVistas.length)unitMarcada=unitVistas.length-1;
+ caja.hidden=false;
+ caja.innerHTML=unitVistas.length?unitVistas.map((u,i)=>`<button class="unit ${D.selected===u.patente?'on':''}${i===unitMarcada?' marcada':''}" role="option" id="unit-op-${i}" aria-selected="${D.selected===u.patente}" data-pat="${esc(u.patente)}"><i class="dot ${!u.posiciones?'warn':u.montadas===u.posiciones?'ok':''}"></i><span class="plate">${esc(fmtPat(u.patente))}</span><span class="um">${esc([u.interno&&'int. '+u.interno,u.sucursal].filter(Boolean).join(' · '))}</span><span class="oc">${u.posiciones?u.montadas+'/'+u.posiciones:'Sin mapa'}</span></button>`).join(''):'<div class="emptymsg">Sin coincidencias.</div>';
+ campo.setAttribute('aria-activedescendant',unitMarcada>=0?'unit-op-'+unitMarcada:'');
+ /* mousedown y no click: el click llega después del blur, y el blur cierra. */
+ caja.querySelectorAll('.unit').forEach(x=>x.onmousedown=ev=>{ev.preventDefault();elegirUnidad(x.dataset.pat)});
+ const marcada=caja.querySelector('.unit.marcada');if(marcada)marcada.scrollIntoView({block:'nearest'});
+}
+function abrirUnidades(){if(unitAbierto)return;unitAbierto=true;unitMarcada=-1;pintarLista()}
+function cerrarUnidades(){if(!unitAbierto)return;unitAbierto=false;unitMarcada=-1;
+ $('#unitSearch').value=etiquetaUnidad(D.selected);pintarLista()}
+function elegirUnidad(pat){unitAbierto=false;unitMarcada=-1;$('#unitSearch').value=etiquetaUnidad(pat);
+ $('#unitSearch').blur();pintarLista();selectUnit(pat)}
+function renderUnits(){
+ $('#unitCount').textContent=`${(D.units||[]).length} patentes activas`;
+ if(!unitAbierto)$('#unitSearch').value=etiquetaUnidad(D.selected);
+ pintarLista();
+}
+$('#unitSearch').oninput=()=>{unitAbierto=true;unitMarcada=-1;pintarLista()};
+$('#unitSearch').onfocus=()=>{$('#unitSearch').select();abrirUnidades()};
+$('#unitSearch').onblur=()=>setTimeout(cerrarUnidades,0);
+$('#unitToggle').onmousedown=ev=>{ev.preventDefault();
+ if(unitAbierto)cerrarUnidades();else{$('#unitSearch').focus();abrirUnidades()}};
+$('#unitSearch').onkeydown=ev=>{
+ if(ev.key==='ArrowDown'||ev.key==='ArrowUp'){
+  ev.preventDefault();
+  if(!unitAbierto)return abrirUnidades();
+  if(!unitVistas.length)return;
+  unitMarcada=(unitMarcada+(ev.key==='ArrowDown'?1:-1)+unitVistas.length)%unitVistas.length;
+  pintarLista();return}
+ if(ev.key==='Enter'){
+  const elegida=unitVistas[unitMarcada]||(unitVistas.length===1?unitVistas[0]:null);
+  if(unitAbierto&&elegida){ev.preventDefault();elegirUnidad(elegida.patente)}
+  return}
+ if(ev.key==='Escape'&&unitAbierto){ev.preventDefault();cerrarUnidades()}
+};
 /* El color no sale de un número fijo: 5 mm en un direccional son rojo y
    en un eje de arrastre no. El mínimo de cada posición viene con la
    alerta; hasta que esa carga llegue se usa el criterio de siempre. */
@@ -151,7 +230,7 @@ function claseDibujo(cubierta_id,mm){
   if(a)return a.alerta==='al_limite'?'low':a.alerta==='cerca'?'mid':'';
   return mm!=null&&+mm<=4?'low':mm!=null&&+mm<=8?'mid':'';
 }
-function tire(p){let mm=p.remanente_mm,c=!p.cubierta_id?'empty':claseDibujo(p.cubierta_id,mm);return`<button class="tire ${c}" data-tire="${p.cubierta_id||''}"><span class="pos">${esc(p.posicion)}</span><div class="code">${p.cubierta?esc(p.cubierta):'Vacía'}</div><div class="mm">${mm!=null?esc(mm)+' mm':''}</div></button>`}
+function tire(p){let mm=p.cubierta_id?p.remanente_mm:null,c=!p.cubierta_id?'empty':'occupied '+claseDibujo(p.cubierta_id,mm);return`<button class="tire ${c}" aria-label="${esc(p.posicion)}: ${p.cubierta_id?'cubierta '+esc(p.cubierta)+' montada':'vacía'}" data-pos="${p.posicion_id}" data-tire="${p.cubierta_id||''}"><span class="pos">${esc(p.posicion)}</span><div class="code">${p.cubierta?esc(p.cubierta):'Vacía'}</div><div class="mm">${mm!=null?esc(mm)+' mm':''}</div>${p.cubierta_id?'<span class="mounted-label">MONTADA</span>':''}</button>`}
 function mapHtml(a){let e=new Map,aux=null;a.forEach(p=>{if(p.es_auxilio){aux=p;return}if(!e.has(p.eje))e.set(p.eje,[]);e.get(p.eje).push(p)});let h='';[...e].sort((x,y)=>x[0]-y[0]).forEach(([n,p])=>{p.sort((x,y)=>x.orden-y.orden);let m=Math.ceil(p.length/2);h+=`<div class="ax"><span class="axn">E${n}</span>${p.slice(0,m).map(tire).join('')}<span class="bar"></span>${p.slice(m).map(tire).join('')}</div>`});if(aux)h+=`<div class="spare"><b>Auxilio</b>${tire(aux)}</div>`;return`<div class="map">${h||'<div class="emptymsg">Esta unidad no tiene mapa configurado.</div>'}</div>`}
 function desc(e){let a=[];if(e.desde_posicion)a.push('desde '+e.desde_posicion);if(e.hasta_posicion)a.push('a '+e.hasta_posicion);if(e.remanente_mm!=null)a.push(e.remanente_mm+' mm');if(e.km_unidad!=null)a.push(Number(e.km_unidad).toLocaleString('es-AR')+' km');return a.join(' · ')}function listaEventos(a){return a.length?a.map(e=>`<div class="event"><span class="date">${fmtDate(e.fecha)}</span><span class="type">${esc(e.tipo)}</span><div><b>${esc(e.cubierta||'Movimiento')}</b> ${esc(desc(e))}<div class="note">${esc(e.nota||e.texto_original||e.usuario||'')}</div></div></div>`).join(''):'<div class="emptymsg">Todavía no hay movimientos.</div>'}
 
@@ -280,39 +359,67 @@ const soloFecha=v=>v?new Date(v).toLocaleDateString('es-AR',{day:'2-digit',month
 function puestasHtml(mapa){
   const p=mapa.filter(x=>x.cubierta_id).sort((a,b)=>a.orden-b.orden);
   if(!p.length)return '<div class="card section"><h3>Cubiertas puestas</h3><div class="emptymsg">No tiene ninguna cubierta montada.</div></div>';
-  return `<div class="card section"><h3>Cubiertas puestas <span class="sub">${p.length} de ${mapa.length}</span></h3><table class="puestas"><thead><tr><th>Posición</th><th>Cubierta</th><th>Medida</th><th class="num">Remanente</th><th class="num">Colocada</th><th class="num">Km de la unidad</th></tr></thead><tbody>${p.map(x=>{
+  return `<div class="card section"><h3>Cubiertas puestas <span class="sub">${p.length} de ${mapa.length}</span></h3><div class="tablewrap"><table class="puestas"><thead><tr><th>Posición</th><th>Cubierta</th><th>Medida</th><th class="num">Remanente</th><th class="num">Colocada</th><th class="num">Km de la unidad</th></tr></thead><tbody>${p.map(x=>{
     const mm=x.remanente_mm, d=claseDibujo(x.cubierta_id,mm), cls=d==='low'?'baja':d==='mid'?'media':'';
-    return `<tr><td>${esc(x.posicion)}</td><td>${esc(x.cubierta)}${x.marca?' · '+logoMarca(x.marca):''}${x.recapados?` <span class="sub">${x.recapados} recapado${x.recapados>1?'s':''}</span>`:''}</td><td>${esc(x.medida||'—')}</td><td class="num ${cls}">${mm!=null?esc(mm)+' mm':'—'}</td><td class="num">${x.montada_desde?esc(soloFecha(x.montada_desde)):'—'}</td><td class="num">${x.km_unidad_montaje!=null?esc(new Intl.NumberFormat('es-AR').format(Math.round(x.km_unidad_montaje))):'—'}</td></tr>`;
-  }).join('')}</tbody></table></div>`;
+    return `<tr><td><button class="locate-tire" data-ver-pos="${x.posicion_id}">${esc(x.posicion)} ↗</button></td><td>${esc(x.cubierta)}${x.marca?' · '+logoMarca(x.marca):''}${x.recapados?` <span class="sub">${x.recapados} recapado${x.recapados>1?'s':''}</span>`:''}</td><td>${esc(x.medida||'—')}</td><td class="num ${cls}">${mm!=null?esc(mm)+' mm':'—'}</td><td class="num">${x.montada_desde?esc(soloFecha(x.montada_desde)):'—'}</td><td class="num">${x.km_unidad_montaje!=null?esc(new Intl.NumberFormat('es-AR').format(Math.round(x.km_unidad_montaje))):'—'}</td></tr>`;
+  }).join('')}</tbody></table></div></div>`;
 }
 
 /* Lo que la pantalla le debe al visor: qué hacer cuando se toca una rueda.
    Se muestran las posiciones de esa rueda —en un eje dual son dos— con el
    mismo botón que abre la cubierta. */
-function elegirEsquina(esq){
+function elegirEsquina(esq,desde3d){
+  /* Tocar dos veces la misma rueda en el 3D pasa a su otra goma: en un eje
+     dual el modelo muestra una rueda sola y las dos gomas viven atrás de
+     ese mismo clic. Es lo que hace llegable a la interior sin pelearse con
+     la cámara. Solo vale para el clic en el 3D: elegir un casillero del
+     mapa es decir cuál, y ahí no hay nada que alternar. */
+  const antes=V.esquina;
+  const misma=!!(desde3d&&esq&&antes&&antes.eje===esq.eje&&antes.lado===esq.lado);
   V.esquina=esq; pintarRuedas();
   const caja=$('#elegida'); if(!caja)return;
   if(!esq){caja.innerHTML='<div class="emptymsg">Seleccionar una rueda del camión para ver qué tiene puesto.</div>';return}
   const pos=posicionesDe(esq);
-  caja.innerHTML=`<h4>Rueda ${esc(esq.rotulo)}</h4><div class="fila">${
+
+  if(pos.length===1)D.benchPosition=pos[0].posicion_id;
+  else if(pos.length>1){
+    const actual=pos.findIndex(p=>String(p.posicion_id)===String(D.benchPosition));
+    if(misma&&actual>=0)D.benchPosition=pos[(actual+1)%pos.length].posicion_id;
+    else if(actual<0){
+      const montadas=pos.filter(p=>p.cubierta_id);
+      D.benchPosition=(montadas.length===1?montadas[0]:pos[0]).posicion_id;
+    }
+  }
+  const elegida=pos.find(p=>String(p.posicion_id)===String(D.benchPosition));
+  if(elegida?.cubierta_id)chosenStock=null;
+
+  const donde=p=>p.montaje==='interior'?'interior':p.montaje==='exterior'?'exterior':esc(p.posicion);
+  const otra=pos.find(p=>p!==elegida);
+  caja.innerHTML=`<h4>Rueda ${esc(esq.rotulo)}${elegida&&pos.length>1?' · <span class="elegida-cual">'+donde(elegida)+'</span>':''}</h4>`+
+    (pos.length>1&&otra?`<p class="workbench-help">Tocá la rueda otra vez para pasar a la ${donde(otra)}.</p>`:'')+
+    `<div class="fila">${
     pos.length?pos.map(tire).join(''):'<span class="emptymsg">Esta rueda no tiene posiciones en el mapa de la unidad.</span>'}</div>`;
   engancharCubiertas();
+  $$('.tire[data-pos]').forEach(b=>b.classList.toggle('chosen',
+    String(b.dataset.pos)===String(D.benchPosition)));
+  if(typeof pintarInspector==='function')pintarInspector();
 }
 
-function engancharCubiertas(){$$('.tire[data-tire]').filter(x=>x.dataset.tire).forEach(x=>x.onclick=()=>openTire(x.dataset.tire))}
+function engancharCubiertas(){if(typeof engancharMesa==='function')engancharMesa()}
 
-async function selectUnit(pat){D.selected=pat;renderUnits();apagarVisor();$('#unitDetail').innerHTML='<div class="card loading"><span class="pulse"></span>Cargando unidad…</div>';try{let d=await api('/api/mapa?patente='+encodeURIComponent(pat)),u=d.unidad,no='';if(!d.mapa.length&&D.user?.puede_administrar)no=`<div class="card section"><h3>Asignar mapa</h3><div class="actions"><select id="mapChoice"><option value="">Elegir configuración</option>${D.configs.map(c=>`<option value="${c.id}">${esc(c.nombre)} — ${esc(c.descripcion||c.posiciones+' posiciones')}</option>`).join('')}</select><button class="btn" id="saveMap">Asignar</button></div></div>`;
+async function selectUnit(pat){D.selected=pat;D.benchToken=(D.benchToken||0)+1;const token=D.benchToken;D.map=[];D.benchPosition=null;renderUnits();apagarVisor();$('#unitDetail').innerHTML='<div class="card loading"><span class="pulse"></span>Cargando unidad…</div>';try{let d=await api('/api/mapa?patente='+encodeURIComponent(pat)),u=d.unidad,no='';if(token!==D.benchToken)return;D.map=d.mapa;D.unidadId=u.id;if(!d.mapa.length&&D.user?.puede_administrar)no=`<div class="card section"><h3>Asignar mapa</h3><div class="actions"><select id="mapChoice"><option value="">Elegir configuración</option>${D.configs.map(c=>`<option value="${c.id}">${esc(c.nombre)} — ${esc(c.descripcion||c.posiciones+' posiciones')}</option>`).join('')}</select><button class="btn" id="saveMap">Asignar</button></div></div>`;
   /* Con modelo, el camión; sin modelo, la grilla de toda la vida. */
   const con3d=d.modelo_3d&&typeof THREE!=='undefined';
-  const dibujo=con3d?visorHtml()+'<div class="elegida" id="elegida"></div>'+auxilioHtml(d.mapa):mapHtml(d.mapa);
+  const dibujo=(con3d?`<div class="workbench-controls"><label><input id="moveWheels" type="checkbox">Mover cubiertas desde el 3D</label><span>Desactivado: arrastrá para girar.</span></div>`+visorHtml()+'<div class="wheel-legend"><span><i style="background:#2b5a76"></i>Completa</span><span><i style="background:#36abc7"></i>Dual: una montada</span><span><i style="background:#6d3a34"></i>Sin cubiertas</span><span><i style="background:#ff7a1a"></i>Seleccionada</span></div><div class="elegida" id="elegida"></div>':'')+'<h3>Posiciones · montaje y retiro</h3>'+mapHtml(d.mapa);
   $('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${dibujo}</div>${no}${puestasHtml(d.mapa)}<div class="card section"><h3>Historial de cambios de la unidad <button class="verdeshechos" id="verDeshechos" hidden></button></h3><div id="histBody"></div></div>`;
   engancharCubiertas();
   D.unidadId=u.id;D.movimientos=d.movimientos||[];D.historial=d.historial||[];D.verDeshechos=false;
   pintarHistorial();
   engancharVerDeshechos();
-  if(con3d){armarVisor(d.modelo_3d,d.modelo_3d_archivo,{por:d.modelo_3d_por,version:d.modelo_3d_version,mapa:d.mapa});elegirEsquina(null)}
+  if(con3d){armarVisor(d.modelo_3d,d.modelo_3d_archivo,{por:d.modelo_3d_por,version:d.modelo_3d_version,mapa:d.mapa,alArrastrar:arrastrarRueda3d,alSoltar:soltarEnRueda3d,puedeArrastrar:()=>!!$('#moveWheels')?.checked});elegirEsquina(null);$('#moveWheels').disabled=!D.user?.puede_administrar;$('#moveWheels').onchange=()=>{if(V.render)V.render.domElement.draggable=$('#moveWheels').checked;}}
+  await cargarEstante();pintarInspector();
   if($('#saveMap'))$('#saveMap').onclick=async()=>{let c=+$('#mapChoice').value;if(!c)return;await api('/api/unidades',{op:'asignar_mapa',unidad_id:u.id,configuracion_id:c});await dashboard();await selectUnit(pat)}}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}
-const labs={stock:'En stock',montada:'Montadas',reparacion:'Reparación',recapado:'Recapado',baja:'De baja'};function metrics(){$('#metrics').innerHTML=Object.keys(labs).map(k=>`<div class="metric"><b>${D.summary[k]||0}</b><span>${labs[k]}</span></div>`).join('')}async function loadStock(){try{let d=await api('/api/inventario-cubiertas');D.tires=d.cubiertas;D.summary=d.resumen;metrics();renderStock()}catch(e){$('#stockRows').innerHTML=`<tr><td colspan="6" class="error">${esc(e.message)}</td></tr>`}}function renderStock(){let q=$('#stockSearch').value.toLowerCase().trim(),s=$('#stockState').value,a=D.tires.filter(t=>(!s||t.estado===s)&&[t.codigo,t.marca,t.modelo,t.medida,t.patente].join(' ').toLowerCase().includes(q));$('#stockRows').innerHTML=a.length?a.map(t=>`<tr data-id="${t.id}"><td><b>${esc(t.codigo)}</b></td><td><span class="status ${esc(t.estado)}">${esc(t.estado)}</span></td><td>${esc([t.marca,t.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(t.medida||'—')}</td><td>${t.remanente_mm!=null?esc(t.remanente_mm)+' mm':'—'}</td><td>${t.patente?esc(fmtPat(t.patente)+' · '+t.posicion):'Depósito'}</td></tr>`).join(''):'<tr><td colspan="6" class="emptymsg">No hay cubiertas.</td></tr>';$$('#stockRows tr[data-id]').forEach(x=>x.onclick=()=>openTire(x.dataset.id))}$('#stockSearch').oninput=renderStock;$('#stockState').onchange=renderStock;
+const labs={stock:'En stock',montada:'Montadas',reparacion:'Reparación',recapado:'Recapado',baja:'De baja'};function metrics(){$('#metrics').innerHTML=Object.keys(labs).map(k=>`<div class="metric"><b>${D.summary[k]||0}</b><span>${labs[k]}</span></div>`).join('')}async function loadStock(){try{let d=await api('/api/inventario-cubiertas');D.tires=d.cubiertas;D.summary=d.resumen;metrics();renderStock();if(typeof cargarEstante==='function')await cargarEstante()}catch(e){$('#stockRows').innerHTML=`<tr><td colspan="6" class="error">${esc(e.message)}</td></tr>`}}function renderStock(){let q=$('#stockSearch').value.toLowerCase().trim(),s=$('#stockState').value,a=D.tires.filter(t=>(!s||t.estado===s)&&[t.codigo,t.marca,t.modelo,t.medida,t.patente].join(' ').toLowerCase().includes(q));$('#stockRows').innerHTML=a.length?a.map(t=>`<tr data-id="${t.id}"><td><b>${esc(t.codigo)}</b></td><td><span class="status ${esc(t.estado)}">${esc(t.estado)}</span></td><td>${esc([t.marca,t.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(t.medida||'—')}</td><td>${t.remanente_mm!=null?esc(t.remanente_mm)+' mm':'—'}</td><td>${t.patente?esc(fmtPat(t.patente)+' · '+t.posicion):'Depósito'}</td></tr>`).join(''):'<tr><td colspan="6" class="emptymsg">No hay cubiertas.</td></tr>';$$('#stockRows tr[data-id]').forEach(x=>x.onclick=()=>openTire(x.dataset.id))}$('#stockSearch').oninput=renderStock;$('#stockState').onchange=renderStock;
 function modal(id,on=true){$('#'+id).classList.toggle('on',on)}$$('[data-close]').forEach(x=>x.onclick=()=>modal(x.dataset.close,false));$$('.modalbg').forEach(x=>x.onclick=e=>{if(e.target===x)modal(x.id,false)});
 function listaKm(a){if(!a.length)return'<div class="emptymsg">Todavía no hay montajes o falta activar la carga de Hawk.</div>';return a.map(m=>{let fin=m.hasta?fmtDate(m.hasta):'actualidad',valor=m.km_recorridos!=null?Number(m.km_recorridos).toLocaleString('es-AR')+' km':m.estado_km==='anomalo'?'Lectura anómala':'Esperando lecturas de Hawk';return`<div class="kmrow"><span class="date">${fmtDate(m.desde)}<br>→ ${fin}</span><span>${esc(fmtPat(m.patente))} · ${esc(m.posicion)}<div class="note">${m.fecha_lectura_desde?esc(m.fecha_lectura_desde)+' ('+Number(m.km_desde).toLocaleString('es-AR')+' km)':'Sin lectura inicial'} → ${m.fecha_lectura_hasta?esc(m.fecha_lectura_hasta)+' ('+Number(m.km_hasta).toLocaleString('es-AR')+' km)':'sin lectura final'}</div></span><span class="kmvalue ${m.km_recorridos==null?'pending':''}">${esc(valor)}</span></div>`}).join('')}
 async function openTire(id){modal('tireModal');$('#tireBody').innerHTML='<div class="loading"><span class="pulse"></span>Cargando…</div>';try{let d=await api('/api/cubierta?id='+id),t=d.cubierta,total=t.km_hawk_intervalos_calculados?Number(t.km_hawk_total||0).toLocaleString('es-AR')+' km':'Esperando Hawk',actual=t.km_montaje_actual==null?'Esperando Hawk':Number(t.km_montaje_actual).toLocaleString('es-AR')+' km';$('#tireTitle').textContent='Cubierta '+t.codigo;let ctl=D.user?.puede_administrar&&t.estado!=='montada'?`<div class="section"><h3>Cambiar estado</h3><div class="actions"><select id="tState"><option value="stock">Stock</option><option value="reparacion">Reparación</option><option value="recapado">Recapado</option><option value="baja">Baja</option></select><input id="tNote" placeholder="Motivo u observación"><button class="btn alt" id="saveState">Guardar</button></div></div>`:'';
@@ -400,7 +507,7 @@ function renderWear(){
   <div class="card section"><h3>Qué marca y qué banda rinden más</h3>${tablaMarcas(d.marcas)}</div>
   <div class="card section"><h3>Qué falta para que la cuenta cierre</h3>${tablaFaltantes(d.faltantes,d.vidas_con_dibujo_estimado)}</div>
   ${admin?`<div class="card section"><h3>Hasta dónde se usa una goma</h3><p class="sub">El mínimo con el que hay que bajarla y el aviso que se prende antes. El mínimo de la empresa es más alto que el legal a propósito: una goma gastada de más ya no se puede recapar, y la carcasa vale más que el dibujo.</p><div class="tablewrap"><table class="datos"><thead><tr><th>Función del eje</th><th class="num">Mínimo (mm)</th><th class="num">Aviso (mm)</th><th></th></tr></thead><tbody>${d.criterios.map(c=>`<tr><td class="fuerte">${esc(c.funcion)}</td><td class="num"><input id="cmin-${esc(c.funcion)}" type="number" min=".5" max="20" step=".5" value="${c.minimo_mm}" style="width:80px"></td><td class="num"><input id="cavi-${esc(c.funcion)}" type="number" min=".5" max="20" step=".5" value="${c.aviso_mm}" style="width:80px"></td><td class="num"><button class="btn alt" data-criterio="${esc(c.funcion)}">Guardar</button></td></tr>`).join('')}</tbody></table></div></div>
-  <div class="card section"><h3>Con cuántos milímetros sale de fábrica</h3><p class="sub">Sin este dato no se puede calcular el desgaste: se conoce el remanente, no el consumo. Se carga una vez por medida y luego se aplica automáticamente. Dejar en blanco los valores de alcance general.</p>${tablaDibujos(d.dibujos)}<div class="formgrid" style="margin-top:12px"><div><label>Medida</label><input id="dSize" placeholder="295"></div><div><label>Marca</label><input id="dBrand"></div><div><label>Banda / modelo</label><input id="dBand"></div><div><label>Goma nueva (mm)</label><input id="dMm" type="number" min="1" max="40" step=".5"></div></div><div id="wearError"></div><button class="btn" id="saveDibujo" style="margin-top:10px">Guardar dibujo</button></div>`:''}`;
+  <div class="card section"><h3>Con cuántos milímetros sale de fábrica</h3><p class="sub">Sin este dato no se puede calcular el desgaste: se conoce el remanente, no el consumo. Se carga una vez por medida y luego se aplica automáticamente. Dejar en blanco los valores de alcance general.</p>${tablaDibujos(d.dibujos)}<div class="formgrid" style="margin-top:12px"><div><label>Medida</label><input id="dSize" list="catMedidas" placeholder="295"></div><div><label>Marca</label><input id="dBrand" list="catMarcas"></div><div><label>Banda / modelo</label><input id="dBand"></div><div><label>Goma nueva (mm)</label><input id="dMm" type="number" min="1" max="40" step=".5"></div></div><div id="wearError"></div><button class="btn" id="saveDibujo" style="margin-top:10px">Guardar dibujo</button></div>`:''}`;
 
   $$('#wearBody tr[data-id]').forEach(x=>x.onclick=()=>openTire(x.dataset.id));
   if(!admin)return;
@@ -459,5 +566,7 @@ function listaVidas(v){
   return v.map(x=>`<div class="vida ${x.hasta?'':'abierta'}"><div class="cab"><b>${x.numero===0?'Goma original':'Recapado '+x.numero}${x.marca?' · '+esc(x.marca):''}${x.banda?' '+esc(x.banda):''}</b><span>${x.hasta?esc(x.desde)+' → '+esc(x.hasta):'desde '+esc(x.desde)+' · abierta'}</span></div><div class="nums"><span>Dibujo <b>${esc(mmfmt(x.inicial_mm))}</b>${x.inicial_origen==='tipico'?' <span class="estimado">est.</span>':''} → <b>${esc(mmfmt(x.remanente_mm))}</b></span><span>Gastó <b>${esc(mmfmt(x.mm_gastados))}</b></span><span>Km <b>${nfmt(x.km)}</b></span><span>Km por mm <b>${nfmt(x.km_por_mm)}</b></span><span>Costo <b>${pfmt(x.costo)}</b></span><span>$/km <b>${pfmt(x.pesos_km)}</b></span><span>$/mm <b>${pfmt(x.pesos_mm)}</b></span></div></div>`).join('');
 }
 
-async function dashboard(){let d=await api('/api/tablero');D.units=d.unidades;D.configs=d.configuraciones;D.summary=d.resumen_stock;renderUnits();metrics();$('#workUnit').innerHTML='<option value="">Elegir patente</option>'+D.units.map(u=>`<option value="${esc(u.patente)}">${esc(fmtPat(u.patente))}${u.interno?' · int. '+esc(u.interno):''}</option>`).join('');await loadWear();if(!D.selected&&D.units.length){let m=location.pathname.match(/\/u\/([^/]+)/);D.selected=m?decodeURIComponent(m[1]):D.units[0].patente}if(D.selected)await selectUnit(D.selected)}async function init(){const inicial=solapaDeLaUrl();if(inicial)tab(inicial,false);try{D.user=await api('/api/yo');$('#who').innerHTML=`${esc(D.user.nombre)} <a href="/salir">Salir</a>`;if(!D.user.puede_administrar)$('#newTire').style.display='none';await dashboard()}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}init();
-</script></body></html>
+async function dashboard(){let d=await api('/api/tablero');D.units=d.unidades;D.configs=d.configuraciones;D.summary=d.resumen_stock;renderUnits();metrics();$('#workUnit').innerHTML='<option value="">Elegir patente</option>'+D.units.map(u=>`<option value="${esc(u.patente)}">${esc(fmtPat(u.patente))}${u.interno?' · int. '+esc(u.interno):''}</option>`).join('');await loadWear();if(!D.selected&&D.units.length){let m=location.pathname.match(/\/u\/([^/]+)/);D.selected=m?decodeURIComponent(m[1]):D.units[0].patente}if(D.selected)await selectUnit(D.selected)}async function catalogoDeGomeria(){try{const d=await api('/api/marcas');$('#catMarcas').innerHTML=(d.marcas||[]).map(m=>`<option value="${esc(m.nombre)}">`).join('');$('#catMedidas').innerHTML=(d.medidas||[]).map(m=>`<option value="${esc(m.medida)}">${esc(m.descripcion||'')}</option>`).join('')}catch(e){/* sin 31_marcas_medidas.sql: los campos siguen siendo libres */}}
+async function init(){const inicial=solapaDeLaUrl();if(inicial)tab(inicial,false);try{D.user=await api('/api/yo');$('#who').innerHTML=`${esc(D.user.nombre)} <a href="/salir">Salir</a>`;if(!D.user.puede_administrar)$('#newTire').style.display='none';catalogoDeGomeria();await dashboard()}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}
+
+</script><script src="/gomeria-mesa.js"></script><script>init();</script></body></html>

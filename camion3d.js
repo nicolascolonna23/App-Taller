@@ -439,7 +439,7 @@ function armarVisor(clave, archivo, opciones){
                    chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
-  nodo('#visor-pista').textContent = 'Arrastrar para girar · seleccionar una rueda';
+  nodo('#visor-pista').textContent = 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda';
 
   const caja = nodo('#visor');
   const esc3 = new THREE.Scene();
@@ -474,8 +474,12 @@ function armarVisor(clave, archivo, opciones){
   ctrl.target.set(0, 1.5, 0);
   ctrl.enableDamping = true; ctrl.dampingFactor = .08;
   ctrl.minDistance = 5; ctrl.maxDistance = 22;
-  /* Que no se pueda mirar desde abajo del piso: se ve el interior hueco. */
-  ctrl.maxPolarAngle = Math.PI / 2 - .04;
+  /* Se puede mirar desde abajo, que es la única manera de ver la goma
+     interior de un dual —justo la que cuesta cambiar—. El tope está a
+     unos 25°: más abajo se ve el interior hueco del modelo, que no le
+     sirve a nadie. El piso se esconde solo cuando la cámara baja: si no,
+     tapa exactamente lo que se fue a mirar. */
+  ctrl.maxPolarAngle = Math.PI / 2 + .45;
   ctrl.enablePan = false;
 
   const goma   = new THREE.MeshStandardMaterial({ color:GOMA, roughness:.92, metalness:.02 });
@@ -692,7 +696,7 @@ function armarVisor(clave, archivo, opciones){
     });
 
     nodo('#visor-pista').textContent = V.ruedas.length
-      ? 'Arrastrar para girar · seleccionar una rueda'
+      ? 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda'
       : 'Arrastrar para girar · no se reconocieron las ruedas de este modelo';
     /* Centrado a lo largo y a lo ancho, y apoyado en el piso. */
     obj.position.x -= (caja.min.x + caja.max.x) / 2;
@@ -737,6 +741,29 @@ function armarVisor(clave, archivo, opciones){
     const dio = rayo.intersectObjects(V.ruedas, false);
     return dio.length ? dio[0] : null;
   };
+  // Integración opcional con la mesa de montaje. Otros visores sólo giran.
+  if (VISOR.alArrastrar || VISOR.alSoltar) {
+    ren.domElement.addEventListener('pointerdown', e => {
+      if (VISOR.puedeArrastrar?.() && enRueda(e)) V.control.enabled = false;
+    }, true);
+    const terminar = () => { if(V.control) V.control.enabled = true; };
+    ren.domElement.addEventListener('pointerup', terminar);
+    ren.domElement.addEventListener('pointercancel', terminar);
+    ren.domElement.addEventListener('dragend', terminar);
+    ren.domElement.addEventListener('dragstart', e => {
+      const hit = enRueda(e);
+      if (!VISOR.puedeArrastrar?.() || !hit || !VISOR.alArrastrar?.(e, esquinaDelPunto(hit.point,hit.object))) {
+        e.preventDefault(); terminar();
+      }
+    });
+    ren.domElement.addEventListener('dragover', e => {
+      if (enRueda(e) && e.dataTransfer.types.includes('application/x-taller-cubierta')) e.preventDefault();
+    });
+    ren.domElement.addEventListener('drop', e => {
+      const hit = enRueda(e); if (!hit) return;
+      e.preventDefault(); VISOR.alSoltar?.(e, esquinaDelPunto(hit.point,hit.object)); terminar();
+    });
+  }
   /* Se distingue el clic del arrastre: girar el camión no tiene que abrir
      el panel de una rueda cada vez. */
   let desde = null;
@@ -751,7 +778,9 @@ function armarVisor(clave, archivo, opciones){
     desde = null;
     if (lejos) return;
     const golpe = enRueda(e);
-    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null);
+    // El segundo argumento dice que el clic vino del modelo: tocar dos
+    // veces la misma rueda pasa a la otra goma del dual.
+    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null, true);
   });
   ren.domElement.addEventListener('pointermove', e => {
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
@@ -829,6 +858,8 @@ function armarVisor(clave, archivo, opciones){
     if (!V.render) return;
     V.anim = requestAnimationFrame(dibujar);
     ctrl.update();
+    // Mirando desde abajo, el piso es lo único que se vería.
+    piso.visible = cam.position.y > .05;
     ren.render(esc3, cam);
   })();
 }
@@ -852,6 +883,7 @@ function esquinaDeLaRueda(malla){
    Cuatro colores, y cada uno contesta una pregunta distinta:
 
      naranja   la que se está mirando
+     celeste   la esquina dual con una cubierta montada y otra vacía
      azul      la esquina que ya tiene puestas todas sus cubiertas
      rojiza    la esquina a la que le falta alguna
      gris      la rueda de la que el mapa no sabe nada
@@ -869,7 +901,7 @@ function esquinaDeLaRueda(malla){
    elegida es de ese eje, del lado que sea: no se puede pintar media
    pieza, y por eso tampoco se le puede decir si está ocupada o no. */
 const RUEDA = {
-  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: GOMA,
+  elegida: 0xff7a1a, puesta: 0x2b5a76, parcial: 0x36abc7, falta: 0x6d3a34, sin_datos: GOMA,
 };
 
 function pintarRuedas(){
@@ -882,8 +914,10 @@ function pintarRuedas(){
       color = RUEDA.elegida;
     } else if (e.lado !== 'ambos') {
       const posiciones = posicionesDe(e);
-      if (posiciones.some(p => !p.cubierta_id))  color = RUEDA.falta;
-      else if (posiciones.length)                color = RUEDA.puesta;
+      const montadas = posiciones.filter(p => p.cubierta_id).length;
+      if (montadas === posiciones.length && montadas) color = RUEDA.puesta;
+      else if (montadas) color = RUEDA.parcial;
+      else if (posiciones.length) color = RUEDA.falta;
     }
     m.material.color.setHex(color);
     // Luz propia solo la elegida. El azul se apoya en el color y nada más:

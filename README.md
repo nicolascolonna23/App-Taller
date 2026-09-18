@@ -83,6 +83,39 @@ El asistente de consultas está en `/asistente`, detrás del login. Consultá [l
 
 Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
 
+## Parámetros, planes y roles
+
+Arriba de todas las pantallas hay dos accesos —**Usuarios** y
+**Parámetros**— para el que los tenga habilitados.
+
+`/parametros` está separada **por módulo**. En *Flota* se define **de dónde
+salen los kilómetros**: del satelital todas las mañanas, o a mano. En
+manual el job deja de escribir, porque si escribiera le pisaría el número
+al que lo cargó. En *Mantenimiento* están los **planes** —el preventivo se
+agenda por kilómetros o por días; el correctivo no se agenda, es el
+catálogo de trabajos con su tiempo y su costo esperados—, en *Alertas* los
+**umbrales** con los que avisa, y en *Gomería* las **marcas de cubierta**
+—con su logo, que se sube desde la pantalla y se guarda en la base porque
+el disco de Render se borra en cada deploy— y las **medidas** con las que
+se trabaja, cada una con la familia que dice si esa goma entra o no en esa
+unidad. La marca que ya tiene cubiertas cargadas se da de baja, no se
+borra. Las tablas de gomería salen de `gomeria/31_marcas_medidas.sql`.
+
+Los roles con los que se trabaja son cuatro más los de sistema:
+**responsable de taller** (gestiona), **mecánico** (carga en la orden lo
+que hizo, no aprueba ni cierra), **responsable de sucursal** y **chofer**
+(ven lo de su boca y nada más). El detalle está en
+[la guía de parámetros](gomeria/PARAMETROS.md) y las tablas salen de
+`gomeria/29_parametros.sql`.
+
+## Tractor y semi
+
+Un semi no reporta, pero sus gomas se gastan igual. En Flota, solapa
+**Tractor y semi**, se anota qué semi lleva cada tractor y desde cuándo, y
+el semi toma los kilómetros que hizo el tractor mientras lo llevaba
+puesto. Quedan escritos en `odometros`, así que el semi entra en services,
+cubiertas y alertas como cualquier otra unidad.
+
 ## Quién entra y qué abre
 
 Las altas, las bajas, las contraseñas y los roles se manejan en
@@ -125,7 +158,43 @@ la excepción de ruta y los indicadores— está en
 [la guía de solicitudes](gomeria/SOLICITUDES.md). Las tablas salen de
 `gomeria/26_solicitudes.sql`.
 
+## Fluidos: el depósito propio
+
+Combustible se controla contra un tercero; los fluidos no, porque el
+envase es nuestro. Así que no hay remitos que cruzar: hay un **stock**.
+Vive en `/combustible#fluidos` y funciona como el depósito de repuestos:
+**nadie edita el saldo**, el saldo es la suma de los movimientos. Son seis
+—urea, aceite 15W40 y 20W50, refrigerante concentrado, líquido hidráulico
+y grasa— y se agregan otros desde Parámetros.
+
+Cada fluido dice **en qué viene** y cuánto entra en un envase, y eso es lo
+que se dibuja: un bin de 1.000 al 12% se entiende antes que «140 litros»,
+y con 1.602 litros de aceite se ve un tambor por la mitad y siete
+sellados al lado.
+
+Entra por compra, sale por despacho a cada unidad —o por derrame o
+préstamo, que también salen y también se anotan— y cuando lo medido no da,
+la diferencia se anota con su motivo en vez de corregir el número. Esa
+diferencia es el dato: la merma existe y taparla es perderla.
+
+Avisa en `/alertas` de las dos maneras en que uno se queda sin: el saldo
+bajo del mínimo, y el que al ritmo de este mes no llega a la semana. El
+que nunca se cargó no avisa: no está vacío, está sin estrenar.
+
+De regalo, cruzando con lo que ya hay: el **% de urea sobre gasoil** por
+unidad. Un camión moderno anda entre 3% y 6%; el que da mucho menos tiene
+el sistema anulado y el que da mucho más pierde. El detalle está en
+[la guía de fluidos](gomeria/FLUIDOS.md) y las tablas salen de
+`gomeria/32_fluidos.sql`, que migra solo lo que ya estuviera cargado en
+urea.
+
 ## Costos del taller en la portada
+
+En la ficha de cada unidad, además, está su **historial de taller**: las
+órdenes abiertas y cerradas con lo que costó cada una, qué se le hizo y
+qué repuestos llevó. Sale del módulo de órdenes, no de una consulta
+nueva: dos consultas que dicen lo mismo terminan diciendo cosas
+distintas.
 
 La portada muestra los KPI de las órdenes de los últimos doce meses: total
 gastado por patente y pesos por kilómetro separados en preventivo y
@@ -134,10 +203,21 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` y `node tests/usuarios_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` `node tests/fluidos_smoke.cjs` y `node tests/parametros_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
 
 ## Vales auditables (borrador de integración)
 
-La propuesta de vales se revisa en `/vales`, sin reemplazar `/ordenes`, `/control`
+Hay un **segundo borrador** del mismo circuito, hecho aparte, que vive en
+`flota_vales/` y se revisa en `/vales`. No reemplaza `/ordenes`, `/control`
 ni `/api/mantenimiento`. Ver [diseño y pendientes antes de fusionar](docs/MANTENIMIENTO.md).
-No aplicar la migración hasta resolver la unificación con los planes existentes.
+No aplicar su migración hasta resolver la unificación: sus tablas (`mt_*`)
+son otra versión de lo que ya hace `/solicitudes`, y tener las dos andando
+sería tener dos verdades del mismo gasto. Hay que elegir una y sacar la otra.
+
+## Reportes de choferes y configuración de vencimientos
+
+La primera versión para teléfonos está en `/choferes/`; el taller recibe las fallas en
+`/fallas`, desde Solicitudes. Incluye fotos, dictado según el navegador, cola offline
+y conversión a OT. Vencimientos permite configurar vigencia y anticipación por tipo
+y fecha de aviso particular. Requiere la migración `gomeria/30_avisos_y_reportes.sql`.
+Ver [instalación, permisos, pruebas y límites de la versión móvil](docs/CHOFERES_Y_AVISOS.md).
