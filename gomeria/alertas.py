@@ -29,13 +29,13 @@ SEVERIDADES = {"grave": 0, "media": 1, "leve": 2}
 # la misma escala—, así que dentro de cada nivel manda la consecuencia:
 # el papel para el camión hoy, la goma al mínimo puede reventar, el service
 # pasado lo rompe en algún momento, y la carga rara ya pasó.
-# La urea va arriba de todo a igual gravedad: un tacho vacío no deja a un
-# camión a medias, lo deja parado antes de salir. Y se resuelve con un
-# llamado al proveedor, si se avisa a tiempo.
-PRIORIDAD = {"urea": 0, "vencimiento": 1, "cubierta": 2, "service": 3,
+# Los fluidos van arriba de todo a igual gravedad: sin urea o sin aceite
+# un camión no queda a medias, queda parado antes de salir. Y se resuelve
+# con un llamado al proveedor, si se avisa a tiempo.
+PRIORIDAD = {"fluido": 0, "vencimiento": 1, "cubierta": 2, "service": 3,
              "combustible": 4}
 
-FUENTES = ("vencimiento", "service", "combustible", "cubierta", "urea")
+FUENTES = ("vencimiento", "service", "combustible", "cubierta", "fluido")
 
 # Cómo se llama cada fuente en pantalla y adónde manda.
 DONDE = {
@@ -43,7 +43,7 @@ DONDE = {
     "service":     ("Services",     "/alertas#services"),
     "combustible": ("Combustible",  "/combustible"),
     "cubierta":    ("Gomería",      "/gomeria#wear"),
-    "urea":        ("Urea",         "/combustible#urea"),
+    "fluido":      ("Fluidos",      "/combustible#fluidos"),
 }
 
 
@@ -314,17 +314,21 @@ def _cubiertas(cx):
     return salida
 
 
-def _urea(cx):
-    """El tacho que se está quedando sin urea.
+def _fluidos(cx):
+    """Lo que se está por terminar en el depósito.
 
-    No es una alerta por unidad como las otras cuatro: es por tacho, y
+    No es una alerta por unidad como las otras cuatro: es por fluido, y
     por eso no lleva patente. Igual entra acá, porque el que abre la
     pantalla a la mañana necesita saberlo antes de que el primer camión
     pida y no haya.
+
+    El fluido que nunca se cargó no avisa: no está vacío, está sin
+    estrenar, y cinco avisos de algo que nadie compró tapan al que sí
+    importa.
     """
     filas = _tabla(cx, """
-        select * from v_urea_saldo
-        where activo and estado <> 'ok'
+        select * from v_fluidos_saldo
+        where activo and estado not in ('ok', 'sin_cargar')
         order by case estado when 'vacio' then 0 when 'critico' then 1 else 2 end,
                  dias_restantes nulls last, saldo
     """)
@@ -334,17 +338,18 @@ def _urea(cx):
     for f in filas:
         saldo = float(f["saldo"] or 0)
         dias = f["dias_restantes"]
-        detalle = (f"{_miles(f['minimo_litros'])} litros es el mínimo"
+        unidad = f["unidad"] or "litros"
+        detalle = (f"{_miles(f['minimo'])} {unidad} es el mínimo"
                    if dias is None else
                    f"alcanza para unos {dias} días al ritmo de este mes")
         salida.append({
-            "fuente": "urea",
-            "clave": str(f["tanque_id"]),
+            "fuente": "fluido",
+            "clave": str(f["fluido_id"]),
             # Vacío no es un aviso: es una parada. El camión que pide urea
             # y no hay, no sale.
             "severidad": "grave" if f["estado"] in ("vacio", "critico") else "media",
-            "titulo": (f"{f['nombre']} sin urea" if saldo <= 0
-                       else f"{f['nombre']}: quedan {_miles(saldo)} litros"),
+            "titulo": (f"Sin {f['nombre']}" if saldo <= 0
+                       else f"{f['nombre']}: quedan {_miles(saldo)} {unidad}"),
             "detalle": detalle,
             "patente": None,
             "interno": None,
@@ -353,14 +358,17 @@ def _urea(cx):
             "fecha": f["ultima_entrada"],
             # Primero el que menos días aguanta; sin ritmo, el más vacío.
             "orden": dias if dias is not None else saldo,
-            "extra": f"{f['porcentaje']}% de {_miles(f['capacidad_litros'])} litros",
+            "extra": (f"{f['sellados']} {f['envase']}(es) sin abrir"
+                      if f["sellados"] else
+                      f"{f['porcentaje']}% de un {f['envase']} de "
+                      f"{_miles(f['capacidad'])} {unidad}"),
         })
     return salida
 
 
 LECTORES = {"vencimiento": _vencimientos, "service": _services,
             "combustible": _combustible, "cubierta": _cubiertas,
-            "urea": _urea}
+            "fluido": _fluidos}
 
 
 # =====================================================================

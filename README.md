@@ -158,26 +158,35 @@ la excepción de ruta y los indicadores— está en
 [la guía de solicitudes](gomeria/SOLICITUDES.md). Las tablas salen de
 `gomeria/26_solicitudes.sql`.
 
-## Urea: el tacho propio
+## Fluidos: el depósito propio
 
-Combustible se controla contra un tercero; la urea no, porque el tacho es
-nuestro. Así que no hay remitos que cruzar: hay un **stock**. Vive en
-`/combustible#urea` y funciona como el depósito de repuestos: **nadie
-edita el saldo**, el saldo es la suma de los movimientos.
+Combustible se controla contra un tercero; los fluidos no, porque el
+envase es nuestro. Así que no hay remitos que cruzar: hay un **stock**.
+Vive en `/combustible#fluidos` y funciona como el depósito de repuestos:
+**nadie edita el saldo**, el saldo es la suma de los movimientos. Son seis
+—urea, aceite 15W40 y 20W50, refrigerante concentrado, líquido hidráulico
+y grasa— y se agregan otros desde Parámetros.
+
+Cada fluido dice **en qué viene** y cuánto entra en un envase, y eso es lo
+que se dibuja: un bin de 1.000 al 12% se entiende antes que «140 litros»,
+y con 1.602 litros de aceite se ve un tambor por la mitad y siete
+sellados al lado.
 
 Entra por compra, sale por despacho a cada unidad —o por derrame o
-préstamo, que también salen y también se anotan— y cuando el tacho medido
-no da, la diferencia se anota con su motivo en vez de corregir el número.
-Esa diferencia es el dato: la merma existe y taparla es perderla.
+préstamo, que también salen y también se anotan— y cuando lo medido no da,
+la diferencia se anota con su motivo en vez de corregir el número. Esa
+diferencia es el dato: la merma existe y taparla es perderla.
 
-Avisa en `/alertas` de las dos maneras en que uno se queda sin urea: el
-tacho bajo del mínimo, y el que al ritmo de este mes no llega a la semana.
+Avisa en `/alertas` de las dos maneras en que uno se queda sin: el saldo
+bajo del mínimo, y el que al ritmo de este mes no llega a la semana. El
+que nunca se cargó no avisa: no está vacío, está sin estrenar.
 
 De regalo, cruzando con lo que ya hay: el **% de urea sobre gasoil** por
 unidad. Un camión moderno anda entre 3% y 6%; el que da mucho menos tiene
 el sistema anulado y el que da mucho más pierde. El detalle está en
-[la guía de urea](gomeria/UREA.md) y las tablas salen de
-`gomeria/28_urea.sql`.
+[la guía de fluidos](gomeria/FLUIDOS.md) y las tablas salen de
+`gomeria/32_fluidos.sql`, que migra solo lo que ya estuviera cargado en
+urea.
 
 ## Costos del taller en la portada
 
@@ -194,7 +203,7 @@ que ya existen (`v_ordenes` y `v_km_diarios`) y no pide SQL nuevo. El
 detalle de cómo se calcula y qué queda afuera está en
 [la guía de órdenes](gomeria/ORDENES.md).
 
-Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` `node tests/urea_smoke.cjs` y `node tests/parametros_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
+Verificación: `python3 -m unittest discover -s tests -v`. Las pruebas de navegador se ejecutan con Playwright instalado: `node tests/browser_smoke.cjs`, `node tests/costos_smoke.cjs`, `node tests/solicitudes_smoke.cjs` `node tests/usuarios_smoke.cjs` `node tests/fluidos_smoke.cjs` y `node tests/parametros_smoke.cjs` (opcionalmente `BROWSER_PATH` indica el ejecutable de Chrome). Todas usan datos simulados, no credenciales ni la base de producción.
 
 ## Vales auditables (borrador de integración)
 

@@ -32,6 +32,31 @@ const datos = (quien) => ({
   puede_administrar: quien === 'admin',
 });
 
+const fluidos = () => ({
+  instalado: true,
+  fluidos: [
+    {fluido_id: 1, nombre: 'Urea', clave: 'urea', unidad: 'litros', envase: 'bin',
+     capacidad: 1000, minimo: 200, saldo: 140, estado: 'aviso', activo: true, orden: 1,
+     sellados: 0, usado: true, proveedor: 'Petrobras', proveedor_id: 1, nota: null},
+    {fluido_id: 2, nombre: 'Aceite 15W40', clave: 'aceite15w40', unidad: 'litros',
+     envase: 'tambor', capacidad: 205, minimo: 41, saldo: 1602, estado: 'ok', activo: true,
+     orden: 10, sellados: 7, usado: true, proveedor: 'Shell', proveedor_id: 2, nota: null},
+    {fluido_id: 3, nombre: 'Grasa', clave: 'grasa', unidad: 'kilos', envase: 'balde',
+     capacidad: 20, minimo: 4, saldo: 0, estado: 'sin_cargar', activo: true, orden: 30,
+     sellados: 0, usado: false, proveedor: null, proveedor_id: null, nota: null},
+  ],
+  proveedores: [
+    {id: 1, nombre: 'Petrobras', cuit: '30-111', contacto: null, telefono: null,
+     email: null, rubros: ['urea'], activo: true, nota: null, compras: 4},
+    {id: 2, nombre: 'Shell', cuit: null, contacto: 'Ventas', telefono: '383-4000',
+     email: null, rubros: ['aceites', 'grasa'], activo: true, nota: null, compras: 0},
+  ],
+  movimientos: [], por_unidad: [], banda_gasoil: [3, 6],
+  envases: {bin: 'Bin', tambor: 'Tambor', tacho: 'Tacho', balde: 'Balde', tanque: 'Tanque'},
+  rubros: ['combustible', 'urea', 'aceites', 'grasa', 'repuestos'],
+  unidades: [], puede_gestionar: true,
+});
+
 const marcas = () => ({
   marcas: [
     {id: 1, nombre: 'Fate', slug: 'fate', activa: true, logo_tipo: 'image/png',
@@ -71,6 +96,11 @@ const marcas = () => ({
       if (url.pathname.startsWith('/marcas/'))
         return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
                               contentType: 'image/png'});
+      if (url.pathname === '/api/fluidos') {
+        if (req.method() === 'GET') return route.fulfill({json: fluidos()});
+        pedidos.push(req.postDataJSON());
+        return route.fulfill({json: {ok: true}});
+      }
       if (url.pathname === '/api/yo')
         return route.fulfill({json: {nombre: 'Nicolás', rol: 'admin',
                                      rol_nombre: 'Administrador', administra: true,
@@ -137,10 +167,46 @@ const marcas = () => ({
     assert(await page.locator('#plan-nuevo').isEnabled(),
            'el responsable de taller sí parametriza los planes');
 
+    // Combustible: proveedores y fluidos, con el envase y su capacidad.
+    await page.click('[data-vista="combustible"]');
+    await page.locator('#fluidos tr').first().waitFor();
+    assert((await page.locator('#v-combustible .modulo').innerText())
+             .toLowerCase().includes('combustible'));
+    assert.equal(await page.locator('#proveedores tr').count(), 2);
+    assert((await page.locator('#proveedores').innerText()).includes('aceites, grasa'),
+           'no dice qué provee cada uno');
+    assert.equal(await page.locator('[data-borrar-prov="1"]').count(), 0,
+                 'a Petrobras se le compró: se da de baja, no se borra');
+    assert.equal(await page.locator('[data-borrar-prov="2"]').count(), 1);
+    const tablaFluidos = await page.locator('#fluidos').innerText();
+    for (const x of ['Bin de 1.000', 'Tambor de 205', '7 sin abrir', 'se mide en kilos'])
+      assert(tablaFluidos.includes(x), `falta "${x}" en la tabla de fluidos`);
+    assert.equal(await page.locator('[data-borrar-fluido="2"]').count(), 0,
+                 'un fluido con movimientos se da de baja, no se borra');
+    assert.equal(await page.locator('[data-borrar-fluido="3"]').count(), 1);
+
+    // Un fluido nuevo: nombre, envase y capacidad de UN envase.
+    await page.click('#fluido-nuevo');
+    await page.fill('#fl-nombre', 'Líquido de frenos');
+    await page.selectOption('#fl-envase', 'balde');
+    await page.fill('#fl-capacidad', '20');
+    await page.click('#fluido-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const fluido = pedidos.find(p => p.op === 'fluido');
+    assert.equal(fluido.envase, 'balde');
+    assert.equal(fluido.capacidad, '20');
+
+    // Editar un proveedor trae sus rubros marcados y los manda enteros.
+    await page.click('[data-prov="2"]');
+    assert.equal(await page.isChecked('#pv-rubros input[value="aceites"]'), true);
+    await page.check('#pv-rubros input[value="combustible"]');
+    await page.click('#prov-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const prov = pedidos.find(p => p.op === 'proveedor');
+    assert.equal(prov.id, 2);
+    assert.deepEqual(prov.rubros.sort(), ['aceites', 'combustible', 'grasa']);
+
     // Gomería: el logo en lugar del nombre, y la marca que se usa no se borra.
-    quien = 'admin';
-    await page.reload();
-    await page.locator('.opcion.on').waitFor();
     await page.click('[data-vista="gomeria"]');
     await page.locator('#marcas tr').first().waitFor();
     assert((await page.locator('#v-gomeria .modulo').innerText())
@@ -184,8 +250,9 @@ const marcas = () => ({
     assert.deepEqual(errores, []);
     console.log('PASS: kilometraje en dos opciones con su estado, plan correctivo sin ' +
                 'intervalo y preventivo sin presupuesto, asignación solo de preventivos, ' +
-                'umbrales del que administra, marcas con logo que se dan de baja en vez ' +
-                'de borrarse, medidas con su familia y celular.');
+                'umbrales del que administra, proveedores y fluidos con su envase, ' +
+                'marcas con logo que se dan de baja en vez de borrarse, medidas con ' +
+                'su familia y celular.');
   } finally {
     await browser.close();
   }

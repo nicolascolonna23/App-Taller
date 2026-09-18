@@ -85,9 +85,9 @@ RUTAS = {
     "/ordenes": "ordenes", "/api/ordenes": "ordenes", "/api/factura": "ordenes",
     "/solicitudes": "solicitudes", "/api/solicitudes": "solicitudes",
     "/combustible": "combustible", "/api/combustible": "combustible",
-    # La urea es la solapa del tacho adentro de Combustible: el mismo
-    # módulo, porque el que carga gasoil es el que carga urea.
-    "/api/urea": "combustible",
+    # Los fluidos son la solapa del depósito adentro de Combustible: el
+    # mismo módulo, porque el que carga gasoil es el que carga urea.
+    "/api/fluidos": "combustible",
     "/alertas": "alertas", "/api/alertas": "alertas",
     "/vencimientos": "vencimientos", "/api/vencimientos": "vencimientos",
     "/asistente": "asistente", "/api/asistente": "asistente",

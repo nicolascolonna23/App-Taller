@@ -83,10 +83,10 @@ def base_con(**cambios):
             "interno": "2", "posicion": "2IE", "funcion": "traccion",
             "remanente_mm": 4.5, "minimo_mm": 3, "alerta": "cerca",
             "km_restantes": 10436, "dias_restantes": 26}],
-        # El tacho de urea, con la vista instalada y sin nada que avisar:
-        # las alertas de urea son por tacho, no por unidad, y esta base
+        # El depósito de fluidos, con la vista instalada y sin nada que
+        # avisar: esas alertas son por fluido, no por unidad, y esta base
         # arma una alerta de cada una de las fuentes por unidad.
-        "from v_urea_saldo": [],
+        "from v_fluidos_saldo": [],
     }
     respuestas.update(cambios)
     return BaseFalsa(respuestas)
@@ -191,36 +191,45 @@ class Reglas(unittest.TestCase):
                 alertas.guardar_reglas(cx, datos)
 
 
-TACHO = {"tanque_id": 1, "nombre": "Tacho de urea", "sucursal_codigo": "CAT",
-         "activo": True, "capacidad_litros": 1000, "minimo_litros": 200,
-         "saldo": 150, "porcentaje": 15.0, "ultima_entrada": None,
+TACHO = {"fluido_id": 1, "nombre": "Urea", "clave": "urea", "unidad": "litros",
+         "envase": "bin", "sucursal_codigo": "CAT", "activo": True,
+         "capacidad": 1000, "minimo": 200, "saldo": 150, "porcentaje": 15.0,
+         "envases": 1, "abierto": 150, "sellados": 0, "ultima_entrada": None,
          "ultima_salida": None, "ultima_medicion": None, "consumo_diario": 30,
-         "dias_restantes": 5, "estado": "aviso"}
+         "dias_restantes": 5, "estado": "aviso", "usado": True}
 
 
-class Urea(unittest.TestCase):
-    def test_el_tacho_bajo_entra_en_la_lista_del_dia(self):
-        cx = base_con(**{"from v_urea_saldo": [TACHO]})
-        alerta = next(a for a in alertas.listar(cx)["alertas"] if a["fuente"] == "urea")
+class Fluidos(unittest.TestCase):
+    def test_lo_que_se_esta_por_terminar_entra_en_la_lista_del_dia(self):
+        cx = base_con(**{"from v_fluidos_saldo": [TACHO]})
+        alerta = next(a for a in alertas.listar(cx)["alertas"] if a["fuente"] == "fluido")
         self.assertIn("150", alerta["titulo"])
         self.assertIn("5 días", alerta["detalle"])
-        self.assertEqual(alerta["enlace"], "/combustible#urea")
+        self.assertEqual(alerta["enlace"], "/combustible#fluidos")
         self.assertEqual(alerta["severidad"], "media")
 
-    def test_el_tacho_vacio_es_grave_y_va_primero(self):
+    def test_el_deposito_vacio_es_grave_y_va_primero(self):
         """Un camión que pide urea y no hay, no sale: eso no es un aviso."""
-        cx = base_con(**{"from v_urea_saldo": [
+        cx = base_con(**{"from v_fluidos_saldo": [
             dict(TACHO, saldo=0, estado="vacio", dias_restantes=0)]})
         lista = alertas.listar(cx)["alertas"]
-        self.assertEqual(lista[0]["fuente"], "urea")
+        self.assertEqual(lista[0]["fuente"], "fluido")
         self.assertEqual(lista[0]["severidad"], "grave")
-        self.assertIn("sin urea", lista[0]["titulo"])
+        self.assertIn("Sin Urea", lista[0]["titulo"])
 
-    def test_sin_el_sql_de_urea_las_otras_fuentes_siguen(self):
+    def test_los_envases_sin_abrir_se_dicen(self):
+        """Con siete tambores sellados al lado no hay que pedir nada."""
+        cx = base_con(**{"from v_fluidos_saldo": [
+            dict(TACHO, nombre="Aceite 15W40", envase="tambor", saldo=1602,
+                 sellados=7, estado="aviso")]})
+        alerta = next(a for a in alertas.listar(cx)["alertas"] if a["fuente"] == "fluido")
+        self.assertIn("7 tambor", alerta["extra"])
+
+    def test_sin_el_sql_de_fluidos_las_otras_fuentes_siguen(self):
         cx = base_con()
-        cx.rotas = ("v_urea_saldo",)
+        cx.rotas = ("v_fluidos_saldo",)
         salida = alertas.listar(cx)
-        self.assertEqual(salida["fuentes_apagadas"], ["Urea"])
+        self.assertEqual(salida["fuentes_apagadas"], ["Fluidos"])
         self.assertEqual(len(salida["alertas"]), 4)
 
 

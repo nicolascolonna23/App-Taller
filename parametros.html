@@ -127,6 +127,7 @@
     <button class="solapa on" data-vista="km">Flota</button>
     <button class="solapa" data-vista="planes">Mantenimiento</button>
     <button class="solapa" data-vista="gomeria">Gomería</button>
+    <button class="solapa" data-vista="combustible">Combustible</button>
     <button class="solapa" data-vista="avisos">Alertas</button>
   </div>
 
@@ -335,6 +336,107 @@
       <p class="vacio" id="medidas-vacio" hidden>Todavía no hay medidas cargadas.</p>
     </div>
   </section>
+
+  <!-- ------------------------------------------------------- combustible -->
+  <section id="v-combustible" hidden>
+    <p class="modulo">Parametrizaciones de <b>Combustible</b></p>
+
+    <div class="caja">
+      <h2>Proveedores</h2>
+      <p class="que">A quién se le compra. Hasta acá el proveedor era un texto que cada
+        uno escribía como quería en cada carga, así que no se podía sumar lo que se le
+        compró a nadie. El rubro es para ofrecer solo los que corresponden: al que trae
+        gasoil no tiene sentido ofrecerlo para la grasa.</p>
+      <div class="fila" style="margin:0 0 14px">
+        <button class="btn" id="prov-nuevo">+ Nuevo proveedor</button>
+      </div>
+
+      <form id="prov-form" hidden style="background:var(--surface-2);
+        border:1px solid var(--hairline-2);border-radius:12px;padding:15px;margin-bottom:16px">
+        <div class="campos">
+          <div><label>Nombre</label><input id="pv-nombre" maxlength="120"
+            placeholder="YPF" required></div>
+          <div><label>CUIT</label><input id="pv-cuit" maxlength="20"
+            placeholder="30-12345678-9"></div>
+          <div><label>Contacto</label><input id="pv-contacto" maxlength="120"></div>
+          <div><label>Teléfono</label><input id="pv-telefono" maxlength="40"></div>
+          <div><label>Correo</label><input id="pv-email" maxlength="120"></div>
+          <div class="ancho"><label>Qué provee</label>
+            <div class="fila" id="pv-rubros" style="gap:16px;margin:0"></div></div>
+          <div class="ancho"><label>Nota</label><input id="pv-nota" maxlength="300"></div>
+          <div class="ancho">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;
+              font-size:13px;letter-spacing:0">
+              <input type="checkbox" id="pv-activo" checked style="width:auto">
+              Se ofrece al cargar una compra</label></div>
+        </div>
+        <div class="fila">
+          <button class="btn" type="submit">Guardar proveedor</button>
+          <button class="btn alt" type="button" id="prov-cancelar">Cancelar</button>
+        </div>
+      </form>
+
+      <table><thead><tr>
+        <th>Proveedor</th><th>Qué provee</th><th>Contacto</th>
+        <th class="num">Compras</th><th>Estado</th><th></th>
+      </tr></thead><tbody id="proveedores"></tbody></table>
+      <p class="vacio" id="proveedores-vacio" hidden>Todavía no hay proveedores cargados.</p>
+    </div>
+
+    <div class="caja">
+      <h2>Fluidos</h2>
+      <p class="que">Qué se guarda en el depósito y en qué viene. La capacidad es la de
+        <b>un</b> envase —un bin de 1.000, un tambor de 205, un balde de 20—, y es lo que
+        se dibuja lleno en la pantalla: con 1.700 litros hay un tambor abierto y siete
+        sellados al lado. El mínimo es cuándo empieza a avisar; sin cargarlo, avisa al
+        20% de un envase.</p>
+      <div class="fila" style="margin:0 0 14px">
+        <button class="btn" id="fluido-nuevo">+ Nuevo fluido</button>
+      </div>
+
+      <form id="fluido-form" hidden style="background:var(--surface-2);
+        border:1px solid var(--hairline-2);border-radius:12px;padding:15px;margin-bottom:16px">
+        <div class="campos">
+          <div><label>Nombre</label><input id="fl-nombre" maxlength="80"
+            placeholder="Aceite 15W40" required></div>
+          <div><label>Se mide en</label><select id="fl-unidad">
+            <option value="litros">Litros</option>
+            <option value="kilos">Kilos</option>
+          </select></div>
+          <div><label>Viene en</label><select id="fl-envase">
+            <option value="bin">Bin</option>
+            <option value="tambor">Tambor</option>
+            <option value="tacho">Tacho</option>
+            <option value="balde">Balde</option>
+            <option value="tanque">Tanque</option>
+          </select></div>
+          <div><label>Capacidad del envase</label><input id="fl-capacidad" type="number"
+            min="0.01" step="0.01" placeholder="205" required></div>
+          <div><label>Avisa cuando queda</label><input id="fl-minimo" type="number"
+            min="0" step="0.01" placeholder="41"></div>
+          <div><label>Proveedor habitual</label><select id="fl-proveedor"></select></div>
+          <div><label>Orden en la pantalla</label><input id="fl-orden" type="number"
+            min="0" step="1" placeholder="50"></div>
+          <div class="ancho"><label>Nota</label><input id="fl-nota" maxlength="300"></div>
+          <div class="ancho">
+            <label style="display:flex;align-items:center;gap:8px;text-transform:none;
+              font-size:13px;letter-spacing:0">
+              <input type="checkbox" id="fl-activo" checked style="width:auto">
+              Se ve en el depósito</label></div>
+        </div>
+        <div class="fila">
+          <button class="btn" type="submit">Guardar fluido</button>
+          <button class="btn alt" type="button" id="fluido-cancelar">Cancelar</button>
+        </div>
+      </form>
+
+      <table><thead><tr>
+        <th>Fluido</th><th>Envase</th><th class="num">Saldo</th><th class="num">Avisa en</th>
+        <th>Proveedor</th><th>Estado</th><th></th>
+      </tr></thead><tbody id="fluidos"></tbody></table>
+      <p class="vacio" id="fluidos-vacio" hidden>Todavía no hay fluidos cargados.</p>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -461,10 +563,7 @@ document.addEventListener('click', async ev => {
   const solapa = ev.target.closest('.solapa');
   if (solapa) {
     document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
-    ['km', 'planes', 'gomeria', 'avisos'].forEach(v => {
-      $('#v-' + v).hidden = v !== solapa.dataset.vista;
-    });
-    if (solapa.dataset.vista === 'gomeria' && !G.datos) cargarGomeria();
+    abrir(solapa.dataset.vista);
     return;
   }
   const opcion = ev.target.closest('.opcion');
@@ -717,6 +816,188 @@ document.addEventListener('click', async ev => {
     catch (e) { aviso(e.message); }
   }
 });
+
+/* ====================================================================
+   COMBUSTIBLE: PROVEEDORES Y FLUIDOS
+   --------------------------------------------------------------------
+   Los dos salen de /api/fluidos, que es el módulo que los tiene. Acá se
+   parametriza qué hay en el depósito y en qué envase viene; los
+   movimientos —lo que entra y lo que sale— se cargan en Combustible.
+   ==================================================================== */
+const C = {datos: null, proveedor: null, fluido: null};
+const ENVASE_NOMBRE = {bin: 'Bin', tambor: 'Tambor', tacho: 'Tacho',
+                       balde: 'Balde', tanque: 'Tanque'};
+const ESTADO_FLUIDO = {ok: 'con stock', aviso: 'hay que pedir', critico: 'urgente',
+                       vacio: 'vacío', sin_cargar: 'sin estrenar'};
+
+async function apiFluidos(op, extra) {
+  const r = await fetch('/api/fluidos', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(Object.assign({op}, extra || {}))});
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) throw new Error(d.error || 'No se pudo guardar.');
+  return d;
+}
+
+async function cargarCombustible() {
+  const r = await fetch('/api/fluidos?todo=1');
+  const d = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+  if (!r.ok) return aviso(d.error || 'No se pudieron leer los fluidos.');
+  C.datos = d;
+  pintarCombustible();
+}
+
+function pintarCombustible() {
+  const d = C.datos;
+  const puede = !!d.puede_gestionar;
+  $('#prov-nuevo').disabled = !puede;
+  $('#fluido-nuevo').disabled = !puede;
+
+  $('#pv-rubros').innerHTML = (d.rubros || []).map(r => `
+    <label style="display:flex;align-items:center;gap:6px;text-transform:none;
+      font-size:13px;letter-spacing:0;margin:0">
+      <input type="checkbox" value="${esc(r)}" data-rubro style="width:auto"> ${esc(r)}</label>`).join('');
+
+  $('#fl-proveedor').innerHTML = '<option value="">—</option>' +
+    d.proveedores.filter(p => p.activo)
+      .map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+
+  $('#proveedores').innerHTML = d.proveedores.map(p => `
+    <tr>
+      <td><b>${esc(p.nombre)}</b>${p.cuit ? `<div class="chico">${esc(p.cuit)}</div>` : ''}</td>
+      <td class="chico">${(p.rubros || []).map(esc).join(', ') || 'todo'}</td>
+      <td class="chico">${[p.contacto, p.telefono, p.email].filter(Boolean).map(esc).join(' · ') || '—'}</td>
+      <td class="num">${p.compras}</td>
+      <td>${p.activo ? '<span class="marca preventivo">activo</span>'
+                     : '<span class="chico">de baja</span>'}</td>
+      <td>${puede ? `<button class="accion" data-prov="${p.id}">Editar</button>
+        ${p.compras ? '' : `<button class="accion" data-borrar-prov="${p.id}">Borrar</button>`}` : ''}</td>
+    </tr>`).join('');
+  $('#proveedores-vacio').hidden = d.proveedores.length > 0;
+
+  $('#fluidos').innerHTML = d.fluidos.map(f => `
+    <tr>
+      <td><b>${esc(f.nombre)}</b><div class="chico">se mide en ${esc(f.unidad)}</div></td>
+      <td>${esc(ENVASE_NOMBRE[f.envase] || f.envase)} de ${nf0.format(f.capacidad)}
+        <div class="chico">${f.sellados ? f.sellados + ' sin abrir' : ''}</div></td>
+      <td class="num">${nf0.format(f.saldo)}</td>
+      <td class="num">${nf0.format(f.minimo)}</td>
+      <td class="chico">${esc(f.proveedor || '—')}</td>
+      <td>${!f.activo ? '<span class="chico">de baja</span>'
+            : f.estado === 'sin_cargar' ? '<span class="chico">sin estrenar</span>'
+            : `<span class="marca ${f.estado === 'ok' ? 'preventivo' : 'correctivo'}">${
+                ESTADO_FLUIDO[f.estado] || f.estado}</span>`}</td>
+      <td>${puede ? `<button class="accion" data-fluido="${f.fluido_id}">Editar</button>
+        ${f.usado ? '' : `<button class="accion" data-borrar-fluido="${f.fluido_id}">Borrar</button>`}` : ''}</td>
+    </tr>`).join('');
+  $('#fluidos-vacio').hidden = d.fluidos.length > 0;
+}
+
+function formProveedor(p) {
+  C.proveedor = p;
+  $('#prov-form').hidden = false;
+  $('#pv-nombre').value = p ? p.nombre : '';
+  $('#pv-cuit').value = (p && p.cuit) || '';
+  $('#pv-contacto').value = (p && p.contacto) || '';
+  $('#pv-telefono').value = (p && p.telefono) || '';
+  $('#pv-email').value = (p && p.email) || '';
+  $('#pv-nota').value = (p && p.nota) || '';
+  $('#pv-activo').checked = p ? !!p.activo : true;
+  document.querySelectorAll('[data-rubro]').forEach(c => {
+    c.checked = !!(p && (p.rubros || []).includes(c.value));
+  });
+  $('#pv-nombre').focus();
+}
+
+function formFluido(f) {
+  C.fluido = f;
+  $('#fluido-form').hidden = false;
+  $('#fl-nombre').value = f ? f.nombre : '';
+  $('#fl-unidad').value = (f && f.unidad) || 'litros';
+  $('#fl-envase').value = (f && f.envase) || 'tambor';
+  $('#fl-capacidad').value = f ? f.capacidad : '';
+  $('#fl-minimo').value = f && f.minimo != null ? f.minimo : '';
+  $('#fl-proveedor').value = (f && f.proveedor_id) || '';
+  $('#fl-orden').value = f ? f.orden : '';
+  $('#fl-nota').value = (f && f.nota) || '';
+  $('#fl-activo').checked = f ? !!f.activo : true;
+  $('#fl-nombre').focus();
+}
+
+$('#prov-form').onsubmit = async e => {
+  e.preventDefault();
+  const datos = {
+    nombre: $('#pv-nombre').value, cuit: $('#pv-cuit').value,
+    contacto: $('#pv-contacto').value, telefono: $('#pv-telefono').value,
+    email: $('#pv-email').value, nota: $('#pv-nota').value,
+    activo: $('#pv-activo').checked,
+    rubros: [...document.querySelectorAll('[data-rubro]:checked')].map(c => c.value)};
+  if (C.proveedor) datos.id = C.proveedor.id;
+  try {
+    await apiFluidos('proveedor', datos);
+    $('#prov-form').hidden = true;
+    await cargarCombustible();
+    aviso('Proveedor guardado.', true);
+  } catch (err) { aviso(err.message); }
+};
+
+$('#fluido-form').onsubmit = async e => {
+  e.preventDefault();
+  const datos = {
+    nombre: $('#fl-nombre').value, unidad: $('#fl-unidad').value,
+    envase: $('#fl-envase').value, capacidad: $('#fl-capacidad').value,
+    minimo: $('#fl-minimo').value, proveedor_id: $('#fl-proveedor').value,
+    orden: $('#fl-orden').value, nota: $('#fl-nota').value,
+    activo: $('#fl-activo').checked};
+  if (C.fluido) datos.id = C.fluido.fluido_id;
+  try {
+    await apiFluidos('fluido', datos);
+    $('#fluido-form').hidden = true;
+    await cargarCombustible();
+    aviso('Fluido guardado.', true);
+  } catch (err) { aviso(err.message); }
+};
+
+document.addEventListener('click', async ev => {
+  if (ev.target.id === 'prov-nuevo') return formProveedor(null);
+  if (ev.target.id === 'prov-cancelar') { $('#prov-form').hidden = true; return; }
+  if (ev.target.id === 'fluido-nuevo') return formFluido(null);
+  if (ev.target.id === 'fluido-cancelar') { $('#fluido-form').hidden = true; return; }
+
+  const editarP = ev.target.closest('[data-prov]');
+  if (editarP)
+    return formProveedor(C.datos.proveedores.find(p => String(p.id) === editarP.dataset.prov));
+  const editarF = ev.target.closest('[data-fluido]');
+  if (editarF)
+    return formFluido(C.datos.fluidos.find(f => String(f.fluido_id) === editarF.dataset.fluido));
+
+  const borrarP = ev.target.closest('[data-borrar-prov]');
+  if (borrarP) {
+    if (!confirm('¿Borrar el proveedor?')) return;
+    try { await apiFluidos('proveedor_borrar', {id: borrarP.dataset.borrarProv}); await cargarCombustible(); }
+    catch (e) { aviso(e.message); }
+    return;
+  }
+  const borrarF = ev.target.closest('[data-borrar-fluido]');
+  if (borrarF) {
+    if (!confirm('¿Borrar el fluido?')) return;
+    try { await apiFluidos('fluido_borrar', {id: borrarF.dataset.borrarFluido}); await cargarCombustible(); }
+    catch (e) { aviso(e.message); }
+  }
+});
+
+/* Se puede llegar directo a una solapa: /parametros#combustible es el
+   enlace que deja la pantalla de fluidos para venir a parametrizarlos. */
+const VISTAS = ['km', 'planes', 'gomeria', 'avisos', 'combustible'];
+function abrir(vista) {
+  if (!VISTAS.includes(vista)) return;
+  document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s.dataset.vista === vista));
+  VISTAS.forEach(v => { $('#v-' + v).hidden = v !== vista; });
+  if (vista === 'gomeria' && !G.datos) cargarGomeria();
+  if (vista === 'combustible' && !C.datos) cargarCombustible();
+}
+if (location.hash) abrir(location.hash.slice(1));
+addEventListener('hashchange', () => abrir(location.hash.slice(1) || 'km'));
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   if (d) $('#quien').textContent = [d.nombre, d.rol_nombre].filter(Boolean).join(' · ');

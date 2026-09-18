@@ -6,9 +6,9 @@ enteros en Supabase → SQL Editor → Run y se pueden correr las veces que
 haga falta.
 
 La pantalla `/parametros` está **separada por módulo** —*Flota*,
-*Mantenimiento*, *Gomería*, *Alertas*—, porque el que va a cargar una
-marca de cubierta no tiene por qué pasar por los planes de mantenimiento
-para llegar.
+*Mantenimiento*, *Gomería*, *Combustible*, *Alertas*—, porque el que va a
+cargar una marca de cubierta no tiene por qué pasar por los planes de
+mantenimiento para llegar.
 
 Los accesos están **arriba, en todas las pantallas**: *Usuarios* y
 *Parámetros*, para el que los tenga habilitados. El permiso lo revisa el
@@ -184,3 +184,34 @@ cualquiera: las pantallas de gomería las leen para sus desplegables.
 en lugar del nombre, y la goma **rueda**: los tacos corren por la banda y
 las tuercas giran con la llanta. Quien pidió menos movimiento en su
 sistema no ve ninguno.
+
+## 8. Combustible: proveedores y fluidos
+
+Solapa **Combustible**. Sale de `gomeria/32_fluidos.sql`.
+
+**Los proveedores.** A quién se le compra. Hasta acá el proveedor era un
+texto que cada uno escribía como quería en cada carga —«YPF», «ypf»,
+«Y.P.F.»—, así que no se podía sumar lo que se le compró a nadie. Ahora
+son filas con su CUIT, su contacto y **qué rubros provee** —combustible,
+urea, aceites, grasa, repuestos—: el rubro es para ofrecer solo los que
+corresponden, porque al que trae gasoil no tiene sentido ofrecerlo para la
+grasa. Al que ya se le compró **se lo da de baja, no se lo borra**.
+
+**Los fluidos.** Qué se guarda en el depósito y **en qué viene**. La
+capacidad es la de **un** envase —un bin de 1.000, un tambor de 205, un
+balde de 20—, y es lo que se dibuja lleno en la pantalla: con 1.700 litros
+hay un tambor abierto y siete sellados al lado. El mínimo es cuándo
+empieza a avisar; sin cargarlo, avisa al 20% de un envase.
+
+- Se mide en **litros o en kilos**: la grasa se compra por kilo.
+- El envase es bin, tambor, tacho, balde o tanque. No es decoración: es lo
+  que se dibuja y cómo lo mira el que va al depósito.
+- El fluido con movimientos se da de baja, no se borra: borrarlo dejaría
+  los movimientos sin decir de qué eran.
+
+Arranca con los seis del taller —urea, aceite 15W40, aceite 20W50,
+refrigerante concentrado, líquido hidráulico y grasa— y se agregan los que
+hagan falta. El detalle de cómo se cargan y se despachan está en
+[la guía de fluidos](FLUIDOS.md).
+
+Tocar los proveedores y los fluidos es de quien **gestiona**.
