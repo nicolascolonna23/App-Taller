@@ -11,7 +11,8 @@ const position=id=>(D.map||[]).find(p=>String(p.posicion_id)===String(id));
    es el mismo que el desplazamiento de la animación, para que el ciclo
    cierre sin salto. Quien pidió menos movimiento en su sistema no ve
    ninguno: está contemplado en el CSS. */
-function tireArt(){
+function tireArt(sufijo){
+ const id=sufijo||'';
  const tacos=Array.from({length:16},(_,i)=>`<path d="M${76+i%2*3} ${15+i*12}l32 5 23-8" fill="none" stroke="#111820" stroke-width="5"/>`).join('');
  /* Repartidas en la rueda. Van en el grupo achatado, así que un círculo
     se dibuja como la elipse que se ve desde este ángulo. */
@@ -22,11 +23,11 @@ function tireArt(){
  const ventanas=enRueda(5,21,(x,y)=>`<circle cx="${x}" cy="${y}" r="5" fill="#0d1217"/>`);
  const tuercas=enRueda(8,12.5,(x,y)=>`<circle cx="${x}" cy="${y}" r="2.6" fill="#9aa8b3"/>`);
  return `<svg class="tire-art" viewBox="0 0 260 200" aria-label="Neumático" role="img">`
-  +`<defs><linearGradient id="rubber" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient>`
-  +`<clipPath id="banda"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs>`
+  +`<defs><linearGradient id="rubber${id}" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient>`
+  +`<clipPath id="banda${id}"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs>`
   +`<ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/>`
-  +`<path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber)" stroke="#6c7884" stroke-width="2"/>`
-  +`<g class="tacos" clip-path="url(#banda)">${tacos}</g>`
+  +`<path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber${id})" stroke="#6c7884" stroke-width="2"/>`
+  +`<g class="tacos" clip-path="url(#banda${id})">${tacos}</g>`
   +`<ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/>`
   +`<g transform="translate(157 95) scale(1 1.72)"><g class="llanta">`
   +letras
@@ -58,11 +59,24 @@ function pintarEstante(){
  $('#shelfList').innerHTML=rows.map(t=>`<button class="shelf-item ${String(chosenStock)===String(t.id)?'on':''}" data-stock-id="${t.id}" draggable="${editable()}"><i class="rubber-mini" aria-hidden="true"></i><span><b>${esc(t.codigo)}</b><small>${esc([t.marca,t.modelo].filter(Boolean).join(' · '))}</small><small>${esc(t.medida||'Sin medida')} · ${t.remanente_mm==null?'Sin medir':esc(t.remanente_mm)+' mm'}</small></span></button>`).join('')||'<p class="workbench-help">No hay cubiertas disponibles con este filtro.</p>';
  for(const b of $$('#shelfList [data-stock-id]')){
    b.onclick=()=>{chosenStock=Number(b.dataset.stockId);pintarEstante();pintarInspector();benchMessage('Cubierta seleccionada. Elegí un casillero vacío para montarla.');};
-   b.ondragstart=e=>{if(!editable())return e.preventDefault();dragged={tipo:'stock',id:Number(b.dataset.stockId)};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';};
+   b.ondragstart=e=>{if(!editable())return e.preventDefault();dragged={tipo:'stock',id:Number(b.dataset.stockId)};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';gomaDeArrastre(e,shelf.find(x=>String(x.id)===String(b.dataset.stockId))?.codigo);};
    b.ondragend=limpiarArrastre;
  }
 }
-function limpiarArrastre(){dragged=null;$$('.drop-ready').forEach(e=>e.classList.remove('drop-ready'));}
+/* Lo que sigue al mouse mientras se arrastra: una goma con su número de
+   fuego, no la ficha entera del listado. El navegador le saca la foto en
+   el momento del dragstart, así que el nodo tiene que estar puesto en la
+   página —fuera de la pantalla— y se limpia al soltar. */
+let fantasma=null;
+function gomaDeArrastre(e,codigo){
+ fantasma?.remove();
+ fantasma=document.createElement('div');
+ fantasma.className='goma-arrastre';
+ fantasma.innerHTML=tireArt('-arrastre')+`<b>${esc(codigo||'')}</b>`;
+ document.body.append(fantasma);
+ try{e.dataTransfer.setDragImage(fantasma,48,46);}catch(_){/* el navegador que no la acepta usa la suya */}
+}
+function limpiarArrastre(){dragged=null;fantasma?.remove();fantasma=null;$$('.drop-ready').forEach(e=>e.classList.remove('drop-ready'));}
 function elegirPosicion(id){
  D.benchPosition=id;const p=position(id);if(!p)return;
  if(V.render&&!p.es_auxilio){const eje=V.ejes.findIndex((_,i)=>ejeDelMapa(i+1)===p.eje)+1;if(eje)elegirEsquina(esquina(eje,p.lado));}
@@ -84,7 +98,7 @@ function engancharMesa(){
  for(const b of $$('.tire[data-pos]')){
    const p=position(b.dataset.pos);b.onclick=()=>elegirPosicion(b.dataset.pos);
    b.draggable=!!(editable()&&p?.cubierta_id);
-   b.ondragstart=e=>{if(!p?.cubierta_id||!editable())return e.preventDefault();dragged={tipo:'montada',posicion_id:p.posicion_id,cubierta_id:p.cubierta_id,unidad_id:D.unidadId};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';};
+   b.ondragstart=e=>{if(!p?.cubierta_id||!editable())return e.preventDefault();dragged={tipo:'montada',posicion_id:p.posicion_id,cubierta_id:p.cubierta_id,unidad_id:D.unidadId};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';gomaDeArrastre(e,p.cubierta);};
    b.ondragend=limpiarArrastre;
    b.ondragover=e=>{if(editable()&&dragged?.tipo==='stock'&&!p?.cubierta_id){e.preventDefault();b.classList.add('drop-ready');}};
    b.ondragleave=()=>b.classList.remove('drop-ready');
@@ -97,7 +111,7 @@ function arrastrarRueda3d(e,esq){
  elegirEsquina(esq);
  if(!p){benchMessage('Eje dual: elegí primero el casillero interior o exterior y después arrastrá la rueda.');return false;}
  if(!p.cubierta_id){benchMessage('Esa posición está vacía.');return false;}
- elegirPosicion(p.posicion_id);dragged={tipo:'montada',posicion_id:p.posicion_id,cubierta_id:p.cubierta_id,unidad_id:D.unidadId};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';return true;
+ elegirPosicion(p.posicion_id);dragged={tipo:'montada',posicion_id:p.posicion_id,cubierta_id:p.cubierta_id,unidad_id:D.unidadId};e.dataTransfer.setData('application/x-taller-cubierta',JSON.stringify(dragged));e.dataTransfer.effectAllowed='move';gomaDeArrastre(e,p.cubierta);return true;
 }
 function soltarEnRueda3d(e,esq){
  if(!editable()||dragged?.tipo!=='stock')return;

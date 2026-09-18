@@ -104,6 +104,74 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  const mounted=await page.evaluate(id=>{V.tocado=true;const rect=V.render.domElement.getBoundingClientRect();for(const wheel of V.ruedas){const p=new THREE.Box3().setFromObject(wheel).getCenter(new THREE.Vector3()).project(V.camara);const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(p.x,p.y),V.camara);const h=ray.intersectObjects(V.ruedas,false)[0];if(h&&posicionesDe(esquinaDelPunto(h.point,h.object)).some(q=>q.posicion_id===id))return {x:(p.x+1)*rect.width/2,y:(1-p.y)*rect.height/2};}return null;},spot.positions[1]);assert(mounted);
  await page.locator('#visor canvas').dragTo(page.locator('#returnStock'),{sourcePosition:mounted});await page.locator('#movementDialog').waitFor();await page.fill('#movementNote','Desgaste irregular');await page.selectOption('#movementDestination','reparacion');await page.click('#movementSave');await page.waitForFunction(id=>!document.querySelector('.map [data-pos="'+id+'"]')?.dataset.tire,spot.positions[1]);assert.equal(writes.at(-1).destino,'reparacion');
  await page.waitForFunction(()=>V.ruedas.length>0);await page.locator('.map [data-pos="2"]').click();await page.screenshot({path:'/tmp/gomeria-mesa-desktop.png',fullPage:true});
+ // Un dual tiene dos gomas atrás de una sola rueda del modelo: tocarla de
+ // nuevo pasa a la otra, y el mapa marca cuál quedó elegida.
+ {
+  await page.waitForFunction(()=>V.ruedas.length>0);
+  const rueda=await page.evaluate(()=>{V.tocado=true;const r=V.render.domElement.getBoundingClientRect();
+   V.escena.updateMatrixWorld(true);V.camara.updateMatrixWorld();
+   for(const w of V.ruedas){const p=new THREE.Box3().setFromObject(w).getCenter(new THREE.Vector3()).project(V.camara);
+    const ray=new THREE.Raycaster();ray.setFromCamera(new THREE.Vector2(p.x,p.y),V.camara);
+    const h=ray.intersectObjects(V.ruedas,false)[0];
+    if(h&&posicionesDe(esquinaDelPunto(h.point,h.object)).length===2)
+     return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};}
+   return null;});
+  assert(rueda,'no se encontró una rueda dual a la vista');
+  await page.mouse.click(rueda.x,rueda.y);
+  const primera=await page.evaluate(()=>D.benchPosition);
+  assert(primera,'tocar la rueda no eligió ninguna posición');
+  assert.equal(await page.locator('.map .tire.chosen').count(),1,'el mapa no marca la elegida');
+  assert((await page.locator('#elegida h4').innerText()).match(/interior|exterior/i),
+         'no dice cuál de las dos gomas del dual quedó elegida');
+  assert((await page.locator('#elegida').innerText()).includes('otra vez'),
+         'no cuenta cómo llegar a la otra goma');
+  await page.mouse.click(rueda.x,rueda.y);
+  const segunda=await page.evaluate(()=>D.benchPosition);
+  assert(segunda&&segunda!==primera,'tocar de nuevo no pasó a la otra goma del dual');
+  assert.equal(await page.locator('.map [data-pos="'+segunda+'"].chosen').count(),1,
+               'el mapa no siguió a la segunda goma');
+  // Elegir un casillero del mapa dice cuál: ahí no hay nada que alternar.
+  await page.locator('.map [data-pos="'+segunda+'"]').click();
+  assert.equal(await page.evaluate(()=>D.benchPosition),segunda,'el clic en el mapa alternó solo');
+ }
+ // Se puede mirar desde abajo: es la única forma de ver la goma interior
+ // de un dual, y el piso se corre solo cuando la cámara baja.
+ assert(await page.evaluate(()=>V.control.maxPolarAngle>Math.PI/2),'la cámara no puede bajar del horizonte');
+ {
+  // Con el 3D en modo mover, el arrastre agarra la goma en vez de girar.
+  await page.uncheck('#moveWheels');
+  await page.locator('#visor canvas').scrollIntoViewIfNeeded();
+  const caja=await page.locator('#visor canvas').boundingBox();
+  await page.mouse.move(caja.x+caja.width/2,caja.y+caja.height/2);
+  await page.mouse.down();
+  // Arrastrar hacia arriba baja la cámara: es el gesto de agacharse.
+  for(let i=1;i<=20;i++)await page.mouse.move(caja.x+caja.width/2,caja.y+caja.height/2-i*14);
+  await page.mouse.up();
+  const visto=await page.evaluate(async()=>{
+   await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+   const piso=V.escena.children.find(o=>o.geometry&&o.geometry.type==='CircleGeometry');
+   return {y:V.camara.position.y,piso:piso?piso.visible:null};});
+  assert(visto.y<0,'la cámara no llegó abajo del piso: y='+visto.y);
+  assert.equal(visto.piso,false,'el piso tapa justo lo que se fue a mirar');
+  // Y se vuelve a dejar el camión de frente, que después se le saca la foto.
+  await page.mouse.move(caja.x+caja.width/2,caja.y+caja.height/2);
+  await page.mouse.down();
+  for(let i=1;i<=14;i++)await page.mouse.move(caja.x+caja.width/2,caja.y+caja.height/2+i*14);
+  await page.mouse.up();
+ }
+ // Arrastrar del stock lleva una goma con el número de fuego, no la ficha.
+ {
+  const arrastre=await page.evaluate(()=>{
+   const b=document.querySelector('[data-stock-id="103"]');
+   b.dispatchEvent(new DragEvent('dragstart',{dataTransfer:new DataTransfer(),bubbles:true}));
+   const g=document.querySelector('.goma-arrastre');
+   const visto={texto:g?g.textContent.trim():null,goma:!!(g&&g.querySelector('svg.tire-art'))};
+   document.dispatchEvent(new DragEvent('dragend',{bubbles:true}));
+   return {...visto,limpio:!document.querySelector('.goma-arrastre')};});
+  assert.equal(arrastre.texto,'BRI-103','la goma que sigue al mouse no dice cuál es');
+  assert(arrastre.goma,'lo que sigue al mouse no es una goma');
+  assert(arrastre.limpio,'la goma del arrastre quedó pegada en la página');
+ }
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'/tmp/gomeria-mesa-mobile.png',fullPage:true});
  // El alta de cubierta sugiere las marcas y medidas cargadas en Parámetros.
  await page.click('[data-tab="stock"]');
@@ -116,6 +184,6 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
  await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda y buscador desplegable');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre y dual que alterna');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

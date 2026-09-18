@@ -439,7 +439,7 @@ function armarVisor(clave, archivo, opciones){
                    chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
-  nodo('#visor-pista').textContent = 'Arrastrar para girar · seleccionar una rueda';
+  nodo('#visor-pista').textContent = 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda';
 
   const caja = nodo('#visor');
   const esc3 = new THREE.Scene();
@@ -474,8 +474,12 @@ function armarVisor(clave, archivo, opciones){
   ctrl.target.set(0, 1.5, 0);
   ctrl.enableDamping = true; ctrl.dampingFactor = .08;
   ctrl.minDistance = 5; ctrl.maxDistance = 22;
-  /* Que no se pueda mirar desde abajo del piso: se ve el interior hueco. */
-  ctrl.maxPolarAngle = Math.PI / 2 - .04;
+  /* Se puede mirar desde abajo, que es la única manera de ver la goma
+     interior de un dual —justo la que cuesta cambiar—. El tope está a
+     unos 25°: más abajo se ve el interior hueco del modelo, que no le
+     sirve a nadie. El piso se esconde solo cuando la cámara baja: si no,
+     tapa exactamente lo que se fue a mirar. */
+  ctrl.maxPolarAngle = Math.PI / 2 + .45;
   ctrl.enablePan = false;
 
   const goma   = new THREE.MeshStandardMaterial({ color:GOMA, roughness:.92, metalness:.02 });
@@ -692,7 +696,7 @@ function armarVisor(clave, archivo, opciones){
     });
 
     nodo('#visor-pista').textContent = V.ruedas.length
-      ? 'Arrastrar para girar · seleccionar una rueda'
+      ? 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda'
       : 'Arrastrar para girar · no se reconocieron las ruedas de este modelo';
     /* Centrado a lo largo y a lo ancho, y apoyado en el piso. */
     obj.position.x -= (caja.min.x + caja.max.x) / 2;
@@ -774,7 +778,9 @@ function armarVisor(clave, archivo, opciones){
     desde = null;
     if (lejos) return;
     const golpe = enRueda(e);
-    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null);
+    // El segundo argumento dice que el clic vino del modelo: tocar dos
+    // veces la misma rueda pasa a la otra goma del dual.
+    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null, true);
   });
   ren.domElement.addEventListener('pointermove', e => {
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
@@ -852,6 +858,8 @@ function armarVisor(clave, archivo, opciones){
     if (!V.render) return;
     V.anim = requestAnimationFrame(dibujar);
     ctrl.update();
+    // Mirando desde abajo, el piso es lo único que se vería.
+    piso.visible = cam.position.y > .05;
     ren.render(esc3, cam);
   })();
 }
