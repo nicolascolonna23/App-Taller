@@ -4,15 +4,38 @@ const benchMessage=t=>$('#benchStatus').textContent=t;
 const editable=()=>!!D.user?.puede_administrar;
 const position=id=>(D.map||[]).find(p=>String(p.posicion_id)===String(id));
 /* La goma del inspector. No es un ícono: es lo que el gomero está por
-   tocar, así que gira. Los tacos corren por la banda —que es el signo de
-   que rueda— y las tuercas giran con la llanta. El paso de los tacos es
-   el mismo que el desplazamiento de la animación, para que el ciclo cierre
-   sin salto. Quien pidió menos movimiento en su sistema no ve ninguno:
-   está contemplado en el CSS. */
+   tocar, así que rueda entera. Los tacos corren por la banda, y todo lo
+   que está en la cara —el flanco, las ventanas del disco, las tuercas y
+   la válvula— gira junto, que es lo que hace ver que la rueda da vueltas:
+   un círculo girando no se distingue de uno quieto. El paso de los tacos
+   es el mismo que el desplazamiento de la animación, para que el ciclo
+   cierre sin salto. Quien pidió menos movimiento en su sistema no ve
+   ninguno: está contemplado en el CSS. */
 function tireArt(){
  const tacos=Array.from({length:16},(_,i)=>`<path d="M${76+i%2*3} ${15+i*12}l32 5 23-8" fill="none" stroke="#111820" stroke-width="5"/>`).join('');
- const tuercas=Array.from({length:5},(_,i)=>{const a=i*72*Math.PI/180;return `<circle cx="${(26*Math.cos(a)).toFixed(1)}" cy="${(26*Math.sin(a)).toFixed(1)}" r="4.4" fill="#93a2ad"/>`;}).join('');
- return `<svg class="tire-art" viewBox="0 0 260 200" aria-label="Neumático" role="img"><defs><linearGradient id="rubber" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient><clipPath id="banda"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs><ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber)" stroke="#6c7884" stroke-width="2"/><g class="tacos" clip-path="url(#banda)">${tacos}</g><ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/><ellipse cx="157" cy="95" rx="29" ry="51" fill="#10151b" stroke="#778590" stroke-width="8"/><g transform="translate(157 95) scale(1 1.72)"><g class="llanta">${tuercas}</g></g><ellipse cx="157" cy="95" rx="17" ry="33" fill="#303e49" stroke="#64727e" stroke-width="2"/></svg>`;
+ /* Repartidas en la rueda. Van en el grupo achatado, así que un círculo
+    se dibuja como la elipse que se ve desde este ángulo. */
+ const enRueda=(cuantas,radio,dibujar)=>Array.from({length:cuantas},(_,i)=>{
+  const a=i*2*Math.PI/cuantas;
+  return dibujar((radio*Math.cos(a)).toFixed(1),(radio*Math.sin(a)).toFixed(1));}).join('');
+ const letras=enRueda(16,40,(x,y)=>`<circle cx="${x}" cy="${y}" r="1.5" fill="#6d7a87"/>`);
+ const ventanas=enRueda(5,21,(x,y)=>`<circle cx="${x}" cy="${y}" r="5" fill="#0d1217"/>`);
+ const tuercas=enRueda(8,12.5,(x,y)=>`<circle cx="${x}" cy="${y}" r="2.6" fill="#9aa8b3"/>`);
+ return `<svg class="tire-art" viewBox="0 0 260 200" aria-label="Neumático" role="img">`
+  +`<defs><linearGradient id="rubber" x2="1" y2=".6"><stop stop-color="#56616c"/><stop offset=".5" stop-color="#242b33"/><stop offset="1" stop-color="#10161d"/></linearGradient>`
+  +`<clipPath id="banda"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs>`
+  +`<ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/>`
+  +`<path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber)" stroke="#6c7884" stroke-width="2"/>`
+  +`<g class="tacos" clip-path="url(#banda)">${tacos}</g>`
+  +`<ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/>`
+  +`<g transform="translate(157 95) scale(1 1.72)"><g class="llanta">`
+  +letras
+  +`<circle r="29" fill="#10151b" stroke="#778590" stroke-width="7"/>`
+  +`<circle r="26" fill="#2d363f"/>`
+  +ventanas+tuercas
+  +`<circle r="7.5" fill="#3a444e" stroke="#7d8a95" stroke-width="1.6"/>`
+  +`<rect x="-1.7" y="-35.5" width="3.4" height="7" rx="1.6" fill="#c3ccd4"/>`
+  +`</g></g></svg>`;
 }
 
 /* El logo de la marca, y el nombre si no hay logo cargado. El servidor

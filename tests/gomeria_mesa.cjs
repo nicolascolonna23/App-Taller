@@ -6,6 +6,7 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  page.on('pageerror',e=>errors.push(e.message));
  const stock=[{id:103,codigo:'BRI-103',marca:'BRIDGESTONE',modelo:'R268',medida:'295/80 R22.5',remanente_mm:16,estado:'stock'},{id:101,codigo:'MIC-101',marca:'MICHELIN',modelo:'X Multi',medida:'295/80 R22.5',remanente_mm:14,estado:'stock'},{id:102,codigo:'FAT-102',marca:'FATE',modelo:'DR400',medida:'295/80 R22.5',remanente_mm:11,estado:'stock'}];
  const unit={id:1,patente:'AA472IP',marca:'SEMIRREMOLQUE',sucursal:'CAT',posiciones:13,montadas:0};
+ const otra={id:2,patente:'AH787DF',interno:'44',marca:'SCANIA',sucursal:'LAD',posiciones:10,montadas:10};
  const map=[];let id=1;for(let eje=1;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map.push({posicion_id:id++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id,cubierta_id:null});map.push({posicion_id:id,posicion:'AUX',eje:0,lado:'X',es_auxilio:true,orden:id,cubierta_id:null});
  Object.assign(map.find(p=>p.posicion==='2DE'),{cubierta_id:319,cubierta:'319',marca:'FATE'});
  await page.route('**/*',route=>{
@@ -14,7 +15,7 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  if(p==='/api/confirmar'){assert.equal(req.postDataJSON().parte_id,77);return route.fulfill({json:{hecho:['Movimiento confirmado']}});}
  if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba',rol:admin?'admin':'operario',puede_administrar:admin}});
  if(p==='/api/preferencias')return route.fulfill({json:{tema:'claro',paleta:'diemar'}});
- if(p==='/api/tablero')return route.fulfill({json:{unidades:[unit],configuraciones:[],resumen_stock:{stock:stock.filter(t=>t.estado==='stock').length}}});
+ if(p==='/api/tablero')return route.fulfill({json:{unidades:[unit,otra],configuraciones:[],resumen_stock:{stock:stock.filter(t=>t.estado==='stock').length}}});
  if(p==='/api/desgaste')return route.fulfill({json:{instalado:false,aviso:'Sin mediciones',montadas:[]}});
  if(p==='/api/mapa')return route.fulfill({json:{unidad:unit,mapa:map,modelo_3d:'semi',modelo_3d_archivo:'trailer.obj',modelo_3d_por:'mapa',historial:[],movimientos:[]}});
  if(p==='/api/gomeria/stock')return route.fulfill({json:stock.filter(t=>t.estado==='stock')});
@@ -30,6 +31,40 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  if(fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({path:file});return route.fulfill({body:'',status:404});
  });
  await page.goto('http://taller.test/gomeria');await page.waitForFunction(()=>V.ruedas.length>0);await page.locator('[data-stock-id="101"]').waitFor();
+ // Elegir unidad es un desplegable: la lista flota y no empuja la mesa.
+ assert(await page.locator('#unitList').isHidden(),'la lista arranca cerrada');
+ assert.equal(await page.inputValue('#unitSearch'),'AA 472 IP','el campo muestra la unidad elegida');
+ const antes=await page.locator('#benchStatus').boundingBox();
+ await page.click('#unitSearch');
+ await page.locator('#unitList').waitFor();
+ assert.equal(await page.locator('#unitList').evaluate(e=>getComputedStyle(e).position),'absolute');
+ assert.deepEqual(await page.locator('#benchStatus').boundingBox(),antes,'la lista no puede correr lo de abajo');
+ assert.equal(await page.locator('#unitList .unit').count(),2);
+ // Se busca por la patente como se ve en pantalla y como se escribe de corrido.
+ await page.fill('#unitSearch','ah787');
+ assert.equal(await page.locator('#unitList .unit').count(),1);
+ await page.fill('#unitSearch','787 df');
+ assert.equal(await page.locator('#unitList .unit').count(),1);
+ // Con el teclado: baja, Enter, y la lista se cierra con la unidad puesta.
+ await page.keyboard.press('ArrowDown');
+ assert.equal(await page.locator('#unitList .unit.marcada').count(),1);
+ await page.keyboard.press('Enter');
+ await page.waitForFunction(()=>document.querySelector('#unitList').hidden);
+ assert.equal(await page.inputValue('#unitSearch'),'AH 787 DF · int. 44');
+ // Escape cierra sin cambiar de unidad y deja escrita la que está elegida.
+ await page.click('#unitSearch');await page.fill('#unitSearch','aa4');
+ await page.locator('#unitList .unit').first().waitFor();
+ await page.keyboard.press('Escape');
+ assert(await page.locator('#unitList').isHidden());
+ assert.equal(await page.inputValue('#unitSearch'),'AH 787 DF · int. 44');
+ // Y con el mouse: el botón abre, un clic afuera cierra.
+ await page.click('#unitToggle');await page.locator('#unitList .unit').first().waitFor();
+ await page.click('.stock-shelf h2');
+ await page.waitForFunction(()=>document.querySelector('#unitList').hidden);
+ await page.click('#unitToggle');await page.locator('[data-pat="AA472IP"]').click();
+ await page.waitForFunction(()=>document.querySelector('#unitList').hidden);
+ assert.equal(await page.inputValue('#unitSearch'),'AA 472 IP');
+ await page.waitForFunction(()=>V.ruedas.length>0);
  // Regression: one mounted tire in a dual must not look empty in 3D.
  assert.equal(await page.locator('.map [data-pos="8"] .code').textContent(),'319');
  assert.equal(await page.locator('.map [data-pos="8"] .mounted-label').textContent(),'MONTADA');
@@ -81,6 +116,6 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
  await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca y goma que rueda');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda y buscador desplegable');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
