@@ -32,6 +32,7 @@ Quién puede qué:
                        diferencia que hubo.
     tocar el catálogo  el que gestiona: fluidos, envases y proveedores.
 """
+import os
 import re
 from datetime import date
 
@@ -218,9 +219,55 @@ def _registrar(cx, fluido, tipo, cantidad, datos, usuario, **extra):
 # =====================================================================
 # LECTURA
 # =====================================================================
+# Todo lo que crea 32_fluidos.sql, en el orden en que lo crea. Sirve para
+# decir qué falta cuando falta: el error más común no es olvidarse de
+# correr el script, es pegarlo cortado y que queden las primeras tablas
+# sin las vistas. "Faltan las tablas" no ayuda a ver eso; decir cuáles, sí.
+OBJETOS = ("proveedores", "fluidos", "fluido_movimientos",
+           "v_fluido_movimientos", "v_fluidos_saldo", "v_fluidos_unidad")
+
+
+def falta(cx):
+    """Los objetos del script que todavía no están. Vacío es que está todo."""
+    faltan = []
+    for nombre in OBJETOS:
+        try:
+            cx.execute(f"select 1 from {nombre} limit 1").fetchone()
+        except Exception:
+            cx.rollback()
+            faltan.append(nombre)
+    return faltan
+
+
+def porque_falta(cx):
+    """El aviso para la pantalla: qué falta y qué hacer con eso."""
+    faltan = falta(cx)
+    if not faltan:
+        return None
+    if len(faltan) == len(OBJETOS):
+        return ("Faltan las tablas de fluidos. Ejecutar gomeria/32_fluidos.sql "
+                "en el SQL Editor de Supabase.")
+    # Algunas están y otras no: el script entró a medias.
+    return (f"El script de fluidos entró a medias: falta crear "
+            f"{', '.join(faltan)}. Casi siempre es que se cortó al pegarlo. "
+            f"Volvé a pegar gomeria/32_fluidos.sql entero{_largo_del_script()} y "
+            "corrélo de nuevo: se puede correr las veces que haga falta, "
+            "no borra nada.")
+
+
+def _largo_del_script():
+    """«—son 400 líneas—», leído del archivo para que no envejezca."""
+    try:
+        camino = os.path.join(os.path.dirname(__file__), "32_fluidos.sql")
+        with open(camino, encoding="utf-8") as archivo:
+            return f" —son {sum(1 for _ in archivo)} líneas—"
+    except Exception:
+        return ""
+
+
 def instalado(cx):
     try:
-        cx.execute("select 1 from fluidos limit 1").fetchone()
+        cx.execute("select 1 from v_fluidos_saldo limit 1").fetchone()
         return True
     except Exception:
         cx.rollback()

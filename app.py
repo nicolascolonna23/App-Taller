@@ -699,9 +699,16 @@ class App(gom.Handler):
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(flu.panel(cx, self.usuario, todo)))
             except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
-                    "Faltan las tablas de fluidos. Ejecutar "
-                    "gomeria/32_fluidos.sql en el SQL Editor de Supabase.", 503)
+                # Qué falta exactamente. Pegar el script cortado deja las
+                # primeras tablas sin las vistas, y "faltan las tablas" no
+                # deja ver eso: parece que no se corrió cuando sí.
+                try:
+                    with base.conectar() as cx:
+                        return self._error(flu.porque_falta(cx), 503)
+                except Exception:
+                    return self._error(
+                        "Faltan las tablas de fluidos. Ejecutar "
+                        "gomeria/32_fluidos.sql en el SQL Editor de Supabase.", 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los fluidos: {e}", 500)

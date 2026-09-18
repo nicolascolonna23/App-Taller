@@ -14,9 +14,15 @@ Vive en `/combustible#fluidos`, la cuarta solapa de Combustible. Antes era
 
 ## Paso 1 — las tablas
 
-En Supabase, **SQL Editor**, pegar y correr `gomeria/32_fluidos.sql`. Se
-puede correr las veces que haga falta. Antes tienen que estar corridos
-`01_esquema.sql` y `03_usuarios.sql`.
+En Supabase, **SQL Editor**, pegar y correr `gomeria/32_fluidos.sql`
+**entero**. Se puede correr las veces que haga falta. Antes tienen que
+estar corridos `01_esquema.sql`, `03_usuarios.sql` y `07_unidades.sql`.
+
+Cuidado con el copiar y pegar: si el archivo entra cortado quedan las
+primeras tablas sin las vistas, y la solapa muestra el mismo cartel que
+si no se hubiera corrido nada. Por eso el cartel ahora dice **qué falta
+exactamente**: si nombra objetos sueltos —`v_fluidos_saldo` y compañía—
+es que se cortó al pegar, no que falte correrlo.
 
 Arranca con los seis del taller: **urea** (bin de 1.000), **aceite
 15W40** y **20W50** (tambor de 205), **refrigerante concentrado**,

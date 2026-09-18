@@ -21,10 +21,15 @@
 --             motivo. El saldo NO se corrige a mano: tapar la diferencia
 --             editando un número es perder el dato que la explica.
 --
--- Se pega entero en Supabase → SQL Editor → Run. Se puede correr las
--- veces que haga falta.
+-- Se pega ENTERO en Supabase → SQL Editor → Run. Se puede correr las
+-- veces que haga falta. Ojo con el copiar y pegar: si entra cortado
+-- quedan las tablas sin las vistas, y la pantalla lo va a decir con
+-- nombre y apellido. El archivo termina con el bloque que migra la urea.
 --
--- ANTES tienen que estar corridos 01_esquema.sql y 03_usuarios.sql.
+-- ANTES tienen que estar corridos 01_esquema.sql, 03_usuarios.sql y
+-- 07_unidades.sql (de ahí sale el chofer de cada unidad). Con
+-- 10_combustible.sql y 05_odometros.sql sale además el porcentaje sobre
+-- el gasoil; sin ellos, esas columnas quedan en blanco.
 -- Si estaba corrido 28_urea.sql, el tacho y todos sus movimientos se
 -- migran acá solos, una sola vez.
 -- =====================================================================
@@ -146,7 +151,81 @@ create index if not exists ix_fluido_mov_fecha   on fluido_movimientos (fecha);
 
 
 -- ---------------------------------------------------------------------
--- 4. EL SALDO
+-- 4. LOS FLUIDOS CON LOS QUE SE ARRANCA
+-- ---------------------------------------------------------------------
+-- Los seis que maneja el taller. La capacidad es la del envase con el que
+-- se compra cada uno; se corrige desde /parametros, igual que el mínimo.
+insert into fluidos (nombre, clave, unidad, envase, capacidad, orden) values
+  ('Urea',                       'urea',        'litros', 'bin',    1000, 1),
+  ('Aceite 15W40',               'aceite15w40', 'litros', 'tambor',  205, 10),
+  ('Aceite 20W50',               'aceite20w50', 'litros', 'tambor',  205, 11),
+  ('Refrigerante concentrado',   'refrigerante','litros', 'tambor',  205, 20),
+  ('Líquido hidráulico',         'hidraulico',  'litros', 'tambor',  205, 21),
+  ('Grasa',                      'grasa',       'kilos',  'balde',    20, 30)
+on conflict (clave) do nothing;
+
+
+-- ---------------------------------------------------------------------
+-- 5. LO QUE YA ESTABA CARGADO EN UREA
+-- ---------------------------------------------------------------------
+-- El tacho de urea con sus movimientos pasa acá tal cual. Se puede
+-- correr de nuevo: cada movimiento migrado deja anotado de cuál salió, y
+-- los que ya están no vuelven a entrar. Las tablas viejas no se tocan:
+-- si algo salió mal, el dato original sigue donde estaba.
+do $$
+declare
+  destino bigint;
+  tacho   record;
+begin
+  if to_regclass('public.urea_tanques') is null then
+    return;
+  end if;
+
+  select id into destino from fluidos where clave = 'urea';
+  if destino is null then
+    return;
+  end if;
+
+  -- La capacidad y el mínimo del tacho que ya estaba mandan sobre los del
+  -- alta: alguien los cargó mirando el tacho de verdad.
+  select * into tacho from urea_tanques order by id limit 1;
+  if found then
+    update fluidos
+       set capacidad = tacho.capacidad_litros,
+           minimo = coalesce(tacho.minimo_litros, minimo),
+           sucursal_codigo = coalesce(tacho.sucursal_codigo, sucursal_codigo),
+           envase = case when tacho.capacidad_litros >= 900 then 'bin'
+                         when tacho.capacidad_litros >= 150 then 'tambor'
+                         else 'tacho' end,
+           actualizado = now()
+     where id = destino
+       and not exists (select 1 from fluido_movimientos where fluido_id = destino);
+  end if;
+
+  insert into fluido_movimientos
+    (fluido_id, tipo, fecha, cantidad, unidad_id, patente, km,
+     proveedor, remito, importe, motivo, medido, usuario_id, usuario, creado, nota,
+     migrado_de)
+  select destino, m.tipo, m.fecha, m.litros, m.unidad_id, m.patente, m.km,
+         m.proveedor, m.remito, m.importe, m.motivo, m.medido_litros,
+         m.usuario_id, m.usuario, m.creado, m.nota, m.id
+  from urea_movimientos m
+  where not exists (select 1 from fluido_movimientos v where v.migrado_de = m.id);
+
+  -- Y los proveedores que aparezcan escritos en esas cargas, para que la
+  -- lista no arranque vacía.
+  insert into proveedores (nombre, rubros)
+  select distinct btrim(m.proveedor), array['urea']
+  from urea_movimientos m
+  where coalesce(btrim(m.proveedor), '') <> ''
+    and not exists (select 1 from proveedores p
+                    where lower(p.nombre) = lower(btrim(m.proveedor)))
+  on conflict do nothing;
+end $$;
+
+
+-- ---------------------------------------------------------------------
+-- 6. EL SALDO
 -- ---------------------------------------------------------------------
 -- Cada movimiento con su signo ya puesto. De acá sale todo lo demás, así
 -- que la regla del signo está escrita una sola vez.
@@ -231,7 +310,7 @@ comment on view v_fluidos_saldo is
 
 
 -- ---------------------------------------------------------------------
--- 5. LO QUE LLEVÓ CADA UNIDAD
+-- 7. LO QUE LLEVÓ CADA UNIDAD
 -- ---------------------------------------------------------------------
 -- Teniendo lo despachado por patente, y ya teniendo el gasoil y los
 -- kilómetros del satelital, salen dos números que hoy no tiene nadie:
@@ -246,7 +325,16 @@ comment on view v_fluidos_saldo is
 --
 -- El combustible y los kilómetros son opcionales: si esos módulos no
 -- están corridos queda en blanco, no se rellena con un número inventado.
-create or replace view v_fluidos_unidad as
+-- El combustible y los kilómetros son opcionales de verdad: si esos
+-- módulos no están corridos, la vista se arma igual y esas columnas
+-- quedan en blanco. Antes se caía acá, y al cortarse el script no
+-- llegaban a entrar ni los fluidos ni la migración de la urea.
+do $bloque$
+begin
+  if to_regclass('public.combustible_cargas') is not null
+     and to_regclass('public.v_km_diarios') is not null then
+    execute $vista$
+      create or replace view v_fluidos_unidad as
 with salidas as (
   select date_trunc('month', m.fecha)::date as mes,
          m.fluido_id, m.unidad_id, m.patente,
@@ -287,81 +375,32 @@ from salidas s
 join fluidos f        on f.id = s.fluido_id
 left join unidades un on un.id = s.unidad_id
 left join gasoil g    on g.mes = s.mes and g.patente = s.patente
-left join recorrido r on r.mes = s.mes and r.patente = s.patente;
+left join recorrido r on r.mes = s.mes and r.patente = s.patente
+    $vista$;
+  else
+    execute $vista$
+      create or replace view v_fluidos_unidad as
+      select date_trunc('month', m.fecha)::date as mes,
+             m.fluido_id, f.nombre as fluido, f.clave, f.unidad,
+             m.unidad_id, m.patente,
+             un.interno, un.marca, un.modelo, un.sucursal, un.chofer,
+             count(*)::int as despachos,
+             round(sum(m.cantidad), 2) as cantidad,
+             null::numeric as litros_gasoil,
+             null::numeric as km,
+             null::numeric as porcentaje_gasoil,
+             null::numeric as cada_100km,
+             min(m.fecha) as primera, max(m.fecha) as ultima
+      from fluido_movimientos m
+      join fluidos f        on f.id = m.fluido_id
+      left join unidades un on un.id = m.unidad_id
+      where m.tipo = 'salida' and m.patente is not null
+      group by 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12
+    $vista$;
+  end if;
+end $bloque$;
 
 comment on view v_fluidos_unidad is
   'Lo que llevó cada unidad de cada fluido, por mes, con el % sobre el gasoil.';
 
 
--- ---------------------------------------------------------------------
--- 6. LOS FLUIDOS CON LOS QUE SE ARRANCA
--- ---------------------------------------------------------------------
--- Los seis que maneja el taller. La capacidad es la del envase con el que
--- se compra cada uno; se corrige desde /parametros, igual que el mínimo.
-insert into fluidos (nombre, clave, unidad, envase, capacidad, orden) values
-  ('Urea',                       'urea',        'litros', 'bin',    1000, 1),
-  ('Aceite 15W40',               'aceite15w40', 'litros', 'tambor',  205, 10),
-  ('Aceite 20W50',               'aceite20w50', 'litros', 'tambor',  205, 11),
-  ('Refrigerante concentrado',   'refrigerante','litros', 'tambor',  205, 20),
-  ('Líquido hidráulico',         'hidraulico',  'litros', 'tambor',  205, 21),
-  ('Grasa',                      'grasa',       'kilos',  'balde',    20, 30)
-on conflict (clave) do nothing;
-
-
--- ---------------------------------------------------------------------
--- 7. LO QUE YA ESTABA CARGADO EN UREA
--- ---------------------------------------------------------------------
--- El tacho de urea con sus movimientos pasa acá tal cual. Se puede
--- correr de nuevo: cada movimiento migrado deja anotado de cuál salió, y
--- los que ya están no vuelven a entrar. Las tablas viejas no se tocan:
--- si algo salió mal, el dato original sigue donde estaba.
-do $$
-declare
-  destino bigint;
-  tacho   record;
-begin
-  if to_regclass('public.urea_tanques') is null then
-    return;
-  end if;
-
-  select id into destino from fluidos where clave = 'urea';
-  if destino is null then
-    return;
-  end if;
-
-  -- La capacidad y el mínimo del tacho que ya estaba mandan sobre los del
-  -- alta: alguien los cargó mirando el tacho de verdad.
-  select * into tacho from urea_tanques order by id limit 1;
-  if found then
-    update fluidos
-       set capacidad = tacho.capacidad_litros,
-           minimo = coalesce(tacho.minimo_litros, minimo),
-           sucursal_codigo = coalesce(tacho.sucursal_codigo, sucursal_codigo),
-           envase = case when tacho.capacidad_litros >= 900 then 'bin'
-                         when tacho.capacidad_litros >= 150 then 'tambor'
-                         else 'tacho' end,
-           actualizado = now()
-     where id = destino
-       and not exists (select 1 from fluido_movimientos where fluido_id = destino);
-  end if;
-
-  insert into fluido_movimientos
-    (fluido_id, tipo, fecha, cantidad, unidad_id, patente, km,
-     proveedor, remito, importe, motivo, medido, usuario_id, usuario, creado, nota,
-     migrado_de)
-  select destino, m.tipo, m.fecha, m.litros, m.unidad_id, m.patente, m.km,
-         m.proveedor, m.remito, m.importe, m.motivo, m.medido_litros,
-         m.usuario_id, m.usuario, m.creado, m.nota, m.id
-  from urea_movimientos m
-  where not exists (select 1 from fluido_movimientos v where v.migrado_de = m.id);
-
-  -- Y los proveedores que aparezcan escritos en esas cargas, para que la
-  -- lista no arranque vacía.
-  insert into proveedores (nombre, rubros)
-  select distinct btrim(m.proveedor), array['urea']
-  from urea_movimientos m
-  where coalesce(btrim(m.proveedor), '') <> ''
-    and not exists (select 1 from proveedores p
-                    where lower(p.nombre) = lower(btrim(m.proveedor)))
-  on conflict do nothing;
-end $$;
