@@ -2,6 +2,24 @@ const {chromium}=require('playwright');
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const dir=path.resolve(__dirname,'..');
 const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'stock_repuestos.html','/flota':'index.html','/control':'control_flota.html','/unidades':'unidades.html','/vencimientos':'vencimientos.html','/alertas':'alertas.html','/ordenes':'ordenes.html','/configuracion':'configuracion.html','/combustible':'combustible.html','/asistente':'asistente.html'};
+/* El contraste de un texto contra lo que tiene atrás, como lo mide la WCAG.
+   Se compone el fondo de todos los padres porque un color con transparencia
+   —los fondos suaves de la marca lo son— no dice solo qué se ve. */
+const contraste=(page,selector)=>page.evaluate(sel=>{
+ const canales=t=>(t.match(/[\d.]+/g)||[0,0,0]).map(Number);
+ const sobre=(frente,fondo)=>{const a=frente.length>3?frente[3]:1;
+  return [0,1,2].map(i=>frente[i]*a+fondo[i]*(1-a));};
+ const luz=c=>{const v=c.map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;});
+  return v[0]*.2126+v[1]*.7152+v[2]*.0722;};
+ const e=document.querySelector(sel),capas=[];
+ for(let n=e;n;n=n.parentElement)capas.push(canales(getComputedStyle(n).backgroundColor));
+ let fondo=[255,255,255];
+ for(const capa of capas.reverse())fondo=sobre(capa,fondo);
+ const texto=sobre(canales(getComputedStyle(e).color),fondo);
+ const [a,b]=[luz(texto),luz(fondo)].sort((x,y)=>y-x);
+ return (a+.05)/(b+.05);
+},selector);
+
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{})});
  try{
@@ -45,8 +63,11 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
      assert.equal(ghostColor,'rgb(255, 255, 255)');
     }
     if(url==='/control'){
-     assert.equal(await page.locator('#tab-general').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
-     assert.equal(await page.locator('#btn-planes').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
+     // La solapa elegida y el botón de parametrización se tienen que leer.
+     // Se mide el contraste y no un color exacto: el acento cambia con la
+     // paleta y el fondo con el tema, y lo que no puede cambiar es que se lea.
+     for(const sel of ['#tab-general','#btn-planes'])
+      assert(await contraste(page,sel)>=4.5,'no se lee '+sel+' con el tema claro');
      assert.equal(await page.locator('#btn-refresh').count(),0);
      await page.locator('#btn-planes').click();
      await page.locator('#planes-lista', {hasText:'Autos 10K'}).waitFor();
