@@ -15,6 +15,7 @@ import json
 # de la pantalla sale de ahí. La primera es la de la empresa.
 PALETAS = (
     ("diemar",   "Predeterminado", "#ffd400"),
+    ("naranja",  "Naranja",   "#f4791f"),
     ("azul",     "Azul",      "#3d8bfd"),
     ("verde",    "Verde",     "#22a06b"),
     ("violeta",  "Violeta",   "#8b7bf7"),

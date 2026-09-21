@@ -117,9 +117,17 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
      return {x:r.left+(p.x+1)*r.width/2,y:r.top+(1-p.y)*r.height/2};}
    return null;});
   assert(rueda,'no se encontró una rueda dual a la vista');
+  const colores=()=>page.evaluate(()=>{const c={};
+   for(const m of V.ruedas){const k='#'+m.material.color.getHexString();c[k]=(c[k]||0)+1;}
+   return c;});
   await page.mouse.click(rueda.x,rueda.y);
   const primera=await page.evaluate(()=>D.benchPosition);
   assert(primera,'tocar la rueda no eligió ninguna posición');
+  // La esquina entera se prende —eso ubica de lejos— y adentro de la
+  // esquina, de otro color, la goma que quedó elegida.
+  const pintado=await colores();
+  assert(pintado['#ff7a1a']>0,'la esquina elegida no se prende');
+  assert(pintado['#2ee6a8']>0,'la goma elegida no se prende de otro color');
   assert.equal(await page.locator('.map .tire.chosen').count(),1,'el mapa no marca la elegida');
   assert((await page.locator('#elegida h4').innerText()).match(/interior|exterior/i),
          'no dice cuál de las dos gomas del dual quedó elegida');
@@ -128,6 +136,9 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
   await page.mouse.click(rueda.x,rueda.y);
   const segunda=await page.evaluate(()=>D.benchPosition);
   assert(segunda&&segunda!==primera,'tocar de nuevo no pasó a la otra goma del dual');
+  const repintado=await colores();
+  assert(repintado['#2ee6a8']>0&&repintado['#2ee6a8']!==pintado['#2ee6a8'],
+         'el color de la goma elegida no se movió a la otra del dual');
   assert.equal(await page.locator('.map [data-pos="'+segunda+'"].chosen').count(),1,
                'el mapa no siguió a la segunda goma');
   // Elegir un casillero del mapa dice cuál: ahí no hay nada que alternar.
@@ -184,6 +195,6 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
  await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre y dual que alterna');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre, dual que alterna y goma elegida en otro color');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

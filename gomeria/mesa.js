@@ -80,6 +80,8 @@ function limpiarArrastre(){dragged=null;fantasma?.remove();fantasma=null;$$('.dr
 function elegirPosicion(id){
  D.benchPosition=id;const p=position(id);if(!p)return;
  if(V.render&&!p.es_auxilio){const eje=V.ejes.findIndex((_,i)=>ejeDelMapa(i+1)===p.eje)+1;if(eje)elegirEsquina(esquina(eje,p.lado));}
+ /* Y la goma elegida se prende en el modelo, no solo la esquina. */
+ if(V.render){V.montaje=p.montaje||null;pintarRuedas();}
  $$('.tire[data-pos]').forEach(b=>b.classList.toggle('chosen',String(b.dataset.pos)===String(id)));
  if(p.cubierta_id)chosenStock=null;
  pintarEstante();pintarInspector();

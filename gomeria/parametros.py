@@ -27,6 +27,26 @@ import permisos
 ORIGENES = ("automatico", "manual")
 CLASES = ("preventivo", "correctivo")
 
+# Con qué queda cada parámetro cuando se lo restablece. Es lo mismo que
+# trae el SQL al crearse la fila: «eliminar» un parámetro no es dejarlo
+# vacío —el sistema tiene que seguir andando— sino volverlo a lo de
+# fábrica, y para eso hay que saber cuál era.
+DE_FABRICA = {
+    "km_origen": "automatico",
+    "km_hora": "05:00",
+    "combustible_origen": "manual",
+    "combustible_hora": "06:00",
+    "combustible_fuente": None,
+    "litros_maximos": 450,
+    "service_urgente_km": 5000,
+    "service_aviso_km": 15000,
+    "combustible_dias": 90,
+}
+
+# Cuáles de esos viven en la fila de parámetros. Los otros cuatro son los
+# umbrales de aviso, que tienen su propia tabla desde antes.
+DEL_SISTEMA = ("km_origen", "km_hora", "combustible_origen", "combustible_hora")
+
 
 def _exigir_admin(usuario, que="cambiar los parámetros"):
     if not permisos.administra(usuario):
@@ -80,6 +100,36 @@ def leer(cx):
     return dict(fila) if fila else None
 
 
+def combustible_automatico(cx):
+    """¿El combustible entra por archivo, o se anota carga por carga?
+
+    Lo pregunta la pantalla de Combustible para saber si ofrecer las
+    zonas de importación. Sin la columna corrida vale lo de siempre, que
+    es automático: es como venía funcionando.
+    """
+    p = leer(cx) or {}
+    return (p.get("combustible_origen", DE_FABRICA["combustible_origen"]) == "automatico"
+            and bool(p.get("combustible_fuente")))
+
+
+def combustible_como(cx):
+    """Cómo entra el combustible, para la pantalla del módulo.
+
+    Va en la respuesta de Combustible y no en la de Parámetros porque el
+    que carga gasoil puede no tener permiso de parámetros: necesita saber
+    cómo trabaja el sistema, no poder cambiarlo.
+    """
+    p = leer(cx) or {}
+    return {
+        "combustible_origen": p.get("combustible_origen",
+                                    DE_FABRICA["combustible_origen"]),
+        "combustible_fuente": p.get("combustible_fuente"),
+        "combustible_hora": p.get("combustible_hora", DE_FABRICA["combustible_hora"]),
+        "combustible_ultima": p.get("combustible_ultima"),
+        "combustible_estado": p.get("combustible_estado"),
+    }
+
+
 def km_automatico(cx):
     """¿El satelital puede escribir kilómetros?
 
@@ -92,23 +142,83 @@ def km_automatico(cx):
 
 
 def guardar(cx, datos, usuario=None):
+    """Cambia los parámetros del sistema. Lo que no venga, queda como está."""
     _exigir_admin(usuario)
-    origen = str(datos.get("km_origen") or "").strip().lower()
-    if origen not in ORIGENES:
-        raise ValueError("El kilometraje sale del satelital (automático) o se carga "
-                         "a mano (manual).")
-    hora = _texto(datos.get("km_hora"), 5) or "05:00"
-    try:
-        datetime.strptime(hora, "%H:%M")
-    except ValueError:
-        raise ValueError("La hora va en formato 24 horas, por ejemplo 05:00.") from None
+    actual = leer(cx) or dict(DE_FABRICA)
+    cambios = {}
 
-    cx.execute("""
-        update parametros set km_origen = %s, km_hora = %s,
-               actualizado = now(), usuario = %s
-        where unica
-    """, (origen, hora, (usuario or {}).get("nombre")))
-    return {"ok": True, "km_origen": origen, "km_hora": hora}
+    if "km_origen" in datos:
+        origen = str(datos.get("km_origen") or "").strip().lower()
+        if origen not in ORIGENES:
+            raise ValueError("El kilometraje sale del satelital (automático) o se "
+                             "carga a mano (manual).")
+        cambios["km_origen"] = origen
+    if "km_hora" in datos:
+        hora = _texto(datos.get("km_hora"), 5) or DE_FABRICA["km_hora"]
+        try:
+            datetime.strptime(hora, "%H:%M")
+        except ValueError:
+            raise ValueError("La hora va en formato 24 horas, por ejemplo 05:00.") from None
+        cambios["km_hora"] = hora
+    if "combustible_origen" in datos:
+        origen = str(datos.get("combustible_origen") or "").strip().lower()
+        if origen not in ORIGENES:
+            raise ValueError("El combustible se trae de un link (automático) o se "
+                             "carga a mano (manual).")
+        cambios["combustible_origen"] = origen
+    if "combustible_fuente" in datos:
+        # El link se guarda como lo pegó la persona —así lo reconoce— pero
+        # se revisa ahora: un link que no sirve tiene que fallar acá y no
+        # a las seis de la mañana, cuando no hay nadie mirando.
+        link = _texto(datos.get("combustible_fuente"), 500)
+        if link:
+            import combustible
+            combustible._revisar_link(combustible.link_csv(link))
+        cambios["combustible_fuente"] = link
+    if "combustible_hora" in datos:
+        hora = _texto(datos.get("combustible_hora"), 5) or DE_FABRICA["combustible_hora"]
+        try:
+            datetime.strptime(hora, "%H:%M")
+        except ValueError:
+            raise ValueError("La hora va en formato 24 horas, por ejemplo 06:00.") from None
+        cambios["combustible_hora"] = hora
+    if not cambios:
+        raise ValueError("No vino ningún parámetro para cambiar.")
+    despues = {**actual, **cambios}
+    if (despues.get("combustible_origen") == "automatico"
+            and not despues.get("combustible_fuente")):
+        raise ValueError("Para traer el combustible solo hace falta el link de la "
+                         "planilla. Sin eso no hay de dónde traerlo.")
+
+    sets = ", ".join(f"{campo} = %s" for campo in cambios)
+    try:
+        cx.execute(f"""update parametros set {sets}, actualizado = now(), usuario = %s
+                       where unica""",
+                   (*cambios.values(), (usuario or {}).get("nombre")))
+    except Exception:
+        cx.rollback()
+        if any(c.startswith("combustible_") for c in cambios):
+            raise ValueError("Faltan las columnas del combustible. Ejecutar "
+                             "gomeria/33_combustible_origen.sql en Supabase.") from None
+        raise
+    return {"ok": True, **{**actual, **cambios}}
+
+
+def restablecer(cx, datos, usuario=None):
+    """Vuelve un parámetro a lo de fábrica.
+
+    Borrarlo no es una opción: el sistema tiene que saber de dónde salen
+    los kilómetros aunque nadie lo haya elegido. Restablecer es lo más
+    parecido a eliminarlo que puede existir sin dejar al sistema mudo.
+    """
+    campo = str(datos.get("campo") or "").strip().lower()
+    if campo not in DE_FABRICA:
+        raise ValueError("Ese parámetro no existe.")
+    if campo in DEL_SISTEMA or campo == "combustible_fuente":
+        return guardar(cx, {campo: DE_FABRICA[campo]}, usuario)
+    _exigir_admin(usuario, "cambiar los umbrales de aviso")
+    return {"ok": True, "reglas": alertas.guardar_reglas(
+        cx, {campo: DE_FABRICA[campo]})}
 
 
 # =====================================================================
@@ -213,7 +323,8 @@ def panel(cx, usuario=None):
     """Todo lo que la pantalla de parámetros dibuja de una."""
     p = leer(cx)
     return {
-        "parametros": p or {"km_origen": "automatico", "km_hora": "05:00"},
+        "parametros": {**{k: DE_FABRICA[k] for k in DEL_SISTEMA}, **(p or {})},
+        "de_fabrica": DE_FABRICA,
         "instalado": p is not None,
         "planes": planes(cx),
         "asignaciones": [dict(a) for a in cx.execute("""
@@ -256,6 +367,8 @@ def aplicar(cx, datos, usuario=None):
         return borrar_plan(cx, datos, usuario)
     if op == "asignar":
         return asignar(cx, datos, usuario)
+    if op == "restablecer":
+        return restablecer(cx, datos, usuario)
     if op == "reglas":
         _exigir_admin(usuario, "cambiar los umbrales de aviso")
         return {"ok": True, "reglas": alertas.guardar_reglas(cx, datos)}

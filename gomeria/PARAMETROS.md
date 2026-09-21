@@ -10,6 +10,14 @@ La pantalla `/parametros` está **separada por módulo** —*Flota*,
 cargar una marca de cubierta no tiene por qué pasar por los planes de
 mantenimiento para llegar.
 
+En cada solapa se ve primero **lo que ya está cargado**, con qué hacer al
+lado: *Editar* abre el formulario —que hasta ahí está guardado— y
+*Restablecer* devuelve ese parámetro a lo de fábrica. Un parámetro no se
+borra: el sistema tiene que saber de dónde salen los kilómetros aunque
+nadie lo haya elegido, así que restablecer es lo más parecido a
+eliminarlo que puede existir sin dejarlo mudo. La fila dice con qué venía
+de fábrica, para que la decisión se tome sabiendo a qué se vuelve.
+
 Los accesos están **arriba, en todas las pantallas**: *Usuarios* y
 *Parámetros*, para el que los tenga habilitados. El permiso lo revisa el
 servidor en cada pedido; la barra solo esconde lo que no corresponde.
@@ -185,9 +193,42 @@ en lugar del nombre, y la goma **rueda**: los tacos corren por la banda y
 las tuercas giran con la llanta. Quien pidió menos movimiento en su
 sistema no ve ninguno.
 
-## 8. Combustible: proveedores y fluidos
+## 8. Combustible: cómo entra, proveedores y fluidos
 
-Solapa **Combustible**. Sale de `gomeria/32_fluidos.sql`.
+Solapa **Combustible**. Sale de `gomeria/32_fluidos.sql` y
+`gomeria/33_combustible_origen.sql`.
+
+**Cómo entra el combustible.** Dos maneras, como con el kilometraje:
+
+| | Qué hace |
+|---|---|
+| **Manual** | Se anota carga por carga, o se sube el archivo cuando la estación manda el listado. Es como venía funcionando. |
+| **Automático** | El sistema entra solo a un **link** —una hoja de Google, o cualquier dirección que devuelva un CSV— y trae lo que haya, todas las mañanas. |
+
+El link se pega tal como está en la barra de direcciones: el sistema lo
+convierte solo a la dirección de exportación. La hoja tiene que estar
+compartida como «cualquiera con el enlace»; si no, Google devuelve la
+pantalla de login y el sistema lo dice con todas las letras en vez de
+decir que la planilla no tiene remitos.
+
+**Traer de nuevo la misma planilla no duplica nada**: cada remito se pisa
+con su última versión, que es lo que ya hacía subir el archivo a mano. Por
+eso se puede traer todos los días sin pensar, y por eso hay un botón
+*Traer la planilla ahora* al lado del parámetro: sirve para probar el link
+recién cargado y para cuando alguien corrigió la planilla y no quiere
+esperar a mañana.
+
+La corrida de todos los días la agenda GitHub Actions
+(`.github/workflows/combustible.yml`, que llama a
+`gomeria/traer_combustible.py`). La hora que se elige en la pantalla es
+informativa: si se cambia, hay que cambiar el cron. Cómo salió la última
+vez queda a la vista —un link que dejó de andar se ve ahí y no seis
+semanas después, cuando alguien busque una carga y no esté—.
+
+El link lo revisa el servidor antes de guardarlo: tiene que ser `https` y
+no puede apuntar a la red interna. El que sale a buscar es el servidor, y
+una dirección interna lo convertiría en la puerta de entrada a lo que él
+ve y nadie más.
 
 **Los proveedores.** A quién se le compra. Hasta acá el proveedor era un
 texto que cada uno escribía como quería en cada carga —«YPF», «ypf»,

@@ -235,13 +235,17 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     </div>
 
     <div class="zona" id="z-planilla" data-origen="planilla">
-      <h2>Importar tickets</h2>
-      <p class="que">La de combustible, exportada como Excel o CSV. Se usa la
-         primera hoja.</p>
-      <div class="fila">
+      <h2 id="planilla-titulo">Importar tickets</h2>
+      <p class="que" id="planilla-que">La de combustible, exportada como Excel o CSV.
+         Se usa la primera hoja.</p>
+      <div class="fila" id="planilla-archivo">
         <input type="file" accept=".xlsx,.xlsm,.csv" id="f-planilla">
         <button class="btn gris" data-elegir="f-planilla">Elegir archivo</button>
         <input type="text" id="e-planilla" placeholder="Período (opcional)">
+      </div>
+      <div class="fila" id="planilla-auto" hidden>
+        <button class="btn" id="traer-planilla">Traer ahora</button>
+        <span class="muted" id="planilla-ultima"></span>
       </div>
       <div class="previo" id="p-planilla" hidden></div>
     </div>
@@ -694,11 +698,50 @@ async function cargar(){
   }
   DATOS = await r.json();
   $('#error').hidden = true;
+  pintarOrigen();
   pintar();
   renderTickets();
   if (location.hash === '#resumen') await cargarFlota();
   } catch (err) { $('#error').textContent = 'No se pudieron cargar los datos. Intentá nuevamente.'; $('#error').hidden = false; }
 }
+
+/* Cómo entra la planilla de cargas. En automático el sistema entra solo
+   al link parametrizado, así que la caja de subir archivo sale de la
+   pantalla: una caja que no se usa nunca invita a subir cualquier cosa, y
+   ese archivo después hay que sacarlo. El listado de la estación sigue
+   subiéndose a mano: es otro archivo y lo manda otro. */
+function pintarOrigen(){
+  const p = (DATOS && DATOS.parametros) || {};
+  const auto = p.combustible_origen === 'automatico' && !!p.combustible_fuente;
+  $('#planilla-archivo').hidden = auto;
+  $('#planilla-auto').hidden = !auto || !PUEDE;
+  $('#planilla-titulo').textContent = auto ? 'Tickets de la planilla' : 'Importar tickets';
+  $('#planilla-que').textContent = auto
+    ? `El sistema entra solo al link todas las mañanas, cerca de las ${p.combustible_hora || '06:00'}. ` +
+      'Traer de nuevo la misma planilla no duplica nada: cada remito se pisa con su última versión.'
+    : 'La de combustible, exportada como Excel o CSV. Se usa la primera hoja.';
+  $('#planilla-ultima').textContent = p.combustible_ultima
+    ? `Última: ${new Date(p.combustible_ultima).toLocaleString('es-AR')} · ${p.combustible_estado || ''}`
+    : 'Todavía no se trajo ninguna vez.';
+}
+
+document.addEventListener('click', async ev => {
+  if (ev.target.id !== 'traer-planilla') return;
+  const boton = ev.target, antes = boton.textContent;
+  boton.disabled = true; boton.textContent = 'Trayendo…';
+  try {
+    const r = await fetch('/api/combustible', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({op: 'traer'})});
+    const salida = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+    if (!r.ok) throw new Error(salida.error || 'No se pudo traer la planilla.');
+    await cargar();
+    $('#error').hidden = true;
+  } catch (e) {
+    $('#error').textContent = e.message; $('#error').hidden = false;
+    await cargar().catch(() => {});
+  } finally { boton.disabled = false; boton.textContent = antes; }
+});
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   if (!d) return;
@@ -710,6 +753,7 @@ fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
     $('#ticket-form').hidden = true;
     $('.sub').textContent += ' Solo lectura: para subir archivos hace falta ser encargado.';
   }
+  pintarOrigen();
 }).catch(() => {});
 
 let FLOTA = {meses:[], mes:null, total:null, unidades:[]};

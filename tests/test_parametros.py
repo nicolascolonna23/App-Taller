@@ -27,8 +27,11 @@ class Resultado:
 
 
 class BaseFalsa:
-    def __init__(self, km_origen="automatico", sin_tablas=False, plan=None):
+    def __init__(self, km_origen="automatico", sin_tablas=False, plan=None,
+                 combustible_origen="manual", combustible_fuente=None):
         self.km_origen = km_origen
+        self.combustible_origen = combustible_origen
+        self.combustible_fuente = combustible_fuente
         self.sin_tablas = sin_tablas
         self.plan = plan
         self.consultas = []
@@ -43,7 +46,10 @@ class BaseFalsa:
             raise RuntimeError('relation "parametros" does not exist')
         if sql.startswith("select * from parametros"):
             return Resultado({"unica": True, "km_origen": self.km_origen,
-                              "km_hora": "05:00"})
+                              "km_hora": "05:00",
+                              "combustible_origen": self.combustible_origen,
+                              "combustible_fuente": self.combustible_fuente,
+                              "combustible_hora": "06:00"})
         if sql.startswith("select clase from mantenimiento_planes"):
             return Resultado(self.plan)
         if sql.startswith("insert into mantenimiento_planes"):
@@ -146,3 +152,57 @@ class Planes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# =====================================================================
+class CombustibleDeUnLink(unittest.TestCase):
+    """De dónde salen las cargas: de la mano de alguien o de un link.
+
+    Lo que se prueba es lo que hace que se pueda confiar en el automático:
+    que el link de la barra de direcciones de una hoja de Google se
+    convierta solo al CSV —es donde más se traba esto—, que no se pueda
+    apuntar el servidor a su propia red, y que ponerlo en automático sin
+    link no se pueda guardar: no traería nada y nadie se enteraría.
+    """
+
+    def test_el_link_de_la_hoja_se_convierte_a_csv(self):
+        import combustible
+        casos = {
+            "https://docs.google.com/spreadsheets/d/1AbC-d/edit#gid=77":
+                "https://docs.google.com/spreadsheets/d/1AbC-d/export?format=csv&gid=77",
+            "https://docs.google.com/spreadsheets/d/1AbC-d/edit":
+                "https://docs.google.com/spreadsheets/d/1AbC-d/export?format=csv",
+        }
+        for pegado, esperado in casos.items():
+            self.assertEqual(combustible.link_csv(pegado), esperado)
+
+    def test_la_hoja_ya_publicada_y_cualquier_otro_link_quedan_como_estan(self):
+        import combustible
+        for link in ("https://docs.google.com/spreadsheets/d/e/2PACX-1v/pub?output=csv",
+                     "https://ejemplo.com/planilla.csv"):
+            self.assertEqual(combustible.link_csv(link), link)
+
+    def test_el_servidor_no_se_apunta_a_su_propia_red(self):
+        """El que sale a buscar es el servidor: un link interno lo
+        convertiría en la puerta de entrada a lo que él ve y nadie más."""
+        import combustible
+        for link in ("http://ejemplo.com/x.csv", "https://127.0.0.1/x.csv",
+                     "https://localhost/x.csv"):
+            with self.subTest(link=link), self.assertRaises(ValueError):
+                combustible._revisar_link(link)
+
+    def test_automatico_sin_link_no_se_guarda(self):
+        cx = BaseFalsa()
+        with self.assertRaises(ValueError) as e:
+            parametros.guardar(cx, {"combustible_origen": "automatico"}, ADMIN)
+        self.assertIn("link", str(e.exception))
+
+    def test_restablecer_vuelve_a_lo_de_fabrica(self):
+        cx = BaseFalsa()
+        parametros.restablecer(cx, {"campo": "km_hora"}, ADMIN)
+        guardado = next(v for sql, v in cx.consultas if sql.startswith("update parametros"))
+        self.assertIn(parametros.DE_FABRICA["km_hora"], guardado)
+
+    def test_un_parametro_que_no_existe_no_se_restablece(self):
+        with self.assertRaises(ValueError):
+            parametros.restablecer(BaseFalsa(), {"campo": "lo_que_sea"}, ADMIN)

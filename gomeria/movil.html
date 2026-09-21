@@ -392,6 +392,10 @@ function elegirEsquina(esq,desde3d){
   }
   const elegida=pos.find(p=>String(p.posicion_id)===String(D.benchPosition));
   if(elegida?.cubierta_id)chosenStock=null;
+  /* La esquina entera queda naranja —eso ubica de lejos— y adentro de la
+     esquina se prende de otro color la goma elegida. En un dual, sin eso
+     el naranja decía "es una de estas dos". */
+  V.montaje=elegida?.montaje||null; pintarRuedas();
 
   const donde=p=>p.montaje==='interior'?'interior':p.montaje==='exterior'?'exterior':esc(p.posicion);
   const otra=pos.find(p=>p!==elegida);
@@ -410,7 +414,7 @@ function engancharCubiertas(){if(typeof engancharMesa==='function')engancharMesa
 async function selectUnit(pat){D.selected=pat;D.benchToken=(D.benchToken||0)+1;const token=D.benchToken;D.map=[];D.benchPosition=null;renderUnits();apagarVisor();$('#unitDetail').innerHTML='<div class="card loading"><span class="pulse"></span>Cargando unidad…</div>';try{let d=await api('/api/mapa?patente='+encodeURIComponent(pat)),u=d.unidad,no='';if(token!==D.benchToken)return;D.map=d.mapa;D.unidadId=u.id;if(!d.mapa.length&&D.user?.puede_administrar)no=`<div class="card section"><h3>Asignar mapa</h3><div class="actions"><select id="mapChoice"><option value="">Elegir configuración</option>${D.configs.map(c=>`<option value="${c.id}">${esc(c.nombre)} — ${esc(c.descripcion||c.posiciones+' posiciones')}</option>`).join('')}</select><button class="btn" id="saveMap">Asignar</button></div></div>`;
   /* Con modelo, el camión; sin modelo, la grilla de toda la vida. */
   const con3d=d.modelo_3d&&typeof THREE!=='undefined';
-  const dibujo=(con3d?`<div class="workbench-controls"><label><input id="moveWheels" type="checkbox">Mover cubiertas desde el 3D</label><span>Desactivado: arrastrá para girar.</span></div>`+visorHtml()+'<div class="wheel-legend"><span><i style="background:#2b5a76"></i>Completa</span><span><i style="background:#36abc7"></i>Dual: una montada</span><span><i style="background:#6d3a34"></i>Sin cubiertas</span><span><i style="background:#ff7a1a"></i>Seleccionada</span></div><div class="elegida" id="elegida"></div>':'')+'<h3>Posiciones · montaje y retiro</h3>'+mapHtml(d.mapa);
+  const dibujo=(con3d?`<div class="workbench-controls"><label><input id="moveWheels" type="checkbox">Mover cubiertas desde el 3D</label><span>Desactivado: arrastrá para girar.</span></div>`+visorHtml()+'<div class="wheel-legend"><span><i style="background:#2b5a76"></i>Completa</span><span><i style="background:#36abc7"></i>Dual: una montada</span><span><i style="background:#6d3a34"></i>Sin cubiertas</span><span><i style="background:#ff7a1a"></i>Rueda elegida</span><span><i style="background:#2ee6a8"></i>Cubierta elegida</span></div><div class="elegida" id="elegida"></div>':'')+'<h3>Posiciones · montaje y retiro</h3>'+mapHtml(d.mapa);
   $('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${dibujo}</div>${no}${puestasHtml(d.mapa)}<div class="card section"><h3>Historial de cambios de la unidad <button class="verdeshechos" id="verDeshechos" hidden></button></h3><div id="histBody"></div></div>`;
   engancharCubiertas();
   D.unidadId=u.id;D.movimientos=d.movimientos||[];D.historial=d.historial||[];D.verDeshechos=false;

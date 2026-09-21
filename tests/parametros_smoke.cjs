@@ -10,7 +10,14 @@ const dir = path.resolve(__dirname, '..');
 
 const datos = (quien) => ({
   instalado: true,
-  parametros: {km_origen: 'automatico', km_hora: '05:00'},
+  parametros: {km_origen: 'automatico', km_hora: '06:30',
+               combustible_origen: 'manual', combustible_hora: '06:00',
+               combustible_fuente: null, combustible_ultima: null,
+               combustible_estado: null},
+  de_fabrica: {km_origen: 'automatico', km_hora: '05:00',
+               combustible_origen: 'manual', combustible_hora: '06:00',
+               litros_maximos: 450, service_urgente_km: 5000,
+               service_aviso_km: 15000, combustible_dias: 90},
   planes: [
     {id: 1, nombre: 'Service M6', descripcion: null, clase: 'preventivo', cada_km: 20000,
      cada_dias: null, tareas: 'Aceite, filtros', horas_estimadas: null,
@@ -115,17 +122,37 @@ const marcas = () => ({
     });
 
     await page.goto('http://taller.test/parametros');
-    await page.locator('.opcion.on').waitFor();
+    await page.locator('#km-lista tr').first().waitFor();
 
-    // El kilometraje: dos opciones, la que rige marcada, y el estado real.
-    assert.equal(await page.locator('.opcion.on').getAttribute('data-origen'), 'automatico');
+    // Lo primero es lo que ya está cargado, con qué hacer al lado.
+    const flota = await page.locator('#km-lista').innerText();
+    for (const x of ['De dónde salen los kilómetros', 'Automático',
+                     'Hora de la consulta', '06:30', 'de fábrica: 05:00'])
+      assert(flota.includes(x), `falta "${x}" en los parámetros de flota: ${flota}`);
+    assert(flota.includes('de fábrica'), 'no dice con qué venía de fábrica');
+    assert(await page.locator('#km-form').isHidden(),
+           'el formulario tiene que estar atrás de Editar');
     assert((await page.locator('#km-estado').innerText()).includes('47 lecturas'),
            'no dice si el automático está andando');
+
+    // El kilometraje: dos opciones y la que rige marcada.
+    await page.locator('#km-lista [data-editar="km"]').first().click();
+    assert(await page.locator('#km-form').isVisible());
+    assert.equal(await page.locator('#km-opciones .opcion.on').getAttribute('data-origen'),
+                 'automatico');
     await page.click('.opcion[data-origen="manual"]');
     await page.click('#km-guardar');
     await page.waitForTimeout(200);
     const km = pedidos.find(p => p.op === 'guardar');
     assert.equal(km.km_origen, 'manual');
+    assert(await page.locator('#km-form').isHidden(), 'el formulario queda abierto al guardar');
+
+    // Restablecer lo devuelve a lo de fábrica, que es lo más parecido a
+    // eliminarlo que puede existir sin dejar al sistema mudo.
+    page.once('dialog', d => d.accept());
+    await page.locator('#km-lista [data-restablecer="km_hora"]').click();
+    await page.waitForTimeout(200);
+    assert.equal(pedidos.find(p => p.op === 'restablecer').campo, 'km_hora');
 
     // Los planes: el correctivo no pide intervalo, el preventivo no pide plata.
     await page.click('[data-vista="planes"]');
@@ -158,10 +185,30 @@ const marcas = () => ({
     const asignar = pedidos.find(p => p.op === 'asignar');
     assert.equal(asignar.unidad_id, '2');
 
+    // Combustible: cómo entra, y el link del que se trae.
+    await page.click('[data-vista="combustible"]');
+    await page.locator('#comb-lista tr').first().waitFor();
+    assert((await page.locator('#comb-lista').innerText()).includes('Manual'),
+           'no dice cómo entra el combustible hoy');
+    assert(await page.locator('#comb-acciones').isHidden(),
+           'en manual no hay nada que traer');
+    await page.locator('#comb-lista [data-editar="comb"]').first().click();
+    await page.click('#comb-opciones [data-combustible="automatico"]');
+    await page.fill('#c-fuente', 'https://docs.google.com/spreadsheets/d/1abc/edit#gid=0');
+    await page.fill('#c-hora', '06:30');
+    await page.click('#comb-guardar');
+    await page.waitForTimeout(200);
+    const comb = pedidos.find(p => p.op === 'guardar' && p.combustible_origen);
+    assert.equal(comb.combustible_origen, 'automatico');
+    assert(comb.combustible_fuente.includes('docs.google.com'));
+    assert.equal(comb.combustible_hora, '06:30');
+
     // Los umbrales son del que administra; los planes, del que gestiona.
     quien = 'taller';
     await page.reload();
-    await page.locator('.opcion.on').waitFor();
+    await page.locator('#km-lista tr').first().waitFor();
+    assert.equal(await page.locator('#km-lista [data-editar]').count(), 0,
+                 'el que no administra no puede editar los parámetros');
     assert(!await page.locator('#km-guardar').isEnabled(),
            'el que no administra no cambia de dónde salen los km');
     assert(await page.locator('#plan-nuevo').isEnabled(),
@@ -250,7 +297,8 @@ const marcas = () => ({
     assert.deepEqual(errores, []);
     console.log('PASS: kilometraje en dos opciones con su estado, plan correctivo sin ' +
                 'intervalo y preventivo sin presupuesto, asignación solo de preventivos, ' +
-                'umbrales del que administra, proveedores y fluidos con su envase, ' +
+                'umbrales del que administra, parámetros a la vista con editar y '+
+                'restablecer, combustible traído de un link, proveedores y fluidos, ' +
                 'marcas con logo que se dan de baja en vez de borrarse, medidas con ' +
                 'su familia y celular.');
   } finally {

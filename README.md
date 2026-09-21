@@ -88,13 +88,16 @@ Combustible abre en Tickets (`/combustible#tickets`), con carga individual/impor
 Arriba de todas las pantallas hay dos accesos —**Usuarios** y
 **Parámetros**— para el que los tenga habilitados.
 
-`/parametros` está separada **por módulo**. En *Flota* se define **de dónde
+`/parametros` está separada **por módulo**, y en cada solapa se ve primero
+lo que ya está cargado, con **Editar** y **Restablecer** al lado. En *Flota* se define **de dónde
 salen los kilómetros**: del satelital todas las mañanas, o a mano. En
 manual el job deja de escribir, porque si escribiera le pisaría el número
 al que lo cargó. En *Mantenimiento* están los **planes** —el preventivo se
 agenda por kilómetros o por días; el correctivo no se agenda, es el
 catálogo de trabajos con su tiempo y su costo esperados—, en *Alertas* los
-**umbrales** con los que avisa, y en *Gomería* las **marcas de cubierta**
+**umbrales** con los que avisa, y en *Combustible* **cómo entra el combustible** —se anota a mano, o el
+sistema entra solo a un link de planilla y lo trae todas las mañanas— y
+en *Gomería* las **marcas de cubierta**
 —con su logo, que se sube desde la pantalla y se guarda en la base porque
 el disco de Render se borra en cada deploy— y las **medidas** con las que
 se trabaja, cada una con la familia que dice si esa goma entra o no en esa
@@ -106,7 +109,11 @@ Los roles con los que se trabaja son cuatro más los de sistema:
 que hizo, no aprueba ni cierra), **responsable de sucursal** y **chofer**
 (ven lo de su boca y nada más). El detalle está en
 [la guía de parámetros](gomeria/PARAMETROS.md) y las tablas salen de
-`gomeria/29_parametros.sql`.
+`gomeria/29_parametros.sql` y `gomeria/33_combustible_origen.sql`.
+
+Arriba a la derecha, el nombre de uno abre su cuenta: **cambiar la
+contraseña** —pide la de ahora y cierra todas las sesiones— y **cerrar
+sesión**. Está en todas las pantallas.
 
 ## Tractor y semi
 

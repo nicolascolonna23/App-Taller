@@ -68,6 +68,7 @@
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
   .btn:disabled{opacity:.45;cursor:default}
+  [hidden]{display:none!important}
   .fila{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:14px}
 
   /* La elección grande: de dónde salen los kilómetros. Son dos opciones y
@@ -142,6 +143,11 @@
         el consumo, el desgaste de las cubiertas y el costo por kilómetro. Si sale
         del satelital, entra solo todas las mañanas. Si se carga a mano, el job no
         escribe nada y manda lo que cargó la persona.</p>
+      <table><thead><tr>
+        <th>Parámetro</th><th>Como está ahora</th><th></th>
+      </tr></thead><tbody id="km-lista"></tbody></table>
+
+      <div id="km-form" hidden style="margin-top:16px">
       <div class="opciones" id="km-opciones">
         <label class="opcion" data-origen="automatico">
           <input type="radio" name="km_origen" value="automatico">
@@ -163,8 +169,10 @@
       </div>
       <div class="fila">
         <button class="btn" id="km-guardar">Guardar</button>
-        <span class="chico" id="km-estado"></span>
+        <button class="btn alt" type="button" id="km-cancelar">Cancelar</button>
       </div>
+      </div>
+      <p class="chico" id="km-estado" style="margin-top:12px"></p>
     </div>
   </section>
 
@@ -235,6 +243,11 @@
       <p class="que">Los mismos números que usa la pantalla de Alertas. Subirlos hace
         que avise antes; bajarlos, que avise menos. Un aviso que llega tarde no sirve,
         y uno que llega siempre deja de mirarse.</p>
+      <table><thead><tr>
+        <th>Umbral</th><th>Como está ahora</th><th></th>
+      </tr></thead><tbody id="reglas-lista"></tbody></table>
+
+      <div id="reglas-form" hidden style="margin-top:16px">
       <div class="campos">
         <div><label>Service urgente a (km)</label>
           <input id="r-urgente" type="number" min="0" step="500"></div>
@@ -245,7 +258,9 @@
         <div><label>Cargas raras: mirar los últimos (días)</label>
           <input id="r-dias" type="number" min="1" step="1"></div>
       </div>
-      <div class="fila"><button class="btn" id="reglas-guardar">Guardar umbrales</button></div>
+      <div class="fila"><button class="btn" id="reglas-guardar">Guardar umbrales</button>
+        <button class="btn alt" type="button" id="reglas-cancelar">Cancelar</button></div>
+      </div>
     </div>
   </section>
 
@@ -340,6 +355,53 @@
   <!-- ------------------------------------------------------- combustible -->
   <section id="v-combustible" hidden>
     <p class="modulo">Parametrizaciones de <b>Combustible</b></p>
+
+    <div class="caja">
+      <h2>Cómo entra el combustible</h2>
+      <p class="que">El control de combustible se lleva en una planilla que se edita
+        todos los días. Bajarla para volver a subirla es trabajo que la computadora
+        puede hacer sola: se guarda el link una vez y el sistema entra a buscarla.
+        Traer de nuevo la misma planilla no duplica nada —cada remito se pisa con su
+        última versión—, así que se puede traer todos los días sin pensar.</p>
+      <table><thead><tr>
+        <th>Parámetro</th><th>Como está ahora</th><th></th>
+      </tr></thead><tbody id="comb-lista"></tbody></table>
+
+      <div id="comb-form" hidden style="margin-top:16px">
+        <div class="opciones" id="comb-opciones">
+          <label class="opcion" data-combustible="manual">
+            <input type="radio" name="combustible_origen" value="manual">
+            <span><b>Manual</b><span>Se anota carga por carga, o se sube el archivo
+              cuando la estación manda el listado. Es como viene funcionando.</span></span>
+          </label>
+          <label class="opcion" data-combustible="automatico">
+            <input type="radio" name="combustible_origen" value="automatico">
+            <span><b>Automático</b><span>El sistema entra solo al link de la planilla
+              —una hoja de Google, o cualquier dirección que devuelva un CSV— y trae lo
+              que haya. Todos los días, a la hora que se indique.</span></span>
+          </label>
+        </div>
+        <div class="campos" style="margin-top:14px">
+          <div class="ancho"><label>Link de la planilla</label>
+            <input id="c-fuente" maxlength="500" placeholder="https://docs.google.com/spreadsheets/d/…">
+            <p class="chico" style="margin:6px 0 0">El link de la barra de direcciones
+              sirve: el sistema lo convierte a CSV solo. La hoja tiene que estar
+              compartida como «cualquiera con el enlace».</p></div>
+          <div><label>Hora de la consulta</label>
+            <input id="c-hora" type="time" value="06:00">
+            <p class="chico" style="margin:6px 0 0">Informativa: la corrida real la
+              agenda GitHub Actions.</p></div>
+        </div>
+        <div class="fila">
+          <button class="btn" id="comb-guardar">Guardar</button>
+          <button class="btn alt" type="button" id="comb-cancelar">Cancelar</button>
+        </div>
+      </div>
+      <div class="fila" id="comb-acciones" hidden>
+        <button class="btn alt" id="comb-traer">Traer la planilla ahora</button>
+        <span class="chico" id="comb-traida"></span>
+      </div>
+    </div>
 
     <div class="caja">
       <h2>Proveedores</h2>
@@ -478,10 +540,31 @@ async function cargar() {
   pintar();
 }
 
+/* Lo que hay cargado, y al lado qué hacer con eso. Un parámetro no se
+   elimina —el sistema tiene que saber de dónde salen los kilómetros
+   aunque nadie lo haya elegido—, así que «eliminar» es restablecerlo a
+   lo de fábrica, y la fila dice cuál era. */
+const ORIGEN_LEGIBLE = {automatico: 'Automático', manual: 'Manual'};
+function filaParametro(campo, nombre, valor, ayuda, puede, deFabrica) {
+  const igual = String(valor) === String(deFabrica);
+  return `<tr>
+    <td><b>${esc(nombre)}</b>${ayuda ? `<div class="chico">${esc(ayuda)}</div>` : ''}</td>
+    <td><b>${esc(valor)}</b>${igual ? '<div class="chico">de fábrica</div>'
+        : `<div class="chico">de fábrica: ${esc(deFabrica)}</div>`}</td>
+    <td>${puede ? `<button class="accion" data-editar="${esc(campo.grupo)}">Editar</button>
+      ${igual ? '' : `<button class="accion" data-restablecer="${esc(campo.campo)}">Restablecer</button>`}` : ''}</td>
+  </tr>`;
+}
+
 function pintar() {
-  const d = D.datos, p = d.parametros || {};
-  document.querySelectorAll('.opcion').forEach(o => {
+  const d = D.datos, p = d.parametros || {}, f = d.de_fabrica || {};
+  document.querySelectorAll('#km-opciones .opcion').forEach(o => {
     const elegida = o.dataset.origen === p.km_origen;
+    o.classList.toggle('on', elegida);
+    o.querySelector('input').checked = elegida;
+  });
+  document.querySelectorAll('#comb-opciones .opcion').forEach(o => {
+    const elegida = o.dataset.combustible === p.combustible_origen;
     o.classList.toggle('on', elegida);
     o.querySelector('input').checked = elegida;
   });
@@ -492,7 +575,42 @@ function pintar() {
     : lecturas.ayer
       ? `${lecturas.ayer} lecturas del satelital en las últimas 24 horas.`
       : 'Sin lecturas del satelital en las últimas 24 horas: revisá el job.';
-  ['#km-guardar', '#reglas-guardar', '#r-urgente', '#r-aviso', '#r-litros', '#r-dias']
+
+  const admin = !!d.puede_administrar;
+  $('#km-lista').innerHTML =
+    filaParametro({grupo: 'km', campo: 'km_origen'}, 'De dónde salen los kilómetros',
+      ORIGEN_LEGIBLE[p.km_origen] || p.km_origen,
+      p.km_origen === 'manual' ? 'Los carga una persona; el job no escribe nada.'
+                               : 'Los trae el satelital todas las mañanas.',
+      admin, ORIGEN_LEGIBLE[f.km_origen] || f.km_origen) +
+    filaParametro({grupo: 'km', campo: 'km_hora'}, 'Hora de la consulta',
+      p.km_hora || '', 'Informativa: la corrida real la agenda GitHub Actions.',
+      admin, f.km_hora || '');
+
+  const auto = p.combustible_origen === 'automatico';
+  $('#c-fuente').value = p.combustible_fuente || '';
+  $('#c-hora').value = p.combustible_hora || '06:00';
+  $('#comb-lista').innerHTML =
+    filaParametro({grupo: 'comb', campo: 'combustible_origen'},
+      'Cómo entra el combustible',
+      ORIGEN_LEGIBLE[p.combustible_origen] || p.combustible_origen,
+      auto ? 'El sistema entra al link y trae lo que haya.'
+           : 'Se anota carga por carga, o se sube el archivo cuando hay.',
+      admin, ORIGEN_LEGIBLE[f.combustible_origen] || f.combustible_origen) +
+    (auto ? filaParametro({grupo: 'comb', campo: 'combustible_fuente'},
+      'Link de la planilla', p.combustible_fuente || '—',
+      'De ahí sale lo que entra todas las mañanas.', admin, '—') +
+      filaParametro({grupo: 'comb', campo: 'combustible_hora'},
+        'Hora de la consulta', p.combustible_hora || '',
+        'Informativa: la corrida real la agenda GitHub Actions.',
+        admin, f.combustible_hora || '') : '');
+  $('#comb-acciones').hidden = !(auto && d.puede_gestionar);
+  $('#comb-traida').textContent = p.combustible_ultima
+    ? `Última: ${new Date(p.combustible_ultima).toLocaleString('es-AR')} · ${p.combustible_estado || ''}`
+    : 'Todavía no se trajo ninguna vez.';
+
+  ['#km-guardar', '#reglas-guardar', '#comb-guardar',
+   '#r-urgente', '#r-aviso', '#r-litros', '#r-dias']
     .forEach(s => { const e = $(s); if (e) e.disabled = !d.puede_administrar; });
   $('#plan-nuevo').disabled = !d.puede_gestionar;
 
@@ -534,6 +652,20 @@ function pintar() {
   $('#r-aviso').value = r.service_aviso_km ?? '';
   $('#r-litros').value = r.litros_maximos ?? '';
   $('#r-dias').value = r.combustible_dias ?? '';
+  const UMBRALES = [
+    ['service_urgente_km', 'Service urgente a', 'km',
+     'Debajo de eso el service pasa a urgente.'],
+    ['service_aviso_km', 'Service próximo a', 'km',
+     'Desde ahí empieza a avisar que falta poco.'],
+    ['litros_maximos', 'Carga de combustible grande', 'litros',
+     'Más que eso se mira: o son dos unidades en un remito, o falta gasoil.'],
+    ['combustible_dias', 'Cargas raras: mirar los últimos', 'días',
+     'Una carga rara de hace dos años no es una alerta, es historia.'],
+  ];
+  $('#reglas-lista').innerHTML = UMBRALES.map(([campo, nombre, unidad, ayuda]) =>
+    filaParametro({grupo: 'reglas', campo}, nombre,
+      r[campo] == null ? '—' : `${nf0.format(r[campo])} ${unidad}`, ayuda,
+      admin, `${nf0.format(f[campo])} ${unidad}`)).join('');
 }
 
 function formPlan(plan) {
@@ -568,9 +700,69 @@ document.addEventListener('click', async ev => {
   }
   const opcion = ev.target.closest('.opcion');
   if (opcion) {
-    document.querySelectorAll('.opcion').forEach(o => o.classList.toggle('on', o === opcion));
+    opcion.closest('.opciones').querySelectorAll('.opcion')
+      .forEach(o => o.classList.toggle('on', o === opcion));
     return;
   }
+  /* Editar abre el formulario de ese bloque; cancelar lo cierra sin tocar
+     nada. Restablecer vuelve el parámetro a lo de fábrica: es lo más
+     parecido a eliminarlo que puede existir sin dejar al sistema mudo. */
+  const editarParam = ev.target.closest('[data-editar]');
+  if (editarParam) {
+    const caja = $('#' + editarParam.dataset.editar + '-form');
+    if (caja) { caja.hidden = false; caja.querySelector('input, select, button')?.focus(); }
+    return;
+  }
+  const cancelar = ev.target.id.match(/^(km|comb|reglas)-cancelar$/);
+  if (cancelar) { $('#' + cancelar[1] + '-form').hidden = true; pintar(); return; }
+
+  const volver = ev.target.closest('[data-restablecer]');
+  if (volver) {
+    if (!confirm('¿Volver este parámetro a como venía de fábrica?')) return;
+    try {
+      await api('restablecer', {campo: volver.dataset.restablecer});
+      await cargar();
+      aviso('Parámetro restablecido.', true);
+    } catch (e) { aviso(e.message); }
+    return;
+  }
+
+  if (ev.target.id === 'comb-guardar') {
+    const elegida = $('#comb-opciones .opcion.on');
+    const modo = elegida && elegida.dataset.combustible;
+    try {
+      await api('guardar', {combustible_origen: modo,
+                            combustible_fuente: $('#c-fuente').value,
+                            combustible_hora: $('#c-hora').value});
+      $('#comb-form').hidden = true;
+      await cargar();
+      aviso('Listo. ' + (modo === 'manual'
+        ? 'El combustible se carga a mano: la pantalla deja de ofrecer la importación.'
+        : 'El sistema va a traer la planilla del link todas las mañanas.'), true);
+    } catch (e) { aviso(e.message); }
+    return;
+  }
+
+  if (ev.target.id === 'comb-traer') {
+    const boton = ev.target;
+    boton.disabled = true;
+    const antes = boton.textContent;
+    boton.textContent = 'Trayendo…';
+    try {
+      const r = await fetch('/api/combustible', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({op: 'traer'})});
+      const salida = await r.json().catch(() => ({error: 'Respuesta ilegible del servidor.'}));
+      if (!r.ok) throw new Error(salida.error || 'No se pudo traer la planilla.');
+      await cargar();
+      aviso(`Entraron ${nf0.format(salida.guardadas || 0)} filas: ` +
+            `${nf0.format(salida.nuevas || 0)} nuevas y ` +
+            `${nf0.format(salida.actualizadas || 0)} corregidas.`, true);
+    } catch (e) { aviso(e.message); await cargar(); }
+    finally { boton.disabled = false; boton.textContent = antes; }
+    return;
+  }
+
   const editar = ev.target.closest('[data-plan]');
   if (editar)
     return formPlan(D.datos.planes.find(p => String(p.id) === editar.dataset.plan));
@@ -592,10 +784,11 @@ document.addEventListener('click', async ev => {
   if (ev.target.id === 'plan-cancelar') { $('#plan-form').hidden = true; D.plan = null; return; }
 
   if (ev.target.id === 'km-guardar') {
-    const elegida = document.querySelector('.opcion.on');
+    const elegida = $('#km-opciones .opcion.on');
     try {
       await api('guardar', {km_origen: elegida && elegida.dataset.origen,
                             km_hora: $('#km-hora').value});
+      $('#km-form').hidden = true;
       await cargar();
       aviso('Listo. ' + (elegida.dataset.origen === 'manual'
         ? 'Los kilómetros se cargan a mano: el satelital no escribe más.'
@@ -611,6 +804,7 @@ document.addEventListener('click', async ev => {
         service_aviso_km: $('#r-aviso').value,
         litros_maximos: $('#r-litros').value,
         combustible_dias: $('#r-dias').value});
+      $('#reglas-form').hidden = true;
       await cargar();
       aviso('Umbrales guardados.', true);
     } catch (e) { aviso(e.message); }

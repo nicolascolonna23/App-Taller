@@ -882,7 +882,8 @@ function esquinaDeLaRueda(malla){
 
    Cuatro colores, y cada uno contesta una pregunta distinta:
 
-     naranja   la que se está mirando
+     naranja   la esquina que se está mirando
+     verde     de las dos gomas de esa esquina, la que quedó elegida
      celeste   la esquina dual con una cubierta montada y otra vacía
      azul      la esquina que ya tiene puestas todas sus cubiertas
      rojiza    la esquina a la que le falta alguna
@@ -899,19 +900,74 @@ function esquinaDeLaRueda(malla){
 
    Una pieza que abarca las dos ruedas de un eje se pinta cuando la esquina
    elegida es de ese eje, del lado que sea: no se puede pintar media
-   pieza, y por eso tampoco se le puede decir si está ocupada o no. */
+   pieza, y por eso tampoco se le puede decir si está ocupada o no.
+
+   El verde es el segundo nivel de la misma respuesta. La esquina entera
+   se prende —eso ubica de lejos— y adentro de la esquina se prende de
+   otro color la goma que está elegida, interior o exterior. Sin eso, en
+   un dual el naranja decía «es una de estas dos» y había que ir a
+   buscarlo al mapa. Solo se puede cuando el modelo trae las dos gomas
+   por separado: si viene de una pieza, no hay media pieza que pintar. */
 const RUEDA = {
-  elegida: 0xff7a1a, puesta: 0x2b5a76, parcial: 0x36abc7, falta: 0x6d3a34, sin_datos: GOMA,
+  elegida: 0xff7a1a, foco: 0x2ee6a8, puesta: 0x2b5a76, parcial: 0x36abc7,
+  falta: 0x6d3a34, sin_datos: GOMA,
 };
 
+/* Cuáles de las piezas de una esquina son la goma interior y cuáles la
+   exterior.
+
+   No lo dice el modelo: lo dice dónde están paradas. Un dual son dos
+   ruedas pegadas, y cada una llega al 3D hecha de cientos de piezas —la
+   llanta, las tuercas, cada taco de la banda—, así que no alcanza con
+   tomar la más lejana: hay que separar las piezas en dos montones.
+
+   Se separan por la distancia al centro del camión, con dos montones que
+   se van acomodando hasta que ninguna pieza cambia de lado. Si los dos
+   montones terminan pegados no es un dual —es una rueda sola, o una
+   pieza que abarca las dos— y entonces no hay interior ni exterior que
+   pintar: lo dice el mapa. */
+const DUAL_MINIMO = 0.18;   // metros entre los centros de las dos gomas
+
+function gomasDelMontaje(esquina, montaje){
+  if (!esquina || !montaje) return null;
+  const suyas = V.ruedas.filter(m => {
+    const e = esquinaDeLaRueda(m);
+    return e.eje === esquina.eje && e.lado === esquina.lado;
+  });
+  if (suyas.length < 2) return null;
+
+  const centro = new THREE.Vector3();
+  const lejos = new Map(suyas.map(m => [m,
+    Math.abs(new THREE.Box3().setFromObject(m).getCenter(centro).x)]));
+  const valores = [...lejos.values()];
+  let adentro = Math.min(...valores), afuera = Math.max(...valores);
+  if (afuera - adentro < DUAL_MINIMO) return null;
+
+  for (let vuelta = 0; vuelta < 12; vuelta++) {
+    const corte = (adentro + afuera) / 2;
+    const cerca = valores.filter(v => v < corte), lejanas = valores.filter(v => v >= corte);
+    if (!cerca.length || !lejanas.length) break;
+    const medio = a => a.reduce((t, v) => t + v, 0) / a.length;
+    const nuevoAdentro = medio(cerca), nuevoAfuera = medio(lejanas);
+    if (nuevoAdentro === adentro && nuevoAfuera === afuera) break;
+    adentro = nuevoAdentro; afuera = nuevoAfuera;
+  }
+  if (afuera - adentro < DUAL_MINIMO) return null;
+
+  const corte = (adentro + afuera) / 2;
+  const quiere = montaje === 'interior';
+  return new Set(suyas.filter(m => (lejos.get(m) < corte) === quiere));
+}
+
 function pintarRuedas(){
+  const enfocadas = V.montaje ? gomasDelMontaje(V.esquina, V.montaje) : null;
   for (const m of V.ruedas){
     const e = esquinaDeLaRueda(m);
     const suya = V.esquina && e.eje === V.esquina.eje &&
                  (e.lado === 'ambos' || e.lado === V.esquina.lado);
     let color = RUEDA.sin_datos;
     if (suya) {
-      color = RUEDA.elegida;
+      color = enfocadas && enfocadas.has(m) ? RUEDA.foco : RUEDA.elegida;
     } else if (e.lado !== 'ambos') {
       const posiciones = posicionesDe(e);
       const montadas = posiciones.filter(p => p.cubierta_id).length;
@@ -923,7 +979,8 @@ function pintarRuedas(){
     // Luz propia solo la elegida. El azul se apoya en el color y nada más:
     // con emissive gritaba más fuerte que el rojizo, y el que tiene que
     // gritar es el que avisa que a esa esquina le falta una goma.
-    m.material.emissive.setHex(color === RUEDA.elegida ? 0x3a1a04 : 0x000000);
+    m.material.emissive.setHex(color === RUEDA.elegida ? 0x3a1a04
+                             : color === RUEDA.foco ? 0x0a3a28 : 0x000000);
   }
 }
 

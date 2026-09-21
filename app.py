@@ -576,7 +576,13 @@ class App(gom.Handler):
                     if vista == "serie":
                         return self._responder(
                             gom.jstr(comb.serie_consumo(cx)))
-                    return self._responder(gom.jstr(comb.panel(cx, estado)))
+                    salida = comb.panel(cx, estado)
+                    # Cómo entra el combustible. La pantalla esconde las
+                    # zonas de importación cuando se carga a mano: dos
+                    # cajas que no se usan nunca invitan a subir cualquier
+                    # cosa, y ese archivo después hay que sacarlo.
+                    salida["parametros"] = par.combustible_como(cx)
+                    return self._responder(gom.jstr(salida))
             except psycopg.errors.UndefinedTable:
                 # Cuál de los dos SQL falta depende de qué se estaba
                 # mirando: las vistas de la flota son de un archivo
@@ -1115,6 +1121,12 @@ class App(gom.Handler):
         # Los archivos llegan en base64 adentro del JSON. Es un archivo por
         # vez y de pocos cientos de filas: armar multipart para eso sería
         # cargar el servidor con un parseo que no hace falta.
+        # La contraseña de uno mismo. No es el alta de usuarios: eso es de
+        # quien administra y vive en /usuarios. Esto es el que se la quiere
+        # cambiar porque se la vieron, y no tiene por qué pedírsela a nadie.
+        if ruta == "/api/clave":
+            return self._mi_clave()
+
         if ruta == "/api/combustible":
             return self._combustible()
 
@@ -1253,6 +1265,43 @@ class App(gom.Handler):
             traceback.print_exc()
             return self._error(f"No se pudo leer la factura: {e}", 500)
 
+    def _mi_clave(self):
+        """Cambiar la propia contraseña, diciendo la de ahora.
+
+        Pedir la actual no es burocracia: una sesión olvidada en la
+        máquina del taller alcanzaría, si no, para quedarse con la cuenta
+        de otro. Y al cambiarla se cierran todas las sesiones —incluida
+        esta—, que es lo que uno espera cuando la cambia porque se la
+        vieron.
+        """
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 4 * 1024:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            actual = str(datos.get("actual") or "")
+            nueva = str(datos.get("nueva") or "")
+            if not actual or not nueva:
+                return self._error("Faltan la contraseña de ahora y la nueva.")
+            if actual == nueva:
+                return self._error("La nueva tiene que ser distinta de la de ahora.")
+            with base.conectar() as cx:
+                if not auth.autenticar(cx, self.usuario["usuario"], actual):
+                    return self._error("La contraseña de ahora no es esa.", 403)
+                auth.cambiar_clave(cx, self.usuario["id"], nueva)
+                cx.commit()
+            return self._responder(gom.jstr(
+                {"ok": True, "cerro_sesiones": True}),
+                cookie=auth.cookie_de_sesion(None, borrar=True,
+                                             seguro=self._es_https()))
+        except ValueError as e:
+            return self._error(str(e))
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo cambiar la contraseña: {e}", 500)
+
     def _combustible(self, borrar=False):
         if not self._exigir_sesion():
             return
@@ -1266,6 +1315,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = comb.borrar_lote(cx, datos.get("lote_id"), self.usuario)
+                elif datos.get("op") == "traer":
+                    # La planilla del link, sin archivo ni mano. Es lo mismo
+                    # que sube una persona, traído por el servidor.
+                    salida = comb.traer(cx, self.usuario, datos)
                 else:
                     salida = comb.subir(cx, datos, self.usuario)
                 cx.commit()
