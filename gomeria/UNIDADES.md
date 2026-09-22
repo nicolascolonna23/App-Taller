@@ -170,6 +170,12 @@ gomería.
   patente y la posición donde está.
 - Las ruedas se pintan solas: **naranja** la elegida, **rojiza** la esquina
   con alguna posición vacía, gris la que está completa.
+- En un dual, adentro del naranja se prende de **verde** la goma elegida
+  —interior o exterior—. Cuando el modelo trae las dos gomas en una sola
+  pieza no hay media pieza que pintar y el verde es un **aro** alrededor de
+  la rueda, corrido al lado que está elegido. El mapa de posiciones de
+  abajo usa los mismos dos colores: naranja las dos gomas de esa rueda,
+  verde la que quedó elegida.
 
 Cambiar cubiertas pide ser encargado o administrador, igual que editar.
 

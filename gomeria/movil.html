@@ -114,9 +114,12 @@ table.datos .flojo{color:var(--m)}
 @media(max-width:780px){.visor3d{height:290px}
   table.puestas th:nth-child(3),table.puestas td:nth-child(3){display:none}}
 /* Mesa de montaje: depósito, vehículo y cubierta seleccionada. */
+/* Naranja la rueda elegida, verde la goma elegida: los dos colores
+   salen del visor 3D y valen igual en el mapa de abajo. */
+:root{--rueda:#ff7a1a;--rueda-suave:#ff7a1a22;--goma:#2ee6a8;--goma-suave:#2ee6a822}
 dialog::backdrop{background:#0009}.move-dialog{color:var(--t)}
 main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{display:block;font-weight:800;margin-bottom:10px}.picker-box{position:relative}.fleet-picker .search{margin:0;padding-right:40px}.picker-abrir{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;border:0;border-radius:8px;background:none;color:var(--m);font-size:13px;cursor:pointer}.picker-abrir:hover{color:var(--t);background:var(--p2)}.fleet-picker .units{position:absolute;z-index:40;left:0;right:0;top:calc(100% + 6px);display:block;max-height:340px;overflow:auto;background:var(--p);border:1px solid var(--l2);border-radius:12px;box-shadow:0 18px 40px rgba(0,0,0,.35);margin:0;padding:4px}.fleet-picker .unit{border-radius:8px;padding:10px 8px}.fleet-picker .unit:last-child{border-bottom:0}.fleet-picker .unit.marcada{background:var(--p2)}.fleet-picker .unit.on{background:var(--os)}.fleet-picker .emptymsg{padding:14px 10px;color:var(--m)}.fleet-picker .sub{display:inline;margin-left:12px;font-weight:400;color:var(--m)}
-#fleet>.grid{grid-template-columns:250px minmax(0,1fr) 280px;align-items:start}#unitDetail{min-width:0}.stock-shelf,.tire-inspector{position:sticky;top:74px;max-height:calc(100vh - 95px);overflow:auto}.shelf-list{display:grid;gap:8px;max-height:520px;overflow:auto;margin-top:14px}.shelf-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--p2);border:1px solid var(--l2);color:var(--t);border-radius:10px;padding:12px;cursor:grab}.shelf-item.on,.tire.chosen{border-color:var(--o);background:var(--os);outline:3px solid var(--o);outline-offset:2px;position:relative}.tire.chosen::after{content:'ELEGIDA';display:block;margin-top:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;color:var(--t)}.shelf-item small{display:block;color:var(--m);margin-top:4px}.elegida-cual{color:var(--t);background:var(--os);border:1px solid var(--o);border-radius:6px;padding:2px 7px;text-transform:uppercase;font-size:11px;letter-spacing:.6px}
+#fleet>.grid{grid-template-columns:250px minmax(0,1fr) 280px;align-items:start}#unitDetail{min-width:0}.stock-shelf,.tire-inspector{position:sticky;top:74px;max-height:calc(100vh - 95px);overflow:auto}.shelf-list{display:grid;gap:8px;max-height:520px;overflow:auto;margin-top:14px}.shelf-item{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--p2);border:1px solid var(--l2);color:var(--t);border-radius:10px;padding:12px;cursor:grab}.shelf-item.on{border-color:var(--o);background:var(--os);outline:3px solid var(--o);outline-offset:2px;position:relative}.shelf-item small{display:block;color:var(--m);margin-top:4px}.elegida-cual{color:var(--t);background:var(--os);border:1px solid var(--o);border-radius:6px;padding:2px 7px;text-transform:uppercase;font-size:11px;letter-spacing:.6px}
 .goma-arrastre{position:fixed;top:-400px;left:-400px;width:96px;padding:8px 6px 6px;border-radius:12px;background:var(--p2);border:1px solid var(--o);box-shadow:0 12px 26px rgba(0,0,0,.45);text-align:center;pointer-events:none;z-index:99}.goma-arrastre .tire-art{width:84px;height:66px}.goma-arrastre b{display:block;font-size:11px;margin-top:2px;color:var(--t)}.rubber-mini{display:block;width:24px;height:38px;border-radius:45%;background:repeating-linear-gradient(80deg,#30363b 0 3px,#11171c 3px 6px);border:3px solid #48515a;flex-shrink:0}.drop-stock{border:2px dashed var(--l2);border-radius:12px;padding:15px;margin:12px 0;color:var(--m);text-align:center}.drop-ready{outline:3px solid var(--o)!important;outline-offset:-3px;background:var(--os)!important}.workbench-help{font-size:12px;color:var(--m);line-height:1.5}.tire-inspector h3{margin:0 0 10px}.tire-art{width:100%;height:180px}.tire-inspector .details{grid-template-columns:1fr 1fr}.tire-inspector .btn{width:100%;margin-top:8px}.workbench-controls{display:flex;align-items:center;gap:12px;margin:12px 0;flex-wrap:wrap}.workbench-controls label{display:flex;align-items:center;gap:8px;margin:0;letter-spacing:0;font-size:12px;text-transform:none}.workbench-controls input{width:auto}.workbench-controls span{font-size:12px;color:var(--m)}#unitDetail .visor3d{height:400px}#unitDetail .map{padding:16px 8px}#unitDetail .tire{width:61px;flex-shrink:0}#unitDetail .bar{min-width:10px}.move-dialog label{font-size:12px;letter-spacing:0;text-transform:none}.move-dialog .actions{margin-top:18px}.btn{color:var(--t)}.btn:not(.alt){color:#181818}#benchStatus{margin:10px 0;min-height:18px}.stock-shelf h2{font-size:21px}
 /* La goma del inspector rueda: los tacos corren por la banda y las tuercas
    giran con la llanta. El desplazamiento de los tacos es el paso con el que
@@ -135,7 +138,16 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 @media(prefers-reduced-motion:reduce){.tire-art .tacos,.tire-art .llanta{animation:none}}
 @media(max-width:1150px){#fleet>.grid{grid-template-columns:210px minmax(0,1fr)}.tire-inspector{grid-column:1/-1;position:static;max-height:none}.tire-art{max-width:230px}.stock-shelf{max-height:none}#unitDetail .visor3d{height:330px}}
 @media(max-width:780px){#fleet>.grid{grid-template-columns:minmax(0,1fr)}.stock-shelf,.tire-inspector{position:static;grid-column:auto}.shelf-list{max-height:200px}.fleet-picker .units{display:block}.fleet-picker .sub{display:block;margin:6px 0}#unitDetail .tire{width:44px;font-size:10px}#unitDetail .ax{gap:3px}#unitDetail .visor3d{height:300px}.stock-shelf{order:1}#unitDetail{order:2}.tire-inspector{order:3}.workbench-controls{align-items:flex-start}.puestas{min-width:450px}}
-.tire.occupied{border:2px solid #269bbb;background:#269bbb18}.tire.occupied.low{border-color:var(--bad)}.tire.occupied.mid{border-color:var(--w)}.tire.occupied.chosen{outline:2px solid var(--o);outline-offset:2px}.tire .mounted-label{display:block;color:#1684a1;font-size:9px;font-weight:800;margin-top:4px}.wheel-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:8px 0 14px;color:var(--m)}.wheel-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.locate-tire{background:none;color:inherit;font:inherit;border:0;text-decoration:underline;cursor:pointer;padding:0;text-align:left}
+.tire.occupied{border:2px solid #269bbb;background:#269bbb18}.tire.occupied.low{border-color:var(--bad)}.tire.occupied.mid{border-color:var(--w)}
+/* Los mismos dos colores que el 3D, y en el mismo orden de lectura: la
+   rueda elegida en naranja —las dos gomas del dual— y, adentro de esa
+   rueda, la que quedó elegida en verde. En un eje con una sola cubierta
+   por lado los dos caen sobre el mismo casillero y se ve el verde, que
+   es el que contesta la pregunta. */
+.tire.rueda,.tire.occupied.rueda{border-color:var(--rueda);background:var(--rueda-suave);outline:2px solid var(--rueda);outline-offset:2px;position:relative}
+.tire.chosen,.tire.occupied.chosen{border-color:var(--goma);background:var(--goma-suave);outline:3px solid var(--goma);outline-offset:2px;position:relative}
+.tire.chosen::after{content:'ELEGIDA';display:block;margin-top:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;color:var(--goma)}
+.tire.rueda:not(.chosen)::after{content:'RUEDA';display:block;margin-top:4px;font-size:8.5px;font-weight:800;letter-spacing:.6px;color:var(--rueda)}.tire .mounted-label{display:block;color:#1684a1;font-size:9px;font-weight:800;margin-top:4px}.wheel-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;margin:8px 0 14px;color:var(--m)}.wheel-legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px}.locate-tire{background:none;color:inherit;font:inherit;border:0;text-decoration:underline;cursor:pointer;padding:0;text-align:left}
 </style>
 <script src="/tema.js"></script></head><body>
 <header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
@@ -365,6 +377,20 @@ function puestasHtml(mapa){
   }).join('')}</tbody></table></div></div>`;
 }
 
+/* Lo mismo que hace el 3D, en el mapa de posiciones: la rueda elegida
+   entera de un color y la cubierta elegida de otro. En un dual el mapa
+   tiene un casillero por goma, así que es ahí donde se ve cuál de las dos
+   es la que se está mirando. */
+function marcarEnElMapa(pos){
+  const dela=new Set(pos.map(p=>String(p.posicion_id)));
+  const elegida=String(D.benchPosition);
+  $$('.tire[data-pos]').forEach(b=>{
+    const id=String(b.dataset.pos);
+    b.classList.toggle('chosen',id===elegida);
+    b.classList.toggle('rueda',dela.has(id));
+  });
+}
+
 /* Lo que la pantalla le debe al visor: qué hacer cuando se toca una rueda.
    Se muestran las posiciones de esa rueda —en un eje dual son dos— con el
    mismo botón que abre la cubierta. */
@@ -378,7 +404,7 @@ function elegirEsquina(esq,desde3d){
   const misma=!!(desde3d&&esq&&antes&&antes.eje===esq.eje&&antes.lado===esq.lado);
   V.esquina=esq; pintarRuedas();
   const caja=$('#elegida'); if(!caja)return;
-  if(!esq){caja.innerHTML='<div class="emptymsg">Seleccionar una rueda del camión para ver qué tiene puesto.</div>';return}
+  if(!esq){V.montaje=null;pintarRuedas();marcarEnElMapa([]);caja.innerHTML='<div class="emptymsg">Seleccionar una rueda del camión para ver qué tiene puesto.</div>';return}
   const pos=posicionesDe(esq);
 
   if(pos.length===1)D.benchPosition=pos[0].posicion_id;
@@ -404,8 +430,7 @@ function elegirEsquina(esq,desde3d){
     `<div class="fila">${
     pos.length?pos.map(tire).join(''):'<span class="emptymsg">Esta rueda no tiene posiciones en el mapa de la unidad.</span>'}</div>`;
   engancharCubiertas();
-  $$('.tire[data-pos]').forEach(b=>b.classList.toggle('chosen',
-    String(b.dataset.pos)===String(D.benchPosition)));
+  marcarEnElMapa(pos);
   if(typeof pintarInspector==='function')pintarInspector();
 }
 
@@ -414,7 +439,7 @@ function engancharCubiertas(){if(typeof engancharMesa==='function')engancharMesa
 async function selectUnit(pat){D.selected=pat;D.benchToken=(D.benchToken||0)+1;const token=D.benchToken;D.map=[];D.benchPosition=null;renderUnits();apagarVisor();$('#unitDetail').innerHTML='<div class="card loading"><span class="pulse"></span>Cargando unidad…</div>';try{let d=await api('/api/mapa?patente='+encodeURIComponent(pat)),u=d.unidad,no='';if(token!==D.benchToken)return;D.map=d.mapa;D.unidadId=u.id;if(!d.mapa.length&&D.user?.puede_administrar)no=`<div class="card section"><h3>Asignar mapa</h3><div class="actions"><select id="mapChoice"><option value="">Elegir configuración</option>${D.configs.map(c=>`<option value="${c.id}">${esc(c.nombre)} — ${esc(c.descripcion||c.posiciones+' posiciones')}</option>`).join('')}</select><button class="btn" id="saveMap">Asignar</button></div></div>`;
   /* Con modelo, el camión; sin modelo, la grilla de toda la vida. */
   const con3d=d.modelo_3d&&typeof THREE!=='undefined';
-  const dibujo=(con3d?`<div class="workbench-controls"><label><input id="moveWheels" type="checkbox">Mover cubiertas desde el 3D</label><span>Desactivado: arrastrá para girar.</span></div>`+visorHtml()+'<div class="wheel-legend"><span><i style="background:#2b5a76"></i>Completa</span><span><i style="background:#36abc7"></i>Dual: una montada</span><span><i style="background:#6d3a34"></i>Sin cubiertas</span><span><i style="background:#ff7a1a"></i>Rueda elegida</span><span><i style="background:#2ee6a8"></i>Cubierta elegida</span></div><div class="elegida" id="elegida"></div>':'')+'<h3>Posiciones · montaje y retiro</h3>'+mapHtml(d.mapa);
+  const dibujo=(con3d?`<div class="workbench-controls"><label><input id="moveWheels" type="checkbox">Mover cubiertas desde el 3D</label><span>Desactivado: arrastrá para girar.</span></div>`+visorHtml()+'<div class="wheel-legend"><span><i style="background:#2b5a76"></i>Completa</span><span><i style="background:#36abc7"></i>Dual: una montada</span><span><i style="background:#6d3a34"></i>Sin cubiertas</span><span><i style="background:var(--rueda)"></i>Rueda elegida</span><span><i style="background:var(--goma)"></i>Cubierta elegida</span></div><div class="elegida" id="elegida"></div>':'')+'<h3>Posiciones · montaje y retiro</h3>'+mapHtml(d.mapa);
   $('#unitDetail').innerHTML=`<div class="card"><div class="hero"><div><h2>${esc(fmtPat(u.patente))}</h2><div class="meta">${[u.interno&&'Interno '+u.interno,u.marca,u.modelo,u.sucursal,u.uso].filter(Boolean).map(esc).join(' · ')}</div></div><span class="pill">${d.mapa.filter(x=>x.cubierta_id).length}/${d.mapa.length} posiciones ocupadas</span></div>${dibujo}</div>${no}${puestasHtml(d.mapa)}<div class="card section"><h3>Historial de cambios de la unidad <button class="verdeshechos" id="verDeshechos" hidden></button></h3><div id="histBody"></div></div>`;
   engancharCubiertas();
   D.unidadId=u.id;D.movimientos=d.movimientos||[];D.historial=d.historial||[];D.verDeshechos=false;

@@ -401,7 +401,7 @@ function ejeMasCerca(z){
 let VISOR = {};
 
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null, ejes:[],
+            anim:null, modelo:null, esquina:null, ejes:[], aro:null,
             medida:null, tocado:false };
 
 function apagarVisor(){
@@ -409,8 +409,9 @@ function apagarVisor(){
   V.anim = null;
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
+  sacarAro();
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null, ejes:[],
+                     ruedas:[], modelo:null, esquina:null, ejes:[], aro:null,
                      medida:null, tocado:false });
 }
 
@@ -959,8 +960,54 @@ function gomasDelMontaje(esquina, montaje){
   return new Set(suyas.filter(m => (lejos.get(m) < corte) === quiere));
 }
 
+/* Cuando el modelo trae el dual de una sola pieza —los dos tractores
+   vienen así— no hay media pieza que pintar de verde. En ese caso se le
+   pone un aro verde alrededor de la rueda, corrido al lado que está
+   elegido: pegado al camión la interior, del lado de afuera la exterior.
+   Contesta lo mismo que el verde y no depende de cómo venga el modelo. */
+function sacarAro(){
+  if (!V.aro) return;
+  V.aro.parent?.remove(V.aro);
+  V.aro.geometry.dispose(); V.aro.material.dispose();
+  V.aro = null;
+}
+
+function ponerAro(esquina, montaje){
+  sacarAro();
+  if (!V.escena || !esquina || !montaje) return;
+  const suyas = V.ruedas.filter(m => {
+    const e = esquinaDeLaRueda(m);
+    return e.eje === esquina.eje && e.lado === esquina.lado;
+  });
+  if (!suyas.length) return;
+
+  const caja = new THREE.Box3();
+  suyas.forEach(m => caja.union(new THREE.Box3().setFromObject(m)));
+  const centro = caja.getCenter(new THREE.Vector3());
+  const tam = caja.getSize(new THREE.Vector3());
+  const radio = Math.max(tam.y, tam.z) / 2;
+  if (!(radio > 0)) return;
+
+  /* La rueda entera va de |x| adentro a |x| afuera; el aro se planta en el
+     medio de la mitad que corresponde. */
+  const adentro = Math.min(Math.abs(caja.min.x), Math.abs(caja.max.x));
+  const afuera  = Math.max(Math.abs(caja.min.x), Math.abs(caja.max.x));
+  const donde = montaje === 'interior' ? adentro + (afuera - adentro) / 4
+                                       : afuera - (afuera - adentro) / 4;
+  const aro = new THREE.Mesh(
+    new THREE.TorusGeometry(radio * 1.12, Math.max(radio * .055, .015), 10, 48),
+    new THREE.MeshBasicMaterial({ color: RUEDA.foco }));
+  aro.rotation.y = Math.PI / 2;   // el torus queda de canto, como la rueda
+  aro.position.set(Math.sign(centro.x || 1) * donde, centro.y, centro.z);
+  aro.renderOrder = 3;
+  V.aro = aro;
+  V.escena.add(aro);
+}
+
 function pintarRuedas(){
   const enfocadas = V.montaje ? gomasDelMontaje(V.esquina, V.montaje) : null;
+  // Si el modelo no separa las dos gomas, el aro dice lo mismo.
+  if (enfocadas) sacarAro(); else ponerAro(V.esquina, V.montaje);
   for (const m of V.ruedas){
     const e = esquinaDeLaRueda(m);
     const suya = V.esquina && e.eje === V.esquina.eje &&

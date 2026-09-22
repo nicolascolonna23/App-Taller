@@ -9,6 +9,9 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  const otra={id:2,patente:'AH787DF',interno:'44',marca:'SCANIA',sucursal:'LAD',posiciones:10,montadas:10};
  const map=[];let id=1;for(let eje=1;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map.push({posicion_id:id++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id,cubierta_id:null});map.push({posicion_id:id,posicion:'AUX',eje:0,lado:'X',es_auxilio:true,orden:id,cubierta_id:null});
  Object.assign(map.find(p=>p.posicion==='2DE'),{cubierta_id:319,cubierta:'319',marca:'FATE'});
+ const map6=[];let id6=1;
+ for(const lado of ['I','D'])map6.push({posicion_id:id6++,posicion:'1'+lado,eje:1,lado,montaje:null,es_auxilio:false,orden:id6,cubierta_id:null});
+ for(let eje=2;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map6.push({posicion_id:id6++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id6,cubierta_id:null});
  await page.route('**/*',route=>{
  const req=route.request(),u=new URL(req.url()),p=u.pathname;
  if(p==='/api/interpretar')return route.fulfill({json:{parte_id:77,propuesta:{resumen:'Montar cubierta',acciones:[{tipo:'montaje',posicion:'2DE',cubierta:'319'}]}}});
@@ -17,7 +20,9 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  if(p==='/api/preferencias')return route.fulfill({json:{tema:'claro',paleta:'diemar'}});
  if(p==='/api/tablero')return route.fulfill({json:{unidades:[unit,otra],configuraciones:[],resumen_stock:{stock:stock.filter(t=>t.estado==='stock').length}}});
  if(p==='/api/desgaste')return route.fulfill({json:{instalado:false,aviso:'Sin mediciones',montadas:[]}});
- if(p==='/api/mapa')return route.fulfill({json:{unidad:unit,mapa:map,modelo_3d:'semi',modelo_3d_archivo:'trailer.obj',modelo_3d_por:'mapa',historial:[],movimientos:[]}});
+ if(p==='/api/mapa')return route.fulfill({json:u.searchParams.get('patente')===otra.patente
+ ?{unidad:otra,mapa:map6,modelo_3d:'6x2',modelo_3d_archivo:'iveco-6x2.glb',modelo_3d_por:'mapa',historial:[],movimientos:[]}
+ :{unidad:unit,mapa:map,modelo_3d:'semi',modelo_3d_archivo:'trailer.obj',modelo_3d_por:'mapa',historial:[],movimientos:[]}});
  if(p==='/api/gomeria/stock')return route.fulfill({json:stock.filter(t=>t.estado==='stock')});
  if(p==='/api/marcas')return route.fulfill({json:{marcas:[{id:1,nombre:'Fate',slug:'fate'},{id:2,nombre:'Michelin',slug:'michelin'}],medidas:[{id:1,medida:'295/80R22.5',descripcion:'La de los camiones.'}],puede_gestionar:false}});
  if(p==='/api/inventario-cubiertas')return route.fulfill({json:{cubiertas:stock,resumen:{stock:stock.filter(t=>t.estado==='stock').length}}});
@@ -141,6 +146,16 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
          'el color de la goma elegida no se movió a la otra del dual');
   assert.equal(await page.locator('.map [data-pos="'+segunda+'"].chosen').count(),1,
                'el mapa no siguió a la segunda goma');
+  // Y con los mismos colores: verde la goma elegida, naranja la otra del
+  // dual. Antes las dos quedaban del color de marca y el mapa no decía
+  // cuál de las dos se estaba mirando.
+  const borde=sel=>page.locator(sel).evaluate(e=>getComputedStyle(e).outlineColor);
+  assert.equal(await borde('.map [data-pos="'+segunda+'"].chosen'),'rgb(46, 230, 168)',
+               'la elegida no usa el verde de la referencia');
+  assert.equal(await page.locator('.map [data-pos="'+primera+'"].rueda:not(.chosen)').count(),1,
+               'la otra goma del dual no queda marcada como la misma rueda');
+  assert.equal(await borde('.map [data-pos="'+primera+'"]'),'rgb(255, 122, 26)',
+               'la otra goma del dual no usa el naranja de la referencia');
   // Elegir un casillero del mapa dice cuál: ahí no hay nada que alternar.
   await page.locator('.map [data-pos="'+segunda+'"]').click();
   assert.equal(await page.evaluate(()=>D.benchPosition),segunda,'el clic en el mapa alternó solo');
@@ -183,6 +198,33 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
   assert(arrastre.goma,'lo que sigue al mouse no es una goma');
   assert(arrastre.limpio,'la goma del arrastre quedó pegada en la página');
  }
+ // Los dos tractores traen las dos gomas del dual en una sola pieza: ahí no
+ // hay media pieza que pintar y la elegida se marca con un aro verde,
+ // corrido al lado que corresponde.
+ {
+  await page.click('#unitToggle');await page.locator('[data-pat="AH787DF"]').click();
+  await page.waitForFunction(()=>V.ruedas.length>0);
+  const pos=await page.evaluate(()=>{
+   const p=D.map.find(x=>x.posicion==='3II');
+   elegirEsquina({eje:p.eje,lado:p.lado,rotulo:'3 izquierda'},false);
+   const suyas=V.ruedas.filter(m=>{const e=esquinaDeLaRueda(m);return e.eje===p.eje&&e.lado===p.lado});
+   return {piezas:suyas.length,dividido:!!gomasDelMontaje(V.esquina,V.montaje),
+           aro:V.aro?V.aro.position.x:null,montaje:V.montaje};});
+  assert.equal(pos.piezas,1,'el modelo dejó de traer el dual de una pieza');
+  assert.equal(pos.dividido,false,'se pudo separar una pieza que es una sola');
+  assert.equal(pos.montaje,'interior');
+  assert(pos.aro!=null,'sin aro no hay forma de ver cuál de las dos gomas es');
+  const afuera=await page.evaluate(()=>{
+   elegirEsquina({...V.esquina},true);
+   return {aro:V.aro?V.aro.position.x:null,montaje:V.montaje};});
+  assert.equal(afuera.montaje,'exterior');
+  assert(Math.abs(afuera.aro)>Math.abs(pos.aro)+.1,
+         'el aro no se corre a la goma de afuera: '+pos.aro+' → '+afuera.aro);
+  await page.evaluate(()=>elegirEsquina(null,false));
+  assert.equal(await page.evaluate(()=>!!V.aro),false,'el aro queda prendido sin nada elegido');
+  await page.click('#unitToggle');await page.locator('[data-pat="AA472IP"]').click();
+  await page.waitForFunction(()=>V.ruedas.length>0);
+ }
  assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.setViewportSize({width:390,height:844});assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:'/tmp/gomeria-mesa-mobile.png',fullPage:true});
  // El alta de cubierta sugiere las marcas y medidas cargadas en Parámetros.
  await page.click('[data-tab="stock"]');
@@ -195,6 +237,6 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
  await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre, dual que alterna y goma elegida en otro color');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre, dual que alterna, goma elegida en otro color, mapa con los colores del 3D y aro en el dual de una pieza');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
