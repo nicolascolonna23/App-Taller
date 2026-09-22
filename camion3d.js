@@ -401,7 +401,7 @@ function ejeMasCerca(z){
 let VISOR = {};
 
 const V = { escena:null, camara:null, render:null, control:null, ruedas:[],
-            anim:null, modelo:null, esquina:null, ejes:[], aro:null,
+            anim:null, modelo:null, esquina:null, ejes:[],
             medida:null, tocado:false };
 
 function apagarVisor(){
@@ -409,9 +409,8 @@ function apagarVisor(){
   V.anim = null;
   if (V.render){ V.render.forceContextLoss(); V.render.dispose();
     V.render.domElement.remove(); }
-  sacarAro();
   Object.assign(V, { escena:null, camara:null, render:null, control:null,
-                     ruedas:[], modelo:null, esquina:null, ejes:[], aro:null,
+                     ruedas:[], modelo:null, esquina:null, ejes:[],
                      medida:null, tocado:false });
 }
 
@@ -960,58 +959,67 @@ function gomasDelMontaje(esquina, montaje){
   return new Set(suyas.filter(m => (lejos.get(m) < corte) === quiere));
 }
 
-/* Cuando el modelo trae el dual de una sola pieza —los dos tractores
-   vienen así— no hay media pieza que pintar de verde. En ese caso se le
-   pone un aro verde alrededor de la rueda, corrido al lado que está
-   elegido: pegado al camión la interior, del lado de afuera la exterior.
-   Contesta lo mismo que el verde y no depende de cómo venga el modelo. */
-function sacarAro(){
-  if (!V.aro) return;
-  V.aro.parent?.remove(V.aro);
-  V.aro.geometry.dispose(); V.aro.material.dispose();
-  V.aro = null;
-}
+/* Cuando el modelo trae el dual de una sola pieza —los dos tractores vienen
+   así— no hay dos mallas para pintar de distinto color, pero sí hay dos
+   mitades: la de adentro y la de afuera. Se pinta la mitad que está elegida
+   pintando sus vértices, que es lo mismo que pintar la cubierta entera.
 
-function ponerAro(esquina, montaje){
-  sacarAro();
-  if (!V.escena || !esquina || !montaje) return;
-  const suyas = V.ruedas.filter(m => {
-    const e = esquinaDeLaRueda(m);
-    return e.eje === esquina.eje && e.lado === esquina.lado;
-  });
-  if (!suyas.length) return;
+   La geometría se clona la primera vez: hay modelos que usan la misma malla
+   para las cuatro ruedas, y pintarle los vértices a una las pintaría a
+   todas. */
+const MEDIA_VERDE = new THREE.Color(RUEDA.foco);
+const MEDIA_NARANJA = new THREE.Color(RUEDA.elegida);
 
-  const caja = new THREE.Box3();
-  suyas.forEach(m => caja.union(new THREE.Box3().setFromObject(m)));
-  const centro = caja.getCenter(new THREE.Vector3());
-  const tam = caja.getSize(new THREE.Vector3());
-  const radio = Math.max(tam.y, tam.z) / 2;
-  if (!(radio > 0)) return;
-
-  /* La rueda entera va de |x| adentro a |x| afuera; el aro se planta en el
-     medio de la mitad que corresponde. */
+function pintarMedia(malla, montaje){
+  if (malla.userData.media === montaje) return true;
+  if (!malla.userData.geoPropia){
+    malla.geometry = malla.geometry.clone();
+    malla.userData.geoPropia = true;
+  }
+  const caja = new THREE.Box3().setFromObject(malla);
   const adentro = Math.min(Math.abs(caja.min.x), Math.abs(caja.max.x));
   const afuera  = Math.max(Math.abs(caja.min.x), Math.abs(caja.max.x));
-  const donde = montaje === 'interior' ? adentro + (afuera - adentro) / 4
-                                       : afuera - (afuera - adentro) / 4;
-  const aro = new THREE.Mesh(
-    new THREE.TorusGeometry(radio * 1.12, Math.max(radio * .055, .015), 10, 48),
-    new THREE.MeshBasicMaterial({ color: RUEDA.foco }));
-  aro.rotation.y = Math.PI / 2;   // el torus queda de canto, como la rueda
-  aro.position.set(Math.sign(centro.x || 1) * donde, centro.y, centro.z);
-  aro.renderOrder = 3;
-  V.aro = aro;
-  V.escena.add(aro);
+  if (afuera - adentro < DUAL_MINIMO) return false;   // no es un dual entero
+
+  const geo = malla.geometry, lugar = geo.attributes.position;
+  const corte = (adentro + afuera) / 2, quiere = montaje === 'interior';
+  const pintura = new Float32Array(lugar.count * 3), punto = new THREE.Vector3();
+  for (let i = 0; i < lugar.count; i++){
+    punto.fromBufferAttribute(lugar, i).applyMatrix4(malla.matrixWorld);
+    const c = (Math.abs(punto.x) < corte) === quiere ? MEDIA_VERDE : MEDIA_NARANJA;
+    pintura[i*3] = c.r; pintura[i*3+1] = c.g; pintura[i*3+2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(pintura, 3));
+  malla.material.vertexColors = true;
+  malla.material.color.setHex(0xffffff);   // el color sale de los vértices
+  malla.material.emissive.setHex(0x000000);
+  malla.material.needsUpdate = true;
+  malla.userData.media = montaje;
+  return true;
 }
 
+function sinMedia(malla){
+  if (!malla.userData.media) return;
+  malla.userData.media = null;
+  malla.material.vertexColors = false;
+  malla.material.needsUpdate = true;
+}
+
+/* Solo un dual tiene interior y exterior. Una rueda simple es una sola
+   cubierta y no hay mitad que buscarle. */
+const esDual = m => m === 'interior' || m === 'exterior';
+
 function pintarRuedas(){
-  const enfocadas = V.montaje ? gomasDelMontaje(V.esquina, V.montaje) : null;
-  // Si el modelo no separa las dos gomas, el aro dice lo mismo.
-  if (enfocadas) sacarAro(); else ponerAro(V.esquina, V.montaje);
+  const montaje = esDual(V.montaje) ? V.montaje : null;
+  const enfocadas = montaje ? gomasDelMontaje(V.esquina, montaje) : null;
   for (const m of V.ruedas){
     const e = esquinaDeLaRueda(m);
     const suya = V.esquina && e.eje === V.esquina.eje &&
                  (e.lado === 'ambos' || e.lado === V.esquina.lado);
+    // La rueda elegida de un dual que vino de una pieza: se le pinta la
+    // mitad que corresponde y la otra queda del naranja de la esquina.
+    if (suya && montaje && !enfocadas && pintarMedia(m, montaje)) continue;
+    sinMedia(m);
     let color = RUEDA.sin_datos;
     if (suya) {
       color = enfocadas && enfocadas.has(m) ? RUEDA.foco : RUEDA.elegida;

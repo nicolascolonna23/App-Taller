@@ -10,7 +10,7 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  const map=[];let id=1;for(let eje=1;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map.push({posicion_id:id++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id,cubierta_id:null});map.push({posicion_id:id,posicion:'AUX',eje:0,lado:'X',es_auxilio:true,orden:id,cubierta_id:null});
  Object.assign(map.find(p=>p.posicion==='2DE'),{cubierta_id:319,cubierta:'319',marca:'FATE'});
  const map6=[];let id6=1;
- for(const lado of ['I','D'])map6.push({posicion_id:id6++,posicion:'1'+lado,eje:1,lado,montaje:null,es_auxilio:false,orden:id6,cubierta_id:null});
+ for(const lado of ['I','D'])map6.push({posicion_id:id6++,posicion:'1'+lado,eje:1,lado,montaje:'unica',es_auxilio:false,orden:id6,cubierta_id:null});
  for(let eje=2;eje<=3;eje++)for(const lado of ['I','D'])for(const montaje of ['interior','exterior'])map6.push({posicion_id:id6++,posicion:`${eje}${lado}${montaje==='interior'?'I':'E'}`,eje,lado,montaje,es_auxilio:false,orden:id6,cubierta_id:null});
  await page.route('**/*',route=>{
  const req=route.request(),u=new URL(req.url()),p=u.pathname;
@@ -199,29 +199,43 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
   assert(arrastre.limpio,'la goma del arrastre quedó pegada en la página');
  }
  // Los dos tractores traen las dos gomas del dual en una sola pieza: ahí no
- // hay media pieza que pintar y la elegida se marca con un aro verde,
- // corrido al lado que corresponde.
+ // hay dos mallas que pintar de distinto color y la elegida se prende
+ // entera pintándole los vértices de esa mitad.
  {
   await page.click('#unitToggle');await page.locator('[data-pat="AH787DF"]').click();
   await page.waitForFunction(()=>V.ruedas.length>0);
-  const pos=await page.evaluate(()=>{
-   const p=D.map.find(x=>x.posicion==='3II');
-   elegirEsquina({eje:p.eje,lado:p.lado,rotulo:'3 izquierda'},false);
-   const suyas=V.ruedas.filter(m=>{const e=esquinaDeLaRueda(m);return e.eje===p.eje&&e.lado===p.lado});
-   return {piezas:suyas.length,dividido:!!gomasDelMontaje(V.esquina,V.montaje),
-           aro:V.aro?V.aro.position.x:null,montaje:V.montaje};});
-  assert.equal(pos.piezas,1,'el modelo dejó de traer el dual de una pieza');
-  assert.equal(pos.dividido,false,'se pudo separar una pieza que es una sola');
-  assert.equal(pos.montaje,'interior');
-  assert(pos.aro!=null,'sin aro no hay forma de ver cuál de las dos gomas es');
-  const afuera=await page.evaluate(()=>{
-   elegirEsquina({...V.esquina},true);
-   return {aro:V.aro?V.aro.position.x:null,montaje:V.montaje};});
+  const mirar=()=>page.evaluate(()=>{
+   const m=V.ruedas.find(m=>{const e=esquinaDeLaRueda(m);
+    return V.esquina&&e.eje===V.esquina.eje&&e.lado===V.esquina.lado;});
+   const c=m&&m.geometry.attributes.color;let verde=0;
+   if(c)for(let i=0;i<c.count;i++)if(c.array[i*3+1]>.5&&c.array[i*3]<.5)verde++;
+   return {piezas:V.ruedas.filter(x=>{const e=esquinaDeLaRueda(x);
+     return V.esquina&&e.eje===V.esquina.eje&&e.lado===V.esquina.lado;}).length,
+    media:m?.userData.media||null,vertices:c?c.count:0,verde,
+    pintada:!!m?.material.vertexColors,montaje:V.montaje};});
+  await page.evaluate(()=>{const p=D.map.find(x=>x.posicion==='3II');
+   elegirEsquina({eje:p.eje,lado:p.lado,rotulo:'3 izquierda'},false);});
+  const adentro=await mirar();
+  assert.equal(adentro.piezas,1,'el modelo dejó de traer el dual de una pieza');
+  assert.equal(adentro.montaje,'interior');
+  assert.equal(adentro.media,'interior','no se pintó la mitad de adentro');
+  assert(adentro.pintada,'la cubierta elegida no se prende entera');
+  assert(adentro.verde>0&&adentro.verde<adentro.vertices,
+         'se pintó toda la rueda en vez de la cubierta elegida: '+adentro.verde+'/'+adentro.vertices);
+  await page.evaluate(()=>elegirEsquina({...V.esquina},true));
+  const afuera=await mirar();
   assert.equal(afuera.montaje,'exterior');
-  assert(Math.abs(afuera.aro)>Math.abs(pos.aro)+.1,
-         'el aro no se corre a la goma de afuera: '+pos.aro+' → '+afuera.aro);
-  await page.evaluate(()=>elegirEsquina(null,false));
-  assert.equal(await page.evaluate(()=>!!V.aro),false,'el aro queda prendido sin nada elegido');
+  assert.equal(afuera.media,'exterior','el verde no pasó a la otra cubierta');
+  assert(afuera.verde>0&&afuera.verde!==adentro.verde,
+         'el verde no se movió de mitad');
+  // Una rueda simple es una sola cubierta: se prende entera y sin mitades.
+  await page.evaluate(()=>{const p=D.map.find(x=>x.posicion==='1I');
+   elegirEsquina({eje:p.eje,lado:p.lado,rotulo:'1 izquierda'},false);});
+  const simple=await page.evaluate(()=>{
+   const m=V.ruedas.find(x=>{const e=esquinaDeLaRueda(x);return e.eje===1&&e.lado==='I';});
+   return {media:m.userData.media||null,color:'#'+m.material.color.getHexString()};});
+  assert.equal(simple.media,null,'le buscó mitades a una rueda simple');
+  assert.equal(simple.color,'#ff7a1a','la rueda simple elegida no queda naranja');
   await page.click('#unitToggle');await page.locator('[data-pat="AA472IP"]').click();
   await page.waitForFunction(()=>V.ruedas.length>0);
  }
@@ -237,6 +251,6 @@ const {chromium}=require('playwright');const fs=require('fs'),path=require('path
  assert.equal(await page.locator('.tire-art .tacos').evaluate(e=>getComputedStyle(e).animationName),'none');
  await page.emulateMedia({reducedMotion:'no-preference'});
  admin=false;await page.reload();await page.locator('.map [data-pos="2"]').click();assert.equal(await page.locator('#removeSelected').count(),0);assert.equal(await page.locator('.map [data-pos="2"]').getAttribute('draggable'),'false');assert.deepEqual(errors,[]);
- console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre, dual que alterna, goma elegida en otro color, mapa con los colores del 3D y aro en el dual de una pieza');
+ console.log('PASS: real 3D, click mount, native slot/canvas drag in both directions, dual choice, cancel, reason, repair destination, read-only, responsive, logo de marca, goma que rueda, buscador desplegable, cámara bajo el piso, goma en el arrastre, dual que alterna, goma elegida en otro color, mapa con los colores del 3D y cubierta entera en el dual de una pieza');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
