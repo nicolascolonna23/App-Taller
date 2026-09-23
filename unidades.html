@@ -98,6 +98,10 @@
   details.revisar ul{margin:10px 0 0;padding-left:18px;color:var(--ink-2);font-size:12px;
     columns:2;column-gap:26px}
   details.revisar li{margin-bottom:3px;break-inside:avoid}
+  /* La ayuda del listado de equipos son frases, no una lista de patentes:
+     en dos columnas se leen a los tumbos. */
+  #semis-ayuda ul{columns:1;font-size:12.5px;line-height:1.55}
+  #semis-ayuda li{margin-bottom:7px}
   table.armados{width:100%;margin-top:10px;border-collapse:collapse;font-size:12px}
   table.armados td{padding:6px 8px;border-top:1px solid var(--hairline);
     vertical-align:top}
@@ -269,7 +273,7 @@
 
   <div class="solapas">
     <button class="solapa on" data-vista="unidades">Unidades</button>
-    <button class="solapa" data-vista="semis">Tractor y semi</button>
+    <button class="solapa" data-vista="semis">Asociación de equipos</button>
   </div>
 
   <div id="error" class="error" hidden></div>
@@ -316,6 +320,28 @@
        embargo sus gomas se gastan y sus papeles vencen. Sus kilómetros
        son los del tractor que lo llevó, mientras lo llevó. -->
   <section id="v-semis" hidden>
+    <p class="sub">Acá se anota <b>qué tractor lleva qué semi o acoplado y desde
+      cuándo</b>. Un semi no tiene satelital: no reporta kilómetros solo, y los
+      que se le cuentan son los que hizo el tractor mientras lo llevaba puesto.
+      Cada fila del listado es un equipo.</p>
+    <details class="revisar" id="semis-ayuda">
+      <summary>Qué dice cada columna del listado</summary>
+      <ul>
+        <li><b>Semi o acoplado</b> — el equipo, con su interno y su modelo.</li>
+        <li><b>Tractor de hoy</b> — el tractor al que está enganchado ahora.
+          <b>Suelto</b> quiere decir que hoy no lo lleva ninguno: no es un error,
+          es que está parado o esperando.</li>
+        <li><b>Desde</b> — la fecha del enganche que está abierto. Sin enganche
+          abierto va un guion.</li>
+        <li><b>Km enganchado</b> — lo que rodó el equipo mientras estuvo
+          enganchado, sumando todos sus enganches. Cuenta desde que el enganche
+          se carga acá: un equipo que nunca se enganchó en el sistema tiene 0,
+          aunque haya andado. Abajo va el último día con lectura del tractor.</li>
+        <li><b>Km del semi</b> — el odómetro del equipo en el maestro de
+          unidades: lo que traía de antes más lo que fue sumando enganchado. Es
+          el número con el que se le controlan services, cubiertas y alertas.</li>
+      </ul>
+    </details>
     <p class="sub" id="semis-sub">Cargando…</p>
     <div class="barra">
       <button class="btn" id="enganchar" hidden>+ Enganchar</button>
@@ -341,13 +367,17 @@
     <div class="caja">
       <table>
         <thead><tr>
-          <th>Semi</th><th>Tractor de hoy</th><th>Desde</th>
-          <th style="text-align:right">Km enganchado</th>
-          <th style="text-align:right">Km del semi</th><th></th>
+          <th>Semi o acoplado</th>
+          <th title="El tractor que lo lleva hoy. «Suelto» es que no lo lleva ninguno.">Tractor de hoy</th>
+          <th title="Desde cuándo está enganchado a ese tractor.">Desde</th>
+          <th style="text-align:right"
+              title="Lo que rodó mientras estuvo enganchado, desde que el enganche se carga en el sistema.">Km enganchado</th>
+          <th style="text-align:right"
+              title="El odómetro del equipo en el maestro: lo de antes más lo enganchado.">Km del semi</th><th></th>
         </tr></thead>
         <tbody id="cuerpo-semis"></tbody>
       </table>
-      <p class="vacio" id="vacio-semis" hidden>Todavía no hay semis registrados.
+      <p class="vacio" id="vacio-semis" hidden>Todavía no hay equipos registrados.
         Enganchá uno y aparece acá.</p>
     </div>
   </section>
@@ -1325,9 +1355,10 @@ async function cargarSemis() {
 
   const enganchados = d.semis.filter(s => s.tractor_id).length;
   $('#semis-sub').textContent = d.semis.length
-    ? `${d.semis.length} semis · ${enganchados} enganchados hoy. Los kilómetros salen ` +
-      'del tractor que los llevó.'
-    : 'Ningún semi registrado todavía. Al enganchar uno por primera vez, queda acá.';
+    ? `${d.semis.length} equipos · ${enganchados === 0 ? 'ninguno enganchado hoy'
+        : enganchados === 1 ? '1 enganchado hoy' : enganchados + ' enganchados hoy'}` +
+      `; ${d.semis.length - enganchados} sueltos.`
+    : 'Ningún equipo registrado todavía. Al enganchar uno por primera vez, queda acá.';
 
   $('#cuerpo-semis').innerHTML = d.semis.map(s => `
     <tr>

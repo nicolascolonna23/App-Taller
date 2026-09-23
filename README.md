@@ -115,10 +115,10 @@ Arriba a la derecha, el nombre de uno abre su cuenta: **cambiar la
 contraseña** —pide la de ahora y cierra todas las sesiones— y **cerrar
 sesión**. Está en todas las pantallas.
 
-## Tractor y semi
+## Asociación de equipos (tractor y semi)
 
 Un semi no reporta, pero sus gomas se gastan igual. En Flota, solapa
-**Tractor y semi**, se anota qué semi lleva cada tractor y desde cuándo, y
+**Asociación de equipos**, se anota qué semi lleva cada tractor y desde cuándo, y
 el semi toma los kilómetros que hizo el tractor mientras lo llevaba
 puesto. Quedan escritos en `odometros`, así que el semi entra en services,
 cubiertas y alertas como cualquier otra unidad.

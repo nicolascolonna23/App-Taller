@@ -169,12 +169,22 @@ const unidades = [
     assert(!texto.includes('$ 12.000'), 'la anulada está mostrando monto');
     await page.click('#cerrar');
 
-    // ---- tractor y semi -----------------------------------------------
+    // ---- asociación de equipos ----------------------------------------
+    assert.equal((await page.locator('[data-vista="semis"]').innerText()).trim(),
+                 'Asociación de equipos');
     await page.click('[data-vista="semis"]');
     await page.locator('#cuerpo-semis tr').first().waitFor();
+    // El listado se explica solo: qué es cada fila y qué dice cada columna.
+    const ayuda = await page.locator('#semis-ayuda').evaluate(e => e.textContent);
+    for (const x of ['Tractor de hoy', 'Suelto', 'Km enganchado', 'Km del semi'])
+      assert(ayuda.includes(x), `la ayuda del listado no explica "${x}": ${ayuda}`);
+    assert((await page.locator('#v-semis > .sub').first().innerText()).includes('no tiene satelital'),
+           'no dice de dónde salen los kilómetros de un equipo');
+    assert((await page.locator('#semis-sub').innerText()).includes('1 enganchado hoy'),
+           'el resumen no dice cuántos están enganchados');
     const semis = await page.locator('#cuerpo-semis').innerText();
     for (const x of ['AE 456 MJ', 'AH 522 SI', '1.600', 'suelto'])
-      assert(semis.includes(x), `falta "${x}" en el submódulo tractor–semi: ${semis}`);
+      assert(semis.includes(x), `falta "${x}" en la asociación de equipos: ${semis}`);
     // El que está suelto no ofrece desenganchar: no hay nada que soltar.
     assert.equal(await page.locator('[data-desenganchar]').count(), 1);
     await page.click('#enganchar');
@@ -208,6 +218,6 @@ const unidades = [
     await page.click('#cerrar');
     await page.screenshot({ path:'/tmp/flota-listado.png', fullPage:true });
     assert.deepEqual(errores, [], 'errores de JS: ' + errores.join(' | '));
-    console.log('PASS: chasis 2ª columna; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; el semi toma los km del tractor; baja y reactivación avisan qué queda colgando.');
+    console.log('PASS: chasis 2ª columna; asociación de equipos explicada; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; el semi toma los km del tractor; baja y reactivación avisan qué queda colgando.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

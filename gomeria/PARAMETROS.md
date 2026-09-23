@@ -106,9 +106,9 @@ update usuarios set es_maestro = false;
 update usuarios set es_maestro = true where usuario = 'elquesea';
 ```
 
-## 6. Tractor y semi
+## 6. Asociación de equipos (tractor y semi)
 
-En Flota, solapa **Tractor y semi**. Un semi no tiene satelital: no tiene
+En Flota, solapa **Asociación de equipos**. Un semi no tiene satelital: no tiene
 motor, no reporta, y sin embargo sus cubiertas se gastan, sus frenos se
 ajustan y sus papeles vencen. Hasta acá el sistema sabía de él lo que
 decía una columna de texto en el tractor, que solo puede decir el de hoy y
