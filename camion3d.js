@@ -967,8 +967,9 @@ function gomasDelMontaje(esquina, montaje){
    La geometría se clona la primera vez: hay modelos que usan la misma malla
    para las cuatro ruedas, y pintarle los vértices a una las pintaría a
    todas. */
-const MEDIA_VERDE = new THREE.Color(RUEDA.foco);
-const MEDIA_NARANJA = new THREE.Color(RUEDA.elegida);
+// Los colores se arman al primer uso: este archivo se carga en pantallas
+// que todavía no bajaron three.js.
+let MEDIA_VERDE = null, MEDIA_NARANJA = null;
 
 function pintarMedia(malla, montaje){
   if (malla.userData.media === montaje) return true;
@@ -981,6 +982,10 @@ function pintarMedia(malla, montaje){
   const afuera  = Math.max(Math.abs(caja.min.x), Math.abs(caja.max.x));
   if (afuera - adentro < DUAL_MINIMO) return false;   // no es un dual entero
 
+  if (!MEDIA_VERDE){
+    MEDIA_VERDE = new THREE.Color(RUEDA.foco);
+    MEDIA_NARANJA = new THREE.Color(RUEDA.elegida);
+  }
   const geo = malla.geometry, lugar = geo.attributes.position;
   const corte = (adentro + afuera) / 2, quiere = montaje === 'interior';
   const pintura = new Float32Array(lugar.count * 3), punto = new THREE.Vector3();

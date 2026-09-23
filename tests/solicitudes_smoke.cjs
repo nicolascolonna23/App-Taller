@@ -50,11 +50,14 @@ const datos = {
   try {
     const page = await browser.newPage({viewport: {width: 1440, height: 1000}});
     const errores = [], pedidos = [];
+    let roto = null;   // lo que contesta /api/solicitudes cuando la base no está
     page.on('pageerror', e => errores.push(e.message));
     await page.route('**/*', route => {
       const req = route.request(), url = new URL(req.url());
       if (url.pathname === '/api/solicitudes') {
-        if (req.method() === 'GET') return route.fulfill({json: datos});
+        if (req.method() === 'GET') return roto
+          ? route.fulfill({status: 503, json: {error: roto}})
+          : route.fulfill({json: datos});
         const cuerpo = req.postDataJSON();
         pedidos.push(cuerpo);
         if (cuerpo.op === 'ficha')
@@ -139,9 +142,22 @@ const datos = {
     await page.setViewportSize({width: 390, height: 844});
     assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
            'la pantalla de solicitudes desborda a lo ancho en el celular');
+    // Si a la base le falta algo, la tabla lo dice: quedarse en "Cargando…"
+    // para siempre parece un cuelgue y no un script sin correr.
+    roto = 'A la base le falta la columna «chofer»: la crea gomeria/07_unidades.sql.';
+    await page.setViewportSize({width: 1440, height: 1000});
+    await page.reload();
+    await page.locator('#filas').getByText(/chofer/).waitFor();
+    assert((await page.locator('#filas').innerText()).includes('07_unidades.sql'),
+           'la tabla no dice qué le falta a la base');
+    assert(!(await page.locator('#filas').innerText()).includes('Cargando'),
+           'la tabla se queda cargando para siempre');
+    assert((await page.locator('#pie').innerText()).includes('chofer'),
+           'el pie tampoco lo dice');
+
     assert.deepEqual(errores, []);
     console.log('PASS: bandeja por urgencia, mi sucursal y la red, alta sin número ' +
-                'ni estado, aprobar/rechazar en un clic, solicitud impresa y celular.');
+                'ni estado, aprobar/rechazar en un clic, solicitud impresa, celular y el aviso de lo que falta en la base.');
   } finally {
     await browser.close();
   }

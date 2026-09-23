@@ -49,6 +49,13 @@ Nunca usaste Supabase, así que va paso a paso. Es gratis para este tamaño.
 > puerto 6543 y no soporta algunas cosas que el programa necesita. Si ves 6543
 > en la línea, elegiste el que no va.
 
+> Si una pantalla dice que a la base le falta una tabla, una vista o una
+> columna, el nombre que muestra es el que dice Postgres y el script que
+> nombra es el que la crea —el sistema lo busca en los `.sql` de esta
+> carpeta—. Hay que pegar ese archivo **entero**, de la primera línea a la
+> última: un script cortado a la mitad deja la base a medio hacer y el
+> próximo cartel habla de otra cosa.
+
 > El plan gratis pausa el proyecto si no lo tocás por una semana. Se despausa
 > solo desde el panel, pero la primera consulta después de eso tarda unos
 > segundos.

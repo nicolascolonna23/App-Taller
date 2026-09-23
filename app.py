@@ -394,11 +394,11 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(alr.services(cx)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta actualizar los services. Ejecutar gomeria/20_alertas.sql y "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
-                    "en Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
+                        "en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los services: {e}", 500)
@@ -409,8 +409,8 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(mant.listar(cx)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e, "Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la parametrización: {e}", 500)
@@ -523,10 +523,10 @@ class App(gom.Handler):
                 self.send_header("X-Unidades", str(cuantas))
                 self.end_headers()
                 return self.wfile.write(cuerpo)
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear la vista de unidades. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo armar el Excel: {e}", 500)
@@ -605,14 +605,14 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(uni.listar(cx, self.usuario)))
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "Al maestro de unidades le faltan columnas. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear la vista de unidades. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro de unidades: {e}", 500)
@@ -624,15 +624,15 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(ots.listar(cx, self.usuario)))
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de órdenes de trabajo. Ejecutar "
-                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+                        "gomeria/15_ordenes.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "A las órdenes de trabajo les faltan columnas. Ejecutar "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
-                    "en el SQL Editor de Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
+                        "en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las órdenes: {e}", 500)
@@ -647,10 +647,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(sol.listar(cx, self.usuario)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de solicitudes. Ejecutar "
-                    "gomeria/26_solicitudes.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/26_solicitudes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las solicitudes: {e}", 500)
@@ -665,10 +665,10 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(permisos.panel(cx, self.usuario)))
             except PermissionError as e:
                 return self._error(str(e), 403)
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de roles. Ejecutar "
-                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/27_roles.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los usuarios: {e}", 500)
@@ -727,10 +727,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(par.panel(cx, self.usuario)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Faltan los parámetros. Ejecutar gomeria/29_parametros.sql "
-                    "en el SQL Editor de Supabase.", 503)
+                        "en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los parámetros: {e}", 500)
@@ -742,10 +742,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(eng.panel(cx, self.usuario)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear la tabla de enganches. Ejecutar "
-                    "gomeria/29_parametros.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/29_parametros.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los enganches: {e}", 500)
@@ -766,10 +766,10 @@ class App(gom.Handler):
                               "medidas": mcs.medidas(cx, todas),
                               "puede_gestionar": permisos.gestiona(self.usuario)}
                     return self._responder(gom.jstr(salida))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Faltan las marcas y medidas. Ejecutar "
-                    "gomeria/31_marcas_medidas.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/31_marcas_medidas.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las marcas: {e}", 500)
@@ -780,10 +780,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(venc.listar(cx)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta actualizar vencimientos. Ejecutar 06_vencimientos.sql y "
-                    "gomeria/30_avisos_y_reportes.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/30_avisos_y_reportes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los vencimientos: {e}", 500)
@@ -948,15 +948,15 @@ class App(gom.Handler):
                 return self._error(str(e), 403)
             except ValueError as e:
                 return self._error(str(e))
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de órdenes de trabajo. Ejecutar "
-                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+                        "gomeria/15_ordenes.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "A las órdenes de trabajo les faltan columnas. Ejecutar "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
-                    "en el SQL Editor de Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
+                        "en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la orden: {e}", 500)
@@ -980,10 +980,10 @@ class App(gom.Handler):
                 return self._error(str(e), 403)
             except ValueError as e:
                 return self._error(str(e))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de solicitudes. Ejecutar "
-                    "gomeria/26_solicitudes.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/26_solicitudes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la solicitud: {e}", 500)
@@ -1008,10 +1008,10 @@ class App(gom.Handler):
                 return self._error(str(e))
             except psycopg.errors.UniqueViolation:
                 return self._error("Ese usuario ya existe.")
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de roles. Ejecutar "
-                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/27_roles.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar: {e}", 500)
@@ -1066,8 +1066,8 @@ class App(gom.Handler):
                 return self._error(str(e))
             except psycopg.errors.UniqueViolation:
                 return self._error("Ya existe un plan con ese nombre.")
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e, "Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la parametrización: {e}", 500)
@@ -1171,8 +1171,8 @@ class App(gom.Handler):
             return self._error(str(e))
         except psycopg.errors.UniqueViolation as e:
             return self._error("Eso ya estaba cargado.", 409)
-        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-            return self._error(f"Falta correr {script} en el SQL Editor de Supabase.", 503)
+        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+            return self._error(base.que_falta(e,f"Falta correr {script} en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo guardar {que}: {e}", 500)
@@ -1217,9 +1217,9 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedTable:
-            return self._error("Falta crear las tablas de alertas. Ejecutar "
-                               "gomeria/20_alertas.sql en el SQL Editor de Supabase.", 503)
+        except psycopg.errors.UndefinedTable as e:
+            return self._error(base.que_falta(e, "Falta crear las tablas de alertas. Ejecutar "
+                                   "gomeria/20_alertas.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo guardar: {e}", 500)
@@ -1327,10 +1327,10 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedTable:
-            return self._error(
+        except psycopg.errors.UndefinedTable as e:
+            return self._error(base.que_falta(e,
                 "Falta crear las tablas de combustible. Ejecutar "
-                "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
+                    "gomeria/10_combustible.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo procesar el archivo: {e}", 500)
@@ -1359,10 +1359,10 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedColumn:
-            return self._error(
+        except psycopg.errors.UndefinedColumn as e:
+            return self._error(base.que_falta(e,
                 "Al maestro de unidades le faltan columnas. Ejecutar "
-                "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                    "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo guardar la unidad: {e}", 500)
