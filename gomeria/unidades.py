@@ -774,6 +774,60 @@ def guardar(cx, datos, usuario=None):
     return una(cx, fila["id"])
 
 
+def en_lote(cx, datos, usuario=None):
+    """Cambia la residencia —o marca como semi— a varias unidades de una.
+
+    El maestro entra con lo que trae la planilla y lo que no trae hay que
+    ponerlo a mano. Cuarenta semis sin residencia son cuarenta fichas que
+    se abren, se completan y se cierran de a una: el mismo cambio, escrito
+    cuarenta veces, con la chance de equivocarse en cualquiera de ellas.
+
+    Marcar un semi no es solo la columna `es_semi`, que es la que lo hace
+    aparecer en Asociación de equipos: el resto del sistema mira `uso`
+    para saber qué dibuja y qué le controla, así que se escriben las dos o
+    la unidad queda a medio camino.
+    """
+    _exigir_gestor(usuario, "cambiar varias unidades de una vez")
+
+    ids = []
+    for valor in (datos.get("ids") or []):
+        try:
+            ids.append(int(valor))
+        except (TypeError, ValueError):
+            continue
+    ids = sorted(set(ids))
+    if not ids:
+        raise ValueError("No se eligió ninguna unidad.")
+    if len(ids) > 500:
+        raise ValueError("Son demasiadas unidades para un solo cambio.")
+
+    campos, valores = [], []
+    if "sucursal" in datos and str(datos.get("sucursal") or "").strip():
+        campos.append("sucursal = %s")
+        valores.append((_texto(datos["sucursal"], 40) or "").upper())
+    if datos.get("es_semi") is not None:
+        campos.append("es_semi = %s")
+        valores.append(bool(datos["es_semi"]))
+        if datos["es_semi"]:
+            campos.append("uso = %s")
+            valores.append("SEMIRREMOLQUE")
+        else:
+            # Al desmarcarlo se borra el uso solo si era el de un semi: el
+            # que decía "LARGA DISTANCIA" no lo escribió esta pantalla.
+            # Los % van dobles: la consulta pasa por psycopg, que usa %s.
+            campos.append("uso = case when upper(coalesce(uso, '')) like 'SEMI%%'"
+                          " or upper(coalesce(uso, '')) like '%%REMOLQUE%%'"
+                          " then null else uso end")
+    if not campos:
+        raise ValueError("No se eligió qué cambiarles.")
+
+    filas = cx.execute(
+        f"update unidades set {', '.join(campos)} where id = any(%s) returning patente",
+        valores + [ids]).fetchall()
+    return {"cambiadas": len(filas),
+            "patentes": [f["patente"] for f in filas]}
+
+
 def pendientes_de(cx, unidad_id):
     """Qué le sigue colgando a una unidad cuando se la da de baja.
 

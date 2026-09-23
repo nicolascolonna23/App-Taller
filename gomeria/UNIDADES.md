@@ -72,6 +72,25 @@ la tabla ordenable por cualquier columna. Se hace clic en una fila y se abre
 la ficha. El chasis va al lado de la patente: son los dos números con los que
 se identifica una unidad afuera de la empresa, y se piden juntos.
 
+### Cambiar varias de una vez
+
+La planilla de la que sale el maestro no trae residencia y no dice cuál es
+un semi: eso se completa a mano, y de a una son cuarenta fichas abiertas y
+cerradas. Cada fila tiene un **casillero** a la izquierda, el de la cabecera
+tilda **todo lo que está filtrado**, y con algo tildado aparece una barra
+con dos cosas:
+
+- **Residencia** — la misma para todas las tildadas.
+- **Semi o acoplado** — *marcar* escribe `es_semi` y deja el uso en
+  `SEMIRREMOLQUE`; las dos, porque `es_semi` es lo que lo hace aparecer en
+  Asociación de equipos y `uso` es lo que mira el resto del sistema para
+  saber qué dibuja y qué le controla. *Quitar la marca* borra el uso solo si
+  era el de un semi: el que decía `LARGA DISTANCIA` no lo escribió esta
+  pantalla.
+
+Tildar no abre la ficha, y el cambio pide el mismo permiso que editar una
+unidad: encargado o administrador.
+
 ### Dar de baja
 
 El botón **Dar de baja** de la ficha saca la unidad de la operación. Es una

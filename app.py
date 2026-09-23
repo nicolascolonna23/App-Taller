@@ -1347,6 +1347,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = uni.eliminar(cx, datos.get("id"), self.usuario)
+                elif (datos.get("op") or "") == "lote":
+                    # El mismo cambio sobre varias unidades: residencia y
+                    # marca de semi, que es lo que entra vacío de la planilla.
+                    salida = uni.en_lote(cx, datos, self.usuario)
                 elif (datos.get("op") or "") == "baja":
                     # Dar de baja no es borrar: es sacarla de la operación.
                     salida = uni.dar_de_baja(cx, datos.get("id"),

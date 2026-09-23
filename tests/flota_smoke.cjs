@@ -24,7 +24,7 @@ const unidades = [
   try {
     const page = await browser.newPage({ viewport:{ width:1440, height:1000 } });
     const errores = [], enganches = []; page.on('pageerror', e => errores.push(e.message));
-    let pedidoExcel = null; const bajas = [];
+    let pedidoExcel = null; const bajas = [], lotes = [];
 
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
@@ -36,6 +36,17 @@ const unidades = [
       }
       if (p === '/api/unidades' && route.request().method() === 'POST') {
         const cuerpo = route.request().postDataJSON();
+        // El mismo cambio sobre varias: residencia y marca de semi.
+        if (cuerpo.op === 'lote') {
+          lotes.push(cuerpo);
+          for (const id of cuerpo.ids) {
+            const u = unidades.find(x => x.id === id);
+            if (!u) continue;
+            if (cuerpo.sucursal) u.sucursal = cuerpo.sucursal.toUpperCase();
+            if (cuerpo.es_semi) u.uso = 'SEMIRREMOLQUE';
+          }
+          return route.fulfill({ json:{ cambiadas:cuerpo.ids.length, patentes:[] } });
+        }
         bajas.push(cuerpo);
         const u = unidades.find(x => x.id === cuerpo.id);
         if (u) u.activa = !!cuerpo.activa;
@@ -107,11 +118,12 @@ const unidades = [
     await page.locator('#cuerpo tr').first().waitFor();
 
     // ---- el chasis al lado de la patente ------------------------------
-    const cab = await page.locator('#cabecera th').allInnerTexts();
+    // Las columnas de datos: la primera es la del casillero para tildar.
+    const cab = await page.locator('#cabecera th[data-k]').allInnerTexts();
     assert.equal(cab[0].trim().toUpperCase().replace(/\s*[▲▼]$/,''), 'PATENTE', 'la 1ª no es Patente: ' + cab[0]);
     assert.equal(cab[1].trim().toUpperCase().replace(/\s*[▲▼]$/,''), 'CHASIS', 'la 2ª no es Chasis: ' + cab[1]);
     assert.equal(cab.filter(t => /CHASIS/i.test(t)).length, 1, 'el chasis quedó dos veces');
-    const fila1 = await page.locator('#cuerpo tr').first().locator('td').allInnerTexts();
+    const fila1 = await page.locator('#cuerpo tr').first().locator('td:not(.tilde-col)').allInnerTexts();
     assert(/^\d|^[0-9A-Z]{10,}/.test(fila1[1].trim()), 'la 2ª celda no es el chasis: ' + fila1[1]);
 
     // ---- Excel: manda lo que se ve ------------------------------------
@@ -169,6 +181,38 @@ const unidades = [
     assert(!texto.includes('$ 12.000'), 'la anulada está mostrando monto');
     await page.click('#cerrar');
 
+    // ---- el mismo cambio sobre varias unidades -------------------------
+    // El maestro entra sin residencia y sin decir cuál es semi: de a una
+    // son cuarenta fichas, así que se tildan y se cambian juntas.
+    {
+      await page.locator('#tilde-todas').waitFor();
+      assert(await page.locator('#lote').isHidden(), 'la barra del lote se ve sin nada tildado');
+      await page.click('#tilde-todas');
+      await page.locator('#lote').waitFor();
+      const cuantas = await page.locator('#cuerpo tr').count();
+      assert((await page.locator('#lote-cuantas').innerText()).startsWith(String(cuantas)),
+             'no dice cuántas quedaron tildadas');
+      // La que no va se destilda: es el caso real, todas menos una.
+      await page.click('#cuerpo tr:has-text("AH 522 SI") [data-tilde]');
+      assert((await page.locator('#lote-cuantas').innerText()).startsWith(String(cuantas - 1)));
+      // Tildar no abre la ficha: el clic en el casillero es otra cosa.
+      assert(await page.locator('#fondo').isHidden(), 'tildar abrió la ficha');
+      // Sin decir qué cambiar, no se manda nada.
+      await page.click('#lote-aplicar');
+      assert.equal(lotes.length, 0, 'mandó un lote sin decir qué cambiar');
+      assert(!await page.locator('#error').isHidden(), 'no avisa que falta elegir qué cambiar');
+      await page.fill('#l-sucursal', 'lad');
+      await page.selectOption('#l-semi', '1');
+      await page.click('#lote-aplicar');
+      await page.waitForFunction(() => document.querySelector('#lote').hidden);
+      assert.equal(lotes.length, 1);
+      assert.equal(lotes[0].sucursal, 'lad');
+      assert.equal(lotes[0].es_semi, true);
+      assert(!lotes[0].ids.includes(1), 'mandó la que se había destildado');
+      assert((await page.locator('#cuerpo').innerText()).includes('SEMIRREMOLQUE'),
+             'la tabla no muestra el cambio');
+    }
+
     // ---- asociación de equipos ----------------------------------------
     assert.equal((await page.locator('[data-vista="semis"]').innerText()).trim(),
                  'Asociación de equipos');
@@ -218,6 +262,6 @@ const unidades = [
     await page.click('#cerrar');
     await page.screenshot({ path:'/tmp/flota-listado.png', fullPage:true });
     assert.deepEqual(errores, [], 'errores de JS: ' + errores.join(' | '));
-    console.log('PASS: chasis 2ª columna; asociación de equipos explicada; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; el semi toma los km del tractor; baja y reactivación avisan qué queda colgando.');
+    console.log('PASS: chasis 2ª columna; cambio en lote de residencia y semi; asociación de equipos explicada; Excel y PDF exportan lo filtrado; la ficha muestra el historial de taller con montos; el semi toma los km del tractor; baja y reactivación avisan qué queda colgando.');
   } finally { await browser.close(); }
 })().catch(e => { console.error(e); process.exitCode = 1; });

@@ -102,6 +102,15 @@
      en dos columnas se leen a los tumbos. */
   #semis-ayuda ul{columns:1;font-size:12.5px;line-height:1.55}
   #semis-ayuda li{margin-bottom:7px}
+  /* La barra del cambio en lote: la misma fila de controles que los filtros,
+     pero marcada, porque lo que hace toca varias unidades a la vez. */
+  .lote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;
+    padding:10px 14px;border-radius:12px;background:var(--surface-1);
+    border:1px solid var(--brand)}
+  .lote label{font-size:12px;color:var(--ink-2)}
+  .lote .apagado{font-size:11.5px}
+  .tilde{width:16px;height:16px;cursor:pointer;accent-color:var(--brand)}
+  th.tilde-col,td.tilde-col{width:34px;text-align:center}
   table.armados{width:100%;margin-top:10px;border-collapse:collapse;font-size:12px}
   table.armados td{padding:6px 8px;border-top:1px solid var(--hairline);
     vertical-align:top}
@@ -305,6 +314,24 @@
     <button class="btn gris" id="exp-pdf" type="button"
             title="Abre el diálogo de impresión, donde se debe seleccionar «Guardar como PDF»">PDF</button>
     <span class="cuenta" id="cuenta"></span>
+  </div>
+
+  <!-- El mismo cambio sobre varias unidades. Aparece recién cuando hay
+       algo tildado: el resto del tiempo no tiene nada que decir. -->
+  <div class="lote" id="lote" hidden>
+    <b id="lote-cuantas"></b>
+    <label for="l-sucursal">Residencia</label>
+    <input id="l-sucursal" list="sucursales" placeholder="Dejar como está" size="12">
+    <label for="l-semi">Semi o acoplado</label>
+    <select id="l-semi">
+      <option value="">Dejar como está</option>
+      <option value="1">Marcar como semi</option>
+      <option value="0">Quitar la marca de semi</option>
+    </select>
+    <button class="btn" id="lote-aplicar" type="button">Aplicar a las tildadas</button>
+    <button class="btn gris" id="lote-limpiar" type="button">Destildar todo</button>
+    <span class="apagado">Marcar como semi lo deja con uso SEMIRREMOLQUE y lo hace
+      aparecer en Asociación de equipos.</span>
   </div>
 
   <div class="caja">
@@ -534,14 +561,24 @@ let PUEDE = false;          /* si el usuario puede escribir */
 
 /* ------------------------------------------------------------------ */
 function pintarCabecera(){
-  $('#cabecera').innerHTML = COLS.map(c =>
+  $('#cabecera').innerHTML = (PUEDE
+      ? '<th class="tilde-col"><input type="checkbox" class="tilde" id="tilde-todas"' +
+        ' title="Tildar todo lo que está filtrado"></th>' : '') +
+    COLS.map(c =>
     `<th data-k="${c.k}">${c.t}${ORDEN.col === c.k
       ? ` <span class="flecha">${ORDEN.asc ? '▲' : '▼'}</span>` : ''}</th>`).join('');
-  document.querySelectorAll('#cabecera th').forEach(th => th.onclick = () => {
+  document.querySelectorAll('#cabecera th[data-k]').forEach(th => th.onclick = () => {
     const k = th.dataset.k;
     ORDEN = { col:k, asc: ORDEN.col === k ? !ORDEN.asc : true };
     pintarCabecera(); pintar();
   });
+  const todas = $('#tilde-todas');
+  if (todas) todas.onclick = () => {
+    const filas = filtradas();
+    if (todas.checked) filas.forEach(u => TILDADAS.add(u.id));
+    else filas.forEach(u => TILDADAS.delete(u.id));
+    pintar();
+  };
 }
 
 function filtradas(){
@@ -581,13 +618,63 @@ function pintar(){
   const filas = ordenar(filtradas());
   $('#cuerpo').innerHTML = filas.map(u =>
     `<tr data-id="${u.id}" class="${u.activa ? '' : 'baja'}">` +
+    (PUEDE ? `<td class="tilde-col"><input type="checkbox" class="tilde" data-tilde="${u.id}"` +
+             `${TILDADAS.has(u.id) ? ' checked' : ''}` +
+             ` aria-label="Elegir ${esc(fmtPat(u.patente))}"></td>` : '') +
     COLS.map(c => `<td>${c.v(u)}</td>`).join('') + '</tr>').join('');
   $('#vacio').hidden = filas.length > 0;
   const total = DATOS.unidades.length;
   $('#cuenta').textContent = filas.length === total
     ? `${total} unidades` : `${filas.length} de ${total}`;
   document.querySelectorAll('#cuerpo tr').forEach(tr =>
-    tr.onclick = () => abrir(DATOS.unidades.find(u => String(u.id) === tr.dataset.id)));
+    tr.onclick = ev => {
+      /* El tilde elige, no abre la ficha: son dos cosas distintas hechas
+         sobre la misma fila. */
+      const tilde = ev.target.closest('[data-tilde]');
+      if (tilde) {
+        const id = Number(tilde.dataset.tilde);
+        if (tilde.checked) TILDADAS.add(id); else TILDADAS.delete(id);
+        return pintarLote();
+      }
+      abrir(DATOS.unidades.find(u => String(u.id) === tr.dataset.id));
+    });
+  pintarLote();
+}
+
+/* ------------------------------------------------------------------ */
+/* El mismo cambio sobre varias unidades                                */
+/* ------------------------------------------------------------------ */
+/* La planilla de la que sale el maestro no trae residencia ni dice cuál
+   es un semi: eso se completa acá, y de a una son cuarenta fichas. */
+const TILDADAS = new Set();
+
+function pintarLote(){
+  const caja = $('#lote');
+  if (!caja) return;
+  caja.hidden = !PUEDE || TILDADAS.size === 0;
+  $('#lote-cuantas').textContent = TILDADAS.size === 1
+    ? '1 unidad tildada' : `${TILDADAS.size} unidades tildadas`;
+  const filas = filtradas(), todas = $('#tilde-todas');
+  if (todas) todas.checked = filas.length > 0 && filas.every(u => TILDADAS.has(u.id));
+}
+
+async function aplicarLote(){
+  const sucursal = $('#l-sucursal').value.trim();
+  const semi = $('#l-semi').value;
+  if (!sucursal && !semi) return avisar('Elegí qué cambiarles: la residencia, la marca de semi, o las dos.');
+  const cuerpo = { op:'lote', ids:[...TILDADAS] };
+  if (sucursal) cuerpo.sucursal = sucursal;
+  if (semi) cuerpo.es_semi = semi === '1';
+  $('#lote-aplicar').disabled = true;
+  try {
+    const d = await mandar(cuerpo);
+    $('#error').hidden = true;
+    TILDADAS.clear();
+    $('#l-sucursal').value = ''; $('#l-semi').value = '';
+    await cargar();
+    $('#cuenta').textContent += ` · ${d.cambiadas} cambiada${d.cambiadas === 1 ? '' : 's'}`;
+  } catch (err) { avisar(err.message); }
+  finally { $('#lote-aplicar').disabled = false; }
 }
 
 /* ------------------------------------------------------------------ */
@@ -621,6 +708,9 @@ function rotuloFiltros(){
 /* El Excel lo arma el servidor: el navegador manda qué unidades, y cada
    fila se relee de la base. Así el archivo no puede salir con algo que
    la pantalla tenía desactualizado. */
+$('#lote-aplicar').onclick = aplicarLote;
+$('#lote-limpiar').onclick = () => { TILDADAS.clear(); pintar(); };
+
 $('#exp-excel').onclick = () => {
   const filas = comoSeVe();
   if (!filas.length) return avisar('No hay unidades para exportar con ese filtro.');
@@ -1316,6 +1406,9 @@ fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   PUEDE = d.gestiona !== undefined ? !!d.gestiona : ['admin','encargado'].includes(d.rol);
   $('#quien').textContent = `${d.nombre} · ${d.rol_nombre || d.rol}`;
   $('#nueva').hidden = !PUEDE;
+  // Quién es llega después del primer dibujo: la columna de tildes es
+  // suya, así que la tabla se vuelve a pintar cuando se sabe.
+  if (PUEDE) { pintarCabecera(); pintar(); }
   if (!PUEDE) $('.sub').textContent += ' Solo lectura: para editar hace falta ser encargado.';
 }).catch(() => {});
 
