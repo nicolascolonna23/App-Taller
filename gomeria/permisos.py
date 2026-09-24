@@ -71,7 +71,8 @@ CODIGOS = tuple(m[0] for m in MODULOS)
 LIBRES = ("/", "/configuracion", "/movil", "/salir")
 
 # Qué módulo protege cada dirección. Las que no están acá —los archivos
-# estáticos, el login, /api/yo— no piden módulo.
+# estáticos, el login, /api/yo— no piden módulo. Una tupla quiere decir
+# «cualquiera de estos»: la dirección la usan pantallas de dos módulos.
 #
 # El orden importa: se busca primero la coincidencia exacta y después por
 # prefijo, así `/api/unidades/exportar` cae en el módulo de unidades sin
@@ -99,6 +100,32 @@ RUTAS = {
     # El enganche tractor–semi es un submódulo de Flota: se abre desde el
     # maestro de unidades y vive de sus mismos datos.
     "/api/enganches": "unidades",
+
+    # La pantalla de Gomería llama a estas direcciones sin el /gomeria
+    # adelante. Sin nombrarlas acá, quien no tenía Gomería podía cargar y
+    # confirmar partes igual, llamándolas a mano.
+    "/api/interpretar": "gomeria", "/api/confirmar": "gomeria",
+    "/api/descartar": "gomeria", "/api/cubiertas": "gomeria",
+    "/api/cubierta": "gomeria", "/api/desgaste": "gomeria",
+    "/api/inventario-cubiertas": "gomeria", "/api/mapa": "gomeria",
+    "/api/movimientos": "gomeria", "/api/movimientos-unidad": "gomeria",
+
+    # Los tableros de flota y mantenimiento.
+    "/api/services": "flota", "/api/mantenimiento": "flota",
+    # El kilómetro de una unidad en una fecha: lo piden el control de
+    # flota y la carga de órdenes desde el celular.
+    "/api/odometro": ("flota", "ordenes"),
+
+    # Los vales de mantenimiento: los piden las sucursales y los resuelve
+    # mantenimiento. Además, flota_vales revisa su propio acceso por sucursal.
+    "/vales": ("flota", "solicitudes"), "/api/vales": ("flota", "solicitudes"),
+
+    "/asistente/guia": "asistente",
+    "/repuestos/etiquetas": "repuestos",
+
+    # /api/reportes-chofer no pide módulo acá: lo usan el chofer (módulo
+    # Reportar fallas) y quien convierte el reporte en orden (Solicitudes),
+    # y reportes_chofer.py revisa cada caso adentro.
 }
 
 PREFIJOS = (
@@ -106,12 +133,18 @@ PREFIJOS = (
     ("/api/repuestos/", "repuestos"),
     ("/api/solicitudes/", "solicitudes"),
     ("/gomeria/", "gomeria"),
+    # El cambio de cubierta tocando la rueda del 3D: está en Gomería y en
+    # la ficha de la unidad.
+    ("/api/gomeria/", ("gomeria", "unidades")),
     ("/u/", "gomeria"),
 )
 
 
 def modulo_de(ruta):
-    """El módulo que protege esa dirección, o None si no pide ninguno."""
+    """El módulo que protege esa dirección, o None si no pide ninguno.
+
+    Puede ser una tupla de módulos: alcanza con tener uno.
+    """
     ruta = (ruta or "").split("?")[0]
     if ruta in LIBRES:
         return None
@@ -196,7 +229,18 @@ def puede_ver(usuario, modulo):
     usuario = usuario or {}
     if usuario.get("administra"):
         return True          # el que administra no se cierra afuera solo
-    return modulo in (usuario.get("modulos") or ())
+    tiene = usuario.get("modulos") or ()
+    if isinstance(modulo, tuple):
+        return any(m in tiene for m in modulo)
+    return modulo in tiene
+
+
+def nombre_de(modulo):
+    """Cómo se llama el módulo (o los módulos) para decírselo a una persona."""
+    nombres = dict((m[0], m[1]) for m in MODULOS)
+    if isinstance(modulo, tuple):
+        return " o ".join(nombres.get(m, m) for m in modulo)
+    return nombres.get(modulo, modulo)
 
 
 def gestiona(usuario):

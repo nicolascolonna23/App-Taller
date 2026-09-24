@@ -166,6 +166,18 @@ siempre: todos abren todo.
   (se cambia con `HORAS_SESION_ADMIN`). Cambiar la propia contraseña tiene
   el mismo freno que el ingreso.
 
+- **Cupo del asistente.** Cada consulta a Pengui se paga a Anthropic, así
+  que tiene techo: 20 por hora y 100 por día por persona, y 500 por día
+  entre todos. Se cambian en Render con `ASISTENTE_POR_HORA`,
+  `ASISTENTE_POR_DIA` y `ASISTENTE_TOTAL_DIA`. La tabla sale de
+  `gomeria/37_asistente_cupo.sql` y guarda solo quién y cuándo, nunca la
+  pregunta.
+- **Cada dirección, su módulo.** Las direcciones que usa la pantalla de
+  Gomería sin el `/gomeria` adelante, las de mantenimiento, los vales y el
+  odómetro también piden su módulo: antes se podían llamar a mano sin
+  tenerlo. Cuando una dirección la usan pantallas de dos módulos, alcanza
+  con tener uno (ver `RUTAS` en `gomeria/permisos.py`).
+
 Las tablas salen de `gomeria/35_seguridad.sql`. `gomeria/36_sesiones_hash.sql`
 es opcional: pasa a hash de una vez las sesiones abiertas de antes, que si
 no se pasan solas cuando su dueño vuelve a usarlas. Sin ese script el sistema

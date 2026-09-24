@@ -156,7 +156,7 @@ class App(gom.Handler):
         modulo = permisos.modulo_de(self._ruta_pedida())
         if permisos.puede_ver(self.usuario, modulo):
             return True
-        nombre = dict((m[0], m[1]) for m in permisos.MODULOS).get(modulo, modulo)
+        nombre = permisos.nombre_de(modulo)
         if self._ruta_pedida().startswith("/api/"):
             self._error(f"Tu rol no tiene habilitado {nombre}.", 403)
         else:
