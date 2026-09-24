@@ -196,7 +196,7 @@
 </header>
 
 <main>
-  <h1>Solicitudes de orden de compra</h1>
+  <h1>Solicitudes de orden de compra</h1><p><a class="solapa" href="/fallas">Fallas de choferes →</a></p>
   <p class="sub" id="pie">Cargando…</p>
 
   <div class="tarjetas">
@@ -452,7 +452,14 @@ function opciones() {
 async function cargar() {
   const r = await fetch('/api/solicitudes');
   const d = await r.json().catch(() => ({error:'Respuesta ilegible del servidor.'}));
-  if (!r.ok) { $('#pie').textContent = d.error || 'No se pudieron leer las solicitudes.'; return; }
+  if (!r.ok) {
+    // El aviso también adentro de la tabla: si queda en "Cargando…" para
+    // siempre, parece que el sistema se colgó y no que falta correr algo.
+    const problema = d.error || 'No se pudieron leer las solicitudes.';
+    $('#pie').textContent = problema;
+    $('#filas').innerHTML = `<tr><td colspan="8" class="vacio">${esc(problema)}</td></tr>`;
+    return;
+  }
   D.datos = d;
   opciones();
   pintar();

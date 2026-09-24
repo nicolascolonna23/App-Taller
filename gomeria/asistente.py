@@ -236,6 +236,78 @@ _ultimos = {}
 _slots = threading.BoundedSemaphore(4)
 
 
+# ---------------------------------------------------------------------
+# CUPO
+# ---------------------------------------------------------------------
+# Cada consulta se paga. El freno de arriba evita las ráfagas; esto pone
+# techo al día: por persona y entre todos. Se cambia con variables de
+# entorno, sin tocar el código.
+def _tope(nombre, valor):
+    try:
+        return max(1, int(os.environ.get(nombre) or valor))
+    except ValueError:
+        return valor
+
+
+_consultas = []            # (usuario_id, instante) si falta 37_asistente_cupo.sql
+
+
+def _cuantas_en_memoria(uid, ahora):
+    with _lock:
+        _consultas[:] = [c for c in _consultas if ahora - c[1] < 86400]
+        hora = sum(1 for u, t in _consultas if u == uid and ahora - t < 3600)
+        dia = sum(1 for u, _ in _consultas if u == uid)
+        return hora, dia, len(_consultas)
+
+
+def _cuantas_en_la_base(cx, uid):
+    return cx.execute("""
+        select count(*) filter (where usuario_id = %s and creado > now() - interval '1 hour') as hora,
+               count(*) filter (where usuario_id = %s) as dia,
+               count(*) as total
+        from consultas_asistente where creado > now() - interval '1 day'""",
+        (uid, uid)).fetchone()
+
+
+def usar_cupo(uid):
+    """Descuenta una consulta del cupo, o dice por qué no se puede.
+
+    Se cuenta antes de llamar al modelo: la consulta que falla a mitad de
+    camino también se pagó.
+    """
+    por_hora = _tope('ASISTENTE_POR_HORA', 20)
+    por_dia = _tope('ASISTENTE_POR_DIA', 100)
+    total_dia = _tope('ASISTENTE_TOTAL_DIA', 500)
+
+    def revisar(hora, dia, total):
+        if total >= total_dia:
+            raise Ocupado('El asistente llegó al límite de consultas de hoy entre todos '
+                          'los usuarios. Vuelve a estar disponible mañana.')
+        if dia >= por_dia:
+            raise Ocupado(f'Llegaste al límite de {por_dia} consultas por día. '
+                          'Vuelve a estar disponible mañana.')
+        if hora >= por_hora:
+            raise Ocupado(f'Llegaste al límite de {por_hora} consultas por hora. '
+                          'Probá de nuevo más tarde.')
+
+    if os.environ.get('SUPABASE_DB_URL') or os.environ.get('DATABASE_URL'):
+        with base.conectar() as cx:
+            if cx.execute("select to_regclass('public.consultas_asistente') as t").fetchone()['t']:
+                # Un candado por un instante: dos consultas a la vez no
+                # pueden pasar las dos por el último lugar del cupo.
+                cx.execute("select pg_advisory_xact_lock(hashtext('consultas_asistente'))")
+                fila = _cuantas_en_la_base(cx, uid)
+                revisar(fila['hora'], fila['dia'], fila['total'])
+                cx.execute("insert into consultas_asistente (usuario_id) values (%s)", (uid,))
+                cx.execute("delete from consultas_asistente where creado < now() - interval '7 days'")
+                cx.commit()
+                return
+    ahora = time.time()
+    revisar(*_cuantas_en_memoria(uid, ahora))
+    with _lock:
+        _consultas.append((uid, ahora))
+
+
 def responder(datos, usuario, modelo_call=None, consulta_call=None):
     if not usuario or usuario.get('rol') not in ROLES:
         raise PermissionError('Necesitás una sesión autorizada para consultar.')
@@ -260,6 +332,13 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
             raise Ocupado('Hay varias consultas en curso. Intentá en unos segundos.')
         _activos.add(uid)
         _ultimos[uid] = ahora
+    try:
+        usar_cupo(uid)
+    except Exception:
+        with _lock:
+            _activos.discard(uid)
+        _slots.release()
+        raise
     try:
         return _responder(mensajes, modelo_call or llamar_modelo, consulta_call or consultar)
     finally:

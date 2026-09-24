@@ -2,6 +2,24 @@ const {chromium}=require('playwright');
 const fs=require('fs'),path=require('path'),assert=require('assert');
 const dir=path.resolve(__dirname,'..');
 const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'stock_repuestos.html','/flota':'index.html','/control':'control_flota.html','/unidades':'unidades.html','/vencimientos':'vencimientos.html','/alertas':'alertas.html','/ordenes':'ordenes.html','/configuracion':'configuracion.html','/combustible':'combustible.html','/asistente':'asistente.html'};
+/* El contraste de un texto contra lo que tiene atrás, como lo mide la WCAG.
+   Se compone el fondo de todos los padres porque un color con transparencia
+   —los fondos suaves de la marca lo son— no dice solo qué se ve. */
+const contraste=(page,selector)=>page.evaluate(sel=>{
+ const canales=t=>(t.match(/[\d.]+/g)||[0,0,0]).map(Number);
+ const sobre=(frente,fondo)=>{const a=frente.length>3?frente[3]:1;
+  return [0,1,2].map(i=>frente[i]*a+fondo[i]*(1-a));};
+ const luz=c=>{const v=c.map(x=>{x/=255;return x<=.04045?x/12.92:((x+.055)/1.055)**2.4;});
+  return v[0]*.2126+v[1]*.7152+v[2]*.0722;};
+ const e=document.querySelector(sel),capas=[];
+ for(let n=e;n;n=n.parentElement)capas.push(canales(getComputedStyle(n).backgroundColor));
+ let fondo=[255,255,255];
+ for(const capa of capas.reverse())fondo=sobre(capa,fondo);
+ const texto=sobre(canales(getComputedStyle(e).color),fondo);
+ const [a,b]=[luz(texto),luz(fondo)].sort((x,y)=>y-x);
+ return (a+.05)/(b+.05);
+},selector);
+
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{})});
  try{
@@ -12,7 +30,8 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
    if(p==='/api/preferencias')return route.fulfill({json:{tema:'claro',paleta:'diemar'}});
    if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba local',rol:'admin',puede_administrar:true}});
    if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Pengui, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
-   if(p==='/api/inicio')return route.fulfill({json:{recorrido:{ayer:{km:12345,unidades:50,unidades_completas:50,desde:'2026-09-07',hasta:'2026-09-07'}},combustible:{mes:{mes:'2026-08-01',litros_100km:31.2,litros:10000},previo:{mes:'2026-07-01',litros_100km:32.1}},unidades:87,alertas:{total:2,graves:1}}});
+   const litros={total:758709,cargas:2600,desde:'2024-10-25',hasta:'2026-09-18',cortes:{dia:{serie:[{periodo:'2026-09-17',litros:0,cargas:0,importe:null,unidades:0},{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}],actual:{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}},mes:{serie:[{periodo:'2026-08-01',litros:30658,cargas:99,importe:null,unidades:4},{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}],actual:{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}},anio:{serie:[{periodo:'2025-01-01',litros:394821,cargas:1300,importe:null,unidades:4},{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}],actual:{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}}}};
+   if(p==='/api/inicio')return route.fulfill({json:{litros,recorrido:{ayer:{km:12345,unidades:50,unidades_completas:50,desde:'2026-09-07',hasta:'2026-09-07'}},combustible:{mes:{mes:'2026-08-01',litros_100km:31.2,litros:10000},previo:{mes:'2026-07-01',litros_100km:32.1}},unidades:87,alertas:{total:2,graves:1}}});
    if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION LOCAL',mantenimiento_plan_id:1,mantenimiento_plan:'Autos 10K',mantenimiento_cada_km:10000},{id:9,patente:'AH 522 SI',interno:'17',marca:'IVECO',modelo:'S-WAY 480',chofer:'CABRERA GUILLERMO',semi:'',sucursal:'LAD',uso:'LARGA DISTANCIA',mantenimiento_plan_id:2,mantenimiento_plan:'S-WAY',mantenimiento_cada_km:45000},{id:8,patente:'AC 111 ZZ',interno:'S1',marca:'',modelo:'SEMI',chofer:'',semi:'',sucursal:'BUE',uso:'SEMIRREMOLQUE'}]});
    if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',mantenimiento_plan_id:1,plan_nombre:'Autos 10K',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:10000,proximo_km:51259,km_actual:41833,km_restantes:9426,estado:'proximo'},{unidad_id:9,patente:'AH522SI',interno:'17',sucursal:'LAD',mantenimiento_plan_id:2,plan_nombre:'S-WAY',ultimo_fecha:'2026-08-01',ultimo_km:150000,cada_km:45000,proximo_km:195000,km_actual:170000,km_restantes:25000,estado:'ok'}]});
    if(p==='/api/mantenimiento')return route.fulfill({json:{planes:[{id:1,nombre:'Autos 10K',descripcion:'Autos',cada_km:10000,activo:true,unidades:1},{id:2,nombre:'S-WAY',descripcion:'Camiones S-WAY',cada_km:45000,activo:true,unidades:1}],asignaciones:[{unidad_id:7,patente:'AG797NJ',interno:'102',plan_id:1,plan_nombre:'Autos 10K',cada_km:10000},{unidad_id:9,patente:'AH522SI',interno:'17',plan_id:2,plan_nombre:'S-WAY',cada_km:45000}]}});
@@ -39,14 +58,39 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
      const visorColor=await page.evaluate(()=>{const d=document.createElement('div');d.className='visor3d';document.body.appendChild(d);return getComputedStyle(d).backgroundColor;});
      assert.equal(visorColor,'rgb(17, 22, 27)');
     }
+    if(url==='/'){
+     // Los litros cargados: el total del corte elegido y su serie.
+     await page.locator('#lt-chart .daily-column').first().waitFor();
+     assert.equal(await page.locator('#lt-valor').innerText(),'8.159');
+     assert((await page.locator('#lt-sub').innerText()).includes('26 cargas hoy'));
+     assert((await page.locator('#lt-nota').innerText()).includes('758.709'),
+            'falta el total de todo lo cargado');
+     await page.click('[data-l="mes"]');
+     assert.equal(await page.locator('#lt-valor').innerText(),'24.095');
+     assert((await page.locator('#lt-sub').innerText()).includes('-21%'),
+            'no compara contra el período anterior: '+await page.locator('#lt-sub').innerText());
+     assert.equal(await page.locator('#lt-chart-title').innerText(),'Litros por mes');
+     await page.click('[data-l="anio"]');
+     assert.equal(await page.locator('#lt-valor').innerText(),'288.938');
+     assert.equal(await page.locator('#lt-chart-period').innerText(),'Últimos 5 años');
+     // El selector de los kilómetros es otro y no se mueve con este.
+     assert.equal(await page.locator('.km-tabs button[data-p].on').innerText(),'Ayer');
+     // Las barras tienen ancho: con muchas, el espaciado se aprieta.
+     assert(await page.locator('#lt-chart .daily-bar').first().evaluate(b => b.getBoundingClientRect().width) > 2,
+            'las barras quedaron sin ancho');
+     await page.click('[data-l="dia"]');
+    }
     if(url==='/repuestos'){
      assert((await page.locator('.brand').evaluate(e=>getComputedStyle(e,'::before').backgroundImage)).includes('/logo.png'));
      const ghostColor=await page.evaluate(()=>{const bar=document.createElement('div'),b=document.createElement('button');bar.className='bar';b.className='btn ghost';bar.appendChild(b);document.body.appendChild(bar);return getComputedStyle(b).color;});
      assert.equal(ghostColor,'rgb(255, 255, 255)');
     }
     if(url==='/control'){
-     assert.equal(await page.locator('#tab-general').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
-     assert.equal(await page.locator('#btn-planes').evaluate(e=>getComputedStyle(e).color),'rgb(17, 17, 17)');
+     // La solapa elegida y el botón de parametrización se tienen que leer.
+     // Se mide el contraste y no un color exacto: el acento cambia con la
+     // paleta y el fondo con el tema, y lo que no puede cambiar es que se lea.
+     for(const sel of ['#tab-general','#btn-planes'])
+      assert(await contraste(page,sel)>=4.5,'no se lee '+sel+' con el tema claro');
      assert.equal(await page.locator('#btn-refresh').count(),0);
      await page.locator('#btn-planes').click();
      await page.locator('#planes-lista', {hasText:'Autos 10K'}).waitFor();
@@ -98,6 +142,6 @@ const files={'/':'inicio.html','/gomeria':'gomeria/movil.html','/repuestos':'sto
   assert(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));
   assert(!await chat.locator('body').evaluate(()=>document.documentElement.scrollWidth>innerWidth));
   await chat.locator('#question').press('Escape');await page.waitForFunction(()=>document.querySelector('#pengui').shadowRoot.querySelector('.launch').getAttribute('aria-expanded')==='false');
-  console.log('PASS: shared theme on 10 modules; Pengui only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
+  console.log('PASS: shared theme on 10 modules; litros por día, mes y año; Pengui only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

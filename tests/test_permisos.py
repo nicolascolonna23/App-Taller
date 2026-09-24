@@ -113,6 +113,24 @@ class QueProtegeCadaDireccion(unittest.TestCase):
             with self.subTest(ruta=ruta):
                 self.assertIsNone(permisos.modulo_de(ruta))
 
+    def test_la_api_de_gomeria_sin_prefijo_pide_gomeria(self):
+        """La pantalla llama /api/confirmar, no /gomeria/api/confirmar."""
+        for ruta in ("/api/interpretar", "/api/confirmar", "/api/descartar",
+                     "/api/cubiertas", "/api/movimientos", "/api/mapa"):
+            with self.subTest(ruta=ruta):
+                self.assertEqual(permisos.modulo_de(ruta), "gomeria")
+
+    def test_mantenimiento_y_vales_piden_modulo(self):
+        self.assertEqual(permisos.modulo_de("/api/mantenimiento"), "flota")
+        self.assertEqual(permisos.modulo_de("/api/vales?op=contexto"), ("flota", "solicitudes"))
+
+    def test_con_uno_de_los_modulos_alcanza(self):
+        self.assertTrue(permisos.puede_ver(SUCURSAL, ("flota", "solicitudes")))
+        self.assertFalse(permisos.puede_ver(SUCURSAL, ("flota", "gomeria")))
+        self.assertFalse(permisos.puede_ver(SUCURSAL, permisos.modulo_de("/api/confirmar")))
+        self.assertEqual(permisos.nombre_de(("flota", "ordenes")),
+                         "Flota y services o Órdenes de trabajo")
+
     def test_todos_los_modulos_tienen_su_pantalla(self):
         for codigo, _, ruta, _ in permisos.MODULOS:
             with self.subTest(modulo=codigo):

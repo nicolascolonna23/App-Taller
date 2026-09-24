@@ -439,7 +439,7 @@ function armarVisor(clave, archivo, opciones){
                    chasis:'Camión chasis con caja' };
   nodo('#visor-rotulo').textContent =
     (NOMBRE[clave] || clave) + (POR[VISOR.por] ? ' · ' + POR[VISOR.por] : '');
-  nodo('#visor-pista').textContent = 'Arrastrar para girar · seleccionar una rueda';
+  nodo('#visor-pista').textContent = 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda';
 
   const caja = nodo('#visor');
   const esc3 = new THREE.Scene();
@@ -474,8 +474,12 @@ function armarVisor(clave, archivo, opciones){
   ctrl.target.set(0, 1.5, 0);
   ctrl.enableDamping = true; ctrl.dampingFactor = .08;
   ctrl.minDistance = 5; ctrl.maxDistance = 22;
-  /* Que no se pueda mirar desde abajo del piso: se ve el interior hueco. */
-  ctrl.maxPolarAngle = Math.PI / 2 - .04;
+  /* Se puede mirar desde abajo, que es la única manera de ver la goma
+     interior de un dual —justo la que cuesta cambiar—. El tope está a
+     unos 25°: más abajo se ve el interior hueco del modelo, que no le
+     sirve a nadie. El piso se esconde solo cuando la cámara baja: si no,
+     tapa exactamente lo que se fue a mirar. */
+  ctrl.maxPolarAngle = Math.PI / 2 + .45;
   ctrl.enablePan = false;
 
   const goma   = new THREE.MeshStandardMaterial({ color:GOMA, roughness:.92, metalness:.02 });
@@ -692,7 +696,7 @@ function armarVisor(clave, archivo, opciones){
     });
 
     nodo('#visor-pista').textContent = V.ruedas.length
-      ? 'Arrastrar para girar · seleccionar una rueda'
+      ? 'Arrastrar para girar —también hacia abajo, para ver la interior— · seleccionar una rueda'
       : 'Arrastrar para girar · no se reconocieron las ruedas de este modelo';
     /* Centrado a lo largo y a lo ancho, y apoyado en el piso. */
     obj.position.x -= (caja.min.x + caja.max.x) / 2;
@@ -737,6 +741,29 @@ function armarVisor(clave, archivo, opciones){
     const dio = rayo.intersectObjects(V.ruedas, false);
     return dio.length ? dio[0] : null;
   };
+  // Integración opcional con la mesa de montaje. Otros visores sólo giran.
+  if (VISOR.alArrastrar || VISOR.alSoltar) {
+    ren.domElement.addEventListener('pointerdown', e => {
+      if (VISOR.puedeArrastrar?.() && enRueda(e)) V.control.enabled = false;
+    }, true);
+    const terminar = () => { if(V.control) V.control.enabled = true; };
+    ren.domElement.addEventListener('pointerup', terminar);
+    ren.domElement.addEventListener('pointercancel', terminar);
+    ren.domElement.addEventListener('dragend', terminar);
+    ren.domElement.addEventListener('dragstart', e => {
+      const hit = enRueda(e);
+      if (!VISOR.puedeArrastrar?.() || !hit || !VISOR.alArrastrar?.(e, esquinaDelPunto(hit.point,hit.object))) {
+        e.preventDefault(); terminar();
+      }
+    });
+    ren.domElement.addEventListener('dragover', e => {
+      if (enRueda(e) && e.dataTransfer.types.includes('application/x-taller-cubierta')) e.preventDefault();
+    });
+    ren.domElement.addEventListener('drop', e => {
+      const hit = enRueda(e); if (!hit) return;
+      e.preventDefault(); VISOR.alSoltar?.(e, esquinaDelPunto(hit.point,hit.object)); terminar();
+    });
+  }
   /* Se distingue el clic del arrastre: girar el camión no tiene que abrir
      el panel de una rueda cada vez. */
   let desde = null;
@@ -751,7 +778,9 @@ function armarVisor(clave, archivo, opciones){
     desde = null;
     if (lejos) return;
     const golpe = enRueda(e);
-    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null);
+    // El segundo argumento dice que el clic vino del modelo: tocar dos
+    // veces la misma rueda pasa a la otra goma del dual.
+    elegirEsquina(golpe ? esquinaDelPunto(golpe.point, golpe.object) : null, true);
   });
   ren.domElement.addEventListener('pointermove', e => {
     ren.domElement.style.cursor = enRueda(e) ? 'pointer' : 'grab';
@@ -829,6 +858,8 @@ function armarVisor(clave, archivo, opciones){
     if (!V.render) return;
     V.anim = requestAnimationFrame(dibujar);
     ctrl.update();
+    // Mirando desde abajo, el piso es lo único que se vería.
+    piso.visible = cam.position.y > .05;
     ren.render(esc3, cam);
   })();
 }
@@ -851,7 +882,9 @@ function esquinaDeLaRueda(malla){
 
    Cuatro colores, y cada uno contesta una pregunta distinta:
 
-     naranja   la que se está mirando
+     naranja   la esquina que se está mirando
+     verde     de las dos gomas de esa esquina, la que quedó elegida
+     celeste   la esquina dual con una cubierta montada y otra vacía
      azul      la esquina que ya tiene puestas todas sus cubiertas
      rojiza    la esquina a la que le falta alguna
      gris      la rueda de la que el mapa no sabe nada
@@ -867,29 +900,147 @@ function esquinaDeLaRueda(malla){
 
    Una pieza que abarca las dos ruedas de un eje se pinta cuando la esquina
    elegida es de ese eje, del lado que sea: no se puede pintar media
-   pieza, y por eso tampoco se le puede decir si está ocupada o no. */
+   pieza, y por eso tampoco se le puede decir si está ocupada o no.
+
+   El verde es el segundo nivel de la misma respuesta. La esquina entera
+   se prende —eso ubica de lejos— y adentro de la esquina se prende de
+   otro color la goma que está elegida, interior o exterior. Sin eso, en
+   un dual el naranja decía «es una de estas dos» y había que ir a
+   buscarlo al mapa. Solo se puede cuando el modelo trae las dos gomas
+   por separado: si viene de una pieza, no hay media pieza que pintar. */
 const RUEDA = {
-  elegida: 0xff7a1a, puesta: 0x2b5a76, falta: 0x6d3a34, sin_datos: GOMA,
+  elegida: 0xff7a1a, foco: 0x2ee6a8, puesta: 0x2b5a76, parcial: 0x36abc7,
+  falta: 0x6d3a34, sin_datos: GOMA,
 };
 
+/* Cuáles de las piezas de una esquina son la goma interior y cuáles la
+   exterior.
+
+   No lo dice el modelo: lo dice dónde están paradas. Un dual son dos
+   ruedas pegadas, y cada una llega al 3D hecha de cientos de piezas —la
+   llanta, las tuercas, cada taco de la banda—, así que no alcanza con
+   tomar la más lejana: hay que separar las piezas en dos montones.
+
+   Se separan por la distancia al centro del camión, con dos montones que
+   se van acomodando hasta que ninguna pieza cambia de lado. Si los dos
+   montones terminan pegados no es un dual —es una rueda sola, o una
+   pieza que abarca las dos— y entonces no hay interior ni exterior que
+   pintar: lo dice el mapa. */
+const DUAL_MINIMO = 0.18;   // metros entre los centros de las dos gomas
+
+function gomasDelMontaje(esquina, montaje){
+  if (!esquina || !montaje) return null;
+  const suyas = V.ruedas.filter(m => {
+    const e = esquinaDeLaRueda(m);
+    return e.eje === esquina.eje && e.lado === esquina.lado;
+  });
+  if (suyas.length < 2) return null;
+
+  const centro = new THREE.Vector3();
+  const lejos = new Map(suyas.map(m => [m,
+    Math.abs(new THREE.Box3().setFromObject(m).getCenter(centro).x)]));
+  const valores = [...lejos.values()];
+  let adentro = Math.min(...valores), afuera = Math.max(...valores);
+  if (afuera - adentro < DUAL_MINIMO) return null;
+
+  for (let vuelta = 0; vuelta < 12; vuelta++) {
+    const corte = (adentro + afuera) / 2;
+    const cerca = valores.filter(v => v < corte), lejanas = valores.filter(v => v >= corte);
+    if (!cerca.length || !lejanas.length) break;
+    const medio = a => a.reduce((t, v) => t + v, 0) / a.length;
+    const nuevoAdentro = medio(cerca), nuevoAfuera = medio(lejanas);
+    if (nuevoAdentro === adentro && nuevoAfuera === afuera) break;
+    adentro = nuevoAdentro; afuera = nuevoAfuera;
+  }
+  if (afuera - adentro < DUAL_MINIMO) return null;
+
+  const corte = (adentro + afuera) / 2;
+  const quiere = montaje === 'interior';
+  return new Set(suyas.filter(m => (lejos.get(m) < corte) === quiere));
+}
+
+/* Cuando el modelo trae el dual de una sola pieza —los dos tractores vienen
+   así— no hay dos mallas para pintar de distinto color, pero sí hay dos
+   mitades: la de adentro y la de afuera. Se pinta la mitad que está elegida
+   pintando sus vértices, que es lo mismo que pintar la cubierta entera.
+
+   La geometría se clona la primera vez: hay modelos que usan la misma malla
+   para las cuatro ruedas, y pintarle los vértices a una las pintaría a
+   todas. */
+// Los colores se arman al primer uso: este archivo se carga en pantallas
+// que todavía no bajaron three.js.
+let MEDIA_VERDE = null, MEDIA_NARANJA = null;
+
+function pintarMedia(malla, montaje){
+  if (malla.userData.media === montaje) return true;
+  if (!malla.userData.geoPropia){
+    malla.geometry = malla.geometry.clone();
+    malla.userData.geoPropia = true;
+  }
+  const caja = new THREE.Box3().setFromObject(malla);
+  const adentro = Math.min(Math.abs(caja.min.x), Math.abs(caja.max.x));
+  const afuera  = Math.max(Math.abs(caja.min.x), Math.abs(caja.max.x));
+  if (afuera - adentro < DUAL_MINIMO) return false;   // no es un dual entero
+
+  if (!MEDIA_VERDE){
+    MEDIA_VERDE = new THREE.Color(RUEDA.foco);
+    MEDIA_NARANJA = new THREE.Color(RUEDA.elegida);
+  }
+  const geo = malla.geometry, lugar = geo.attributes.position;
+  const corte = (adentro + afuera) / 2, quiere = montaje === 'interior';
+  const pintura = new Float32Array(lugar.count * 3), punto = new THREE.Vector3();
+  for (let i = 0; i < lugar.count; i++){
+    punto.fromBufferAttribute(lugar, i).applyMatrix4(malla.matrixWorld);
+    const c = (Math.abs(punto.x) < corte) === quiere ? MEDIA_VERDE : MEDIA_NARANJA;
+    pintura[i*3] = c.r; pintura[i*3+1] = c.g; pintura[i*3+2] = c.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(pintura, 3));
+  malla.material.vertexColors = true;
+  malla.material.color.setHex(0xffffff);   // el color sale de los vértices
+  malla.material.emissive.setHex(0x000000);
+  malla.material.needsUpdate = true;
+  malla.userData.media = montaje;
+  return true;
+}
+
+function sinMedia(malla){
+  if (!malla.userData.media) return;
+  malla.userData.media = null;
+  malla.material.vertexColors = false;
+  malla.material.needsUpdate = true;
+}
+
+/* Solo un dual tiene interior y exterior. Una rueda simple es una sola
+   cubierta y no hay mitad que buscarle. */
+const esDual = m => m === 'interior' || m === 'exterior';
+
 function pintarRuedas(){
+  const montaje = esDual(V.montaje) ? V.montaje : null;
+  const enfocadas = montaje ? gomasDelMontaje(V.esquina, montaje) : null;
   for (const m of V.ruedas){
     const e = esquinaDeLaRueda(m);
     const suya = V.esquina && e.eje === V.esquina.eje &&
                  (e.lado === 'ambos' || e.lado === V.esquina.lado);
+    // La rueda elegida de un dual que vino de una pieza: se le pinta la
+    // mitad que corresponde y la otra queda del naranja de la esquina.
+    if (suya && montaje && !enfocadas && pintarMedia(m, montaje)) continue;
+    sinMedia(m);
     let color = RUEDA.sin_datos;
     if (suya) {
-      color = RUEDA.elegida;
+      color = enfocadas && enfocadas.has(m) ? RUEDA.foco : RUEDA.elegida;
     } else if (e.lado !== 'ambos') {
       const posiciones = posicionesDe(e);
-      if (posiciones.some(p => !p.cubierta_id))  color = RUEDA.falta;
-      else if (posiciones.length)                color = RUEDA.puesta;
+      const montadas = posiciones.filter(p => p.cubierta_id).length;
+      if (montadas === posiciones.length && montadas) color = RUEDA.puesta;
+      else if (montadas) color = RUEDA.parcial;
+      else if (posiciones.length) color = RUEDA.falta;
     }
     m.material.color.setHex(color);
     // Luz propia solo la elegida. El azul se apoya en el color y nada más:
     // con emissive gritaba más fuerte que el rojizo, y el que tiene que
     // gritar es el que avisa que a esa esquina le falta una goma.
-    m.material.emissive.setHex(color === RUEDA.elegida ? 0x3a1a04 : 0x000000);
+    m.material.emissive.setHex(color === RUEDA.elegida ? 0x3a1a04
+                             : color === RUEDA.foco ? 0x0a3a28 : 0x000000);
   }
 }
 

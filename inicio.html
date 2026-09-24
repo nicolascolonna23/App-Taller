@@ -172,6 +172,23 @@ html[data-modo="claro"] .workspace::after{display:none}
           <div id="km-chart-labels" class="chart-labels" aria-hidden="true"></div>
           <details class="chart-data"><summary>Ver datos del gráfico</summary><div id="km-chart-table"></div></details>
         </div>
+        <div class="card km" id="litros">
+          <a class="km-head" href="/combustible" style="color:inherit;text-decoration:none">
+            <span><b>Litros cargados</b><small id="lt-pie">del módulo de combustible</small></span>
+            <div class="km-tabs">
+              <button type="button" data-l="dia" class="on" aria-pressed="true">Día</button>
+              <button type="button" data-l="mes" aria-pressed="false">Mes</button>
+              <button type="button" data-l="anio" aria-pressed="false">Año</button>
+            </div>
+          </a>
+          <div class="km-num"><b id="lt-valor">—</b><span>litros</span></div>
+          <p class="km-sub" id="lt-sub">Cargando…</p>
+          <div class="chart-heading"><h2 id="lt-chart-title">Litros por día</h2><span id="lt-chart-period">Últimos 30 días</span></div>
+          <div id="lt-chart" class="daily-chart"><p class="dashboard-empty">Cargando cargas…</p></div>
+          <div id="lt-chart-labels" class="chart-labels" aria-hidden="true"></div>
+          <details class="chart-data"><summary>Ver datos del gráfico</summary><div id="lt-chart-table"></div></details>
+          <p class="chart-note" id="lt-nota">De la planilla de cargas, que es lo que firmó el chofer.</p>
+        </div>
         <div class="card km" id="consumo">
           <a class="km-head" href="/combustible" style="color:inherit;text-decoration:none"><span><b>Consumo de la flota</b><small>del módulo de combustible</small></span></a>
           <div class="km-num"><b id="cons-valor">—</b><span>L/100 km</span></div>
@@ -238,15 +255,51 @@ function pintarKm(){
   }
   pie.innerHTML=txt;
 }
-document.querySelectorAll('.km-tabs button').forEach(b=>b.addEventListener('click',()=>{
+document.querySelectorAll('.km-tabs button[data-p]').forEach(b=>b.addEventListener('click',()=>{
   PERIODO=b.dataset.p;
-  document.querySelectorAll('.km-tabs button').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});
+  document.querySelectorAll('.km-tabs button[data-p]').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});
   pintarKm();
+}));
+/* Los litros de la flota, con la misma lupa de tres posiciones: el día,
+   el mes y el año. El total de cada corte arriba y la serie de atrás para
+   saber si eso es mucho o poco. */
+const ROTULO_LT={dia:'hoy',mes:'este mes',anio:'este año'};
+const CONTRA_LT={dia:'ayer',mes:'el mes pasado',anio:'el año pasado'};
+let LITROS=null,CORTE='dia';
+function pintarLitros(){
+  InicioDashboard.litros(LITROS, CORTE);
+  const valor=document.getElementById('lt-valor'),pie=document.getElementById('lt-sub');
+  const corte=LITROS&&LITROS.cortes&&LITROS.cortes[CORTE];
+  if(!corte||!corte.actual){
+    valor.textContent='—';
+    pie.textContent=LITROS?'Todavía no hay planillas de cargas subidas.':'Sin datos de combustible.';
+    return;
+  }
+  const a=corte.actual, serie=corte.serie||[];
+  valor.textContent=nfm.format(Math.round(a.litros));
+  let txt=`${nfm.format(a.cargas)} carga${a.cargas===1?'':'s'} ${ROTULO_LT[CORTE]}`;
+  if(a.unidades)txt+=` · ${nfm.format(a.unidades)} unidad${a.unidades===1?'':'es'}`;
+  if(a.importe)txt+=` · $${nfm.format(Math.round(a.importe))}`;
+  /* La comparación solo si el período anterior tuvo cargas: contra un cero
+     cualquier variación es un número inventado. */
+  const b=serie[serie.length-2];
+  if(b&&b.litros>0){
+    const p=Math.round((a.litros-b.litros)/b.litros*100);
+    txt+=` · <span class="${p>=0?'sube':'baja'}">${p>=0?'+':''}${p}%</span> vs. ${CONTRA_LT[CORTE]}`;
+  }
+  pie.innerHTML=txt;
+}
+document.querySelectorAll('.km-tabs button[data-l]').forEach(b=>b.addEventListener('click',ev=>{
+  ev.preventDefault();
+  CORTE=b.dataset.l;
+  document.querySelectorAll('.km-tabs button[data-l]').forEach(x=>{x.classList.toggle('on',x===b);x.setAttribute('aria-pressed',String(x===b));});
+  pintarLitros();
 }));
 fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
   if(!d)throw Error('No se pudo actualizar el resumen.');
   document.getElementById('dashboard-status').textContent='Datos actualizados';
   RECORRIDO=d.recorrido||null;pintarKm();
+  LITROS=d.litros||null;pintarLitros();
   const totalAlertas=d.alertas&&d.alertas.total||0;
   const badge=document.getElementById('alertas-badge');
   badge.textContent=totalAlertas>99?'99+':String(totalAlertas);

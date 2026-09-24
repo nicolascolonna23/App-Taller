@@ -105,6 +105,23 @@ rol, cierra las sesiones de los afectados: si le sacaste un módulo, no lo
 puede seguir abriendo hasta mañana. Vuelven a entrar con su misma
 contraseña.
 
+## La cuenta de uno
+
+Arriba a la derecha, el nombre de uno es un botón: adentro están
+**cambiar la contraseña** y **cerrar sesión**. Está en todas las
+pantallas, porque lo pone el mismo archivo que pone los accesos de
+administración (`barra.js`).
+
+Cambiar la contraseña pide **la de ahora**. No es burocracia: una sesión
+olvidada en la máquina del taller alcanzaría, si no, para quedarse con la
+cuenta de otro. Al cambiarla se cierran **todas** las sesiones —incluida
+la que la está cambiando—, que es lo que uno espera cuando la cambia
+porque se la vieron: de ahí se vuelve al login.
+
+Esto no reemplaza a `/usuarios`: ahí el que administra da de alta, asigna
+roles y le puede poner una contraseña a otro. Acá cada uno se cambia la
+suya, sin pedírselo a nadie.
+
 ## La terminal sigue estando
 
 `python3 gomeria/usuarios.py` sigue andando y es la salida de emergencia:

@@ -125,6 +125,95 @@ def _combustible(cx):
             "esperado": ultimo.isoformat()}
 
 
+# Los tres cortes del mismo dato, con cuántos períodos se muestran atrás.
+# El día mira un mes porque una semana de cargas no dice si hoy es mucho o
+# poco; el mes, un año entero, que es donde se ve la temporada.
+CORTES = (("dia", "day", 30), ("mes", "month", 12), ("anio", "year", 5))
+
+
+def _litros(cx):
+    """Los litros que cargó la flota, por día, por mes y por año.
+
+    Es el mismo dato mirado con tres lupas y no tres consultas parecidas:
+    el que abre la portada quiere el total de hoy, el del mes y el del
+    año, y la serie de atrás para saber si eso es mucho o poco.
+
+    Sale de las cargas de la planilla —el remito que firma el chofer—, que
+    es lo que de verdad se cargó. El listado de la estación no entra acá:
+    ese sirve para cruzar y encontrar diferencias, no para sumar dos veces
+    el mismo litro.
+    """
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
+
+    try:
+        total = cx.execute("""
+            select coalesce(sum(litros), 0) as litros, count(*)::int as cargas,
+                   min(fecha) as desde, max(fecha) as hasta
+            from combustible_cargas
+            where origen = 'planilla' and fecha is not null and litros is not null
+        """).fetchone()
+    except Exception:
+        cx.rollback()
+        return None
+    if not total or not total["cargas"]:
+        return {"total": 0, "cargas": 0, "desde": None, "hasta": None, "cortes": {}}
+
+    cortes = {}
+    for nombre, unidad, cuantos in CORTES:
+        filas = cx.execute(f"""
+            select date_trunc('{unidad}', fecha)::date as periodo,
+                   sum(litros) as litros, count(*)::int as cargas,
+                   sum(importe) as importe,
+                   count(distinct patente)::int as unidades
+            from combustible_cargas
+            where origen = 'planilla' and fecha is not null and litros is not null
+              and fecha >= date_trunc('{unidad}', %s::date)
+                           - make_interval({unidad}s => %s)
+            group by 1 order by 1
+        """, (hoy, cuantos - 1)).fetchall()
+        serie = _rellenar({str(f["periodo"]): dict(f) for f in filas}, unidad, hoy, cuantos)
+        cortes[nombre] = {"serie": serie, "actual": serie[-1] if serie else None}
+
+    return {
+        "total": float(total["litros"]),
+        "cargas": total["cargas"],
+        "desde": total["desde"].isoformat() if total["desde"] else None,
+        "hasta": total["hasta"].isoformat() if total["hasta"] else None,
+        "cortes": cortes,
+    }
+
+
+def _rellenar(cargados, unidad, hoy, cuantos):
+    """La serie completa, con los períodos sin cargas en cero.
+
+    Un día sin cargas es un cero de verdad —nadie cargó— y no un hueco:
+    saltearlo apretaría el gráfico y haría ver una semana donde hay un mes.
+    Que la planilla de los últimos días todavía no esté subida se ve en la
+    fecha de la última carga, que la tarjeta muestra aparte.
+    """
+    from datetime import date, timedelta
+    salida = []
+    for atras in range(cuantos - 1, -1, -1):
+        if unidad == "day":
+            periodo = hoy - timedelta(days=atras)
+        elif unidad == "month":
+            mes = hoy.month - atras
+            periodo = date(hoy.year + (mes - 1) // 12, (mes - 1) % 12 + 1, 1)
+        else:
+            periodo = date(hoy.year - atras, 1, 1)
+        fila = cargados.get(periodo.isoformat())
+        salida.append({
+            "periodo": periodo.isoformat(),
+            "litros": float(fila["litros"]) if fila else 0.0,
+            "cargas": fila["cargas"] if fila else 0,
+            "importe": float(fila["importe"]) if fila and fila["importe"] else None,
+            "unidades": fila["unidades"] if fila else 0,
+        })
+    return salida
+
+
 def resumen(cx):
     """Lo que se dibuja en la portada. Todo lo que falte viene en None."""
     datos = {
@@ -165,6 +254,7 @@ def resumen(cx):
     }
     datos["recorrido"] = _kilometros(cx)
     datos["combustible"] = _combustible(cx)
+    datos["litros"] = _litros(cx)
     datos["ordenes_costos"] = _ordenes_costos(cx)
     datos["alertas"] = _alertas(cx)
     return datos

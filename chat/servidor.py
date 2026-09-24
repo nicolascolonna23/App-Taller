@@ -8,11 +8,13 @@ La clave de la API vive acá, en el servidor: nunca viaja al navegador.
     export ANTHROPIC_API_KEY=sk-ant-...
     python3 servidor.py                 # http://127.0.0.1:8000
 
-Por defecto escucha solo en 127.0.0.1 (esta misma máquina). Para que lo use
-la oficina, ver el README: hay que pasar --host 0.0.0.0 y dejarlo detrás del
-servidor web interno.
+Escucha solo en esta misma máquina, y no se puede abrir a la red: el chat
+no pide usuario y muestra la deuda y los contactos de todos los clientes.
+Abierto a la red, cualquiera en el mismo wifi —visitas incluidas— podía
+consultarlos y gastar la clave de la API.
 """
 import argparse, json, os, re, sqlite3, sys, traceback
+from urllib.parse import urlparse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import anthropic
@@ -325,8 +327,10 @@ def instrucciones():
     d = json.loads(resumen_general())
     return f"""Sos el asistente interno de Expreso Diemar / Expreso Catamarca.
 Contestás preguntas sobre clientes y cuenta corriente a la gente de
-administración, cobranzas y comercial. Hablás en castellano rioplatense,
-directo y sin vueltas, como un compañero de oficina que conoce los números.
+administración, cobranzas y comercial. Escribís en castellano neutro y
+sobrio: directo y sin vueltas, pero como escribe un sistema y no como se
+habla en la oficina. Nada de interjecciones ni muletillas —"che", "dale",
+"mirá", "ojo"—, ni saludos de más, ni chistes, ni emojis.
 
 QUÉ TENÉS
 Una copia de dos reportes del sistema, cargada en una base que consultás con
@@ -394,8 +398,37 @@ def responder(mensajes, emitir):
 # =====================================================================
 # SERVIDOR HTTP
 # =====================================================================
+LOCALES = ("127.0.0.1", "localhost", "::1")
+
+
+def _es_local(valor):
+    """True si el nombre (con o sin puerto) es esta misma máquina."""
+    valor = (valor or "").strip().lower()
+    if valor.startswith("["):                      # [::1]:8000
+        valor = valor[1:valor.find("]")] if "]" in valor else valor
+    elif valor.count(":") == 1:                    # localhost:8000
+        valor = valor.split(":")[0]
+    return valor in LOCALES
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "ChatDiemar/1.0"
+
+    def _desde_aca(self):
+        """Corta lo que no viene de una página de esta misma máquina.
+
+        Escuchar solo en 127.0.0.1 no alcanza: una página cualquiera abierta
+        en el navegador de esta compu puede mandarle pedidos al chat, y con
+        un nombre de dominio que apunte a 127.0.0.1 hasta leer lo que
+        contesta. El navegador siempre dice a qué nombre le habla (Host) y
+        desde qué página (Origin): si no es esta máquina, no se contesta.
+        """
+        origen = self.headers.get("Origin")
+        if _es_local(self.headers.get("Host")) and (
+                not origen or _es_local(urlparse(origen).netloc)):
+            return True
+        self.send_error(403, "Solo desde esta computadora")
+        return False
 
     def log_message(self, formato, *args):
         sys.stderr.write("  %s\n" % (formato % args))
@@ -410,6 +443,8 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if not self._desde_aca():
+            return
         ruta = self.path.split("?")[0]
         if ruta in ("/", "/index.html", "/chat.html"):
             archivo = os.path.join(AQUI, "chat.html")
@@ -438,6 +473,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404)
 
     def do_POST(self):
+        if not self._desde_aca():
+            return
         if self.path.split("?")[0] != "/api/chat":
             self.send_error(404)
             return
@@ -478,32 +515,19 @@ class Handler(BaseHTTPRequestHandler):
         emitir("fin", "")
 
 
-def ip_en_la_red():
-    """IP de esta maquina en la red interna, para armar la URL que usan los demas.
-
-    Se abre un socket UDP hacia afuera (no manda nada) solo para que el sistema
-    operativo diga que placa de red usaria; es mas confiable que resolver el
-    nombre del equipo, que suele devolver 127.0.0.1.
-    """
-    import socket
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(("192.0.2.1", 80))       # direccion reservada: no genera trafico
-        return s.getsockname()[0]
-    except OSError:
-        return None
-    finally:
-        s.close()
-
-
 def main():
     ap = argparse.ArgumentParser(description="Chat interno sobre clientes y cuenta corriente")
     ap.add_argument("--host", default="127.0.0.1",
-                    help="127.0.0.1 = solo esta máquina; 0.0.0.0 = toda la red interna")
+                    help="Solo 127.0.0.1, localhost o ::1: el chat no se abre a la red.")
     ap.add_argument("--puerto", type=int, default=8000)
     ap.add_argument("--sin-navegador", action="store_true",
                     help="No abrir el navegador. Usalo cuando corre como servicio.")
     a = ap.parse_args()
+    if not _es_local(a.host):
+        raise SystemExit(
+            "El chat solo funciona en esta computadora (127.0.0.1).\n"
+            "No pide usuario y muestra la deuda de todos los clientes: abierto a\n"
+            "la red, cualquiera en el mismo wifi podría consultarlo.")
 
     if not os.path.exists(DB):
         raise SystemExit(f"Falta {DB}. Ejecutar primero: python3 ingesta.py")
@@ -524,26 +548,13 @@ def main():
     d = json.loads(resumen_general())
     print(f"Base: {d['movimientos']:,} movimientos · {d['clientes_en_maestro']:,} clientes "
           f"· datos hasta {d['hasta']}")
-    if a.host == "0.0.0.0":
-        ip = ip_en_la_red()
-        print()
-        print("  El chat esta abierto para toda la red interna.")
-        print(f"  Desde esta computadora:  http://127.0.0.1:{a.puerto}")
-        if ip:
-            print(f"  Desde las demas:         http://{ip}:{a.puerto}   <- esta es la que hay que pasar")
-        else:
-            print("  No pude averiguar la IP de esta maquina. Miralas en la configuracion de red.")
-        print()
-        print("  Mientras esta ventana este abierta, el chat funciona. Si se cierra, se corta.")
-        print("  No lo publiques a internet sin poner una clave adelante.")
-    else:
-        print(f"Chat en http://{a.host}:{a.puerto}")
+    print(f"Chat en http://{a.host}:{a.puerto}  (solo esta computadora)")
     print("  Para cortarlo: Ctrl+C")
 
     servidor = ThreadingHTTPServer((a.host, a.puerto), Handler)
     if not a.sin_navegador:
         import threading, webbrowser
-        destino = f"http://{'127.0.0.1' if a.host == '0.0.0.0' else a.host}:{a.puerto}"
+        destino = f"http://{a.host}:{a.puerto}"
         threading.Timer(1.0, lambda: webbrowser.open(destino)).start()
     try:
         servidor.serve_forever()

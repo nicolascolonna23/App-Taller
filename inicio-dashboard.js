@@ -22,13 +22,59 @@
       return;
     }
     const max = Math.max(1, ...serie.filter(p => valid(p.km)).map(p => Number(p.km)));
-    el('km-chart').innerHTML = `<div class="chart-scale" aria-hidden="true"><span>${number.format(max)} km</span><span>${number.format(max / 2)}</span><span>0</span></div><div class="daily-columns">${serie.map(p => {
+    el('km-chart').innerHTML = `<div class="chart-scale" aria-hidden="true"><span>${number.format(max)} km</span><span>${number.format(max / 2)}</span><span>0</span></div><div class="daily-columns${serie.length > 12 ? ' densa' : ''}">${serie.map(p => {
       const label = `${day(p.fecha)} · ${valid(p.km) ? number.format(p.km) + ' km · ' + p.unidades + ' unidades' : 'Sin lecturas'}`;
       const height = valid(p.km) ? Math.max(1, Number(p.km) / max * 100) : 0;
       return `<div class="daily-column ${valid(p.km) ? '' : 'missing'}" tabindex="0" aria-label="${escape(label)}"><div class="daily-bar" style="height:${height}%"></div><span class="chart-tooltip">${escape(label)}</span></div>`;
     }).join('')}</div>`;
     el('km-chart-labels').innerHTML = `<span>${day(serie[0].fecha)}</span><span>${day(serie[Math.floor((serie.length - 1) / 2)].fecha)}</span><span>${day(serie[serie.length - 1].fecha)}</span>`;
     el('km-chart-table').innerHTML = `<table><caption>Kilómetros diarios registrados</caption><thead><tr><th>Fecha</th><th>Distancia</th><th>Unidades</th></tr></thead><tbody>${serie.map(p => `<tr><td>${escape(day(p.fecha))}</td><td>${valid(p.km) ? number.format(p.km) + ' km' : 'Sin lecturas'}</td><td>${number.format(p.unidades || 0)}</td></tr>`).join('')}</tbody></table>`;
+  }
+  /* Los litros cargados, con la misma barra diaria que los kilómetros.
+     Una sola serie, así que un solo color y sin leyenda: el título dice
+     qué es. El período sin cargas va en cero y no salteado —un día sin
+     cargar es un cero de verdad—, y que la planilla de los últimos días
+     todavía no esté subida se lee en la fecha de la última carga. */
+  const PERIODO_LT = {
+    dia: {titulo: 'Litros por día', rotulo: 'Últimos 30 días',
+          etiqueta: p => day(p), columna: 'Día'},
+    mes: {titulo: 'Litros por mes', rotulo: 'Últimos 12 meses',
+          etiqueta: p => month(p), columna: 'Mes'},
+    anio: {titulo: 'Litros por año', rotulo: 'Últimos 5 años',
+           etiqueta: p => String(p).slice(0, 4), columna: 'Año'},
+  };
+  function litros(data, corte) {
+    const modo = PERIODO_LT[corte] || PERIODO_LT.dia;
+    el('lt-chart-title').textContent = modo.titulo;
+    el('lt-chart-period').textContent = modo.rotulo;
+    const serie = data?.cortes?.[corte]?.serie || [];
+    if (!serie.some(p => Number(p.litros) > 0)) {
+      el('lt-chart').innerHTML = '<p class="dashboard-empty">Sin cargas registradas en el período.</p>';
+      el('lt-chart-labels').textContent = '';
+      el('lt-chart-table').textContent = 'Sin datos para el período seleccionado.';
+      el('lt-nota').textContent = data
+        ? 'De la planilla de cargas, que es lo que firmó el chofer.'
+        : 'El módulo de combustible todavía no está configurado.';
+      return;
+    }
+    const max = Math.max(1, ...serie.map(p => Number(p.litros) || 0));
+    el('lt-chart').innerHTML = `<div class="chart-scale" aria-hidden="true"><span>${number.format(Math.round(max))} L</span><span>${number.format(Math.round(max / 2))}</span><span>0</span></div><div class="daily-columns${serie.length > 12 ? ' densa' : ''}">${serie.map(p => {
+      const litros = Number(p.litros) || 0;
+      const label = `${modo.etiqueta(p.periodo)} · ${litros ? number.format(Math.round(litros)) + ' litros en ' + number.format(p.cargas) + ' carga' + (p.cargas === 1 ? '' : 's') : 'Sin cargas'}`;
+      const height = litros ? Math.max(1, litros / max * 100) : 0;
+      return `<div class="daily-column ${litros ? '' : 'missing'}" tabindex="0" aria-label="${escape(label)}"><div class="daily-bar" style="height:${height}%"></div><span class="chart-tooltip">${escape(label)}</span></div>`;
+    }).join('')}</div>`;
+    el('lt-chart-labels').innerHTML = [0, Math.floor((serie.length - 1) / 2), serie.length - 1]
+      .map(i => `<span>${escape(modo.etiqueta(serie[i].periodo))}</span>`).join('');
+    el('lt-chart-table').innerHTML = `<table><caption>Litros cargados por ${modo.columna.toLowerCase()}</caption><thead><tr><th>${modo.columna}</th><th>Litros</th><th>Cargas</th><th>Unidades</th></tr></thead><tbody>${serie.map(p => `<tr><td>${escape(modo.etiqueta(p.periodo))}</td><td>${number.format(Math.round(Number(p.litros) || 0))}</td><td>${number.format(p.cargas || 0)}</td><td>${number.format(p.unidades || 0)}</td></tr>`).join('')}</tbody></table>`;
+    /* El total de todo lo cargado, que es la otra pregunta: cuánto
+       gasoil pasó por la flota desde que hay planillas. */
+    const total = Number(data?.total) || 0;
+    el('lt-nota').textContent = total
+      ? `Total cargado: ${number.format(Math.round(total))} litros en ${number.format(data.cargas)} cargas` +
+        (data.desde ? ` desde el ${day(data.desde)}/${String(data.desde).slice(0, 4)}` : '') +
+        (data.hasta ? ` · última carga el ${day(data.hasta)}` : '') + '.'
+      : 'De la planilla de cargas, que es lo que firmó el chofer.';
   }
   function consumo(data) {
     const rows = [data?.previo, data?.mes].filter(Boolean);
@@ -137,7 +183,8 @@
     el('dashboard-status').textContent = 'No se pudo actualizar. Recargue la página para reintentar.';
     el('km-sub').textContent = 'Recorrido no disponible.';
     el('cons-sub').textContent = 'Consumo no disponible.';
-    kilometros(null, 'ayer'); consumo(null); costos(null);
+    el('lt-sub').textContent = 'Litros no disponibles.';
+    kilometros(null, 'ayer'); litros(null, 'dia'); consumo(null); costos(null);
   }
-  window.InicioDashboard = {kilometros, consumo, costos, alertas, alertasError, error};
+  window.InicioDashboard = {kilometros, litros, consumo, costos, alertas, alertasError, error};
 })();

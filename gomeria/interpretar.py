@@ -27,9 +27,10 @@ HERRAMIENTA = {
         "properties": {
             "resumen": {
                 "type": "string",
-                "description": "Una frase en castellano de lo que entendiste, "
-                               "para que el gomero confirme. Ej: 'Cruzás las dos "
-                               "cubiertas del lado izquierdo entre el eje 2 y el 3'."
+                "description": "Una frase de lo que entendiste, para que el "
+                               "gomero confirme. Redactada como un parte, sin "
+                               "modismos. Ej: 'Rotación de las dos cubiertas del "
+                               "lado izquierdo entre el eje 2 y el eje 3'."
             },
             "km_unidad": {
                 "type": ["number", "null"],
@@ -81,7 +82,8 @@ HERRAMIENTA = {
             "pregunta": {
                 "type": ["string", "null"],
                 "description": "Si falta información para decidir, la pregunta concreta "
-                               "que hay que hacerle al gomero. Null si está todo claro."
+                               "que hay que hacerle al gomero, en una frase y sin "
+                               "modismos. Null si está todo claro."
             }
         },
         "required": ["resumen", "km_unidad", "acciones", "pregunta"]
@@ -158,6 +160,17 @@ Eso se lee así:
   = recapado, "para arreglar" = reparacion, "para tirar" = baja. Si no dice
   nada, es desmontaje común (van a stock).
 
+CÓMO ESCRIBÍS
+El gomero escribe como habla; el sistema no. El resumen y la pregunta salen
+impresos en un parte de taller, así que van en castellano neutro y sobrio:
+
+- Sin interjecciones ni muletillas: nada de "che", "dale", "mirá", "ojo",
+  "uh", "bueno".
+- Sin saludos, sin chistes, sin signos de exclamación y sin emojis.
+- Una frase, o dos si la pregunta necesita explicar qué falta.
+- Las posiciones, con su código del mapa (3IE, 2II) y, cuando ayude, cómo
+  las nombró él entre paréntesis.
+
 REGLAS
 1. Usá SOLO códigos de posición que existan en el mapa de arriba.
 2. Una rotación es siempre un intercambio completo: si la de 2IE va a 3IE,
@@ -187,8 +200,9 @@ REGLAS
 10. Dejá km_unidad siempre en null. Los kilómetros no los carga el gomero:
     el sistema los calcula con las lecturas diarias de Hawk y las fechas de
     montaje y desmontaje.
-11. El resumen tiene que ser entendible por el gomero que lo escribió, en una
-    frase, nombrando las posiciones como las nombra él.
+11. El resumen tiene que ser entendible por el gomero que lo escribió: una
+    frase con lo que se va a guardar, las posiciones y los números de fuego,
+    redactada como se redacta un parte.
 
 Ante la duda, preguntá. Es mucho peor guardar un movimiento equivocado que
 pedir una aclaración."""
