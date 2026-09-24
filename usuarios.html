@@ -281,7 +281,8 @@ function pintar() {
         ${u.sesiones ? `<div class="chico">${u.sesiones} sesión(es) abierta(s)</div>` : ''}</td>
       <td>${esc(u.nombre)}</td>
       <td>${esc(u.rol_nombre || u.rol)}
-        ${u.administra ? '<span class="marca admin">administra</span>' : ''}</td>
+        ${u.administra ? '<span class="marca admin">administra</span>' : ''}
+        ${u.tiene_2fa ? '<span class="marca activo">2FA</span>' : ''}</td>
       <td>${esc(u.sucursal_codigo || '—')}</td>
       <td>${esc(fecha(u.ultimo_ingreso))}</td>
       <td><span class="marca ${u.activo ? 'activo' : 'baja'}">${
@@ -289,6 +290,7 @@ function pintar() {
       <td style="white-space:nowrap">
         <button class="accion" data-editar="${u.id}">Editar</button>
         <button class="accion" data-clave="${u.id}">Contraseña</button>
+        ${u.tiene_2fa ? `<button class="accion" data-reset2fa="${u.id}">Resetear 2FA</button>` : ''}
         <button class="accion" data-estado="${u.id}">${u.activo ? 'Dar de baja' : 'Reactivar'}</button>
       </td>
     </tr>`).join('')
@@ -459,6 +461,16 @@ document.addEventListener('click', async ev => {
     $('#avisoClave').innerHTML = '';
     $('#modalClave').classList.add('on');
     $('#cClave').focus();
+    return;
+  }
+
+  const reset2fa = ev.target.closest('[data-reset2fa]');
+  if (reset2fa) {
+    const u = D.datos.usuarios.find(x => String(x.id) === reset2fa.dataset.reset2fa);
+    if (!confirm(`¿Resetear la verificación en dos pasos de ${u.usuario}? `
+      + 'Se le cierran las sesiones y en el próximo ingreso tiene que escanear el QR de nuevo.')) return;
+    try { await api('reset_2fa', {id: u.id}); await cargar(); }
+    catch (e) { alert(e.message); }
     return;
   }
 

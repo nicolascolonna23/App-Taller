@@ -286,6 +286,8 @@ def panel(cx, usuario):
                u.ultimo_ingreso, u.sucursal_codigo,
                coalesce(r.nombre, u.rol) as rol_nombre,
                coalesce(r.administra, false) as administra,
+               -- Por jsonb y no por la columna: sin 28_seguridad.sql no existe.
+               coalesce((to_jsonb(u) ->> 'totp_activo')::boolean, false) as tiene_2fa,
                (select count(*) from sesiones s
                 where s.usuario_id = u.id and s.expira > now()) as sesiones
         from usuarios u
@@ -409,6 +411,19 @@ def clave(cx, datos, usuario):
     return {"ok": True, "id": fila["id"]}
 
 
+def reset_2fa(cx, datos, usuario):
+    """Para el que perdió el celular y los códigos de respaldo.
+
+    Corta sus sesiones: en el próximo ingreso vuelve a escanear el QR.
+    """
+    _exigir_admin(usuario)
+    fila = _usuario(cx, datos.get("id"))
+    if not auth.hay_seguridad(cx):
+        raise ValueError("Falta correr gomeria/28_seguridad.sql en Supabase.")
+    auth.resetear_totp(cx, fila["id"])
+    return {"ok": True, "id": fila["id"]}
+
+
 # ---------------------------------------------------------------------
 # ESCRITURA — roles
 # ---------------------------------------------------------------------
@@ -484,7 +499,7 @@ def aplicar(cx, datos, usuario):
     """Punto de entrada de la API."""
     op = (datos.get("op") or "").strip()
     acciones = {"crear": crear, "guardar": guardar, "estado": estado, "clave": clave,
-                "guardar_rol": guardar_rol, "borrar_rol": borrar_rol}
+                "reset_2fa": reset_2fa, "guardar_rol": guardar_rol, "borrar_rol": borrar_rol}
     if op in acciones:
         return acciones[op](cx, datos, usuario)
     raise ValueError("No entiendo qué hay que hacer con el usuario.")

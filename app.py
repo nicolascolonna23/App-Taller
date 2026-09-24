@@ -1124,6 +1124,11 @@ def preparar():
             print("  Al maestro de unidades le faltan columnas: ejecutar "
                   "gomeria/07_unidades.sql en Supabase.")
 
+        if not auth.hay_seguridad(cx):
+            print("  ATENCIÓN: falta gomeria/28_seguridad.sql. Los administradores "
+                  "entran sin segundo factor y los intentos fallidos se cuentan "
+                  "en memoria.")
+
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
         if inicial:
             try:

@@ -102,6 +102,28 @@ esconde el botón. El detalle está en
 `gomeria/27_roles.sql`. Sin ese script corrido el sistema anda como
 siempre: todos abren todo.
 
+## Ingreso seguro
+
+- **Verificación en dos pasos para los que administran.** Además de la
+  contraseña piden el código de 6 dígitos de una app autenticadora
+  (Google Authenticator, Authy, 1Password). La primera vez que entran, la
+  app muestra un QR para darla de alta y 10 códigos de respaldo de un solo
+  uso. Si alguien pierde el celular y los códigos, otro administrador le
+  hace **Resetear 2FA** desde Usuarios y roles. Si no queda ningún otro
+  administrador, se resetea desde el SQL Editor de Supabase (la sentencia
+  está en el comentario de `usuarios.totp_secreto`).
+- **Freno a la fuerza bruta.** Se cuentan los intentos fallidos en una
+  ventana de 15 minutos: 20 por IP, 8 por usuario y 5 códigos de
+  verificación. Pasado eso hay que esperar. La IP sale de la cabecera que
+  pone Cloudflare en Render (`True-Client-IP`), no de `X-Forwarded-For`,
+  que la puede inventar cualquiera. Fuera de Render se indica la cabecera
+  del proxy propio con `IP_CABECERA`.
+
+Las tablas salen de `gomeria/28_seguridad.sql`. Sin ese script el sistema
+anda como antes (sin segundo factor, con los intentos contados en memoria)
+y lo avisa al arrancar. Al correrlo, los administradores tienen que volver
+a entrar y dar de alta el autenticador.
+
 ## Solicitudes de orden de compra
 
 Una sucursal no manda a hacer un trabajo de taller sin una **solicitud
