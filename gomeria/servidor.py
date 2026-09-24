@@ -19,7 +19,7 @@ sys.path.insert(0, AQUI)
 
 import anthropic
 import auth
-import permisos, base, desgaste, interpretar, mapas
+import permisos, base, desgaste, interpretar, mapas, neumaticos
 
 
 def jstr(d):
@@ -199,6 +199,16 @@ class Handler(BaseHTTPRequestHandler):
                         **desgaste.rendimiento(cx),
                         "dibujos": desgaste.dibujos(cx),
                     }))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
+        # El aviso de cambios por eje y las métricas de duración. Si el
+        # SQL no se corrió, lo dice y el resto de Gomería sigue igual.
+        if ruta == "/api/neumaticos":
+            try:
+                with base.conectar() as cx:
+                    return self._responder(jstr(neumaticos.panel(cx)))
             except Exception as e:
                 traceback.print_exc()
                 return self._error(str(e), 500)
@@ -413,6 +423,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._unidades(datos)
             if ruta == "/api/movimientos":
                 return self._movimientos(datos)
+            if ruta == "/api/neumaticos":
+                with base.conectar() as cx:
+                    salida = neumaticos.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(jstr(salida))
         except anthropic.APIStatusError as e:
             return self._error(f"La API respondió {e.status_code}. Revisar la clave o el saldo.", 502)
         except anthropic.APIConnectionError:

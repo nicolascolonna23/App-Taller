@@ -184,6 +184,15 @@ avisa cuándo una goma llega al mínimo de dibujo y calcula el costo por
 kilómetro y por milímetro gastado, marca contra marca y banda contra banda.
 Está explicado entero en **`DESGASTE.md`**.
 
+## 7 bis. Cada cuánto se cambia cada eje
+
+Corriendo `38_cambios_neumaticos.sql` se prende la solapa **Cambios por
+eje**: una regla de km y/o días por mapa y por eje (el tractor S-D-D viene
+con 150.000 km en la dirección y 220.000 en tracción y tercer eje), el
+aviso de a qué eje le toca, y cuánto dura una goma por patente, marca,
+modelo o tipo de eje. Los semis cuentan los km del tractor que los llevaba
+cada día. Está explicado entero en **`CAMBIOS_NEUMATICOS.md`**.
+
 ## 8. Deshacer un movimiento
 
 El gomero carga un parte, lo confirma, y recién ahí se da cuenta de que

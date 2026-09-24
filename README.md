@@ -51,6 +51,11 @@ La portada avisa además cuántas **cubiertas llegaron al mínimo de dibujo**
 (ver `gomeria/DESGASTE.md`), que es lo que puede dejar una unidad parada en
 la ruta.
 
+**Cambios de neumáticos por eje** vive en Gomería, en la solapa *Cambios
+por eje*: cada cuánto se cambia cada eje de cada mapa, a cuál le toca y
+cuánto dura una goma. Los semis, que no tienen odómetro, cuentan los km
+del tractor que los llevaba cada día. Ver `gomeria/CAMBIOS_NEUMATICOS.md`.
+
 La portada muestra los **kilómetros** y el **consumo en L/100 km** desde la
 base: los kilómetros de la tabla `odometros` (ver `gomeria/ODOMETROS.md`) y
 los litros del módulo de combustible (ver `gomeria/COMBUSTIBLE.md`). Los

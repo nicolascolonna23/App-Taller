@@ -82,6 +82,30 @@ table.datos .flojo{color:var(--m)}
 .vida .nums b{color:var(--t)}
 @media(max-width:780px){table.datos th:nth-child(4),table.datos td:nth-child(4),
   table.datos th:nth-child(5),table.datos td:nth-child(5){display:none}}
+/* CAMBIOS POR EJE. Rojo lo que ya pasó, ámbar lo que se viene, gris lo
+   que no se puede calcular. */
+.alerta.vencido{background:#e35d6222;color:var(--bad)}
+.alerta.proximo{background:#f0b42922;color:var(--w)}
+.alerta.sin_dato,.alerta.sin_regla{background:var(--p3);color:var(--m)}
+.ejes-check{display:flex;flex-wrap:wrap;gap:8px}
+.ejes-check label{display:flex;align-items:center;gap:6px;margin:0;padding:8px 11px;
+  border:1px solid var(--l2);border-radius:10px;font-size:12px;color:var(--t);
+  text-transform:none;letter-spacing:0;cursor:pointer}
+.ejes-check input{width:auto}
+table.datos input.chico,table.datos select.chico{padding:6px 8px;max-width:120px;font-size:12.5px}
+.btnchico{padding:6px 10px;font-size:12px;border-radius:8px}
+/* Lo que se mira de vez en cuando va plegado: la lista de avisos es lo
+   primero, y no puede quedar enterrada debajo de doscientos renglones. */
+details.plegable summary{cursor:pointer;list-style:none}
+details.plegable summary::-webkit-details-marker{display:none}
+details.plegable summary h3{margin:0}
+details.plegable summary h3::before{content:'▸ ';color:var(--o)}
+details.plegable[open] summary h3::before{content:'▾ '}
+details.plegable[open] summary{margin-bottom:10px}
+.pestanas{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.pestanas button{border:1px solid var(--l2);background:var(--p2);color:var(--m);
+  border-radius:99px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.pestanas button.on{color:var(--t);border-color:var(--o)}
 /* EL HISTORIAL DE LA UNIDAD. Un renglón por parte, no por cubierta: una
    rotación de cuatro gomas es un solo movimiento y se deshace entero. */
 /* El color del tipo de movimiento: verde lo que entra, rojo lo que sale,
@@ -151,14 +175,16 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 </style>
 <script src="/tema.js"></script></head><body>
 <header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
-<nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
+<nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="changes">Cambios por eje</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
 <main><section class="panel on" id="fleet"><div class="card fleet-picker" id="unitPicker"><label for="unitSearch">Elegir unidad <span class="sub" id="unitCount">Cargando…</span></label><div class="picker-box"><input class="search" id="unitSearch" role="combobox" aria-expanded="false" aria-controls="unitList" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" placeholder="Buscar patente, interno o sucursal"><button class="picker-abrir" id="unitToggle" type="button" tabindex="-1" aria-label="Ver todas las unidades">▾</button><div class="units" id="unitList" role="listbox" aria-label="Unidades" hidden></div></div></div><p id="benchStatus" role="status"></p><div class="grid"><aside class="card stock-shelf"><h2>Stock de cubiertas</h2><p class="workbench-help">Seleccioná una cubierta o arrastrala a un casillero vacío. Hasta 200 resultados; buscá para encontrar otras.</p><input id="shelfSearch" placeholder="Código, marca o medida" aria-label="Buscar cubierta en stock"><div class="drop-stock" id="returnStock">Arrastrá acá la cubierta que retirás.<br><small>Se pedirá destino y motivo.</small></div><div id="shelfList" class="shelf-list"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div><aside class="card tire-inspector" id="tireInspector"><h3>Neumático seleccionado</h3><p class="workbench-help">Elegí una cubierta del stock o una posición del vehículo.</p></aside></div></section>
 <section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
 <section class="panel" id="wear"><div id="wearBody"><div class="card loading"><span class="pulse"></span>Calculando desgaste…</div></div></section>
+<section class="panel" id="changes"><div id="neuBody"><div class="card loading"><span class="pulse"></span>Calculando cambios…</div></div></section>
 <section class="panel" id="register"><div class="card register"><h1>Registrar trabajo</h1><p class="sub">Revisar la propuesta antes de guardar el movimiento.</p><label>Unidad <span class="help">(opcional si figura en el texto)</span></label><select id="workUnit"><option value="">Elegir patente</option></select><label>Trabajo realizado</label><textarea id="workText" placeholder="Patente: AD 900 UK&#10;3 eje lado izquierdo entran 2 Michelin 079 y 327 recapadas.. salen 2 Fate 380 y 381 para recapar.."></textarea><p class="help">Se escribe como el parte: la patente arriba y debajo qué entra y qué sale, con el número de fuego. Los kilómetros se toman automáticamente de Hawk según la fecha del movimiento.</p><button class="btn" id="interpret">Interpretar movimiento</button><div id="workResult"></div></div></section></main>
 <div class="modalbg" id="tireModal"><div class="modal"><div class="modaltop"><h2 id="tireTitle">Cubierta</h2><button class="close" data-close="tireModal">×</button></div><div id="tireBody"></div></div></div>
 <div class="modalbg" id="measureModal"><div class="modal"><div class="modaltop"><h2 id="measureTitle">Medir dibujo</h2><button class="close" data-close="measureModal">×</button></div><p class="sub">Milímetros remanentes. Determinan la alerta y el costo por milímetro.</p><div class="formgrid"><div><label>Remanente (mm)</label><input id="mMm" type="number" min="0" max="40" step=".5"></div></div><div id="measureError"></div><button class="btn" id="saveMeasure">Guardar medición</button></div></div>
 <div class="modalbg" id="retreadModal"><div class="modal"><div class="modaltop"><h2 id="retreadTitle">Volvió del recapador</h2><button class="close" data-close="retreadModal">×</button></div><p class="sub">Se cierra la vida anterior con su rendimiento y comienza la siguiente. Este valor permite comparar el rendimiento entre bandas.</p><div class="formgrid"><div><label>Marca de la banda</label><input id="rBrand" placeholder="BANDAG"></div><div><label>Banda / dibujo</label><input id="rBand" placeholder="BDR-HT"></div><div><label>Recapador</label><input id="rProv"></div><div><label>Costo del recapado</label><input id="rCost" type="number" min="0" step=".01"></div><div><label>Dibujo con el que volvió (mm)</label><input id="rMm" type="number" min="0" max="40" step=".5"></div><div><label>Nota</label><input id="rNote"></div></div><div id="retreadError"></div><button class="btn" id="saveRetread">Registrar recapado</button></div></div>
+<div class="modalbg" id="neuModal"><div class="modal"><div class="modaltop"><h2>Registrar cambio de cubiertas</h2><button class="close" data-close="neuModal">×</button></div><p class="sub">Desde esta fecha se vuelve a contar para ese eje. Si las cubiertas están cargadas y montadas en el mapa, no hace falta: se cuenta solo.</p><div class="formgrid"><div class="wide"><label>Unidad</label><select id="ncUnit" style="max-width:none"></select></div><div class="wide"><label>Ejes que se cambiaron</label><div id="ncEjes" class="ejes-check"></div></div><div><label>Fecha</label><input id="ncFecha" type="date"></div><div><label>Odómetro ese día <span class="help">(opcional)</span></label><input id="ncKm" inputmode="numeric" placeholder="1.652.322"></div><div><label>Marca</label><input id="ncMarca" placeholder="MICHELIN"></div><div><label>Modelo</label><input id="ncModelo" placeholder="X MULTI Z"></div><div><label>Medida</label><input id="ncMedida" placeholder="295/80R22.5"></div><div><label>Nota</label><input id="ncNota"></div></div><p class="help">Marca y modelo son opcionales, pero sin ellos este cambio no entra en la comparación de marcas.</p><div id="ncError"></div><button class="btn" id="ncGuardar" style="margin-top:10px">Guardar cambio</button></div></div>
 <datalist id="catMarcas"></datalist><datalist id="catMedidas"></datalist>
 <div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" list="catMedidas" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand" list="catMarcas"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
 <script src="/vendor/three.min.js"></script>
@@ -172,10 +198,10 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 "use strict";const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtPat=p=>{let m=String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(m)return`${m[1]} ${m[2]} ${m[3]}`;m=String(p||'').match(/^([A-Z]{3})(\d{3})$/);return m?`${m[1]} ${m[2]}`:p},fmtDate=v=>v?new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 let D={units:[],configs:[],tires:[],summary:{},user:null,selected:null,parte:null,wear:null,alertaDe:{},tocada:null,unidadId:null,movimientos:[],historial:[],verDeshechos:false};async function api(url,body){let r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||`Error ${r.status}`);return d}
-function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(n==='wear'&&!D.wear)loadWear();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
+function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(n==='wear'&&!D.wear)loadWear();if(n==='changes'&&!D.neu)loadNeu();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
 /* La solapa vive en la direccion: /gomeria#register abre directo la carga de
    texto, que es a donde apunta el QR del taller. Volver atras la respeta. */
-const SOLAPAS=['fleet','stock','wear','register'];
+const SOLAPAS=['fleet','stock','wear','changes','register'];
 function solapaDeLaUrl(){const h=location.hash.slice(1);return SOLAPAS.includes(h)?h:null}
 addEventListener('hashchange',()=>{const h=solapaDeLaUrl();if(h)tab(h,false)});
 /* El buscador de unidad es un desplegable: la lista aparece sobre la
@@ -594,6 +620,157 @@ function listaVidas(v){
   if(!v||!v.length)return '<div class="emptymsg">Todavía no tiene ninguna vida abierta. Se abre sola en la próxima alta o recapado.</div>';
   return v.map(x=>`<div class="vida ${x.hasta?'':'abierta'}"><div class="cab"><b>${x.numero===0?'Goma original':'Recapado '+x.numero}${x.marca?' · '+esc(x.marca):''}${x.banda?' '+esc(x.banda):''}</b><span>${x.hasta?esc(x.desde)+' → '+esc(x.hasta):'desde '+esc(x.desde)+' · abierta'}</span></div><div class="nums"><span>Dibujo <b>${esc(mmfmt(x.inicial_mm))}</b>${x.inicial_origen==='tipico'?' <span class="estimado">est.</span>':''} → <b>${esc(mmfmt(x.remanente_mm))}</b></span><span>Gastó <b>${esc(mmfmt(x.mm_gastados))}</b></span><span>Km <b>${nfmt(x.km)}</b></span><span>Km por mm <b>${nfmt(x.km_por_mm)}</b></span><span>Costo <b>${pfmt(x.costo)}</b></span><span>$/km <b>${pfmt(x.pesos_km)}</b></span><span>$/mm <b>${pfmt(x.pesos_mm)}</b></span></div></div>`).join('');
 }
+
+/* =====================================================================
+   CAMBIOS POR EJE
+   ---------------------------------------------------------------------
+   Tres preguntas: a qué eje le toca cambiar las gomas, cada cuánto se
+   cambia cada eje de cada mapa, y cuánto dura una goma de verdad. Todo
+   sale de /api/neumaticos, que ya trae las cuentas hechas; acá se filtra,
+   se agrupa y se pinta.
+
+   Los semis no tienen odómetro: sus km son los del tractor que los
+   llevaba cada día. Por eso al lado de la patente del semi va el tractor.
+   ===================================================================== */
+const TIPOS_EJE={direccion:'Dirección',traccion:'Tracción',portante:'Portante',arrastre:'Arrastre'};
+const ESTADOS_NEU={vencido:'Pasado',proximo:'Próximo',sin_dato:'Sin dato',ok:'Bien',sin_regla:'Sin regla'};
+const AGRUPAR={patente:'Patente',marca:'Marca',modelo:'Marca y modelo',tipo_eje:'Tipo de eje',mapa_eje:'Mapa y eje'};
+D.neu=null;D.neuFiltro={q:'',estado:'',tipo:''};D.neuAgrupar='marca';D.neuTipoMetrica='';
+const fdia=v=>v?new Date(String(v).slice(0,10)+'T00:00').toLocaleDateString('es-AR'):'—';
+const tipoEje=t=>TIPOS_EJE[t]||t||'—';
+function reglaTxt(x){
+  const a=[];if(x.cada_km)a.push(nfmt(x.cada_km)+' km');if(x.cada_dias)a.push(nfmt(x.cada_dias)+' días');
+  return a.length?a.join(' o '):'<span class="flojo">sin regla</span>';
+}
+/* Lo que le falta. Negativo es que ya pasó: se dice cuánto, porque 2.000
+   km pasado no es lo mismo que 60.000. */
+function faltaNeu(x){
+  if(x.estado==='sin_regla')return '<span class="flojo">Cargar la regla del eje</span>';
+  if(x.estado==='sin_dato')return '<span class="flojo">Registrar el último cambio</span>';
+  const p=[];
+  if(x.km_restantes!=null)p.push(x.km_restantes<0?`<b class="fuerte">pasado ${nfmt(-x.km_restantes)} km</b>`:`${nfmt(x.km_restantes)} km`);
+  if(x.dias_restantes!=null)p.push(x.dias_restantes<0?`${nfmt(-x.dias_restantes)} días tarde`:`~${nfmt(x.dias_restantes)} días`);
+  return p.join(' · ')||'—';
+}
+const PARCIAL='<span class="estimado" title="El satelital empezó a reportar después de esa fecha, o faltan días: los km son un piso, no el total.">parcial</span>';
+
+function filtrarEjes(){
+  const f=D.neuFiltro,q=f.q.toLowerCase().trim();
+  return D.neu.ejes.filter(x=>(!f.estado||x.estado===f.estado)&&(!f.tipo||x.tipo_eje===f.tipo)&&
+    (!q||[x.patente,fmtPat(x.patente),x.interno,x.tractor,x.sucursal,x.mapa].join(' ').toLowerCase().includes(q)));
+}
+function tablaEjes(){
+  const a=filtrarEjes();
+  if(!a.length)return '<div class="emptymsg">No hay ejes con ese filtro.</div>';
+  return `<div class="tablewrap"><table class="datos"><thead><tr><th>Unidad</th><th>Eje</th><th>Se cuenta desde</th><th class="num">Km</th><th class="num">Días</th><th>Se cambia cada</th><th>Falta</th><th>Estado</th><th></th></tr></thead><tbody>${a.map(x=>`<tr><td class="fuerte">${esc(fmtPat(x.patente))}${x.interno?' <span class="flojo">int. '+esc(x.interno)+'</span>':''}${x.tractor?'<div class="flojo" style="font-weight:400">con '+esc(fmtPat(x.tractor))+'</div>':''}</td><td>E${esc(x.eje)} · ${esc(tipoEje(x.tipo_eje))}<div class="flojo">${esc(x.mapa)}</div></td><td>${x.desde?fdia(x.desde)+'<div class="flojo">'+(String(x.origen||'').includes('cambio')?'cambio registrado':'cubiertas montadas')+(x.con_dato<x.posiciones?` · ${x.con_dato} de ${x.posiciones}`:'')+'</div>':'<span class="flojo">—</span>'}</td><td class="num">${x.km_parcial&&!x.km?'<span class="flojo" title="Ni la unidad ni un tractor enganchado reportan km desde esa fecha.">sin satelital</span>':x.km!=null?nfmt(x.km)+(x.km_parcial?' '+PARCIAL:''):'—'}</td><td class="num">${x.dias!=null?nfmt(x.dias):'—'}</td><td>${reglaTxt(x)}</td><td>${faltaNeu(x)}</td><td><span class="alerta ${esc(x.estado)}">${esc(ESTADOS_NEU[x.estado]||x.estado)}</span></td><td><button class="btn alt btnchico" data-cambio="${x.unidad_id}" data-eje="${x.eje}">Cambio</button></td></tr>`).join('')}</tbody></table></div>`;
+}
+
+/* Las reglas, un bloque por mapa. El tractor S-D-D viene con 150.000 en
+   la dirección y 220.000 en tracción y tercer eje; el resto se carga acá. */
+function tablaReglas(gestor){
+  const porMapa={};D.neu.reglas.forEach(r=>(porMapa[r.mapa]=porMapa[r.mapa]||[]).push(r));
+  const opts=t=>Object.entries(TIPOS_EJE).map(([k,v])=>`<option value="${k}"${k===t?' selected':''}>${v}</option>`).join('');
+  return Object.entries(porMapa).map(([mapa,rs])=>`<div class="section"><h3>${esc(mapa)} · ${rs[0].unidades} unidad${rs[0].unidades===1?'':'es'}${rs[0].descripcion?' <span style="text-transform:none;letter-spacing:0;font-weight:400">— '+esc(rs[0].descripcion)+'</span>':''}</h3><div class="tablewrap"><table class="datos"><thead><tr><th>Eje</th><th>Tipo</th><th class="num">Cada km</th><th class="num">Cada días</th><th class="num">Avisar km antes</th><th class="num">Avisar días antes</th>${gestor?'<th></th>':''}</tr></thead><tbody>${rs.map(r=>{const id=r.configuracion_id+'-'+r.eje;return gestor?`<tr><td class="fuerte">E${r.eje} <span class="flojo">${r.rodado==='S'?'simple':'dual'} · ${r.cubiertas}</span></td><td><select class="chico" id="rt-${id}">${opts(r.tipo_eje)}</select></td><td class="num"><input class="chico" id="rk-${id}" inputmode="numeric" value="${r.cada_km??''}" placeholder="150000"></td><td class="num"><input class="chico" id="rd-${id}" inputmode="numeric" value="${r.cada_dias??''}" placeholder="—"></td><td class="num"><input class="chico" id="rak-${id}" inputmode="numeric" value="${r.aviso_km??15000}"></td><td class="num"><input class="chico" id="rad-${id}" inputmode="numeric" value="${r.aviso_dias??30}"></td><td style="white-space:nowrap"><button class="btn btnchico" data-regla="${id}">Guardar</button>${r.regla_id?` <button class="btn alt btnchico" data-sinregla="${id}" title="Sacar la regla">×</button>`:''}</td></tr>`:`<tr><td class="fuerte">E${r.eje} <span class="flojo">${r.rodado==='S'?'simple':'dual'} · ${r.cubiertas}</span></td><td>${esc(tipoEje(r.tipo_eje))}</td><td class="num">${r.cada_km?nfmt(r.cada_km):'—'}</td><td class="num">${r.cada_dias?nfmt(r.cada_dias):'—'}</td><td class="num">${r.regla_id?nfmt(r.aviso_km):'—'}</td><td class="num">${r.regla_id?nfmt(r.aviso_dias):'—'}</td></tr>`}).join('')}</tbody></table></div></div>`).join('');
+}
+
+/* Cuánto dura una goma. Solo las que ya salieron del eje: una que sigue
+   puesta todavía no terminó de durar. Los km parciales no entran al
+   promedio de km, sí al de días. */
+function claveDuracion(x){
+  const g=D.neuAgrupar;
+  if(g==='patente')return fmtPat(x.patente);
+  if(g==='marca')return x.marca||'(sin marca)';
+  if(g==='modelo')return [x.marca,x.modelo].filter(Boolean).join(' ')||'(sin marca ni modelo)';
+  if(g==='tipo_eje')return tipoEje(x.tipo_eje);
+  return `${x.mapa||'—'} · E${x.eje} ${tipoEje(x.tipo_eje)}`;
+}
+function tablaDuraciones(){
+  const a=D.neu.duraciones.filter(x=>!D.neuTipoMetrica||x.tipo_eje===D.neuTipoMetrica);
+  if(!a.length)return '<div class="emptymsg">Todavía no hay cubiertas que hayan terminado su tiempo en un eje. Aparecen cuando una cubierta montada sale del eje, o cuando un eje tiene dos cambios registrados.</div>';
+  const g={};
+  a.forEach(x=>{const k=claveDuracion(x),o=g[k]=g[k]||{n:0,dias:0,kms:[]};o.n++;o.dias+=Number(x.dias||0);if(x.km!=null&&!x.km_parcial)o.kms.push(Number(x.km))});
+  const filas=Object.entries(g).map(([k,o])=>({k,n:o.n,dias:o.dias/o.n,nk:o.kms.length,km:o.kms.length?o.kms.reduce((s,v)=>s+v,0)/o.kms.length:null,min:o.kms.length?Math.min(...o.kms):null,max:o.kms.length?Math.max(...o.kms):null}))
+    .sort((x,y)=>(y.km??-1)-(x.km??-1)||y.n-x.n);
+  return `<div class="tablewrap"><table class="datos"><thead><tr><th>${esc(AGRUPAR[D.neuAgrupar])}</th><th class="num">Cambios</th><th class="num">Días promedio</th><th class="num">Km promedio</th><th class="num">Mín / máx km</th></tr></thead><tbody>${filas.map(f=>`<tr><td class="fuerte">${esc(f.k)}</td><td class="num">${f.n}</td><td class="num">${nfmt(f.dias)}</td><td class="num fuerte">${f.km!=null?nfmt(f.km):'—'}${f.nk&&f.nk<f.n?` <span class="flojo" title="Casos con km completos">(${f.nk})</span>`:''}</td><td class="num flojo">${f.min!=null?nfmt(f.min)+' / '+nfmt(f.max):'—'}</td></tr>`).join('')}</tbody></table></div>`;
+}
+
+function tablaCambios(gestor){
+  const c=D.neu.cambios;
+  if(!c.length)return '<div class="emptymsg">No hay cambios registrados a mano.</div>';
+  return `<div class="tablewrap"><table class="datos"><thead><tr><th>Fecha</th><th>Unidad</th><th>Eje</th><th>Cubiertas</th><th class="num">Odómetro</th><th>Cargó</th>${gestor?'<th></th>':''}</tr></thead><tbody>${c.slice(0,60).map(x=>`<tr><td>${fdia(x.fecha)}</td><td class="fuerte">${esc(fmtPat(x.patente))}</td><td>E${esc(x.eje)}</td><td>${esc([x.marca,x.modelo,x.medida].filter(Boolean).join(' · ')||'—')}${x.nota?'<div class="flojo">'+esc(x.nota)+'</div>':''}</td><td class="num">${x.km_unidad!=null?nfmt(x.km_unidad):'—'}</td><td class="flojo">${esc(x.usuario||'')}</td>${gestor?`<td><button class="btn alt btnchico" data-anular="${x.id}">Anular</button></td>`:''}</tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderNeu(){
+  const d=D.neu,caja=$('#neuBody');
+  if(!d.instalado){caja.innerHTML=`<div class="card"><h1>Cambios por eje</h1><p class="sub">${esc(d.aviso)}</p><p class="help">Es un archivo que se pega en Supabase → SQL Editor → Run. Después esta pantalla se llena sola.</p></div>`;return}
+  const r=d.resumen,gestor=!!D.user?.puede_administrar,f=D.neuFiltro;
+  caja.innerHTML=`
+  <div id="neuError"></div>
+  <div class="metrics">
+    <div class="metric"><b style="color:var(--bad)">${r.vencido}</b><span>ejes pasados</span></div>
+    <div class="metric"><b style="color:var(--w)">${r.proximo}</b><span>próximos a cambiar</span></div>
+    <div class="metric"><b>${r.sin_dato}</b><span>sin último cambio</span></div>
+    <div class="metric"><b>${r.ok}</b><span>bien</span></div>
+    <div class="metric"><b>${r.sin_regla}</b><span>sin regla</span></div>
+  </div>
+  <div class="card"><div class="stockbar"><div><h1>A qué eje le toca</h1><p class="sub" style="margin-bottom:0">Un eje está como su peor cubierta. Los semis cuentan los km del tractor que los llevaba cada día, según los enganches de Flota → Asociación de equipos.</p></div><button class="btn" id="neuNuevo">+ Registrar cambio</button></div>
+    <div class="filters" style="margin-bottom:12px"><input id="neuQ" placeholder="Buscar patente, interno, tractor o mapa" value="${esc(f.q)}"><select id="neuEstado"><option value="">Todos los estados</option>${Object.entries(ESTADOS_NEU).map(([k,v])=>`<option value="${k}"${f.estado===k?' selected':''}>${v}</option>`).join('')}</select><select id="neuTipo"><option value="">Todos los ejes</option>${Object.entries(TIPOS_EJE).map(([k,v])=>`<option value="${k}"${f.tipo===k?' selected':''}>${v}</option>`).join('')}</select></div>
+    <div id="neuEjes">${tablaEjes()}</div></div>
+  <div class="card section"><h3>Cuánto dura una goma</h3><p class="sub">Promedio de las cubiertas que ya salieron de su eje, en días y en km. Los km de un período que el satelital no cubrió entero quedan afuera del promedio de km.</p>
+    <div class="pestanas" id="neuAgrupar">${Object.entries(AGRUPAR).map(([k,v])=>`<button data-agrupar="${k}" class="${D.neuAgrupar===k?'on':''}">${v}</button>`).join('')}<select id="neuTipoMetrica" style="max-width:170px;padding:5px 9px;font-size:12px"><option value="">Todos los ejes</option>${Object.entries(TIPOS_EJE).map(([k,v])=>`<option value="${k}"${D.neuTipoMetrica===k?' selected':''}>${v}</option>`).join('')}</select></div>
+    <div id="neuDuraciones">${tablaDuraciones()}</div></div>
+  <div class="card section"><h3>Cada cuánto se cambia cada eje</h3><p class="sub">Por mapa de ejes: todas las unidades con el mismo mapa comparten la regla. Se puede poner km, días, o las dos cosas: lo que llegue primero. Para los semis sin tractor conocido, los días son lo único que avisa.</p>${gestor?'':'<p class="help">Solo un encargado o administrador puede cambiar las reglas.</p>'}${tablaReglas(gestor)}</div>
+  <details class="card section plegable"><summary><h3>Cambios registrados a mano · ${d.cambios.length}</h3></summary>${tablaCambios(gestor)}</details>
+`;
+
+  const pintarEjes=()=>{$('#neuEjes').innerHTML=tablaEjes();engancharCambio()};
+  $('#neuQ').oninput=e=>{f.q=e.target.value;pintarEjes()};
+  $('#neuEstado').onchange=e=>{f.estado=e.target.value;pintarEjes()};
+  $('#neuTipo').onchange=e=>{f.tipo=e.target.value;pintarEjes()};
+  $$('#neuAgrupar [data-agrupar]').forEach(b=>b.onclick=()=>{D.neuAgrupar=b.dataset.agrupar;$$('#neuAgrupar [data-agrupar]').forEach(x=>x.classList.toggle('on',x===b));$('#neuDuraciones').innerHTML=tablaDuraciones()});
+  $('#neuTipoMetrica').onchange=e=>{D.neuTipoMetrica=e.target.value;$('#neuDuraciones').innerHTML=tablaDuraciones()};
+  $('#neuNuevo').onclick=()=>abrirCambio();
+  engancharCambio();
+  if(!gestor)return;
+  $$('#neuBody [data-regla]').forEach(b=>b.onclick=()=>{const id=b.dataset.regla,[cfg,eje]=id.split('-');
+    neuEscribir({op:'regla_guardar',configuracion_id:cfg,eje,tipo_eje:$('#rt-'+id).value,cada_km:$('#rk-'+id).value,cada_dias:$('#rd-'+id).value,aviso_km:$('#rak-'+id).value,aviso_dias:$('#rad-'+id).value})});
+  $$('#neuBody [data-sinregla]').forEach(b=>b.onclick=()=>{const[cfg,eje]=b.dataset.sinregla.split('-');
+    if(confirm('¿Sacar la regla de este eje? Las unidades con este mapa dejan de avisar.'))neuEscribir({op:'regla_borrar',configuracion_id:cfg,eje})});
+  $$('#neuBody [data-anular]').forEach(b=>b.onclick=()=>{const m=prompt('¿Por qué se anula este cambio?');if(m)neuEscribir({op:'cambio_anular',id:b.dataset.anular,motivo:m})});
+}
+function engancharCambio(){$$('#neuEjes [data-cambio]').forEach(b=>b.onclick=()=>abrirCambio(+b.dataset.cambio,+b.dataset.eje))}
+
+async function neuEscribir(cuerpo){
+  try{D.neu=await api('/api/neumaticos',cuerpo);renderNeu()}
+  catch(e){const x=$('#neuError');if(x){x.innerHTML=`<div class="card error" style="margin-bottom:12px">${esc(e.message)}</div>`;x.scrollIntoView({behavior:'smooth'})}}
+}
+async function loadNeu(){
+  try{D.neu=await api('/api/neumaticos');renderNeu()}
+  catch(e){$('#neuBody').innerHTML=`<div class="card error">${esc(e.message)}</div>`}
+}
+
+/* Registrar un cambio: la unidad, qué ejes y cuándo. Se pueden marcar
+   varios ejes, porque tracción y tercer eje se cambian muchas veces juntos. */
+function pintarEjesCambio(marcado){
+  const u=D.neu.unidades.find(x=>x.id===+$('#ncUnit').value);
+  const tipos={};D.neu.reglas.forEach(r=>{if(u&&r.mapa===u.mapa)tipos[r.eje]=r.tipo_eje});
+  $('#ncEjes').innerHTML=u&&u.ejes.length?u.ejes.map(e=>`<label><input type="checkbox" value="${e}"${e===marcado?' checked':''}> E${e} · ${esc(tipoEje(tipos[e]))}</label>`).join(''):'<span class="help">Esta unidad no tiene mapa de ejes. Se asigna en la solapa Flota y mapas.</span>';
+}
+function abrirCambio(unidad,eje){
+  const con=D.neu.unidades.filter(x=>x.ejes.length);
+  $('#ncUnit').innerHTML='<option value="">Elegir patente</option>'+con.map(x=>`<option value="${x.id}">${esc(fmtPat(x.patente))}${x.interno?' · int. '+esc(x.interno):''} · ${esc(x.mapa)}</option>`).join('');
+  $('#ncUnit').value=unidad||'';$('#ncUnit').onchange=()=>pintarEjesCambio();pintarEjesCambio(eje);
+  /* La fecha local: la de UTC a la noche ya es mañana, y el servidor no acepta fechas futuras. */
+  $('#ncFecha').value=new Date(Date.now()-new Date().getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  ['ncKm','ncMarca','ncModelo','ncMedida','ncNota'].forEach(x=>$('#'+x).value='');
+  $('#ncError').innerHTML='';modal('neuModal');
+}
+$('#ncGuardar').onclick=async()=>{
+  const b=$('#ncGuardar');b.disabled=true;$('#ncError').innerHTML='';
+  try{D.neu=await api('/api/neumaticos',{op:'cambio_registrar',unidad_id:$('#ncUnit').value,ejes:$$('#ncEjes input:checked').map(x=>+x.value),fecha:$('#ncFecha').value,km_unidad:$('#ncKm').value,marca:$('#ncMarca').value,modelo:$('#ncModelo').value,medida:$('#ncMedida').value,nota:$('#ncNota').value});
+      modal('neuModal',false);renderNeu()}
+  catch(e){$('#ncError').innerHTML=`<p class="error">${esc(e.message)}</p>`}
+  finally{b.disabled=false}};
 
 async function dashboard(){let d=await api('/api/tablero');D.units=d.unidades;D.configs=d.configuraciones;D.summary=d.resumen_stock;renderUnits();metrics();$('#workUnit').innerHTML='<option value="">Elegir patente</option>'+D.units.map(u=>`<option value="${esc(u.patente)}">${esc(fmtPat(u.patente))}${u.interno?' · int. '+esc(u.interno):''}</option>`).join('');await loadWear();if(!D.selected&&D.units.length){let m=location.pathname.match(/\/u\/([^/]+)/);D.selected=m?decodeURIComponent(m[1]):D.units[0].patente}if(D.selected)await selectUnit(D.selected)}async function catalogoDeGomeria(){try{const d=await api('/api/marcas');$('#catMarcas').innerHTML=(d.marcas||[]).map(m=>`<option value="${esc(m.nombre)}">`).join('');$('#catMedidas').innerHTML=(d.medidas||[]).map(m=>`<option value="${esc(m.medida)}">${esc(m.descripcion||'')}</option>`).join('')}catch(e){/* sin 31_marcas_medidas.sql: los campos siguen siendo libres */}}
 async function init(){const inicial=solapaDeLaUrl();if(inicial)tab(inicial,false);try{D.user=await api('/api/yo');$('#who').innerHTML=`${esc(D.user.nombre)} <a href="/salir">Salir</a>`;if(!D.user.puede_administrar)$('#newTire').style.display='none';catalogoDeGomeria();await dashboard()}catch(e){$('#unitDetail').innerHTML=`<div class="card error">${esc(e.message)}</div>`}}
