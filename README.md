@@ -142,6 +142,14 @@ esconde el botón. El detalle está en
 `gomeria/27_roles.sql`. Sin ese script corrido el sistema anda como
 siempre: todos abren todo.
 
+## ¿Qué scripts faltan correr?
+
+`gomeria/revisar_base.sql` no cambia nada: se pega en el SQL Editor de
+Supabase (en el mismo proyecto que usa Render) y devuelve qué script falta
+correr y qué le falta a cada uno. En Supabase, si una línea de un script
+falla no se guarda nada de ese script, aunque la pantalla parezca haber
+andado: el error queda abajo, en rojo.
+
 ## Ingreso seguro
 
 - **Verificación en dos pasos para los que administran.** Además de la
