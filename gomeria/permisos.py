@@ -70,6 +70,7 @@ RUTAS = {
     "/flota": "flota", "/control": "flota", "/api/flota": "flota",
     "/unidades": "unidades", "/api/unidades": "unidades",
     "/gomeria": "gomeria", "/api/tablero": "gomeria", "/api/movimiento": "gomeria",
+    "/api/neumaticos": "gomeria",
     "/repuestos": "repuestos", "/api/repuestos": "repuestos",
     "/ordenes": "ordenes", "/api/ordenes": "ordenes", "/api/factura": "ordenes",
     "/solicitudes": "solicitudes", "/api/solicitudes": "solicitudes",
