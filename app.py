@@ -1288,7 +1288,16 @@ class App(gom.Handler):
             if actual == nueva:
                 return self._error("La nueva tiene que ser distinta de la de ahora.")
             with base.conectar() as cx:
+                # El mismo freno que el ingreso: una sesión olvidada abierta
+                # no puede servir para probar contraseñas sin límite.
+                cuenta = auth.clave_usuario(self.usuario["usuario"])
+                minutos = auth.bloqueado(cx, cuenta)
+                if minutos:
+                    return self._error(f"Demasiados intentos fallidos. Reintentar de "
+                                       f"nuevo en {minutos} minutos.", 429)
                 if not auth.autenticar(cx, self.usuario["usuario"], actual):
+                    auth.anotar_fallo(cx, cuenta)
+                    cx.commit()
                     return self._error("La contraseña de ahora no es esa.", 403)
                 auth.cambiar_clave(cx, self.usuario["id"], nueva)
                 cx.commit()

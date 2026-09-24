@@ -302,11 +302,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._redirigir("/login/2fa", cookie=auth.cookie_desafio(
                     desafio, seguro=self._es_https()))
 
-            token = auth.abrir_sesion(cx, quien["id"], self.headers.get("User-Agent"))
+            segundos = auth.duracion_sesion(cx, quien)
+            token = auth.abrir_sesion(cx, quien["id"], self.headers.get("User-Agent"),
+                                      segundos=segundos)
             auth.limpiar_vencidas(cx)
             cx.commit()
-        return self._redirigir(destino,
-                               cookie=auth.cookie_de_sesion(token, seguro=self._es_https()))
+        return self._redirigir(destino, cookie=auth.cookie_de_sesion(
+            token, seguro=self._es_https(), segundos=segundos))
 
     def _segundo_factor(self):
         """El paso del código, para los que administran.
@@ -361,15 +363,16 @@ class Handler(BaseHTTPRequestHandler):
             auth.limpiar_intentos(cx, intentos)
             auth.cerrar_desafio(cx, token)
             respaldo = None if fila["totp_activo"] else auth.activar_totp(cx, fila["id"])
+            segundos = auth.duracion_sesion(cx, fila)
             sesion = auth.abrir_sesion(cx, fila["id"], self.headers.get("User-Agent"),
-                                       con_2fa=True)
+                                       con_2fa=True, segundos=segundos)
             auth.limpiar_vencidas(cx)
             cx.commit()
 
         destino = fila["destino"] or "/"
         if not destino.startswith("/") or destino.startswith("//"):
             destino = "/"
-        cookies = [auth.cookie_de_sesion(sesion, seguro=seguro),
+        cookies = [auth.cookie_de_sesion(sesion, seguro=seguro, segundos=segundos),
                    auth.cookie_desafio(None, borrar=True, seguro=seguro)]
         if respaldo:
             return self._html(auth.pagina_respaldo(respaldo, destino), cookie=cookies)

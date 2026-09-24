@@ -2,8 +2,9 @@
 
 Lo que se prueba: que el código de la app sea el del estándar (si no, el
 celular y el servidor no se entienden), que un código no sirva dos veces,
-que cambiar la IP en una cabecera no esquive el freno, y que sin la
-migración la app siga dejando entrar.
+que cambiar la IP en una cabecera no esquive el freno, que la base guarde
+el hash de la sesión y no el token, y que sin la migración la app siga
+dejando entrar.
 """
 import os
 import sys
@@ -83,6 +84,22 @@ class Freno(unittest.TestCase):
 
     def test_sin_migracion_no_pide_segundo_factor(self):
         self.assertFalse(auth.pide_2fa(SinTablas(), {"id": 1, "rol": "admin"}))
+
+
+class Sesiones(unittest.TestCase):
+    def test_el_hash_es_el_mismo_que_calcula_postgres(self):
+        # 36_sesiones_hash.sql usa sha256 en hexadecimal: tienen que coincidir.
+        self.assertEqual(auth._h("abc"),
+                         "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad")
+
+    def test_un_hash_no_se_acepta_como_token(self):
+        token = "x" * 43
+        self.assertTrue(auth._hash_viejo(token))
+        self.assertFalse(auth._hash_viejo(auth._h(token)))
+
+    def test_la_cookie_dura_lo_que_se_le_pide(self):
+        self.assertIn("Max-Age=43200;", auth.cookie_de_sesion("t", segundos=12 * 3600))
+        self.assertIn(f"Max-Age={auth.DIAS_SESION * 86400};", auth.cookie_de_sesion("t"))
 
 
 class Origen(unittest.TestCase):

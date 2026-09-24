@@ -159,7 +159,16 @@ siempre: todos abren todo.
   que la puede inventar cualquiera. Fuera de Render se indica la cabecera
   del proxy propio con `IP_CABECERA`.
 
-Las tablas salen de `gomeria/35_seguridad.sql`. Sin ese script el sistema
+- **Sesiones.** La cookie no la puede leer ningún script de la página
+  (`HttpOnly`) y en la base queda el hash del token, no el token: quien se
+  lleve una copia de la tabla no puede usar las sesiones abiertas. La
+  sesión de un operario dura 30 días; la de quien administra, 12 horas
+  (se cambia con `HORAS_SESION_ADMIN`). Cambiar la propia contraseña tiene
+  el mismo freno que el ingreso.
+
+Las tablas salen de `gomeria/35_seguridad.sql`. `gomeria/36_sesiones_hash.sql`
+es opcional: pasa a hash de una vez las sesiones abiertas de antes, que si
+no se pasan solas cuando su dueño vuelve a usarlas. Sin ese script el sistema
 anda como antes (sin segundo factor, con los intentos contados en memoria)
 y lo avisa al arrancar. Al correrlo, los administradores tienen que volver
 a entrar y dar de alta el autenticador.

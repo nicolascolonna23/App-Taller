@@ -16,6 +16,9 @@ from http.cookies import SimpleCookie
 import permisos
 
 DIAS_SESION = 30           # el gomero no debería tener que entrar todos los días
+# Quien administra entra de nuevo cada jornada. Se cambia con la variable
+# de entorno HORAS_SESION_ADMIN.
+HORAS_SESION_ADMIN = int(os.environ.get("HORAS_SESION_ADMIN") or 12)
 COOKIE = "sesion"
 
 # Parámetros de scrypt. n más alto = más lento de calcular = más caro de
@@ -92,22 +95,55 @@ def autenticar(cx, usuario, clave):
 # =====================================================================
 # SESIONES
 # =====================================================================
-def abrir_sesion(cx, usuario_id, agente=None, con_2fa=False):
+def _h(token):
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _hash_viejo(token):
+    """True si el token parece de antes de guardar hashes.
+
+    Los tokens miden 43 caracteres; sus hashes, 64 hexadecimales. Una
+    cookie que trae 64 hexadecimales nunca se busca tal cual: si no, quien
+    se llevara la tabla podría presentar el hash como si fuera el token.
+    """
+    return not re.fullmatch(r"[0-9a-f]{64}", token)
+
+
+def duracion_sesion(cx, usuario):
+    """Segundos que dura la sesión de ese usuario.
+
+    La del gomero dura un mes: entra desde el celular del taller y no
+    administra nada. La de quien administra dura una jornada: una sesión
+    abierta de administrador en una máquina ajena es la llave de todo.
+    """
+    if permisos.administra(permisos.con_permisos(cx, usuario)):
+        return HORAS_SESION_ADMIN * 3600
+    return DIAS_SESION * 86400
+
+
+def abrir_sesion(cx, usuario_id, agente=None, con_2fa=False, segundos=None):
+    """Abre la sesión y devuelve el token para la cookie.
+
+    En la base queda el hash del token, no el token: quien lea la tabla
+    (un backup que se filtra, un acceso de más) no puede usar las
+    sesiones abiertas.
+    """
     token = secrets.token_urlsafe(32)
-    expira = datetime.now(timezone.utc) + timedelta(days=DIAS_SESION)
+    expira = datetime.now(timezone.utc) + timedelta(seconds=segundos or DIAS_SESION * 86400)
     if hay_seguridad(cx):
         cx.execute("""insert into sesiones (token, usuario_id, expira, agente, con_2fa)
                       values (%s,%s,%s,%s,%s)""",
-                   (token, usuario_id, expira, (agente or "")[:200], bool(con_2fa)))
+                   (_h(token), usuario_id, expira, (agente or "")[:200], bool(con_2fa)))
     else:
         cx.execute("""insert into sesiones (token, usuario_id, expira, agente)
-                      values (%s,%s,%s,%s)""", (token, usuario_id, expira, (agente or "")[:200]))
+                      values (%s,%s,%s,%s)""", (_h(token), usuario_id, expira, (agente or "")[:200]))
     cx.execute("update usuarios set ultimo_ingreso = now() where id = %s", (usuario_id,))
     return token
 
 
 # Lo que viaja en la fila del usuario y no tiene que salir de este módulo.
-_SECRETOS = ("hash", "totp_secreto", "totp_respaldo", "totp_ultimo", "sesion_con_2fa")
+_SECRETOS = ("hash", "totp_secreto", "totp_respaldo", "totp_ultimo", "sesion_con_2fa",
+             "sesion_creada", "sesion_token")
 
 
 def usuario_de_sesion(cx, token):
@@ -117,24 +153,41 @@ def usuario_de_sesion(cx, token):
     por el que pasan todos los pedidos, así que es donde no se puede
     olvidar. Ver permisos.py.
 
-    La sesión de alguien que administra y no pasó por el segundo factor no
-    vale: es la de antes de correr 35_seguridad.sql, o la de alguien que
-    ascendieron a administrador después de entrar.
+    La sesión de alguien que administra no vale si no pasó por el segundo
+    factor (es la de antes de correr 35_seguridad.sql, o la de alguien que
+    ascendieron a administrador después de entrar), ni si tiene más de
+    HORAS_SESION_ADMIN horas.
     """
     if not token:
         return None
     seguridad = hay_seguridad(cx)
     fila = cx.execute(f"""
-        select u.*{", s.con_2fa as sesion_con_2fa" if seguridad else ""}
+        select u.*, s.creado as sesion_creada, s.token as sesion_token
+               {", s.con_2fa as sesion_con_2fa" if seguridad else ""}
         from sesiones s
         join usuarios u on u.id = s.usuario_id
-        where s.token = %s and s.expira > now() and u.activo""", (token,)).fetchone()
+        where (s.token = %s or (s.token = %s and %s))
+          and s.expira > now() and u.activo""",
+        (_h(token), token, _hash_viejo(token))).fetchone()
     if not fila:
         return None
     usuario = permisos.con_permisos(cx, fila)
-    if seguridad and permisos.administra(usuario) and not usuario.get("sesion_con_2fa"):
-        return None
-    cx.execute("update sesiones set ultimo_uso = now() where token = %s", (token,))
+    if permisos.administra(usuario):
+        if seguridad and not usuario.get("sesion_con_2fa"):
+            return None
+        creada = usuario["sesion_creada"]
+        if creada.tzinfo is None:
+            creada = creada.replace(tzinfo=timezone.utc)
+        if datetime.now(timezone.utc) - creada > timedelta(hours=HORAS_SESION_ADMIN):
+            cx.execute("delete from sesiones where token = %s", (usuario["sesion_token"],))
+            return None
+    if usuario["sesion_token"] == token:
+        # Una sesión de antes de guardar hashes: se pasa a hash la primera
+        # vez que se usa, y el que la tiene no se entera.
+        cx.execute("update sesiones set token = %s, ultimo_uso = now() where token = %s",
+                   (_h(token), token))
+    else:
+        cx.execute("update sesiones set ultimo_uso = now() where token = %s", (_h(token),))
     for k in _SECRETOS:
         usuario.pop(k, None)
     return usuario
@@ -142,7 +195,8 @@ def usuario_de_sesion(cx, token):
 
 def cerrar_sesion(cx, token):
     if token:
-        cx.execute("delete from sesiones where token = %s", (token,))
+        cx.execute("delete from sesiones where token = %s or (token = %s and %s)",
+                   (_h(token), token, _hash_viejo(token)))
 
 
 def limpiar_vencidas(cx):
@@ -163,7 +217,7 @@ def token_de_cookie(cabecera, nombre=COOKIE):
         return None
 
 
-def cookie_de_sesion(token, borrar=False, seguro=False):
+def cookie_de_sesion(token, borrar=False, seguro=False, segundos=None):
     """Armá la cookie.
 
     HttpOnly para que ningún script de la página la lea. Secure cuando la
@@ -173,7 +227,7 @@ def cookie_de_sesion(token, borrar=False, seguro=False):
     extra = "; Secure" if seguro else ""
     if borrar:
         return f"{COOKIE}=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax{extra}"
-    return (f"{COOKIE}={token}; Path=/; Max-Age={DIAS_SESION * 86400}; "
+    return (f"{COOKIE}={token}; Path=/; Max-Age={segundos or DIAS_SESION * 86400}; "
             f"HttpOnly; SameSite=Lax{extra}")
 
 
@@ -414,10 +468,6 @@ def resetear_totp(cx, usuario_id):
 # El paso intermedio: la contraseña ya está, falta el código. Se guarda el
 # hash del token: quien lea la tabla no puede usarlo.
 # ---------------------------------------------------------------------
-def _h(token):
-    return hashlib.sha256(token.encode()).hexdigest()
-
-
 def abrir_desafio(cx, usuario_id, destino="/"):
     token = secrets.token_urlsafe(32)
     cx.execute("delete from desafios_2fa where usuario_id = %s or expira < now()",
