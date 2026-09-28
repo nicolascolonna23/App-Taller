@@ -120,6 +120,10 @@ def _sin_permiso(modulo, usuario):
 class App(gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
 
+    # Un navegador que abre la conexión y no manda nada (una solapa que se
+    # durmió, un celular que perdió señal) ocupaba un hilo para siempre.
+    timeout = 60
+
     def _ruta_pedida(self):
         """La dirección que escribió el navegador, antes de reescribirla.
 
@@ -1152,12 +1156,23 @@ def main():
     host = os.environ.get("HOST", "0.0.0.0")
 
     print("App Taller")
-    usuarios, unidades = preparar()
-    print(f"  {unidades} unidades · {usuarios} usuarios")
+    # El puerto se abre antes de revisar la base. Al despertar, Render
+    # manda las visitas apenas arranca el proceso: si el puerto todavía no
+    # escucha, la visita se lleva un 503. Así esperan en la cola.
+    servidor = ThreadingHTTPServer((host, puerto), App)
+    servidor.daemon_threads = True
+    try:
+        usuarios, unidades = preparar()
+        print(f"  {unidades} unidades · {usuarios} usuarios")
+    except psycopg.OperationalError as e:
+        # La base no respondió al arrancar. Antes el proceso se caía y
+        # Render lo reiniciaba en loop, dando 503 todo ese tiempo. Ahora
+        # sigue arriba y cada pantalla vuelve a probar cuando se abre.
+        print(f"  No se pudo conectar a la base al arrancar: {e}")
     print(f"  Escuchando en http://{host}:{puerto}")
 
     try:
-        ThreadingHTTPServer((host, puerto), App).serve_forever()
+        servidor.serve_forever()
     except KeyboardInterrupt:
         print("\nCerrado.")
 

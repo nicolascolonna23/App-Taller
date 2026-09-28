@@ -33,7 +33,13 @@ def url_conexion():
 
 
 def conectar():
-    return psycopg.connect(url_conexion(), row_factory=dict_row, autocommit=False)
+    # Sin tope, un pedido que no consigue conexión (el pooler de Supabase
+    # lleno, la red cortada) queda colgado para siempre. Los hilos colgados
+    # se juntan hasta que el servicio deja de responder y Render da 503.
+    # Los keepalives detectan una conexión que se murió en el camino.
+    return psycopg.connect(url_conexion(), row_factory=dict_row, autocommit=False,
+                           connect_timeout=10, keepalives=1, keepalives_idle=30,
+                           keepalives_interval=10, keepalives_count=3)
 
 
 # =====================================================================
