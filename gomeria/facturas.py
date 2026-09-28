@@ -18,6 +18,8 @@ con el listado, Claude elige entre las que existen.
 import base64, json, os, re
 import anthropic
 
+import ia
+
 MODELO = "claude-opus-5"
 
 # Lo que se acepta desde el navegador. El PDF entra igual que una foto:
@@ -187,7 +189,7 @@ def leer(archivos, patentes=None, cliente=None):
         raise ValueError("Falta la clave de la API de Claude: sin eso no se "
                          "pueden leer facturas. Cargar los datos a mano.")
 
-    cliente = cliente or anthropic.Anthropic()
+    cliente = cliente or ia.cliente()
     r = cliente.messages.create(
         model=MODELO,
         max_tokens=4000,

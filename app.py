@@ -38,6 +38,7 @@ sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
+import ia
 import ordenes as ots
 import permisos
 import solicitudes as sol
@@ -724,7 +725,7 @@ class App(gom.Handler):
                 datos = json.loads(self.rfile.read(largo) or b"{}")
                 if datos.get("op") == "vision":
                     cuerpo = datos.get("body") or {}
-                    respuesta = anthropic.Anthropic().messages.create(**cuerpo)
+                    respuesta = ia.cliente().messages.create(**cuerpo)
                     texto = "\n".join(x.text for x in respuesta.content
                                       if getattr(x, "type", None) == "text")
                     return self._responder(gom.jstr({"texto": texto}))
