@@ -144,7 +144,7 @@ def enganchar(cx, datos, usuario=None):
             raise ValueError("Ese semi ya está enganchado a ese tractor.")
         if desde < previo["desde"]:
             raise ValueError("El enganche anterior empezó después de esa fecha. "
-                             "Corregí la fecha o cerralo a mano.")
+                             "Corregir la fecha o cerrarlo manualmente.")
         _cerrar(cx, previo["id"], desde, usuario,
                 "Se cerró al enganchar otra unidad.")
 

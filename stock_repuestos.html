@@ -32,7 +32,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
 button{font-family:inherit;cursor:pointer}
 input,select,textarea{font-family:inherit;font-size:14px;color:var(--ink)}
 :focus-visible{outline:1px solid var(--acc);outline-offset:2px}
-::selection{background:var(--acc);color:#fff}
+::selection{background:var(--acc);color:var(--marca-ink,#fff)}
 ::-webkit-scrollbar{width:11px;height:11px}
 ::-webkit-scrollbar-track{background:var(--bg2)}
 ::-webkit-scrollbar-thumb{background:var(--rule2);border-radius:6px;border:3px solid var(--bg2)}
@@ -93,7 +93,7 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,select:fo
 select{appearance:none;padding-right:28px;
   background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
   background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-.btn{border:1px solid var(--acc);background:var(--acc);color:#fff;border-radius:3px;padding:9px 16px;
+.btn{border:1px solid var(--acc);background:var(--acc);color:var(--marca-ink,#fff);border-radius:3px;padding:9px 16px;
      font-family:var(--disp);font-size:14px;letter-spacing:.1em;text-transform:uppercase}
 .btn:hover{background:var(--acc-hi);border-color:var(--acc-hi)}
 .btn.ghost{background:transparent;color:var(--ink2);border-color:var(--rule2)}
@@ -575,7 +575,7 @@ async function guardarMov(){
   if(M.tipo==="Salida" && !M.pat){ M.err="Cargar la patente de la unidad que recibe el repuesto."; return pintarMov(); }
   if(M.tipo==="Salida"){
     var st=stockDe(a.codigo);
-    if(M.cant>st && !confirm("El stock de “"+a.descripcion+"” es "+st+" y estás sacando "+M.cant+". ¿Guardo igual?")) return;
+    if(M.cant>st && !confirm("El stock de “"+a.descripcion+"” es "+st+" y se está retirando "+M.cant+". ¿Confirma el registro?")) return;
   }
   var nuevo={fecha:M.fecha,codigo:a.codigo,patente:M.pat,tipo:M.tipo,cantidad:M.cant,obs:M.obs};
   var etiqueta=M.tipo+" · "+a.descripcion;
@@ -627,7 +627,7 @@ async function guardarArt(){
 }
 async function borrarArt(){
   var cod=M.orig, usos=S.movs.filter(m=>m.codigo===cod).length;
-  if(usos){ alert("Este repuesto tiene "+usos+" movimiento(s) cargados. Dalo de baja en vez de eliminarlo, así no perdés el historial."); return; }
+  if(usos){ alert("Este repuesto tiene "+usos+" movimiento(s) cargados. Debe darse de baja en lugar de eliminarse para conservar el historial."); return; }
   if(!confirm("¿Eliminar “"+M.descripcion+"” del listado?")) return;
   cerrar();
   if(await guardar("art-delete",cod)) toast("Repuesto eliminado");
@@ -744,7 +744,7 @@ function codigoDeLaUrl(){
 function abrirDesdeQR(cod){
   if(!cod) return;
   if(art(cod)) modalMov(cod, "Salida");
-  else toast("No encontré el repuesto " + cod);
+  else toast("No se encontró el repuesto " + cod);
   // La dirección vuelve a /repuestos para que refrescar no reabra el
   // formulario, y para que el botón atrás del celular salga de la app.
   history.replaceState(null, "", "/repuestos");
@@ -851,7 +851,7 @@ function abrirDesdeQR(cod){
         '<input type="file" id="ocr-file" accept="image/*" capture="environment" style="display:none">' +
       '</div>' +
       (OCR.err ? '<div class="err">' + esc(OCR.err) + '</div>' : '') +
-      '<p class="ocrnota">La IA lee la foto y arma los movimientos. <b>Siempre</b> los revisás y corregís antes de que se guarden.</p>' +
+      '<p class="ocrnota">La IA lee la foto y arma los movimientos. Los movimientos <b>siempre</b> deben revisarse y corregirse antes de guardarse.</p>' +
       '</div><div class="foot">' +
       '<button class="btn ghost" data-act="ocr-cerrar">Cancelar</button>' +
       '<button class="btn" data-act="ocr-leer"' + (OCR.b64 ? '' : ' disabled') + '>Leer planilla</button></div>');
@@ -979,9 +979,9 @@ function abrirDesdeQR(cod){
     OCR.paso = "leyendo"; OCR.err = ""; pintarOCR();
     llamarIA(OCR.b64, OCR.mime).then(function (texto) {
       var datos = parsearJSON(texto);
-      if (!datos.length) throw new Error("No encontré movimientos en esa foto.");
+      if (!datos.length) throw new Error("No se encontraron movimientos en la imagen.");
       OCR.filas = datos.map(mapearFila);
-      OCR.nota = "Leí " + OCR.filas.length + " movimiento(s). Revisar antes de guardar.";
+      OCR.nota = "Se leyeron " + OCR.filas.length + " movimiento(s). Revisar antes de guardar.";
       OCR.paso = "revision";
       pintarOCR();
     }).catch(function (e) {

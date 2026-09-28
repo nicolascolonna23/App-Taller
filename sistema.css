@@ -9,7 +9,8 @@ body .topbar .context b{color:var(--ink)}
 body .sidebar{background:var(--surface-1);border-color:var(--hairline);color:var(--ink);padding-bottom:116px}
 body .sidebar :is(a,.brand,.nav-label,.side-footer,.ajustes){color:var(--ink-2)}
 body .sidebar .nav a.primary{background:var(--brand);color:var(--marca-ink);border-color:var(--brand)}
-body .sidebar .nav a:hover{background:#f2f2ed;color:var(--ink)}
+body .sidebar .nav a:hover{background:var(--surface-2);color:var(--ink)}
+body .sidebar .nav a.primary:hover{background:var(--brand);color:var(--marca-ink);filter:brightness(.94)}
 body :is(.top>img,header.top>img,.sidebar .brand img){box-sizing:border-box;border-radius:8px;padding:3px;object-fit:contain}
 body>header>img{box-sizing:border-box;border-radius:8px;padding:3px;object-fit:contain}
 body :is(.top>img,header.top>img){height:43px;max-width:48px}
@@ -63,3 +64,11 @@ body.fleet-control .card,body.fleet-control .kpi{box-shadow:none;border-radius:8
 
 body .operations-home{margin:0}body.operations-home main{margin:0}body.operations-home .topbar{padding:18px 28px;margin:0;min-height:76px;border-bottom:1px solid var(--hairline)}body.operations-home .workspace{padding-top:20px}body .person,body .who,body .quien{color:var(--ink);font-size:13px}body.operations-home .top-actions{margin-left:auto;min-width:0}body.operations-home .person{font-size:13px;min-width:0}body.operations-home .person>span:last-child{display:block;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}body .avatar{color:var(--brand);background:var(--brand-soft);border-color:var(--hairline-2)}body .nav a.primary,body .km-tabs button.on,body .btn.principal{color:var(--marca-ink);background:var(--brand);border-color:var(--brand)}body .stat .icon{color:var(--brand);background:var(--brand-soft);border-color:var(--hairline-2)}
 @media(max-width:640px){body.operations-home .topbar{padding:14px;gap:10px}body.operations-home .person>span:last-child{max-width:140px}body.fleet-control .kpi-row{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Contraste al pasar el puntero. El acento de la marca puede ser amarillo,
+   que sobre fondo claro no se lee: en hover el texto conserva la tinta del
+   tema y el acento queda solo en el borde y el fondo. */
+body :is(.back,.accion,.imprimir,.ir,.link,.nav-link,.ic):hover{color:var(--ink);
+  background:var(--surface-2);border-color:var(--brand)}
+body .button:hover{color:var(--ink)}
+body :is(.btn,.btn-refresh):not(.gris):not(.alt):not(.ghost):hover{filter:brightness(.94)}

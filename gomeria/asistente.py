@@ -54,10 +54,10 @@ def habilitado():
 
 def validar_mensajes(datos):
     if not isinstance(datos, dict) or not isinstance(datos.get('mensajes'), list):
-        raise ValueError('Enviá una conversación válida.')
+        raise ValueError('Enviar una conversación válida.')
     mensajes = datos['mensajes']
     if not 1 <= len(mensajes) <= 13:
-        raise ValueError('Iniciá una nueva consulta: se alcanzó el límite de contexto.')
+        raise ValueError('Se alcanzó el límite de contexto. Iniciar una nueva consulta.')
     for i, m in enumerate(mensajes):
         if not isinstance(m, dict) or set(m) != {'role', 'content'}:
             raise ValueError('Mensaje inválido.')
@@ -66,7 +66,7 @@ def validar_mensajes(datos):
         if not isinstance(m['content'], str) or not 1 <= len(m['content'].strip()) <= 6000:
             raise ValueError('Cada mensaje debe tener entre 1 y 6000 caracteres.')
     if mensajes[-1]['role'] != 'user' or sum(len(m['content']) for m in mensajes) > 24000:
-        raise ValueError('La conversación es demasiado larga. Iniciá una nueva consulta.')
+        raise ValueError('La conversación es demasiado larga. Iniciar una nueva consulta.')
     return mensajes
 
 
@@ -142,7 +142,7 @@ def consulta_sql(args):
         orden = 'vence, patente, tipo'
     else:
         if estado:
-            raise ValueError('Los tickets no tienen estado. Para conciliación usá Cruce de remitos.')
+            raise ValueError('Los tickets no tienen estado. Para conciliación, usar Cruce de remitos.')
         sql = 'select remito, remito_bruto, fecha, patente, litros, importe, estacion from combustible_cargas'
         filtros.append("origen='planilla'")
         if q:
@@ -223,10 +223,10 @@ def llamar_modelo(payload):
         if e.status_code in (401, 403):
             raise NoDisponible('El administrador debe revisar la clave y el acceso al modelo.') from None
         if e.status_code == 429:
-            raise NoDisponible('El proveedor alcanzó su límite de uso. Intentá más tarde.') from None
-        raise NoDisponible('El proveedor de IA no pudo responder. Intentá más tarde.') from None
+            raise NoDisponible('El proveedor alcanzó su límite de uso. Intente más tarde.') from None
+        raise NoDisponible('El proveedor de IA no pudo responder. Intente más tarde.') from None
     except (anthropic.APIConnectionError, TimeoutError, OSError, ValueError, KeyError):
-        raise NoDisponible('No se pudo conectar con el proveedor de IA. Intentá nuevamente.') from None
+        raise NoDisponible('No se pudo conectar con el proveedor de IA. Intente nuevamente.') from None
 
 
 # Limita costo/concurrencia en este proceso. No se guardan preguntas ni resultados.
@@ -288,7 +288,7 @@ def usar_cupo(uid):
                           'Vuelve a estar disponible mañana.')
         if hora >= por_hora:
             raise Ocupado(f'Llegaste al límite de {por_hora} consultas por hora. '
-                          'Probá de nuevo más tarde.')
+                          'Intente nuevamente más tarde.')
 
     if os.environ.get('SUPABASE_DB_URL') or os.environ.get('DATABASE_URL'):
         with base.conectar() as cx:
@@ -310,14 +310,14 @@ def usar_cupo(uid):
 
 def responder(datos, usuario, modelo_call=None, consulta_call=None):
     if not usuario or usuario.get('rol') not in ROLES:
-        raise PermissionError('Necesitás una sesión autorizada para consultar.')
+        raise PermissionError('Se requiere una sesión autorizada para consultar.')
     mensajes = validar_mensajes(datos)
     # La identidad no es un dato operativo ni requiere consultar la base.
     import unicodedata
     saludo = ''.join(c for c in unicodedata.normalize('NFD', mensajes[-1]['content'].lower())
                      if c.isalnum() or c.isspace()).strip()
     if saludo in {'hola', 'hola pengui', 'buen dia', 'buenas', 'quien sos', 'como te llamas'}:
-        return {'respuesta': '¡Hola! Soy Pengui, el asistente de IA de Diemar. Te ayudo a consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué necesitás saber?', 'fuentes': []}
+        return {'respuesta': 'Pengui, el asistente de IA de Diemar. Permite consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué información necesita?', 'fuentes': []}
     if not habilitado():
         raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar ANTHROPIC_API_KEY en el servidor.')
     uid = usuario['id']
@@ -329,7 +329,7 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
         if uid in _activos or ahora - _ultimos.get(uid, -60) < 3:
             raise Ocupado('Esperá unos segundos antes de enviar otra consulta.')
         if not _slots.acquire(blocking=False):
-            raise Ocupado('Hay varias consultas en curso. Intentá en unos segundos.')
+            raise Ocupado('Hay varias consultas en curso. Intente nuevamente en unos segundos.')
         _activos.add(uid)
         _ultimos[uid] = ahora
     try:
@@ -359,14 +359,14 @@ def _responder(mensajes, modelo_call, consulta_call):
             'tool_choice': 'required' if ronda == 0 else ('none' if ronda == 3 or llamadas >= 8 else 'auto'),
             'parallel_tool_calls': False, 'store': False, 'max_output_tokens': 2400})
         if respuesta.get('status') != 'completed':
-            raise NoDisponible('La respuesta quedó incompleta. Probá con una pregunta más específica.')
+            raise NoDisponible('La respuesta quedó incompleta. Formular una pregunta más específica.')
         output = respuesta.get('output', [])
         calls = [o for o in output if o.get('type') == 'function_call']
         if not calls:
             texto = '\n'.join(c['text'] for o in output if o.get('type') == 'message'
                               for c in o.get('content', []) if c.get('type') == 'output_text')
             if not texto or not fuentes:
-                raise NoDisponible('No fue posible obtener una respuesta respaldada por datos. Reformulá la consulta.')
+                raise NoDisponible('No fue posible obtener una respuesta respaldada por datos. Reformular la consulta.')
             return {'respuesta': texto, 'fuentes': fuentes}
         contexto.extend(output)
         for call in calls:
@@ -381,7 +381,7 @@ def _responder(mensajes, modelo_call, consulta_call):
                 resultado = consulta_call(args)
                 fuentes.append({k: resultado[k] for k in ('fuente', 'url', 'consultado', 'filtros', 'resumen', 'truncado')})
             except (ValueError, KeyError, TypeError):
-                resultado = {'error': 'Parámetros inválidos. Revisá dominio, estado y fechas; no hay datos verificados de esta consulta.'}
+                resultado = {'error': 'Parámetros inválidos. Revisar dominio, estado y fechas; no hay datos verificados de esta consulta.'}
             except Exception:
                 # No filtrar SQL, DSN, secretos ni errores internos al modelo o navegador.
                 resultado = {'error': 'Esta fuente no está disponible. No equivale a cero registros. Informá la limitación.'}

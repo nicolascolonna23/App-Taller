@@ -98,7 +98,7 @@
   input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .barra input{max-width:330px}
   .barra select{max-width:210px}
-  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+  .btn{border:0;border-radius:10px;background:var(--brand);color:var(--marca-ink,#fff);
     padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn:disabled{opacity:.45;cursor:default}
@@ -466,7 +466,7 @@ function pintar() {
       <td><button class="accion" data-renovar="${v.id}">Renovar</button>
           <div><button class="accion" data-hist="${v.id}">Historial</button></div></td>
     </tr>`).join('')
-    : `<tr><td colspan="8" class="vacio">No hay nada acá.</td></tr>`;
+    : `<tr><td colspan="8" class="vacio">No hay registros.</td></tr>`;
 
   $('#pie').textContent = `${filas.length} de ${d.vencimientos.length} documentos controlados`
     + (D.sucursal ? ` · ${D.sucursal}` : '') + '.';
@@ -530,7 +530,7 @@ function acomodarFormulario() {
   $('#cajaPersona').style.display = t.ambito === 'persona' ? '' : 'none';
   $('#numObl').textContent = t.varios ? '(obligatorio)' : '';
   $('#pistaVence').textContent = t.meses
-    ? `Si ponés la emisión y dejás el vencimiento vacío, se calcula a ${t.meses} meses.`
+    ? `Si se indica la emisión y se deja el vencimiento vacío, se calcula a ${t.meses} meses.`
     : 'Indicar la fecha de vencimiento.';
 }
 

@@ -221,7 +221,7 @@ def configurar_tipo(cx, datos, usuario):
     _exigir_gestor(usuario)
     def entero(v, campo, minimo, maximo):
         if isinstance(v, bool) or not str(v).isdigit() or not minimo <= int(v) <= maximo:
-            raise ValueError(f"{campo}: usá un entero entre {minimo} y {maximo}.")
+            raise ValueError(f"{campo}: usar un entero entre {minimo} y {maximo}.")
         return int(v)
     dias = entero(datos.get("aviso_dias"), "Anticipación", 0, 3650)
     meses = datos.get("meses")

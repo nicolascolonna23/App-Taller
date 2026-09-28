@@ -607,11 +607,11 @@ _CAMPO_CODIGO = """
 def pagina_codigo(error=None):
     """El segundo paso de todos los días: el código de la app."""
     return _pagina("Código de verificación", f"""<form class="caja" method="POST" action="/login/2fa">
-{_MARCA}  <p>Abrí la app autenticadora y escribí el código de 6 dígitos de <b>{EMISOR}</b>.</p>
+{_MARCA}  <p>Abrir la aplicación autenticadora e ingresar el código de 6 dígitos de <b>{EMISOR}</b>.</p>
   {_CAMPO_CODIGO}
   <button type="submit">Verificar</button>
   {_error_html(error)}
-  <div class="pie">¿Sin el celular? Escribí uno de los códigos de respaldo.<br>
+  <div class="pie">¿Sin acceso al teléfono? Ingresar uno de los códigos de respaldo.<br>
     <a href="/login">Volver a ingresar</a></div>
 </form>""")
 
@@ -634,12 +634,12 @@ def pagina_alta_2fa(usuario, secreto, error=None):
     return _pagina("Activar verificación en dos pasos", f"""<form class="caja" method="POST" action="/login/2fa">
 {_MARCA}  <p>Tu usuario administra el sistema, así que además de la contraseña
     vas a usar un código del celular.</p>
-  <p>1. Instalá <b>Google Authenticator</b>, <b>Authy</b> o <b>1Password</b>.<br>
-     2. Agregá una cuenta escaneando este código:</p>
+  <p>1. Instalar <b>Google Authenticator</b>, <b>Authy</b> o <b>1Password</b>.<br>
+     2. Agregar una cuenta escaneando este código:</p>
   {qr}
-  <p>Si no podés escanearlo, cargá esta clave a mano:</p>
+  <p>Si no es posible escanearlo, ingresar esta clave manualmente:</p>
   <div class="secreto">{escape(agrupado)}</div>
-  <p style="margin-top:14px">3. Escribí el código de 6 dígitos que muestra la app.</p>
+  <p style="margin-top:14px">3. Ingresar el código de 6 dígitos que muestra la aplicación.</p>
   {_CAMPO_CODIGO}
   <button type="submit">Activar</button>
   {_error_html(error)}
@@ -653,11 +653,11 @@ def pagina_respaldo(codigos, destino="/"):
     lista = "".join(f"<li>{escape(c)}</li>" for c in codigos)
     return _pagina("Códigos de respaldo", f"""<div class="caja">
 {_MARCA}  <p><b>Listo, la verificación en dos pasos quedó activada.</b></p>
-  <p>Estos son tus códigos de respaldo. Sirven para entrar si perdés el
+  <p>Códigos de respaldo. Permiten ingresar en caso de perder el
     celular: cada uno se usa una sola vez. <b>Guardalos ahora</b> (anotados o en un
     gestor de contraseñas); no se vuelven a mostrar.</p>
   <ul class="codigos">{lista}</ul>
-  <a class="boton" href="{escape(destino or "/", quote=True)}">Ya los guardé, continuar</a>
+  <a class="boton" href="{escape(destino or "/", quote=True)}">Códigos guardados, continuar</a>
 </div>""")
 
 

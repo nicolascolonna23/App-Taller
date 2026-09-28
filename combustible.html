@@ -57,7 +57,7 @@
   .zona .que{color:var(--ink-muted);font-size:11.5px;margin:0 0 12px;line-height:1.5}
   .zona input[type=file]{display:none}
   .zona .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-  .btn{background:var(--brand);color:#fff;border:0;border-radius:9px;
+  .btn{background:var(--brand);color:var(--marca-ink,#fff);border:0;border-radius:9px;
     padding:9px 14px;font:inherit;font-weight:700;cursor:pointer}
   .btn.gris{background:var(--surface-3);color:var(--ink)}
   .btn.chico{padding:5px 10px;font-size:11px;border-radius:7px}
@@ -210,7 +210,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
 <main>
   <div class="eyebrow">OPERACIONES / COMBUSTIBLE</div>
   <h1 id="page-title">Tickets de combustible</h1>
-  <p class="sub" id="page-sub">Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.</p>
+  <p class="sub" id="page-sub">Cada carga, en un solo lugar. Registro y consulta de los tickets de la flota.</p>
   <nav class="navigation" aria-label="Secciones de combustible">
     <a href="#tickets" data-view="tickets">Tickets <span>01</span></a>
     <a href="#cruce" data-view="cruce">Cruce de remitos <span>02</span></a>
@@ -365,7 +365,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     <form id="u-form-salida" class="zona manual" hidden>
       <h2>Despachar <span data-fluido></span></h2>
       <p class="que">Lo que se le puso a una unidad. Si no fue a ninguna —derrame,
-        préstamo, devolución— dejá la unidad vacía y escribí el motivo: igual salió
+        préstamo, devolución— dejar la unidad vacía e indicar el motivo: igual salió
         del depósito.</p>
       <div class="form-grid">
         <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
@@ -702,7 +702,7 @@ async function cargar(){
   pintar();
   renderTickets();
   if (location.hash === '#resumen') await cargarFlota();
-  } catch (err) { $('#error').textContent = 'No se pudieron cargar los datos. Intentá nuevamente.'; $('#error').hidden = false; }
+  } catch (err) { $('#error').textContent = 'No se pudieron cargar los datos. Intente nuevamente.'; $('#error').hidden = false; }
 }
 
 /* Cómo entra la planilla de cargas. En automático el sistema entra solo
@@ -1005,7 +1005,7 @@ function navigate(){
   // dos o tres movimientos por día. Las zonas de importación no van ahí.
   $('#imports').style.display = (view === 'resumen' || view === 'fluidos') ? 'none' : 'grid';
   $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible',fluidos:'Fluidos'}[view];
-  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registrá y consultá los tickets de la flota.',cruce:'Controlá lo facturado y encontrá diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.',fluidos:'El depósito es propio: entra por compra, sale por despacho y el saldo se calcula solo.'}[view];
+  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registro y consulta de los tickets de la flota.',cruce:'Control de lo facturado y detección de diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.',fluidos:'El depósito es propio: entra por compra, sale por despacho y el saldo se calcula solo.'}[view];
   if(view === 'resumen') cargarFlota().catch(()=>{ $('#error').textContent='No se pudo cargar el resumen.'; $('#error').hidden=false; });
   if(view === 'fluidos') cargarUrea().catch(()=>{ $('#u-resumen').textContent='No se pudo leer el depósito.'; });
   document.querySelectorAll('[data-view]').forEach(a=>{a.classList.toggle('active',a.dataset.view===view);a.setAttribute('aria-current',a.dataset.view===view?'page':'false');});

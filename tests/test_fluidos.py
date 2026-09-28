@@ -210,7 +210,7 @@ class ElDespacho(unittest.TestCase):
         cx = BaseFalsa(saldo=-60, estado="vacio", dias=0)
         salida = fluidos.despachar(cx, {"unidad_id": 7, "cantidad": 200}, CHOFER)
         self.assertTrue(salida["ok"])
-        self.assertIn("medí", salida["aviso"].lower())
+        self.assertIn("medir", salida["aviso"].lower())
 
 
 class LaMedicion(unittest.TestCase):

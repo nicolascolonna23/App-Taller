@@ -149,9 +149,9 @@ def main():
     mapa = mapear(encabezados)
     if "codigo" not in mapa:
         raise SystemExit(
-            "No encontré la columna del código de la cubierta.\n"
+            "No se encontró la columna del código de la cubierta.\n"
             f"  Encabezados del archivo: {', '.join(str(h) for h in encabezados if h)}\n"
-            "  Renombrá esa columna a 'codigo' y volver a probar.")
+            "  Renombrar esa columna a 'codigo' y volver a probar.")
 
     print(f"{len(filas)} filas en el archivo")
     print("Columnas reconocidas:")
@@ -201,7 +201,7 @@ def main():
             print(f"  {p}")
         if len(problemas) > 20:
             print(f"  ... y {len(problemas) - 20} más")
-        raise SystemExit("\nNo cargué nada. Corregí el archivo y volver a probar.")
+        raise SystemExit("\nNo se cargó ningún dato. Corregir el archivo y volver a intentar.")
 
     from collections import Counter
     print(f"\n{len(limpias)} cubiertas para cargar")

@@ -85,7 +85,7 @@ def _logo(datos):
         raise ValueError("La imagen llegó vacía.")
     if len(binario) > LOGO_MAXIMO:
         raise ValueError(f"El logo pesa {len(binario)//1024} KB y el máximo es "
-                         f"{LOGO_MAXIMO//1024} KB. Guardalo más chico.")
+                         f"{LOGO_MAXIMO//1024} KB. Reducir el tamaño del archivo.")
     return binario, tipo
 
 

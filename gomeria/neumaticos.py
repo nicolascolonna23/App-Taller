@@ -175,7 +175,7 @@ def aplicar(cx, datos, usuario):
         cada_km = _entero(datos.get("cada_km"), "cada cuántos km", 1, TOPE_KM)
         cada_dias = _entero(datos.get("cada_dias"), "cada cuántos días", 1, TOPE_DIAS)
         if cada_km is None and cada_dias is None:
-            raise ValueError("Poné cada cuántos km, cada cuántos días, o las dos cosas.")
+            raise ValueError("Indicar la frecuencia en km, en días o ambas.")
         aviso_km = _entero(datos.get("aviso_km"), "el aviso en km", 0, TOPE_KM)
         aviso_dias = _entero(datos.get("aviso_dias"), "el aviso en días", 0, TOPE_DIAS)
         if cada_km and aviso_km is not None and aviso_km >= cada_km:
@@ -210,7 +210,7 @@ def aplicar(cx, datos, usuario):
         ejes = datos.get("ejes") or ([datos.get("eje")] if datos.get("eje") else [])
         ejes = sorted({_entero(e, "el eje", 1, 20, obligatorio=True) for e in ejes})
         if not ejes:
-            raise ValueError("Marcá qué eje se cambió.")
+            raise ValueError("Indicar el eje que se cambió.")
         validos = {f["eje"] for f in cx.execute("""
             select distinct p.eje from unidades u
             join configuracion_posiciones p on p.configuracion_id = u.configuracion_id
@@ -237,7 +237,7 @@ def aplicar(cx, datos, usuario):
         _gestor(usuario)
         motivo = _texto(datos.get("motivo"), 300)
         if not motivo:
-            raise ValueError("Escribí por qué se anula.")
+            raise ValueError("Indicar el motivo de la anulación.")
         fila = cx.execute("""
             update neumaticos_cambios
                set anulado = true, anulado_por = %s, anulado_motivo = %s

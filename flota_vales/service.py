@@ -24,11 +24,11 @@ def exigir(condicion, mensaje):
     if not condicion: raise ValueError(mensaje)
 
 def permiso(condicion):
-    if not condicion: raise PermissionError('No tenés permiso para esta operación.')
+    if not condicion: raise PermissionError('No tiene permiso para esta operación.')
 
 def texto(d, k, obligatorio=True):
     v = str(d.get(k) or '').strip()
-    exigir(len(v)<=10000 and (v or not obligatorio), f'Completá {k.replace("_"," ")}.')
+    exigir(len(v)<=10000 and (v or not obligatorio), f'Completar {k.replace("_"," ")}.')
     return v
 
 def importe(v, requerido=False):
@@ -37,7 +37,7 @@ def importe(v, requerido=False):
     try: n = Decimal(str(v))
     except InvalidOperation: raise ValueError('Importe inválido.')
     exigir(n.is_finite() and n>=0 and n<=Decimal('999999999999.99'),'Importe inválido.')
-    exigir(n==n.quantize(Decimal('.01')),'Usá hasta dos decimales.')
+    exigir(n==n.quantize(Decimal('.01')),'Usar hasta dos decimales.')
     return n
 
 def perfil(cx,u):
@@ -235,12 +235,12 @@ def escribir(cx,u,d):
             plan=cx.execute('select * from mt_planes where activo and (unidad_id=%s or categoria=%s) order by unidad_id nulls last limit 1',(v['id'],v['mantenimiento_categoria'])).fetchone()
             if op=='importar_service':
                 exigir(not anterior,'La importación inicial ya fue realizada.'); texto(d,'motivo'); objetivo=importe(d.get('objetivo'),True)
-            else: exigir(plan,'Configurá un plan antes de registrar el service.'); objetivo=km+plan['intervalo']
+            else: exigir(plan,'Configurar un plan antes de registrar el service.'); objetivo=km+plan['intervalo']
             exigir(objetivo>km,'Objetivo debe superar km del service.')
             cx.execute('insert into mt_services(unidad_id,plan_id,fecha,km,objetivo,usuario_id,importado,cumplido_en_termino) values(%s,%s,%s,%s,%s,%s,%s,%s)',(v['id'],plan['id'] if plan else None,fecha,km,objetivo,p['id'],op=='importar_service',km<=anterior['objetivo'] if anterior else None)); return {'ok':True}
         if op=='checklist':
             exigir(d.get('resultado') in ('sin_novedad','novedad'),'Resultado inválido.')
-            exigir(isinstance(d.get('respuestas'),dict),'Completá el checklist.')
+            exigir(isinstance(d.get('respuestas'),dict),'Completar el checklist.')
             id=cx.execute('insert into mt_checklists(unidad_id,sucursal_id,usuario_id,respuestas,resultado,descripcion) values(%s,%s,%s,%s,%s,%s) returning id',(v['id'],v['mantenimiento_sucursal_id'],p['id'],json.dumps(d['respuestas']),d['resultado'],texto(d,'descripcion',d['resultado']=='novedad'))).fetchone()['id']; return {'id':id}
         permiso(p['rol'] in ('sucursal','admin'))
         exigir(not any(k in d for k in ('numero','sucursal_id','solicitante_id','aprobado')),'La identidad y la aprobación son automáticas.')
@@ -275,21 +275,21 @@ def escribir(cx,u,d):
         exigir(not cx.execute('select 1 from mt_facturas where adjunto_id=%s union all select 1 from mt_solicitudes where presupuesto_id=%s',(d['adjunto_id'],d['adjunto_id'])).fetchone(),'Adjunto vinculado a factura o aprobación.')
         cx.execute('update mt_adjuntos set eliminado=true where id=%s and solicitud_id=%s',(d['adjunto_id'],r['id']))
     elif op=='reparacion':
-        exigir(r['estado']=='EN_REPARACION','Primero iniciá la reparación.')
+        exigir(r['estado']=='EN_REPARACION','Iniciar la reparación previamente.')
         trabajo={k:texto(d,k,k in ('proveedor','diagnostico','trabajos','inicio')) for k in ('proveedor','diagnostico','trabajos','repuestos','inicio','fin')}
         inicio=date.fromisoformat(trabajo['inicio']); exigir(inicio<=datetime.now(TZ).date(),'Inicio futuro.')
         if trabajo['fin']: exigir(inicio<=date.fromisoformat(trabajo['fin'])<=datetime.now(TZ).date(),'Fecha de finalización inválida.')
         trabajo['real']=str(importe(d.get('real'),True)); actualizar(cx,r,reparacion=json.dumps(trabajo),proveedor=trabajo['proveedor'],validacion_id=None)
     elif op=='factura':
         exigir(r['estado'] in ('PENDIENTE_DE_FACTURA','PENDIENTE_DE_CIERRE'),'Factura fuera de etapa.')
-        a=cx.execute("select id from mt_adjuntos where id=%s and solicitud_id=%s and categoria='factura' and not eliminado",(d['adjunto_id'],r['id'])).fetchone(); exigir(a,'Adjuntá la factura al vale.')
+        a=cx.execute("select id from mt_adjuntos where id=%s and solicitud_id=%s and categoria='factura' and not eliminado",(d['adjunto_id'],r['id'])).fetchone(); exigir(a,'Adjuntar la factura al vale.')
         fiscal=''.join(c for c in texto(d,'fiscal').upper() if c.isalnum()); tipo=texto(d,'tipo').upper(); numero=texto(d,'numero').upper().replace(' ',''); total=importe(d.get('total'),True); exigir(total>0,'Total debe ser positivo.')
         # Serializa por identidad fiscal para advertir incluso con cargas simultáneas.
         cx.execute('select pg_advisory_xact_lock(hashtextextended(%s,0))',(fiscal+'|'+tipo+'|'+numero,))
         dup=cx.execute('select id from mt_facturas where fiscal=%s and tipo=%s and numero=%s and total=%s and solicitud_id<>%s',(fiscal,tipo,numero,total,r['id'])).fetchone()
         if dup:
             exigir(cfg['duplicados']=='advertir','Comprobante duplicado: carga bloqueada.')
-            exigir(d.get('confirmar_duplicado') and texto(d,'duplicado_motivo'),'Posible duplicado: confirmá con motivo.')
+            exigir(d.get('confirmar_duplicado') and texto(d,'duplicado_motivo'),'Posible duplicado: confirmar indicando el motivo.')
         fecha=date.fromisoformat(texto(d,'fecha')); exigir(fecha<=datetime.now(TZ).date(),'Fecha de emisión futura.')
         cx.execute('''insert into mt_facturas(solicitud_id,proveedor,fiscal,tipo,numero,fecha,total,adjunto_id,duplicado_motivo) values(%s,%s,%s,%s,%s,%s,%s,%s,%s)
         on conflict(solicitud_id) do update set proveedor=excluded.proveedor,fiscal=excluded.fiscal,tipo=excluded.tipo,numero=excluded.numero,fecha=excluded.fecha,total=excluded.total,adjunto_id=excluded.adjunto_id,duplicado_motivo=excluded.duplicado_motivo''',(r['id'],texto(d,'proveedor'),fiscal,tipo,numero,fecha,total,d['adjunto_id'],d.get('duplicado_motivo')))
@@ -300,7 +300,7 @@ def escribir(cx,u,d):
         permiso(p['rol'] in cfg['roles_emergencia']); exigir(r['emergencia'] and r['estado'] in ('EN_REPARACION','PENDIENTE_DE_FACTURA','PENDIENTE_DE_CIERRE'),'No corresponde regularización.'); texto(d,'motivo')
         actualizar(cx,r,regularizacion_id=p['id'],aprobacion_id=p['id'],aprobacion_fecha=datetime.now(TZ),primera_respuesta=r['primera_respuesta'] or datetime.now(TZ),aprobado=importe(d.get('aprobado'),True),diferencia_id=None,diferencia_motivo=None,estado='PENDIENTE_DE_FACTURA' if r['estado']=='PENDIENTE_DE_CIERRE' else r['estado'])
     elif op=='autorizar_diferencia':
-        permiso(p['rol'] in cfg['roles_diferencia']); exigir(cx.execute('select id from mt_facturas where solicitud_id=%s',(r['id'],)).fetchone(),'Primero cargá la factura.')
+        permiso(p['rol'] in cfg['roles_diferencia']); exigir(cx.execute('select id from mt_facturas where solicitud_id=%s',(r['id'],)).fetchone(),'Cargar la factura previamente.')
         actualizar(cx,r,diferencia_id=p['id'],diferencia_motivo=texto(d,'motivo'))
     elif op=='transicion':
         destino=d.get('estado'); motivo=texto(d,'motivo'); permitido=p['rol'] in TRANSICIONES.get(r['estado'],{}).get(destino,set())
@@ -320,7 +320,7 @@ def escribir(cx,u,d):
                 permiso(p['rol'] in cfg['roles_emergencia'])
                 exigir(cx.execute("select id from mt_adjuntos where solicitud_id=%s and not eliminado and categoria in ('fotografia','diagnostico','otro')",(r['id'],)).fetchone(),'La emergencia requiere evidencia adjunta.')
                 cambios['regularizacion_id']=p['id']
-        if destino=='PENDIENTE_DE_FACTURA': exigir(r['reparacion'].get('fin') and r['reparacion'].get('trabajos'),'Completá la ejecución y fecha de finalización.')
+        if destino=='PENDIENTE_DE_FACTURA': exigir(r['reparacion'].get('fin') and r['reparacion'].get('trabajos'),'Completar la ejecución y la fecha de finalización.')
         if destino in ('PENDIENTE_DE_CIERRE','CERRADA'):
             f=cx.execute('select f.* from mt_facturas f join mt_adjuntos a on a.id=f.adjunto_id and not a.eliminado where f.solicitud_id=%s',(r['id'],)).fetchone(); cierre_valido(r,f,cfg)
         if destino=='CERRADA': cambios['cerrado']=datetime.now(TZ)
