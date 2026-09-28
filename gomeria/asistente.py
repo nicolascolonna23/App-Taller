@@ -9,6 +9,8 @@ import time
 from zoneinfo import ZoneInfo
 
 import anthropic
+
+import ia
 import base
 
 ROLES = {'admin', 'encargado', 'operario'}
@@ -204,9 +206,7 @@ def llamar_modelo(payload):
         opciones['tools'] = herramientas
         opciones['tool_choice'] = {'type': 'any' if eleccion == 'required' else 'auto'}
     try:
-        respuesta = anthropic.Anthropic(
-            api_key=os.environ['ANTHROPIC_API_KEY'], timeout=35.0
-        ).messages.create(**opciones)
+        respuesta = ia.cliente().messages.create(**opciones, timeout=35.0)
         bloques_texto, salida = [], []
         for bloque in respuesta.content:
             if bloque.type == 'text':

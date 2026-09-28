@@ -13,6 +13,8 @@ genérico de camión.
 import json, os
 import anthropic
 
+import ia
+
 MODELO = "claude-opus-5"
 
 # Una sola herramienta, obligatoria: la respuesta siempre viene estructurada.
@@ -210,7 +212,7 @@ pedir una aclaración."""
 
 def interpretar(unidad, mapa, texto, cliente=None):
     """Devuelve la propuesta como dict. No toca la base."""
-    cliente = cliente or anthropic.Anthropic()
+    cliente = cliente or ia.cliente()
     r = cliente.messages.create(
         model=MODELO,
         max_tokens=2000,
