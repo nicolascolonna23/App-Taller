@@ -219,7 +219,7 @@ class Handler(BaseHTTPRequestHandler):
                 with base.conectar() as cx:
                     ficha = base.ficha_cubierta(cx, cubierta_id)
                     if not ficha:
-                        return self._error("No encontré esa cubierta.", 404)
+                        return self._error("No se encontró la cubierta.", 404)
                     # Las vidas: la original y cada recapado, con lo que
                     # rindió y lo que costó cada una.
                     ficha["vidas"] = desgaste.vidas_de(cx, cubierta_id)
@@ -243,7 +243,7 @@ class Handler(BaseHTTPRequestHandler):
                 with base.conectar() as cx:
                     unidad = base.buscar_unidad(cx, unquote(patente))
                     if not unidad:
-                        return self._error(f"No encontré la unidad {patente}.", 404)
+                        return self._error(f"No se encontró la unidad {patente}.", 404)
                     mapa = base.mapa_unidad(cx, unidad["id"])
                     return self._responder(jstr({
                         "unidad": unidad,
@@ -366,7 +366,7 @@ class Handler(BaseHTTPRequestHandler):
             if not auth.verificar_segundo_factor(cx, fila, codigo):
                 auth.anotar_fallo(cx, intentos)
                 pagina = pantalla("El código no es correcto o ya se usó. "
-                                  "Probá con el siguiente que muestre la app.")
+                                  "Ingresar el siguiente código que muestre la aplicación.")
                 cx.commit()
                 return self._html(pagina, 401)
 
@@ -453,7 +453,7 @@ class Handler(BaseHTTPRequestHandler):
             if op == "alta":
                 codigo = str(datos.get("codigo") or "").strip().upper()
                 if not codigo:
-                    raise ValueError("Ingresá el código o número de fuego.")
+                    raise ValueError("Ingresar el código o número de fuego.")
                 if base.buscar_cubierta(cx, codigo):
                     raise ValueError("Ya existe una cubierta con ese código.")
                 remanente = datos.get("remanente_mm")
@@ -576,7 +576,7 @@ class Handler(BaseHTTPRequestHandler):
             if patente:
                 unidad = base.buscar_unidad(cx, patente)
                 if not unidad:
-                    return self._error(f"No encontré la unidad {patente}.", 404)
+                    return self._error(f"No se encontró la unidad {patente}.", 404)
             else:
                 unidad, falta = base.resolver_unidad(cx, texto)
                 if not unidad:

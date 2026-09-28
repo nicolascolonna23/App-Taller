@@ -59,7 +59,7 @@
   input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .barra input{max-width:320px}
   .barra select{max-width:200px}
-  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+  .btn{border:0;border-radius:10px;background:var(--brand);color:var(--marca-ink,#fff);
     padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
@@ -287,7 +287,7 @@
         Se autorizó en ruta y se está cargando después
       </label>
       <p class="pista">Unidad parada fuera de la sucursal: se autoriza verbalmente y la solicitud
-        se carga dentro de las 48 horas hábiles. Poné la fecha en que pasó.</p>
+        se carga dentro de las 48 horas hábiles. Indicar la fecha del hecho.</p>
     </div>
     <div class="ancho" id="cajaFecha" hidden><label>Fecha del hecho</label>
       <input id="vFecha" type="date"></div>
@@ -549,7 +549,7 @@ async function sobreSolicitud(op) {
   const v = D.solicitud.solicitud;
   const extra = {id: v.id};
   if (op === 'aprobar') {
-    const monto = prompt('Monto autorizado (dejalo vacío si va a presupuesto):',
+    const monto = prompt('Monto autorizado (dejar vacío si corresponde a presupuesto):',
       v.monto_estimado == null ? '' : v.monto_estimado);
     if (monto === null) return;
     const taller = prompt('Taller que hace el trabajo:', v.taller_sugerido || '');

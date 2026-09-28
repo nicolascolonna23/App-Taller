@@ -484,7 +484,7 @@ def guardar(cx, datos, usuario):
         raise ValueError("Ese es el usuario maestro: su rol no se cambia desde acá.")
 
     if not _quedan_administradores(cx, excepto_id=fila["id"], rol_nuevo=rol):
-        raise ValueError("Es el único administrador activo. Nombrá otro antes "
+        raise ValueError("Es el único administrador activo. Designar otro antes "
                          "de cambiarle el rol a este.")
 
     cx.execute("""update usuarios set nombre = %s, rol = %s, sucursal_codigo = %s
@@ -506,9 +506,9 @@ def estado(cx, datos, usuario):
         if fila.get("es_maestro"):
             raise ValueError("Ese es el usuario maestro: no se da de baja.")
         if fila["id"] == (usuario or {}).get("id"):
-            raise ValueError("No podés darte de baja a vos mismo.")
+            raise ValueError("Un usuario no puede darse de baja a sí mismo.")
         if not _quedan_administradores(cx, excepto_id=fila["id"]):
-            raise ValueError("Es el único administrador activo. Nombrá otro antes "
+            raise ValueError("Es el único administrador activo. Designar otro antes "
                              "de darlo de baja.")
     cx.execute("update usuarios set activo = %s where id = %s", (activo, fila["id"]))
     if not activo:
@@ -561,7 +561,7 @@ def guardar_rol(cx, datos, usuario):
             (codigo,)).fetchone()
         if not otros:
             raise ValueError("Es el único rol que administra y hay gente usándolo. "
-                             "Creá otro rol que administre antes de sacarle esto.")
+                             "Crear otro rol administrador antes de quitar este permiso.")
 
     cx.execute("""
         insert into roles (codigo, nombre, descripcion, gestiona, administra,

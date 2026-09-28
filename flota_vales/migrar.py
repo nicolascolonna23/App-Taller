@@ -13,6 +13,6 @@ def main():
         # La transacción de conexión abarca todo el script.
         sql=Path(__file__).with_name('001_mantenimiento.sql').read_text()
         cx.execute(sql.replace('begin;','',1).rsplit('commit;',1)[0])
-    print('Migración 1 aplicada. Configurá sucursales, permisos y unidades antes de operar.')
+    print('Migración 1 aplicada. Configurar sucursales, permisos y unidades antes de operar.')
 
 if __name__=='__main__': main()

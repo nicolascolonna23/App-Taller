@@ -36,7 +36,7 @@ def revisar(url):
     if not url:
         return "No pegaste nada."
     if url.startswith(("'", '"')) or url.endswith(("'", '"')):
-        return "Sacale las comillas del principio y del final."
+        return "Quitar las comillas del principio y del final."
     try:
         urlsplit(sin_placeholder(url))
     except ValueError:
@@ -88,7 +88,7 @@ def probar(url):
             faltan = [t for t in TABLAS
                       if not cx.execute("select to_regclass(%s)", (f"public.{t}",)).fetchone()[0]]
             if faltan:
-                return False, ("Entré a la base, pero le faltan tablas: "
+                return False, ("Conexión establecida, pero faltan tablas: "
                                + ", ".join(faltan) +
                                "\n  Ejecutar 01_esquema.sql y 02_vistas.sql en el SQL Editor "
                                "de Supabase y volver a probar.")
@@ -104,7 +104,7 @@ def probar(url):
                 where c.relname = 'unidades' and n.nspname = 'public'""").fetchone()
             if d and d[0] != d[1] and not d[2]:
                 return False, (
-                    f"Conecté como '{d[1]}', pero las tablas son de '{d[0]}'.\n"
+                    f"Conexión como '{d[1]}', pero las tablas son de '{d[0]}'.\n"
                     "  Con ese usuario no vas a ver ninguna fila, por la seguridad a\n"
                     "  nivel de fila que tienen las tablas. Utilizar la cadena de conexión\n"
                     "  que da Supabase, que entra como dueño.")
@@ -116,7 +116,7 @@ def probar(url):
         detalle = str(e).strip().splitlines()[0] if str(e).strip() else type(e).__name__
         pista = ""
         if "password authentication failed" in detalle.lower():
-            pista = ("\n  La contraseña no es la correcta. Podés resetearla en Supabase: "
+            pista = ("\n  La contraseña es incorrecta. Puede restablecerse en Supabase: "
                      "Settings → Database → Reset database password.")
         elif "could not translate host name" in detalle.lower() or "name or service" in detalle.lower():
             pista = "\n  No se pudo resolver la dirección. Revisar que copiaste la línea entera."
@@ -143,7 +143,7 @@ def main():
     print("Conexión a Supabase")
     print("-" * 60)
     print("En Supabase, botón verde Connect (arriba) → Connection String →")
-    print("Session pooler. Copiá esa línea y reemplazá [YOUR-PASSWORD] por tu")
+    print("Session pooler. Copiar esa línea y reemplazar [YOUR-PASSWORD] por la")
     print("contraseña.")
     print()
 
@@ -180,7 +180,7 @@ def main():
         return 1
 
     password = pedir("PASO 2 de 2 — la contraseña de la base", [
-        "Indicarla y presionar Enter. Se va a ver mientras la escribís,",
+        "Indicarla y presionar Enter. Se muestra mientras se escribe,",
         "para que sepas que el programa la está recibiendo.",
     ])
     if not password:
@@ -194,7 +194,7 @@ def main():
     ok, msg = probar(url)
     if not ok:
         print(msg)
-        print("\nNo guardé nada.")
+        print("\nNo se guardó ningún cambio.")
         salir_mal()
         return 1
 

@@ -47,7 +47,7 @@
   textarea{resize:vertical;min-height:58px;line-height:1.45}
   input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .barra input{max-width:320px}
-  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+  .btn{border:0;border-radius:10px;background:var(--brand);color:var(--marca-ink,#fff);
     padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
@@ -174,11 +174,11 @@
     <div><label>Rol</label><select id="uRol"></select>
       <p class="pista" id="uRolDetalle"></p></div>
     <div id="cajaSucursal"><label>Sucursal</label><select id="uSucursal"></select>
-      <p class="pista">De acá sale el número de sus solicitudes.</p></div>
+      <p class="pista">Determina la numeración de sus solicitudes.</p></div>
     <div class="ancho" id="cajaClave"><label>Contraseña</label>
       <input id="uClave" type="text" autocomplete="new-password">
       <p class="pista">Al menos 8 caracteres y que no sean solo números. Se la
-        decís y la cambia cuando quiera desde su sesión.</p></div>
+        se asigna y puede modificarla desde su sesión.</p></div>
   </div>
   <div id="avisoUsuario"></div>
   <div class="barra" style="margin:14px 0 0">

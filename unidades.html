@@ -62,7 +62,7 @@
     border:1px solid var(--hairline-2);border-radius:9px;padding:9px 11px;font:inherit}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
   #buscar{flex:1;min-width:190px}
-  .btn{background:var(--brand);color:#fff;border:0;border-radius:9px;
+  .btn{background:var(--brand);color:var(--marca-ink,#fff);border:0;border-radius:9px;
     padding:10px 15px;font:inherit;font-weight:700;cursor:pointer}
   .btn.gris{background:var(--surface-3);color:var(--ink)}
   .btn.roja{background:transparent;color:var(--bad);border:1px solid rgba(227,93,98,.4)}
@@ -102,26 +102,13 @@
      en dos columnas se leen a los tumbos. */
   #semis-ayuda ul{columns:1;font-size:12.5px;line-height:1.55}
   #semis-ayuda li{margin-bottom:7px}
-  /* La barra del cambio en lote: la misma fila de controles que los filtros,
-     pero marcada, porque lo que hace toca varias unidades a la vez. */
+  /* La selección para exportar: aparece solo cuando hay filas marcadas. */
   .lote{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;
     padding:10px 14px;border-radius:12px;background:var(--surface-1);
     border:1px solid var(--brand)}
-  .lote label{font-size:12px;color:var(--ink-2)}
   .lote .apagado{font-size:11.5px}
   .tilde{width:16px;height:16px;cursor:pointer;accent-color:var(--brand)}
   th.tilde-col,td.tilde-col{width:34px;text-align:center}
-  table.armados{width:100%;margin-top:10px;border-collapse:collapse;font-size:12px}
-  table.armados td{padding:6px 8px;border-top:1px solid var(--hairline);
-    vertical-align:top}
-  table.armados td:first-child{font-weight:700}
-  table.armados .n{text-align:right;white-space:nowrap;color:var(--ink-2)}
-  table.armados .pat{color:var(--ink-2);font-size:11px;line-height:1.5}
-  table.armados .falta td{background:color-mix(in srgb,var(--brand) 5%,transparent)}
-  table.armados .marca{display:inline-block;padding:1px 6px;border-radius:5px;
-    font-size:10px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
-  table.armados .marca.no{background:var(--brand);color:#fff}
-  table.armados .marca.si{background:var(--surface-2);color:var(--ink-2)}
 
   /* La ficha. Se abre encima; en el celular ocupa la pantalla entera. */
   .fondo{position:fixed;inset:0;background:rgba(4,6,8,.72);display:grid;
@@ -238,7 +225,7 @@
   .mini{background:var(--surface-3);color:var(--ink);border:1px solid var(--hairline-2);
     border-radius:7px;padding:4px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
   .mini:hover{border-color:var(--brand)}
-  .mini.pon{background:var(--brand);border-color:var(--brand);color:#fff}
+  .mini.pon{background:var(--brand);border-color:var(--brand);color:var(--marca-ink,#fff)}
   .mini.gris{background:none;color:var(--ink-muted)}
   .mini:disabled{opacity:.5;cursor:default}
   .acc{margin:8px 0 4px;padding:11px;background:var(--surface-2);
@@ -287,21 +274,11 @@
 
   <div id="error" class="error" hidden></div>
 
-  <details class="revisar" id="revisar" hidden>
-    <summary>Datos para revisar <span id="revisar-n" class="apagado"></span></summary>
-    <ul id="revisar-lista"></ul>
-  </details>
-
-  <details class="revisar" id="armados" hidden>
-    <summary>Tipos de vehículo y disponibilidad de modelos 3D
-      <span id="armados-n" class="apagado"></span></summary>
-    <table class="armados"><tbody id="armados-lista"></tbody></table>
-  </details>
-
   <div class="barra">
-    <input id="buscar" type="search" placeholder="Patente, interno, chofer, chasis, modelo…">
-    <select id="f-sucursal"><option value="">Toda residencia</option></select>
-    <select id="f-uso"><option value="">Todo uso</option></select>
+    <input id="buscar" type="search" placeholder="Patente, interno, chofer, chasis o modelo">
+    <select id="f-sucursal"><option value="">Todas las residencias</option></select>
+    <select id="f-marca"><option value="">Todas las marcas</option></select>
+    <select id="f-uso"><option value="">Todos los usos</option></select>
     <select id="f-estado">
       <option value="activas">Activas</option>
       <option value="todas">Todas</option>
@@ -310,28 +287,17 @@
     </select>
     <button class="btn" id="nueva">+ Nueva unidad</button>
     <button class="btn gris" id="exp-excel" type="button"
-            title="Baja el listado que estás viendo, con los filtros puestos">Excel</button>
+            title="Exporta las unidades seleccionadas o, si no hay selección, el listado filtrado">Excel</button>
     <button class="btn gris" id="exp-pdf" type="button"
-            title="Abre el diálogo de impresión, donde se debe seleccionar «Guardar como PDF»">PDF</button>
+            title="Exporta las unidades seleccionadas o, si no hay selección, el listado filtrado. En el diálogo de impresión, seleccionar «Guardar como PDF»">PDF</button>
     <span class="cuenta" id="cuenta"></span>
   </div>
 
-  <!-- El mismo cambio sobre varias unidades. Aparece recién cuando hay
-       algo tildado: el resto del tiempo no tiene nada que decir. -->
+  <!-- Selección para exportar. Aparece solo cuando hay unidades marcadas. -->
   <div class="lote" id="lote" hidden>
     <b id="lote-cuantas"></b>
-    <label for="l-sucursal">Residencia</label>
-    <input id="l-sucursal" list="sucursales" placeholder="Dejar como está" size="12">
-    <label for="l-semi">Semi o acoplado</label>
-    <select id="l-semi">
-      <option value="">Dejar como está</option>
-      <option value="1">Marcar como semi</option>
-      <option value="0">Quitar la marca de semi</option>
-    </select>
-    <button class="btn" id="lote-aplicar" type="button">Aplicar a las tildadas</button>
-    <button class="btn gris" id="lote-limpiar" type="button">Destildar todo</button>
-    <span class="apagado">Marcar como semi lo deja con uso SEMIRREMOLQUE y lo hace
-      aparecer en Asociación de equipos.</span>
+    <span class="apagado">Excel y PDF exportarán solo las unidades seleccionadas.</span>
+    <button class="btn gris" id="lote-limpiar" type="button">Quitar selección</button>
   </div>
 
   <div class="caja">
@@ -347,7 +313,7 @@
        embargo sus gomas se gastan y sus papeles vencen. Sus kilómetros
        son los del tractor que lo llevó, mientras lo llevó. -->
   <section id="v-semis" hidden>
-    <p class="sub">Acá se anota <b>qué tractor lleva qué semi o acoplado y desde
+    <p class="sub">Esta sección registra <b>qué tractor lleva qué semi o acoplado y desde
       cuándo</b>. Un semi no tiene satelital: no reporta kilómetros solo, y los
       que se le cuentan son los que hizo el tractor mientras lo llevaba puesto.
       Cada fila del listado es un equipo.</p>
@@ -405,7 +371,7 @@
         <tbody id="cuerpo-semis"></tbody>
       </table>
       <p class="vacio" id="vacio-semis" hidden>Todavía no hay equipos registrados.
-        Enganchá uno y aparece acá.</p>
+        Los enganches registrados se muestran en esta sección.</p>
     </div>
   </section>
 </main>
@@ -555,15 +521,15 @@ const COLS = [
                                      : `<span class="chip">${esc(u.uso || '—')}</span>`) }
 ];
 
-let DATOS = { unidades: [], sucursales: [], usos: [], revisar: [], armados: [] };
+let DATOS = { unidades: [], sucursales: [], usos: [] };
 let ORDEN = { col:'interno', asc:true };
 let PUEDE = false;          /* si el usuario puede escribir */
 
 /* ------------------------------------------------------------------ */
 function pintarCabecera(){
-  $('#cabecera').innerHTML = (PUEDE
-      ? '<th class="tilde-col"><input type="checkbox" class="tilde" id="tilde-todas"' +
-        ' title="Tildar todo lo que está filtrado"></th>' : '') +
+  $('#cabecera').innerHTML =
+      '<th class="tilde-col"><input type="checkbox" class="tilde" id="tilde-todas"' +
+      ' title="Seleccionar todas las unidades filtradas"></th>' +
     COLS.map(c =>
     `<th data-k="${c.k}">${c.t}${ORDEN.col === c.k
       ? ` <span class="flecha">${ORDEN.asc ? '▲' : '▼'}</span>` : ''}</th>`).join('');
@@ -585,12 +551,14 @@ function filtradas(){
   const txt = $('#buscar').value.trim().toUpperCase().replace(/\s+/g,' ');
   const plano = txt.replace(/[^A-Z0-9]/g,'');
   const suc = $('#f-sucursal').value, uso = $('#f-uso').value, est = $('#f-estado').value;
+  const marca = $('#f-marca').value;
   return DATOS.unidades.filter(u => {
     if (est === 'activas'  && !u.activa) return false;
     if (est === 'bajas'    &&  u.activa) return false;
     if (est === 'equipos'  && u.tipo !== 'equipo') return false;
     if (suc && u.sucursal !== suc) return false;
     if (uso && u.uso !== uso) return false;
+    if (marca && u.marca !== marca) return false;
     if (!txt) return true;
     /* La patente se compara pegada: da igual cómo la escriban en el buscador. */
     if (plano && String(u.patente || '').includes(plano)) return true;
@@ -618,9 +586,9 @@ function pintar(){
   const filas = ordenar(filtradas());
   $('#cuerpo').innerHTML = filas.map(u =>
     `<tr data-id="${u.id}" class="${u.activa ? '' : 'baja'}">` +
-    (PUEDE ? `<td class="tilde-col"><input type="checkbox" class="tilde" data-tilde="${u.id}"` +
-             `${TILDADAS.has(u.id) ? ' checked' : ''}` +
-             ` aria-label="Elegir ${esc(fmtPat(u.patente))}"></td>` : '') +
+    `<td class="tilde-col"><input type="checkbox" class="tilde" data-tilde="${u.id}"` +
+    `${TILDADAS.has(u.id) ? ' checked' : ''}` +
+    ` aria-label="Seleccionar ${esc(fmtPat(u.patente))}"></td>` +
     COLS.map(c => `<td>${c.v(u)}</td>`).join('') + '</tr>').join('');
   $('#vacio').hidden = filas.length > 0;
   const total = DATOS.unidades.length;
@@ -642,49 +610,28 @@ function pintar(){
 }
 
 /* ------------------------------------------------------------------ */
-/* El mismo cambio sobre varias unidades                                */
+/* Selección para exportar                                              */
 /* ------------------------------------------------------------------ */
-/* La planilla de la que sale el maestro no trae residencia ni dice cuál
-   es un semi: eso se completa acá, y de a una son cuarenta fichas. */
 const TILDADAS = new Set();
 
 function pintarLote(){
   const caja = $('#lote');
   if (!caja) return;
-  caja.hidden = !PUEDE || TILDADAS.size === 0;
+  caja.hidden = TILDADAS.size === 0;
   $('#lote-cuantas').textContent = TILDADAS.size === 1
-    ? '1 unidad tildada' : `${TILDADAS.size} unidades tildadas`;
+    ? '1 unidad seleccionada' : `${TILDADAS.size} unidades seleccionadas`;
   const filas = filtradas(), todas = $('#tilde-todas');
   if (todas) todas.checked = filas.length > 0 && filas.every(u => TILDADAS.has(u.id));
 }
 
-async function aplicarLote(){
-  const sucursal = $('#l-sucursal').value.trim();
-  const semi = $('#l-semi').value;
-  if (!sucursal && !semi) return avisar('Elegí qué cambiarles: la residencia, la marca de semi, o las dos.');
-  const cuerpo = { op:'lote', ids:[...TILDADAS] };
-  if (sucursal) cuerpo.sucursal = sucursal;
-  if (semi) cuerpo.es_semi = semi === '1';
-  $('#lote-aplicar').disabled = true;
-  try {
-    const d = await mandar(cuerpo);
-    $('#error').hidden = true;
-    TILDADAS.clear();
-    $('#l-sucursal').value = ''; $('#l-semi').value = '';
-    await cargar();
-    $('#cuenta').textContent += ` · ${d.cambiadas} cambiada${d.cambiadas === 1 ? '' : 's'}`;
-  } catch (err) { avisar(err.message); }
-  finally { $('#lote-aplicar').disabled = false; }
-}
-
 /* ------------------------------------------------------------------ */
-/* Llevarse el listado                                                  */
+/* Exportación                                                          */
 /* ------------------------------------------------------------------ */
-/* Las dos salidas exportan lo que se está viendo, con los filtros y el
-   orden puestos. Un listado de toda la flota cuando la pantalla muestra
-   una sucursal no es el listado que pidió el que apretó el botón. */
-
+/* Con unidades seleccionadas se exportan solo esas, en el orden de la
+   tabla. Sin selección se exporta el listado filtrado. */
 function comoSeVe(){
+  if (TILDADAS.size)
+    return ordenar(DATOS.unidades.filter(u => TILDADAS.has(u.id)));
   return ordenar(filtradas());
 }
 
@@ -701,6 +648,8 @@ function rotuloFiltros(){
   partes.push(est.options[est.selectedIndex].textContent.toLowerCase());
   if ($('#f-sucursal').value) partes.push(`residencia ${$('#f-sucursal').value}`);
   if ($('#f-uso').value)      partes.push($('#f-uso').value.toLowerCase());
+  if ($('#f-marca').value)    partes.push(`marca ${$('#f-marca').value}`);
+  if (TILDADAS.size)          return `${TILDADAS.size} seleccionadas`;
   if ($('#buscar').value.trim()) partes.push(`buscando «${$('#buscar').value.trim()}»`);
   return partes.join(' · ');
 }
@@ -708,12 +657,11 @@ function rotuloFiltros(){
 /* El Excel lo arma el servidor: el navegador manda qué unidades, y cada
    fila se relee de la base. Así el archivo no puede salir con algo que
    la pantalla tenía desactualizado. */
-$('#lote-aplicar').onclick = aplicarLote;
 $('#lote-limpiar').onclick = () => { TILDADAS.clear(); pintar(); };
 
 $('#exp-excel').onclick = () => {
   const filas = comoSeVe();
-  if (!filas.length) return avisar('No hay unidades para exportar con ese filtro.');
+  if (!filas.length) return avisar('No hay unidades para exportar con los filtros aplicados.');
   location.href = '/api/unidades/exportar?ids=' + filas.map(u => u.id).join(',');
 };
 
@@ -722,7 +670,7 @@ $('#exp-excel').onclick = () => {
    repetir lo que hace peor. */
 $('#exp-pdf').onclick = () => {
   const filas = comoSeVe();
-  if (!filas.length) return avisar('No hay unidades para exportar con ese filtro.');
+  if (!filas.length) return avisar('No hay unidades para exportar con los filtros aplicados.');
 
   const celdas = u => COLS.map(c => {
     if (c.k === 'patente') return esc(fmtPat(u.patente));
@@ -732,7 +680,7 @@ $('#exp-pdf').onclick = () => {
   }).map(v => `<td>${v}</td>`).join('');
 
   const w = window.open('', '_blank', 'width=1100,height=700');
-  if (!w) return avisar('El navegador bloqueó la ventana. Permitile abrir ventanas a este sitio.');
+  if (!w) return avisar('El navegador bloqueó la ventana emergente. Habilitar las ventanas emergentes para este sitio.');
   w.document.write(`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
     <title>Flota ${new Date().toLocaleDateString('es-AR')}</title>
     <style>
@@ -1300,7 +1248,7 @@ $('#baja').onclick = async () => {
       : `¿Dar de baja ${pat}?\n\nDeja de aparecer y de avisar en todos los ` +
         `módulos: flota, services, gomería, vencimientos y alertas.\n\n` +
         `No se borra nada: el combustible que cargó, las órdenes que tuvo y ` +
-        `las gomas que usó quedan como están.\n\nSe puede reactivar cuando quieras.`)) return;
+        `las cubiertas utilizadas se conservan.\n\nLa unidad puede reactivarse en cualquier momento.`)) return;
 
   try {
     const d = await mandar({ op:'baja', id: EDITANDO.id, activa: activar });
@@ -1336,12 +1284,13 @@ async function cargar(){
   DATOS = await r.json();
   $('#error').hidden = true;
 
-  opciones($('#f-sucursal'), DATOS.sucursales, 'Toda residencia');
-  opciones($('#f-uso'), DATOS.usos, 'Todo uso');
+  opciones($('#f-sucursal'), DATOS.sucursales, 'Todas las residencias');
+  opciones($('#f-uso'), DATOS.usos, 'Todos los usos');
   datalist('sucursales', DATOS.sucursales);
   datalist('usos', DATOS.usos);
   const unicos = k => [...new Set(DATOS.unidades.map(u => u[k]).filter(Boolean))].sort();
   datalist('marcas', unicos('marca'));
+  opciones($('#f-marca'), unicos('marca'), 'Todas las marcas');
   datalist('choferes', unicos('chofer'));
   $('#c-modelo_3d').innerHTML = '<option value="">Según los ejes</option>' +
     (DATOS.modelos_3d || []).map(m =>
@@ -1351,51 +1300,10 @@ async function cargar(){
   $('#c-mantenimiento_plan_id').innerHTML = '<option value="">Sin plan asignado</option>' +
     planes.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${Number(p.cada_km).toLocaleString('es-AR')} km</option>`).join('');
 
-  const rev = DATOS.revisar || [];
-  $('#revisar').hidden = rev.length === 0;
-  $('#revisar-n').textContent = rev.length ? `(${rev.length})` : '';
-  $('#revisar-lista').innerHTML = rev.map(r =>
-    `<li><b>${esc(fmtPat(r.patente))}</b> — ${esc(r.problema)}` +
-    `${r.detalle ? ' <span class="apagado">' + esc(r.detalle) + '</span>' : ''}</li>`).join('');
-
-  pintarArmados();
-
   pintar();
 }
 
-/* Qué tipos de vehículo hay en la flota y cuáles todavía no se dibujan.
-
-   Sirve para salir a buscar modelos 3D sabiendo qué buscar: cuántas gomas
-   lleva cada tipo y cómo están repartidas. Lo que falta va primero, y
-   ordenado por cuántas unidades son. */
-function pintarArmados(){
-  const gs = DATOS.armados || [];
-  $('#armados').hidden = gs.length === 0;
-  const faltan = gs.filter(g => !g.modelo_3d)
-                   .reduce((a, g) => a + g.unidades, 0);
-  $('#armados-n').textContent = faltan ? `(${faltan} unidades sin modelo)` : '';
-
-  $('#armados-lista').innerHTML = gs.map(g => {
-    const que = g.modelo_3d ? nombre3d(g.modelo_3d)
-              : (g.armado || g.titulo || 'sin identificar');
-    /* Las gomas y el reparto salen del mapa. Sin mapa no hay reparto que
-       mostrar, y eso también es un dato: es lo primero que falta. */
-    const como = g.gomas
-      ? `${g.gomas} gomas · ${esc(g.reparto)}`
-      : '<i class="apagado">sin mapa de cubiertas</i>';
-    const patentes = g.patentes.slice(0, 12).map(fmtPat).join(' · ') +
-      (g.patentes.length > 12 ? ` … y ${g.patentes.length - 12} más` : '');
-    return `<tr class="${g.modelo_3d ? '' : 'falta'}">
-      <td>${esc(que)}<div class="pat">${esc(patentes)}</div></td>
-      <td>${como}</td>
-      <td class="n">${g.unidades} unidad${g.unidades === 1 ? '' : 'es'}</td>
-      <td class="n"><span class="marca ${g.modelo_3d ? 'si' : 'no'}">${
-        g.modelo_3d ? 'tiene 3D' : (g.falta_archivo ? 'falta el archivo' : 'falta 3D')
-      }</span></td></tr>`;
-  }).join('');
-}
-
-for (const id of ['#buscar','#f-sucursal','#f-uso','#f-estado'])
+for (const id of ['#buscar','#f-sucursal','#f-marca','#f-uso','#f-estado'])
   $(id).addEventListener('input', pintar);
 
 fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
@@ -1406,10 +1314,7 @@ fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   PUEDE = d.gestiona !== undefined ? !!d.gestiona : ['admin','encargado'].includes(d.rol);
   $('#quien').textContent = `${d.nombre} · ${d.rol_nombre || d.rol}`;
   $('#nueva').hidden = !PUEDE;
-  // Quién es llega después del primer dibujo: la columna de tildes es
-  // suya, así que la tabla se vuelve a pintar cuando se sabe.
-  if (PUEDE) { pintarCabecera(); pintar(); }
-  if (!PUEDE) $('.sub').textContent += ' Solo lectura: para editar hace falta ser encargado.';
+  if (!PUEDE) $('.sub').textContent += ' Acceso de solo lectura: la edición requiere rol de encargado.';
 }).catch(() => {});
 
 /* ====================================================================
@@ -1450,8 +1355,8 @@ async function cargarSemis() {
   $('#semis-sub').textContent = d.semis.length
     ? `${d.semis.length} equipos · ${enganchados === 0 ? 'ninguno enganchado hoy'
         : enganchados === 1 ? '1 enganchado hoy' : enganchados + ' enganchados hoy'}` +
-      `; ${d.semis.length - enganchados} sueltos.`
-    : 'Ningún equipo registrado todavía. Al enganchar uno por primera vez, queda acá.';
+      `; ${d.semis.length - enganchados} sin enganche.`
+    : 'Ningún equipo registrado todavía. Los equipos se incorporan a este listado al registrar su primer enganche.';
 
   $('#cuerpo-semis').innerHTML = d.semis.map(s => `
     <tr>
@@ -1479,8 +1384,9 @@ document.addEventListener('click', async ev => {
     document.querySelectorAll('.solapa').forEach(x => x.classList.toggle('on', x === solapa));
     const semis = solapa.dataset.vista === 'semis';
     $('#v-semis').hidden = !semis;
-    document.querySelectorAll('main > .barra, main > .caja, main > .revisar')
+    document.querySelectorAll('main > .barra, main > .caja')
       .forEach(e => { e.hidden = semis; });
+    if (semis) $('#lote').hidden = true; else pintarLote();
     if (semis && !SEMIS.datos) cargarSemis();
     return;
   }

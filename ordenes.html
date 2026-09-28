@@ -56,7 +56,7 @@
   input:focus,select:focus,textarea:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .barra input{max-width:340px}
   .barra select{max-width:230px}
-  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+  .btn{border:0;border-radius:10px;background:var(--brand);color:var(--marca-ink,#fff);
     padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
@@ -280,7 +280,7 @@
   <div class="lector">
     <div class="lector-cab">
       <b>Adjuntar factura</b>
-      <span class="pista">Sacale una foto o subí el PDF y se completa solo. Revisalo antes de guardar.</span>
+      <span class="pista">Adjuntar una foto o el PDF para completar los datos automáticamente. Revisar antes de guardar.</span>
     </div>
     <div class="lector-acciones">
       <input type="file" id="xArchivo" accept="image/*,application/pdf" multiple hidden>
@@ -297,7 +297,7 @@
         <option value="mantenimiento">Mantenimiento</option>
         <option value="sucursal">Una sucursal</option>
       </select>
-      <p class="pista">Lo que manda a hacer mantenimiento se carga acá y listo.
+      <p class="pista">Los trabajos solicitados por mantenimiento se registran en esta sección.
         Lo que manda a hacer una sucursal va con su solicitud de orden de compra.</p></div>
     <div class="ancho" id="cajaSolicitud" hidden>
       <label>Solicitud de orden de compra</label>

@@ -149,7 +149,7 @@ def _fluido(cx, fluido_id=None, clave=None):
         raise ValueError("Todavía no hay fluidos cargados. "
                          "Ejecutar gomeria/32_fluidos.sql en Supabase.")
     if len(filas) > 1:
-        raise ValueError("Indicá de qué fluido se trata.")
+        raise ValueError("Indicar el fluido.")
     return filas[0]
 
 
@@ -250,7 +250,7 @@ def porque_falta(cx):
     # Algunas están y otras no: el script entró a medias.
     return (f"El script de fluidos entró a medias: falta crear "
             f"{', '.join(faltan)}. Casi siempre es que se cortó al pegarlo. "
-            f"Volvé a pegar gomeria/32_fluidos.sql entero{_largo_del_script()} y "
+            f"Volver a ejecutar gomeria/32_fluidos.sql completo{_largo_del_script()} y "
             "corrélo de nuevo: se puede correr las veces que haga falta, "
             "no borra nada.")
 
@@ -375,8 +375,8 @@ def despachar(cx, datos, usuario=None):
     unidad_id, patente = _unidad(cx, datos)
     motivo = _texto(datos.get("motivo"), 200)
     if not patente and not motivo:
-        raise ValueError("Indicá a qué unidad fue, o el motivo si no fue a "
-                         "ninguna (derrame, préstamo, devolución).")
+        raise ValueError("Indicar la unidad de destino o, si no fue a ninguna, el motivo "
+                         "(derrame, préstamo, devolución).")
 
     movimiento_id = _registrar(cx, fluido, "salida", cantidad, datos, usuario,
                                unidad_id=unidad_id, patente=patente,
@@ -401,7 +401,7 @@ def despachar(cx, datos, usuario=None):
     # decir que el número dejó de ser creíble y que hay que medir.
     if saldo < 0:
         aviso = (f"Quedaron {_como(fluido, saldo)}. Hubo una entrada que no se "
-                 "anotó: medí y cargá la medición.")
+                 "anotó: medir y registrar la medición.")
     elif estado and estado["estado"] in ("vacio", "critico", "aviso"):
         dias = estado["dias_restantes"]
         aviso = (f"Quedan {_como(fluido, saldo)}"

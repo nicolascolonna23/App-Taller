@@ -616,7 +616,7 @@
 <div class="modal-bg" id="modal-planes" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:760px">
     <h2>Parametrización de services</h2>
-    <div class="hint">Creá M1, M2, M3 o cualquier plan y asignalo a las patentes.</div>
+    <div class="hint">Crear los planes (por ejemplo, M1, M2, M3) y asignarlos a las unidades.</div>
     <div class="row">
       <div><label>Nombre</label><input class="inp" id="pl-nombre" placeholder="Ej: M1 Hi-Way"></div>
       <div><label>Cada cuántos km</label><input class="inp" id="pl-km" type="number" min="1" placeholder="40000"></div>
@@ -1958,7 +1958,7 @@ $('#form-service').addEventListener('submit', async ev => {
   if (!plan) return;
   if (!isFinite(km) || km <= 0) { svMensaje('El kilometraje no es válido.', 'error'); return; }
   if (u && u.kmUlt !== null && km < u.kmUlt) {
-    svMensaje(`El km ingresado es menor al último service (${fmt0(u.kmUlt)} km). Revisalo.`, 'error');
+    svMensaje(`El km ingresado es menor al último service (${fmt0(u.kmUlt)} km). Revisar el valor.`, 'error');
     return;
   }
 
@@ -2044,7 +2044,7 @@ $('#as-importar').onclick=async()=>{
     const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo importar.');
     APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes();
     const partes=[`${d.asignadas} de ${d.total} filas asignadas.`];
-    if(d.planes_faltantes?.length) partes.push(`Creá primero estos planes: ${d.planes_faltantes.join(', ')}.`);
+    if(d.planes_faltantes?.length) partes.push(`Crear previamente los siguientes planes: ${d.planes_faltantes.join(', ')}.`);
     if(d.patentes_faltantes?.length) partes.push(`Patentes no encontradas: ${d.patentes_faltantes.join(', ')}.`);
     if(d.sin_datos?.length) partes.push(`Sin datos: ${d.sin_datos.join(', ')}.`);
     $('#as-resultado').textContent=partes.join(' '); planMensaje('Carga procesada.'); await cargarTodo(false);

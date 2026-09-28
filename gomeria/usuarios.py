@@ -36,7 +36,7 @@ ROLES = {
 
 
 def pedir_clave(usuario):
-    print(f"\nContraseña para '{usuario}'. Se ve mientras la escribís.")
+    print(f"\nContraseña para '{usuario}'. Se muestra mientras se escribe.")
     clave = input("  >>> ").strip()
     if not clave:
         raise SystemExit("Sin contraseña no puedo crear el usuario.")
@@ -55,7 +55,7 @@ def listar(cx):
                      and s.expira > now()) as sesiones
         from usuarios u order by u.activo desc, u.usuario""").fetchall()
     if not filas:
-        print("Todavía no hay usuarios. Creá el primero:")
+        print("Todavía no hay usuarios. Crear el primero:")
         print('  python3 gomeria/usuarios.py agregar TUUSUARIO "Tu Nombre" --rol admin')
         return
     print(f"{'usuario':<14}{'nombre':<26}{'rol':<12}{'estado':<9}{'entró':<12}sesiones")

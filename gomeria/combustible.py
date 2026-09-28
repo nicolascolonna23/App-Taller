@@ -304,7 +304,7 @@ def subir(cx, datos, usuario=None):
 
     origen = (datos.get("origen") or "").strip()
     if origen not in ("estacion", "planilla"):
-        raise ValueError("Decí si el archivo es el listado de la estación o nuestra planilla.")
+        raise ValueError("Indicar si el archivo es el listado de la estación o la planilla interna.")
     nombre = (datos.get("nombre") or "archivo").strip()[:120]
     try:
         crudo = base64.b64decode(datos.get("contenido") or "", validate=False)
@@ -316,7 +316,7 @@ def subir(cx, datos, usuario=None):
     leido = leer(nombre, crudo, datos.get("columnas"))
     filas = leido["filas"]
     if not filas:
-        raise ValueError("No encontré ninguna fila con número de remito.")
+        raise ValueError("No se encontró ninguna fila con número de remito.")
 
     # Sin confirmar solo se muestra qué entraría. La primera vez conviene
     # mirarlo: si la estación cambió el formato, se ve acá y no después de
@@ -456,7 +456,7 @@ def _revisar_link(url):
                                       proto=socket.IPPROTO_TCP)
     except OSError:
         raise ValueError(f"No se pudo resolver {partes.hostname}. "
-                         "Revisá el link.") from None
+                         "Revisar el enlace.") from None
     for info in destinos:
         ip = ipaddress.ip_address(info[4][0])
         if (ip.is_private or ip.is_loopback or ip.is_link_local

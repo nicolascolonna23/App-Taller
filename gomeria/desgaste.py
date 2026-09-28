@@ -270,7 +270,7 @@ def recapar(cx, cubierta_id, marca=None, banda=None, proveedor=None,
                             where cubierta_id = %s and hasta is null""",
                          (cubierta_id,)).fetchone()
     if montada:
-        raise ValueError("La cubierta está montada. Registrá primero el desmontaje.")
+        raise ValueError("La cubierta está montada. Registrar primero el desmontaje.")
 
     if costo not in (None, ""):
         costo = float(costo)

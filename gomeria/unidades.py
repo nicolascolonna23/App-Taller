@@ -1113,10 +1113,10 @@ def mover_cubierta(cx, datos, usuario=None):
         actual = puesta["cubierta_id"] if puesta else None
         esperado = datos["cubierta_esperada"]
         if (str(actual) if actual is not None else None) != (str(esperado) if esperado is not None else None):
-            raise ValueError("La posición cambió desde que abriste el mapa. Actualizá antes de continuar.")
+            raise ValueError("La posición cambió desde que se abrió el mapa. Actualizar antes de continuar.")
     nota = _texto(datos.get("nota"), 300)
     if accion == "desmontar" and not nota:
-        raise ValueError("Indicá el motivo del retiro de la cubierta.")
+        raise ValueError("Indicar el motivo del retiro de la cubierta.")
     if accion == "montar" and datos.get("solo_vacia") and puesta:
         raise ValueError("La posición está ocupada. Retirá primero la cubierta con su motivo.")
     quien = (usuario or {}).get("nombre")

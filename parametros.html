@@ -63,7 +63,7 @@
     color:var(--ink-muted);font-weight:700;margin-bottom:5px}
   .campos{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}
   .campos .ancho{grid-column:1/-1}
-  .btn{border:0;border-radius:10px;background:var(--brand);color:#fff;
+  .btn{border:0;border-radius:10px;background:var(--brand);color:var(--marca-ink,#fff);
     padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
   .btn.alt{background:var(--surface-3);border:1px solid var(--hairline-2);color:var(--ink)}
   .btn.mal{background:transparent;border:1px solid rgba(227,93,98,.5);color:var(--bad)}
@@ -270,7 +270,7 @@
 
     <div class="caja">
       <h2>Marcas de cubierta</h2>
-      <p class="que">El logo se sube acá y se ve en la mesa de montaje y en la ficha
+      <p class="que">El logo cargado en esta sección se muestra en la mesa de montaje y en la ficha
         de la unidad. La marca que ya tiene cubiertas cargadas no se borra: se da de
         baja, y deja de ofrecerse al cargar una cubierta nueva.</p>
       <div class="fila" style="margin:0 0 14px">
@@ -405,7 +405,7 @@
 
     <div class="caja">
       <h2>Proveedores</h2>
-      <p class="que">A quién se le compra. Hasta acá el proveedor era un texto que cada
+      <p class="que">Registro de proveedores. Anteriormente el proveedor era un texto que cada
         uno escribía como quería en cada carga, así que no se podía sumar lo que se le
         compró a nadie. El rubro es para ofrecer solo los que corresponden: al que trae
         gasoil no tiene sentido ofrecerlo para la grasa.</p>
@@ -574,7 +574,7 @@ function pintar() {
     ? 'El satelital no está escribiendo kilómetros.'
     : lecturas.ayer
       ? `${lecturas.ayer} lecturas del satelital en las últimas 24 horas.`
-      : 'Sin lecturas del satelital en las últimas 24 horas: revisá el job.';
+      : 'Sin lecturas del satelital en las últimas 24 horas: revisar el proceso de actualización.';
 
   const admin = !!d.puede_administrar;
   $('#km-lista').innerHTML =

@@ -183,7 +183,7 @@ def resolver_unidad(cx, texto):
         if len(porinterno) > 1:
             return None, f"Hay más de una unidad con el interno {m.group(1)}. Indicar la patente."
 
-    return None, ("No encontré la unidad. Indicar la patente en el texto, "
+    return None, ("No se encontró la unidad. Indicar la patente en el texto, "
                   "por ejemplo: AD 247 MQ giré las de atrás.")
 
 
@@ -329,7 +329,7 @@ def _por_que_no_se_deshace(grupo):
                 "darla de baja desde su ficha.")
     if grupo["hay_posteriores"]:
         return ("Después de este movimiento hubo otros sobre las mismas "
-                "cubiertas. Deshacé primero el último.")
+                "cubiertas. Deshacer primero el último.")
     return None
 
 
@@ -710,7 +710,7 @@ def cambiar_estado_cubierta(cx, cubierta_id, estado, usuario=None, nota=None):
     montada = cx.execute("select 1 from montajes where cubierta_id = %s and hasta is null",
                          (cubierta_id,)).fetchone()
     if montada:
-        raise ValueError("La cubierta esta montada. Registrá primero el desmontaje.")
+        raise ValueError("La cubierta está montada. Registrar primero el desmontaje.")
     cx.execute("""
         update cubiertas set estado = %s,
           fecha_baja = case when %s = 'baja' then current_date else null end,

@@ -123,9 +123,9 @@ def _sin_permiso(modulo, usuario):
     color:#8d959e;font-weight:800;margin:0 0 10px">Sin permiso</p>
   <h1 style="font-size:23px;font-weight:600;margin:0 0 12px">{modulo}</h1>
   <p style="color:#a9b0b8;line-height:1.6;margin:0 0 22px">Tu rol
-    <b>{rol}</b> no abre este módulo. Si lo necesitás para trabajar,
-    pedíselo a un administrador: se habilita desde Usuarios y roles.</p>
-  <a href="/" style="display:inline-block;background:#ffd400;color:#fff;
+    <b>{rol}</b> no tiene acceso a este módulo. Para solicitarlo,
+    contactar a un administrador: se habilita desde Usuarios y roles.</p>
+  <a href="/" style="display:inline-block;background:#ffd400;color:#101419;
     text-decoration:none;font-weight:800;padding:11px 17px;border-radius:10px">
     Volver al inicio</a>
 </main></body></html>"""
@@ -240,7 +240,7 @@ class App(gom.Handler):
             return self._error('Aplicar gomeria/30_avisos_y_reportes.sql.', 503)
         except Exception:
             traceback.print_exc()
-            return self._error('No se pudo completar la operación. Reintentá.', 500)
+            return self._error('No se pudo completar la operación. Intente nuevamente.', 500)
 
     def do_GET(self):
         ruta = urlparse(self.path).path
@@ -859,7 +859,7 @@ class App(gom.Handler):
             except (ValueError, UnicodeError) as e:
                 return self._error("Consulta inválida. Revisar el texto y su longitud.", 400)
             except Exception:
-                return self._error("No se pudo completar la consulta. Intentá nuevamente.", 500)
+                return self._error("No se pudo completar la consulta. Intente nuevamente.", 500)
 
 
         # Cómo quiere ver la aplicación este usuario.
@@ -1447,7 +1447,7 @@ def preparar():
                 cx.commit()
                 if creado:
                     print(f"  Primer usuario creado: '{creado}' (admin).")
-                    print("  Sacá USUARIO_INICIAL de las variables de entorno.")
+                    print("  Quitar USUARIO_INICIAL de las variables de entorno.")
             except ValueError as e:
                 print(f"  USUARIO_INICIAL: {e}")
 

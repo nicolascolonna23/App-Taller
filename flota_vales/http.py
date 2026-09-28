@@ -36,8 +36,8 @@ def atender(h,base,escritura=False):
         return h._responder(json.dumps(salida,ensure_ascii=False,default=str))
     except PermissionError as e: return h._error(str(e),403)
     except (ValueError,KeyError,TypeError,psycopg.errors.CheckViolation,psycopg.errors.ForeignKeyViolation,psycopg.errors.InvalidTextRepresentation) as e:
-        return h._error(str(e) if isinstance(e,ValueError) else 'Datos inválidos; revisá los campos.')
-    except psycopg.errors.UniqueViolation: return h._error('El registro ya existe. Revisá duplicados o recargá.',409)
+        return h._error(str(e) if isinstance(e,ValueError) else 'Datos inválidos: revisar los campos.')
+    except psycopg.errors.UniqueViolation: return h._error('El registro ya existe. Revisar duplicados o recargar la página.',409)
     except psycopg.errors.UndefinedTable: return h._error('Falta aplicar la migración de mantenimiento.',503)
     except Exception:
         traceback.print_exc(); return h._error('No se pudo completar la operación. No se guardaron cambios.',500)

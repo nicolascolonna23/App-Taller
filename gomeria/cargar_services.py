@@ -299,7 +299,7 @@ def main():
                 print("  " + x)
             if len(problemas) > 25:
                 print(f"  … y {len(problemas) - 25} más")
-            sys.exit("\nNo se cargó nada, de ningún archivo. Corregí y volver a correrlo.")
+            sys.exit("\nNo se cargó nada, de ningún archivo. Corregir y volver a ejecutarlo.")
 
         if args.simular:
             print("\n(simulación: no se escribió nada)")

@@ -52,7 +52,7 @@ def obtener(cx, u, id, bloquear=False):
     exigir(r is not None, 'No existe el reporte.')
     if r['usuario_id'] != u['id'] and (not gestor(u) or
             (bool(u.get('solo_su_sucursal')) and r['sucursal'] != u.get('sucursal_codigo'))):
-        raise PermissionError('No tenés acceso a ese reporte.')
+        raise PermissionError('No tiene acceso a ese reporte.')
     return r
 
 
@@ -82,7 +82,7 @@ def validar_fotos(fotos):
 
 def recibir(cx, u, d):
     acceso(u)
-    exigir(str(d.get('usuario_id')) == str(u['id']), 'El pendiente pertenece a otra cuenta. Iniciá sesión con la cuenta original.')
+    exigir(str(d.get('usuario_id')) == str(u['id']), 'El pendiente pertenece a otra cuenta. Iniciar sesión con la cuenta original.')
     id = str(uuid.UUID(str(d.get('id'))))
     # Serializa reintentos incluso si se perdió la respuesta tras el commit.
     cx.execute('select pg_advisory_xact_lock(hashtextextended(%s,0))', (id,))
@@ -92,11 +92,11 @@ def recibir(cx, u, d):
             raise PermissionError('Identificador ya utilizado.')
         return {'ok': True, 'id': id}
     unidad = cx.execute('select id,sucursal from unidades where id=%s and activa', (d.get('unidad_id'),)).fetchone()
-    exigir(unidad is not None, 'Seleccioná una unidad activa.')
+    exigir(unidad is not None, 'Seleccionar una unidad activa.')
     if not gestor(u) and (not u.get('sucursal_codigo') or unidad['sucursal'] != u['sucursal_codigo']):
         raise PermissionError('La unidad no pertenece a tu sucursal.')
     descripcion = str(d.get('descripcion') or '').strip()
-    exigir(0 < len(descripcion) <= 2000, 'Describí la falla (hasta 2000 caracteres).')
+    exigir(0 < len(descripcion) <= 2000, 'Describir la falla (hasta 2000 caracteres).')
     urgencia = d.get('urgencia')
     exigir(urgencia in ('PUEDE_ESPERAR','OPERA_CON_RIESGO','UNIDAD_PARADA'), 'Urgencia inválida.')
     try:
@@ -122,13 +122,13 @@ def resolver(cx, u, d):
     orden_id, motivo = None, None
     if d['op'] == 'desestimar':
         motivo = str(d.get('motivo') or '').strip()
-        exigir(0 < len(motivo) <= 2000, 'Indicá el motivo (hasta 2000 caracteres).')
+        exigir(0 < len(motivo) <= 2000, 'Indicar el motivo (hasta 2000 caracteres).')
         estado = 'DESESTIMADA'
     else:
         if not permisos.puede_ver(u, 'ordenes'):
             raise PermissionError('Falta permiso para órdenes de trabajo.')
         km = str(d.get('km', ''))
-        exigir(km.isdigit() and 0 <= int(km) <= 99999999, 'Indicá un kilometraje entero válido.')
+        exigir(km.isdigit() and 0 <= int(km) <= 99999999, 'Indicar un kilometraje entero válido.')
         # ordenes.abrir serializa por patente, también con altas manuales.
         salida = ordenes.abrir(cx, {'unidad_id':r['unidad_id'], 'km':d.get('km'),
             'fecha':datetime.now(ZoneInfo('America/Argentina/Buenos_Aires')).date().isoformat(),
