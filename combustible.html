@@ -979,19 +979,40 @@ async function cargarFlota(mes){
 
 /* ------------------------------------------------------------------ */
 
-let ticketPage = 0;
+/* El registro se pide de a una página: la búsqueda, el mes y la
+   paginación se resuelven en el servidor. Solo cuenta la última respuesta:
+   una búsqueda lenta no puede pisar a la que se escribió después. */
+let ticketPage = 0, ticketPedido = 0, ticketDemora = null;
 function renderTickets(){
-  const query = $('#ticket-search').value.toLowerCase().replace(/\s/g,'');
-  const month = $('#ticket-month').value;
-  const rows = (DATOS.tickets || []).filter(t => (!month || String(t.fecha || '').startsWith(month)) &&
-    [t.remito_bruto,t.remito,t.patente,t.estacion,t.interno].some(v => String(v || '').toLowerCase().replace(/\s/g,'').includes(query)));
-  ticketPage = Math.min(ticketPage, Math.max(0, Math.ceil(rows.length/50)-1));
-  $('#ticket-count').textContent = `${nf0.format(rows.length)} tickets · ${nf.format(rows.reduce((n,t)=>n+Number(t.litros || 0),0))} litros`;
-  $('#ticket-rows').innerHTML = rows.slice(ticketPage*50,(ticketPage+1)*50).map(t => `<tr><td><b>${esc(t.remito_bruto || t.remito)}</b></td><td>${esc(fecha(t.fecha))}</td><td><span class="plate">${esc(fmtPat(t.patente))}</span>${t.interno ? ' · '+esc(t.interno) : ''}</td><td>${esc(t.estacion || '—')}</td><td class="num">${t.litros == null ? '—' : nf.format(t.litros)}</td><td class="num">${t.importe == null ? '—' : '$ '+nf.format(t.importe)}</td><td>${esc(t.chofer || '—')}</td></tr>`).join('');
-  $('#ticket-empty').hidden = rows.length > 0;
-  $('#ticket-page').textContent = rows.length ? `${ticketPage*50+1}–${Math.min((ticketPage+1)*50,rows.length)} de ${rows.length}` : '0 registros';
+  clearTimeout(ticketDemora);
+  ticketDemora = setTimeout(pedirTickets, 250);
+}
+async function pedirTickets(){
+  const numero = ++ticketPedido;
+  const p = new URLSearchParams({vista:'tickets', pagina:String(ticketPage)});
+  const q = $('#ticket-search').value.trim(), month = $('#ticket-month').value;
+  if (q) p.set('q', q);
+  if (month) p.set('mes', month);
+  let d;
+  try {
+    const r = await fetch('/api/combustible?' + p);
+    d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'No se pudo leer el registro de tickets.');
+  } catch (err) {
+    if (numero !== ticketPedido) return;
+    $('#ticket-count').textContent = err.message || 'No se pudo leer el registro de tickets.';
+    return;
+  }
+  if (numero !== ticketPedido) return;
+  const total = d.total || 0, pp = d.por_pagina || 50, rows = d.tickets || [];
+  const ultima = Math.max(0, Math.ceil(total/pp) - 1);
+  if (ticketPage > ultima) { ticketPage = ultima; return pedirTickets(); }
+  $('#ticket-count').textContent = `${nf0.format(total)} tickets · ${nf.format(Number(d.litros || 0))} litros`;
+  $('#ticket-rows').innerHTML = rows.map(t => `<tr><td><b>${esc(t.remito_bruto || t.remito)}</b></td><td>${esc(fecha(t.fecha))}</td><td><span class="plate">${esc(fmtPat(t.patente))}</span>${t.interno ? ' · '+esc(t.interno) : ''}</td><td>${esc(t.estacion || '—')}</td><td class="num">${t.litros == null ? '—' : nf.format(t.litros)}</td><td class="num">${t.importe == null ? '—' : '$ '+nf.format(t.importe)}</td><td>${esc(t.chofer || '—')}</td></tr>`).join('');
+  $('#ticket-empty').hidden = total > 0;
+  $('#ticket-page').textContent = total ? `${ticketPage*pp+1}–${Math.min((ticketPage+1)*pp,total)} de ${nf0.format(total)}` : '0 registros';
   $('#prev-page').disabled = ticketPage === 0;
-  $('#next-page').disabled = (ticketPage+1)*50 >= rows.length;
+  $('#next-page').disabled = (ticketPage+1)*pp >= total;
 }
 function navigate(){
   let hash = location.hash.slice(1);

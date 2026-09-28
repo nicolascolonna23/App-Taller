@@ -27,7 +27,7 @@ Configuración, toda por variables de entorno:
 
 Local: python3 app.py
 """
-import datetime, json, os, sys, traceback
+import datetime, json, os, sys, threading, traceback
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
 
@@ -581,6 +581,12 @@ class App(gom.Handler):
                     if vista == "serie":
                         return self._responder(
                             gom.jstr(comb.serie_consumo(cx)))
+                    if vista == "tickets":
+                        pagina = (params.get("pagina") or ["0"])[0]
+                        return self._responder(gom.jstr(comb.tickets(
+                            cx, (params.get("q") or [""])[0],
+                            (params.get("mes") or [None])[0],
+                            int(pagina) if pagina.isdigit() else 0)))
                     salida = comb.panel(cx, estado)
                     # Cómo entra el combustible. La pantalla esconde las
                     # zonas de importación cuando se carga a mano: dos
@@ -1463,7 +1469,52 @@ def preparar():
     return cuantos, unidades
 
 
+# Cuántos pedidos se atienden a la vez. Cada uno puede traer una consulta
+# grande a memoria; sin tope, un pico de visitas multiplicaba ese consumo
+# hasta superar el límite del servicio y Render lo reiniciaba (503). Los
+# que exceden el tope esperan en la cola del puerto, no se rechazan.
+PEDIDOS_SIMULTANEOS = int(os.environ.get("PEDIDOS_SIMULTANEOS", 12))
+
+
+class Servidor(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def __init__(self, *args, **kw):
+        super().__init__(*args, **kw)
+        self._cupo = threading.BoundedSemaphore(PEDIDOS_SIMULTANEOS)
+
+    def process_request(self, request, client_address):
+        self._cupo.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._cupo.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._cupo.release()
+
+
+def _limitar_arenas_de_memoria():
+    """Menos reservas de memoria por hilo en glibc (Linux).
+
+    Por defecto cada hilo puede abrir su propia reserva, y la memoria que
+    libera un pedido queda retenida en ella: el proceso crece con cada pico
+    y no vuelve a bajar. Con dos reservas se reutiliza entre pedidos.
+    Equivale a MALLOC_ARENA_MAX=2 y tiene que correr antes de crear hilos.
+    """
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").mallopt(-8, 2)     # M_ARENA_MAX
+    except (OSError, AttributeError):
+        pass                                          # otro sistema: no aplica
+
+
 def main():
+    _limitar_arenas_de_memoria()
     puerto = int(os.environ.get("PORT", 8080))
     host = os.environ.get("HOST", "0.0.0.0")
 
@@ -1471,8 +1522,7 @@ def main():
     # El puerto se abre antes de revisar la base. Al despertar, Render
     # manda las visitas apenas arranca el proceso: si el puerto todavía no
     # escucha, la visita se lleva un 503. Así esperan en la cola.
-    servidor = ThreadingHTTPServer((host, puerto), App)
-    servidor.daemon_threads = True
+    servidor = Servidor((host, puerto), App)
     try:
         usuarios, unidades = preparar()
         print(f"  {unidades} unidades · {usuarios} usuarios")
