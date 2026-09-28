@@ -19,7 +19,7 @@ sys.path.insert(0, AQUI)
 
 import anthropic
 import auth
-import permisos, base, desgaste, interpretar, mapas
+import permisos, base, desgaste, interpretar, mapas, neumaticos
 
 
 def jstr(d):
@@ -27,7 +27,7 @@ def jstr(d):
 
 
 # Lo único que se sirve sin haber entrado.
-LIBRES = ("/login", "/logo.png", "/favicon.png")
+LIBRES = ("/login", "/login/2fa", "/logo.png", "/favicon.png")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -40,10 +40,24 @@ class Handler(BaseHTTPRequestHandler):
                 or os.environ.get("FORZAR_HTTPS") == "1")
 
     def _origen(self):
-        """De dónde viene, para contarle los intentos fallidos."""
-        adelantado = self.headers.get("X-Forwarded-For", "")
-        return (adelantado.split(",")[0].strip() if adelantado
-                else self.client_address[0])
+        """De dónde viene, para contarle los intentos fallidos.
+
+        X-Forwarded-For lo puede escribir cualquiera: tomarlo tal cual
+        dejaba esquivar el freno inventando una IP en cada intento. Solo se
+        cree en la cabecera que pone el proxy de adelante:
+          - en Render, True-Client-IP, que la pone Cloudflare y pisa la que
+            mande el cliente;
+          - en otro lado, la que se nombre en IP_CABECERA (por ejemplo
+            X-Real-IP detrás de un nginx propio).
+        Sin nada de eso, la dirección de la conexión.
+        """
+        cabecera = os.environ.get("IP_CABECERA") or (
+            "True-Client-IP" if os.environ.get("RENDER") else "")
+        if cabecera:
+            valor = (self.headers.get(cabecera) or "").split(",")[0].strip()
+            if valor:
+                return valor
+        return self.client_address[0]
 
     def _sesion(self):
         """Deja self.usuario cargado. True si hay sesión válida."""
@@ -79,8 +93,8 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("X-UI-Release", "2026-09-11-theme-fix")
         self.send_header("Content-Length", str(len(cuerpo)))
         self.send_header("Cache-Control", "no-store")
-        if cookie:
-            self.send_header("Set-Cookie", cookie)
+        for c in ([cookie] if isinstance(cookie, str) else cookie or ()):
+            self.send_header("Set-Cookie", c)
         self.end_headers()
         self.wfile.write(cuerpo)
 
@@ -102,6 +116,9 @@ class Handler(BaseHTTPRequestHandler):
             if self._sesion():
                 return self._redirigir("/")
             return self._responder(auth.pagina_login(), "text/html; charset=utf-8")
+
+        if ruta == "/login/2fa":
+            return self._segundo_factor()
 
         if ruta == "/salir":
             token = auth.token_de_cookie(self.headers.get("Cookie"))
@@ -186,6 +203,16 @@ class Handler(BaseHTTPRequestHandler):
                 traceback.print_exc()
                 return self._error(str(e), 500)
 
+        # El aviso de cambios por eje y las métricas de duración. Si el
+        # SQL no se corrió, lo dice y el resto de Gomería sigue igual.
+        if ruta == "/api/neumaticos":
+            try:
+                with base.conectar() as cx:
+                    return self._responder(jstr(neumaticos.panel(cx)))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(str(e), 500)
+
         if ruta == "/api/cubierta":
             try:
                 cubierta_id = int((params.get("id") or ["0"])[0])
@@ -240,10 +267,13 @@ class Handler(BaseHTTPRequestHandler):
     def _redirigir(self, a, cookie=None):
         self.send_response(303)
         self.send_header("Location", a)
-        if cookie:
-            self.send_header("Set-Cookie", cookie)
+        for c in ([cookie] if isinstance(cookie, str) else cookie or ()):
+            self.send_header("Set-Cookie", c)
         self.send_header("Content-Length", "0")
         self.end_headers()
+
+    def _html(self, pagina, codigo=200, cookie=None):
+        return self._responder(pagina, "text/html; charset=utf-8", codigo=codigo, cookie=cookie)
 
     def _login(self):
         largo = int(self.headers.get("Content-Length") or 0)
@@ -255,36 +285,120 @@ class Handler(BaseHTTPRequestHandler):
         if not destino.startswith("/") or destino.startswith("//"):
             destino = "/"          # que nadie use el login para mandar a otro sitio
 
-        origen = self._origen()
-        puede, minutos = auth.puede_intentar(origen)
-        if not puede:
-            return self._responder(
-                auth.pagina_login(f"Demasiados intentos fallidos. Reintentar de nuevo en "
-                                  f"{minutos} minuto{'s' if minutos > 1 else ''}.", destino),
-                "text/html; charset=utf-8", codigo=429)
-
+        # Se cuenta por origen y por cuenta: ver auth.bloqueado.
+        origen, cuenta = auth.clave_ip(self._origen()), auth.clave_usuario(usuario)
         with base.conectar() as cx:
+            minutos = auth.bloqueado(cx, origen, cuenta)
+            if minutos:
+                cx.commit()
+                return self._html(auth.pagina_login(
+                    f"Demasiados intentos fallidos. Reintentar de nuevo en "
+                    f"{minutos} minuto{'s' if minutos > 1 else ''}.", destino), 429)
+
             quien = auth.autenticar(cx, usuario, clave)
             if not quien:
+                auth.anotar_fallo(cx, origen, cuenta)
                 cx.commit()
-                auth.anotar_fallo(origen)
                 # Un solo mensaje para los dos casos: decir cuál falló le
                 # confirma a quien prueba que ese usuario existe.
-                return self._responder(
-                    auth.pagina_login("Usuario o contraseña incorrectos.", destino),
-                    "text/html; charset=utf-8", codigo=401)
-            auth.limpiar_intentos(origen)
-            token = auth.abrir_sesion(cx, quien["id"], self.headers.get("User-Agent"))
+                return self._html(auth.pagina_login(
+                    "Usuario o contraseña incorrectos.", destino), 401)
+            auth.limpiar_intentos(cx, cuenta)
+
+            # Quien administra no entra solo con la contraseña.
+            if auth.pide_2fa(cx, quien):
+                desafio = auth.abrir_desafio(cx, quien["id"], destino)
+                cx.commit()
+                return self._redirigir("/login/2fa", cookie=auth.cookie_desafio(
+                    desafio, seguro=self._es_https()))
+
+            segundos = auth.duracion_sesion(cx, quien)
+            token = auth.abrir_sesion(cx, quien["id"], self.headers.get("User-Agent"),
+                                      segundos=segundos)
             auth.limpiar_vencidas(cx)
             cx.commit()
-        return self._redirigir(destino,
-                               cookie=auth.cookie_de_sesion(token, seguro=self._es_https()))
+        return self._redirigir(destino, cookie=auth.cookie_de_sesion(
+            token, seguro=self._es_https(), segundos=segundos))
+
+    def _segundo_factor(self):
+        """El paso del código, para los que administran.
+
+        GET muestra la pantalla: la del código o, la primera vez, la del
+        alta con el QR. POST verifica el código y recién ahí abre la sesión.
+        """
+        seguro = self._es_https()
+        token = auth.token_de_cookie(self.headers.get("Cookie"), auth.COOKIE_DESAFIO)
+        with base.conectar() as cx:
+            fila = auth.leer_desafio(cx, token) if auth.hay_seguridad(cx) else None
+            if not fila:
+                cx.commit()
+                return self._redirigir("/login", cookie=auth.cookie_desafio(
+                    None, borrar=True, seguro=seguro))
+
+            def pantalla(error=None):
+                if fila["totp_activo"]:
+                    return auth.pagina_codigo(error)
+                return auth.pagina_alta_2fa(fila["usuario"], auth.preparar_totp(cx, fila), error)
+
+            if self.command != "POST":
+                pagina = pantalla()
+                cx.commit()
+                return self._html(pagina)
+
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 4096:
+                return self._error("El pedido es demasiado grande.", 413)
+            campos = parse_qs(self.rfile.read(largo).decode("utf-8", "replace"))
+            codigo = (campos.get("codigo") or [""])[0]
+
+            intentos = auth.clave_2fa(fila["id"])
+            minutos = auth.bloqueado(cx, intentos)
+            if minutos:
+                # Con la contraseña ya adivinada, lo que queda es probar
+                # códigos: se corta el desafío y hay que volver a empezar.
+                auth.cerrar_desafio(cx, token)
+                cx.commit()
+                return self._html(auth.pagina_login(
+                    f"Demasiados códigos incorrectos. Reintentar de nuevo en "
+                    f"{minutos} minuto{'s' if minutos > 1 else ''}."), 429,
+                    cookie=auth.cookie_desafio(None, borrar=True, seguro=seguro))
+
+            if not auth.verificar_segundo_factor(cx, fila, codigo):
+                auth.anotar_fallo(cx, intentos)
+                pagina = pantalla("El código no es correcto o ya se usó. "
+                                  "Probá con el siguiente que muestre la app.")
+                cx.commit()
+                return self._html(pagina, 401)
+
+            auth.limpiar_intentos(cx, intentos)
+            auth.cerrar_desafio(cx, token)
+            respaldo = None if fila["totp_activo"] else auth.activar_totp(cx, fila["id"])
+            segundos = auth.duracion_sesion(cx, fila)
+            sesion = auth.abrir_sesion(cx, fila["id"], self.headers.get("User-Agent"),
+                                       con_2fa=True, segundos=segundos)
+            auth.limpiar_vencidas(cx)
+            cx.commit()
+
+        destino = fila["destino"] or "/"
+        if not destino.startswith("/") or destino.startswith("//"):
+            destino = "/"
+        cookies = [auth.cookie_de_sesion(sesion, seguro=seguro, segundos=segundos),
+                   auth.cookie_desafio(None, borrar=True, seguro=seguro)]
+        if respaldo:
+            return self._html(auth.pagina_respaldo(respaldo, destino), cookie=cookies)
+        return self._redirigir(destino, cookie=cookies)
 
     def do_POST(self):
         ruta = urlparse(self.path).path
         if ruta == "/login":
             try:
                 return self._login()
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo entrar: {e}", 500)
+        if ruta == "/login/2fa":
+            try:
+                return self._segundo_factor()
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo entrar: {e}", 500)
@@ -309,6 +423,11 @@ class Handler(BaseHTTPRequestHandler):
                 return self._unidades(datos)
             if ruta == "/api/movimientos":
                 return self._movimientos(datos)
+            if ruta == "/api/neumaticos":
+                with base.conectar() as cx:
+                    salida = neumaticos.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(jstr(salida))
         except anthropic.APIStatusError as e:
             return self._error(f"La API respondió {e.status_code}. Revisar la clave o el saldo.", 502)
         except anthropic.APIConnectionError:

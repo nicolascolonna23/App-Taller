@@ -33,6 +33,8 @@ class BaseFalsa:
     def execute(self, consulta, valores=()):
         sql = " ".join(consulta.split())
         self.consultas.append((sql, valores))
+        if sql.startswith("select pg_advisory_xact_lock"):
+            return Resultado()
         # Sin el módulo de solicitudes instalado no se le exige solicitud a nadie:
         # estas pruebas miran el enganche con el service, no el circuito.
         if sql.startswith("select exigir_solicitud from solicitudes_ajustes"):

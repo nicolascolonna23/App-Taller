@@ -37,6 +37,83 @@ def conectar():
 
 
 # =====================================================================
+# QUÉ LE FALTA A LA BASE
+# =====================================================================
+# Cuando Postgres dice que no existe una tabla, una vista o una columna,
+# la pantalla mandaba a correr el script del módulo que se estaba
+# mirando. Eso engaña cuando lo que falta es de otro: el que abre
+# Solicitudes y no tiene la columna `chofer` del maestro de unidades
+# corre 26_solicitudes.sql, ve el mismo cartel y no entiende nada.
+#
+# Acá se lee el nombre que dice la base y se busca cuál de los scripts lo
+# crea, leyéndolos a ellos —no una lista escrita a mano, que se
+# desactualiza sola en cuanto se agrega un archivo.
+GUIONES = os.path.dirname(os.path.abspath(__file__))
+
+_CREA = None   # nombre del objeto → script que lo crea
+
+_TABLA = re.compile(r"create\s+(?:table|materialized\s+view|view|or\s+replace\s+view)"
+                    r"(?:\s+if\s+not\s+exists)?\s+([a-z0-9_]+)", re.I)
+_COLUMNA = re.compile(r"add\s+column(?:\s+if\s+not\s+exists)?\s+([a-z0-9_]+)", re.I)
+_CUERPO = re.compile(r"create\s+table(?:\s+if\s+not\s+exists)?\s+[a-z0-9_]+\s*\("
+                     r"(.*?)\n\s*\);", re.I | re.S)
+_PRIMERA = re.compile(r"^\s*([a-z0-9_]+)\s", re.I)
+# Palabras con las que arranca una restricción, no una columna.
+_NO_ES_COLUMNA = {"primary", "foreign", "unique", "check", "constraint", "exclude", "like"}
+
+
+def _catalogo():
+    """De cada tabla, vista y columna, el primer script que la crea."""
+    global _CREA
+    if _CREA is not None:
+        return _CREA
+    _CREA = {}
+    for archivo in sorted(os.listdir(GUIONES)):
+        if not archivo.endswith(".sql"):
+            continue
+        texto = open(os.path.join(GUIONES, archivo), encoding="utf-8").read()
+        nombres = [m.group(1) for m in _TABLA.finditer(texto)]
+        nombres += [m.group(1) for m in _COLUMNA.finditer(texto)]
+        for cuerpo in _CUERPO.finditer(texto):
+            for linea in cuerpo.group(1).split("\n"):
+                primera = _PRIMERA.match(linea)
+                if primera and primera.group(1).lower() not in _NO_ES_COLUMNA:
+                    nombres.append(primera.group(1))
+        for nombre in nombres:
+            _CREA.setdefault(nombre.lower(), archivo)
+    return _CREA
+
+
+def que_falta(error, respaldo=""):
+    """El texto para la pantalla: qué pide la base y qué script lo crea.
+
+    `respaldo` es lo que decía antes el módulo. Se sigue mostrando cuando
+    no se puede saber de dónde sale el objeto: es mejor un script de más
+    que un cartel que no dice nada.
+    """
+    dicho = ""
+    diag = getattr(error, "diag", None)
+    if diag is not None and getattr(diag, "message_primary", None):
+        dicho = diag.message_primary
+    dicho = (dicho or str(error) or "").strip().splitlines()[0] if (dicho or str(error)) else ""
+
+    nombre = re.search(r'"([^"]+)"', dicho)
+    nombre = (nombre.group(1) if nombre else "").split(".")[-1]
+    if not nombre:
+        return respaldo or "A la base le falta algo de este módulo."
+
+    columna = "column" in dicho.lower() or "columna" in dicho.lower()
+    que = "la columna" if columna else "la tabla o la vista"
+    guion = _catalogo().get(nombre.lower())
+    if not guion:
+        return (f"A la base le falta {que} «{nombre}». " +
+                (respaldo or "Faltan scripts por correr en el SQL Editor de Supabase."))
+    return (f"A la base le falta {que} «{nombre}»: la crea gomeria/{guion}. "
+            "Ejecutalo entero en el SQL Editor de Supabase, desde la primera "
+            "línea hasta la última.")
+
+
+# =====================================================================
 # LECTURA
 # =====================================================================
 def buscar_unidad(cx, texto):

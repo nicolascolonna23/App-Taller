@@ -49,6 +49,13 @@ Nunca usaste Supabase, así que va paso a paso. Es gratis para este tamaño.
 > puerto 6543 y no soporta algunas cosas que el programa necesita. Si ves 6543
 > en la línea, elegiste el que no va.
 
+> Si una pantalla dice que a la base le falta una tabla, una vista o una
+> columna, el nombre que muestra es el que dice Postgres y el script que
+> nombra es el que la crea —el sistema lo busca en los `.sql` de esta
+> carpeta—. Hay que pegar ese archivo **entero**, de la primera línea a la
+> última: un script cortado a la mitad deja la base a medio hacer y el
+> próximo cartel habla de otra cosa.
+
 > El plan gratis pausa el proyecto si no lo tocás por una semana. Se despausa
 > solo desde el panel, pero la primera consulta después de eso tarda unos
 > segundos.
@@ -176,6 +183,15 @@ Corriendo `18_desgaste.sql` se prende la solapa **Desgaste y costos**, que
 avisa cuándo una goma llega al mínimo de dibujo y calcula el costo por
 kilómetro y por milímetro gastado, marca contra marca y banda contra banda.
 Está explicado entero en **`DESGASTE.md`**.
+
+## 7 bis. Cada cuánto se cambia cada eje
+
+Corriendo `38_cambios_neumaticos.sql` se prende la solapa **Cambios por
+eje**: una regla de km y/o días por mapa y por eje (el tractor S-D-D viene
+con 150.000 km en la dirección y 220.000 en tracción y tercer eje), el
+aviso de a qué eje le toca, y cuánto dura una goma por patente, marca,
+modelo o tipo de eje. Los semis cuentan los km del tractor que los llevaba
+cada día. Está explicado entero en **`CAMBIOS_NEUMATICOS.md`**.
 
 ## 8. Deshacer un movimiento
 

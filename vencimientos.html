@@ -185,7 +185,7 @@
   <div class="barra">
     <input id="buscar" placeholder="Buscar patente, interno, chófer o número">
     <select id="filtroTipo"><option value="">Todos los tipos</option></select>
-    <button class="btn espacio" id="nuevo">+ Cargar vencimiento</button>
+    <button class="btn" id="configVenc">Configurar vigencia y avisos</button><button class="btn espacio" id="nuevo">+ Cargar vencimiento</button>
   </div>
 
   <div class="caja">
@@ -200,6 +200,9 @@
 </main>
 
 <div class="globo" id="globo"></div>
+<div class="fondo" id="modalConfigVenc"><div class="modal"><div class="cabecera"><h2>Vigencia y avisos</h2><button class="cerrar" data-cerrar="modalConfigVenc">×</button></div>
+<p>La vigencia calcula nuevas fechas a partir de la emisión. Cambiarla no modifica vencimientos ya cargados. La anticipación se aplica a los registros sin fecha de aviso propia.</p>
+<form id="formConfigVenc"><div class="campos"><div class="ancho"><label for="cfgTipo">Tipo</label><select id="cfgTipo"></select></div><div><label for="cfgMeses">Vigencia en meses (vacío: manual)</label><input id="cfgMeses" type="number" min="1" max="120"></div><div><label for="cfgDias">Avisar días antes</label><input id="cfgDias" type="number" required min="0" max="3650"></div></div><p id="cfgError" role="status"></p><button class="btn" id="cfgGuardar">Guardar configuración</button></form></div></div>
 
 <div class="fondo" id="modalCarga"><div class="modal">
   <div class="cabecera"><h2 id="tituloCarga">Cargar vencimiento</h2>
@@ -214,7 +217,7 @@
     <div><label>Número <span id="numObl"></span></label><input id="cNumero" placeholder="Oblea, licencia, matafuego"></div>
     <div><label>Detalle</label><input id="cDetalle" placeholder="Clase E1, 5 kg ABC, aseguradora"></div>
     <div><label>Emisión</label><input id="cDesde" type="date"></div>
-    <div><label>Vence</label><input id="cVence" type="date"></div>
+    <div><label>Vence</label><input id="cVence" type="date"></div><div><label>Avisar desde (opcional)</label><input id="cAviso" type="date"><p class="pista">Vacío: usa la anticipación del tipo.</p></div>
     <div><label>Dónde</label><input id="cDonde" placeholder="Planta, taller, aseguradora"></div>
     <div><label>Costo</label><input id="cCosto" type="number" min="0" step="0.01"></div>
     <div class="ancho"><label>Observaciones</label><input id="cObs"></div>
@@ -457,7 +460,7 @@ function pintar() {
           ${v.sucursal ? `<div class="chico">${esc(v.sucursal)}</div>` : ''}</td>
       <td class="chico">${esc(v.identificador || '')}</td>
       <td class="chico">${esc(v.detalle || '')}</td>
-      <td>${fecha(v.vence)}<div class="chico">${esc(cuantoFalta(v.dias))}</div></td>
+      <td>${fecha(v.vence)}<div class="chico">Aviso: ${fecha(v.aviso_fecha)}</div><div class="chico">${esc(cuantoFalta(v.dias))}</div></td>
       <td class="chico">${esc(v.donde || '')}</td>
       <td><span class="marca ${v.estado}">${v.estado === 'por_vencer' ? 'por vencer' : v.estado}</span></td>
       <td><button class="accion" data-renovar="${v.id}">Renovar</button>
@@ -490,6 +493,20 @@ function pintarFaltantes(busca, tipo) {
   $('#pie').textContent = `${filas.length} sin cargar.`;
 }
 
+function mostrarConfigTipo() {
+ const t=D.datos.tipos.find(t=>String(t.id)===$('#cfgTipo').value);
+ $('#cfgMeses').value=t.meses ?? ''; $('#cfgDias').value=t.aviso_dias;
+}
+$('#configVenc').onclick=()=>{
+ $('#cfgTipo').innerHTML=D.datos.tipos.map(t=>`<option value="${t.id}">${esc(t.nombre)}</option>`).join('');
+ mostrarConfigTipo(); $('#cfgError').textContent=''; $('#modalConfigVenc').classList.add('on');
+};
+$('#cfgTipo').onchange=mostrarConfigTipo;
+$('#formConfigVenc').onsubmit=async e=>{
+ e.preventDefault(); $('#cfgGuardar').disabled=true;
+ try {await api('configurar_tipo',{tipo_id:Number($('#cfgTipo').value),meses:$('#cfgMeses').value,aviso_dias:$('#cfgDias').value}); await cargar(); pintar(); $('#modalConfigVenc').classList.remove('on');}
+ catch(e){$('#cfgError').textContent=e.message;} finally {$('#cfgGuardar').disabled=false;}
+};
 // ------------------------------------------------------------ formulario
 function opciones() {
   $('#filtroTipo').innerHTML = '<option value="">Todos los tipos</option>' +
@@ -519,7 +536,7 @@ function acomodarFormulario() {
 
 function abrir(id, previo) {
   $('#avisoCarga').innerHTML = '';
-  ['cNumero','cDetalle','cDesde','cVence','cDonde','cCosto','cObs']
+  ['cNumero','cDetalle','cDesde','cVence','cAviso','cDonde','cCosto','cObs']
     .forEach(c => $('#' + c).value = '');
   if (previo) {
     $('#cTipo').value = previo.tipo_id;
@@ -542,7 +559,7 @@ async function guardar() {
     unidad_id:  t.ambito === 'unidad'  ? Number($('#cUnidad').value)  || null : null,
     persona_id: t.ambito === 'persona' ? Number($('#cPersona').value) || null : null,
     identificador: $('#cNumero').value, detalle: $('#cDetalle').value,
-    desde: $('#cDesde').value || null, vence: $('#cVence').value || null,
+    aviso_fecha: $('#cAviso').value || null, desde: $('#cDesde').value || null, vence: $('#cVence').value || null,
     donde: $('#cDonde').value, costo: $('#cCosto').value || null,
     observaciones: $('#cObs').value,
   };
@@ -659,7 +676,7 @@ $('#guardarPersona').onclick = async () => {
   try {
     D.usuario = await (await fetch('/api/yo')).json();
     $('#quien').innerHTML = `${esc(D.usuario.nombre)} <a href="/salir">Salir</a>`;
-    if (!D.usuario.puede_administrar) $('#nuevo').style.display = 'none';
+    if (!D.usuario.puede_administrar) { $('#nuevo').style.display = 'none'; $('#configVenc').hidden = true; }
   } catch (e) { void e; }
   try {
     await cargar();

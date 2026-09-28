@@ -10,10 +10,12 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /repuestos   stock de repuestos
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
-    /combustible cruce de remitos contra el listado de la estación (en prueba)
+    /combustible cruce de remitos contra el listado de la estación, y el
+                 fluidos en su solapa
     /ordenes     órdenes de trabajo del taller y servicios externos
     /solicitudes solicitudes de orden de compra: pedir, aprobar, reparar, rendir
     /usuarios    altas, bajas, roles y qué módulos abre cada uno
+    /parametros  de dónde salen los km, los planes y los umbrales de aviso
     /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
 
 Configuración, toda por variables de entorno:
@@ -39,17 +41,24 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import asistente
 import ordenes as ots
+import enganches as eng
+import marcas as mcs
+import parametros as par
 import permisos
 import solicitudes as sol
 import mantenimiento as mant
 import preferencias as prefs
 import unidades as uni
+import fluidos as flu
+import reportes_chofer as reportes
 import vencimientos as venc
 import servidor as gom
 from flota_vales.http import atender as atender_vales
 
 # Cada dirección con el archivo que le toca. Todas piden sesión.
 PANTALLAS = {
+    "/gomeria-mesa.js": ("gomeria/mesa.js", "text/javascript; charset=utf-8"),
+    "/fallas": ("choferes/bandeja.html", "text/html; charset=utf-8"),
     "/vales": ("flota_vales/index.html", "text/html; charset=utf-8"),
     "/vales.js": ("flota_vales/app.js", "text/javascript; charset=utf-8"),
     "/vales.css": ("flota_vales/style.css", "text/css; charset=utf-8"),
@@ -75,6 +84,7 @@ PANTALLAS = {
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/solicitudes":      ("solicitudes.html",              "text/html; charset=utf-8"),
     "/usuarios":   ("usuarios.html",           "text/html; charset=utf-8"),
+    "/parametros": ("parametros.html",         "text/html; charset=utf-8"),
     # El módulo liviano para el teléfono: solo gomería y órdenes.
     "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
@@ -88,6 +98,9 @@ PANTALLAS = {
     "/camion3d.js": ("camion3d.js",             "text/javascript; charset=utf-8"),
     # Cómo ve cada uno la aplicación. Lo cargan todas las pantallas.
     "/tema.js":     ("tema.js",                 "text/javascript; charset=utf-8"),
+    # La barra de arriba: los accesos de administración, en todas las
+    # pantallas y para el que los tenga habilitados.
+    "/barra.js":    ("barra.js",                "text/javascript; charset=utf-8"),
 }
 
 
@@ -143,7 +156,7 @@ class App(gom.Handler):
         modulo = permisos.modulo_de(self._ruta_pedida())
         if permisos.puede_ver(self.usuario, modulo):
             return True
-        nombre = dict((m[0], m[1]) for m in permisos.MODULOS).get(modulo, modulo)
+        nombre = permisos.nombre_de(modulo)
         if self._ruta_pedida().startswith("/api/"):
             self._error(f"Tu rol no tiene habilitado {nombre}.", 403)
         else:
@@ -156,7 +169,11 @@ class App(gom.Handler):
         if tipo.startswith("text/html") and getattr(self, "usuario", None):
             html = cuerpo.decode("utf-8") if isinstance(cuerpo, bytes) else cuerpo
             tema = '' if 'src="/tema.js"' in html else '<script src="/tema.js"></script>'
-            estilos = tema + '<link rel="stylesheet" href="/sistema.css">'
+            # Los accesos de administración van arriba en todas las
+            # pantallas, no solo en la portada: el que maneja el sistema no
+            # tiene por qué volver al inicio para llegar a ellos.
+            barra = '' if 'src="/barra.js"' in html else '<script defer src="/barra.js"></script>'
+            estilos = tema + barra + '<link rel="stylesheet" href="/sistema.css">'
             # El logo de la empresa en la solapa del navegador. Va acá y no
             # en cada archivo porque cada pantalla que se agregue se lo iba
             # a olvidar: Gomería y Configuración no lo tenían, y en la
@@ -175,11 +192,73 @@ class App(gom.Handler):
                 cuerpo = html + script
         return super()._responder(cuerpo, tipo, codigo, cookie)
 
+    def _reportes(self, escritura=False):
+        if not self._exigir_sesion():
+            return
+        try:
+            with base.conectar() as cx:
+                if escritura:
+                    origen = self.headers.get('Origin')
+                    if (origen and urlparse(origen).netloc != self.headers.get('Host')) or self.headers.get('Sec-Fetch-Site') == 'cross-site':
+                        raise PermissionError('Origen no autorizado.')
+                    if self.headers.get('Content-Type', '').split(';')[0] != 'application/json':
+                        return self._error('Se requiere JSON.', 415)
+                    n = int(self.headers.get('Content-Length', 0))
+                    if not 0 < n <= 9*1024*1024:
+                        return self._error('Tamaño inválido.', 413)
+                    d = json.loads(self.rfile.read(n))
+                    if not isinstance(d, dict):
+                        raise ValueError('Pedido inválido.')
+                    op = d.get('op')
+                    if op == 'recibir':
+                        salida = reportes.recibir(cx, self.usuario, d)
+                    elif op in ('crear_orden', 'desestimar'):
+                        salida = reportes.resolver(cx, self.usuario, d)
+                    else:
+                        raise ValueError('Operación inválida.')
+                    cx.commit()
+                else:
+                    q = parse_qs(urlparse(self.path).query)
+                    op = q.get('op', ['listar'])[0]
+                    if op == 'contexto':
+                        salida = reportes.contexto(cx, self.usuario)
+                    elif op == 'fotos':
+                        salida = reportes.fotos(cx, self.usuario, q.get('id', [''])[0])
+                    else:
+                        salida = reportes.listar(cx, self.usuario)
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except (ValueError, TypeError, psycopg.errors.InvalidTextRepresentation, psycopg.errors.ForeignKeyViolation) as e:
+            return self._error(str(e) if isinstance(e, ValueError) else 'Datos inválidos.', 400)
+        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+            return self._error('Aplicar gomeria/30_avisos_y_reportes.sql.', 503)
+        except Exception:
+            traceback.print_exc()
+            return self._error('No se pudo completar la operación. Reintentá.', 500)
+
     def do_GET(self):
         ruta = urlparse(self.path).path
+        # La dirección pedida se anota siempre primero: el portero de
+        # permisos la mira, y en una conexión reutilizada la anterior
+        # seguiría diciendo otra cosa.
+        self.ruta_original = ruta
+        if ruta == '/api/reportes-chofer':
+            return self._reportes()
+        # Shell público sin datos ni sesión incrustada; el API exige sesión.
+        publicos = {'/choferes/': ('index.html','text/html; charset=utf-8'),
+                    '/choferes/app.js': ('app.js','text/javascript'),
+                    '/choferes/cola.js': ('cola.js','text/javascript'),
+                    '/choferes/sw.js': ('sw.js','text/javascript'),
+                    '/choferes/style.css': ('style.css','text/css'),
+                    '/choferes/manifest.webmanifest': ('manifest.webmanifest','application/manifest+json'),
+                    '/choferes/icon.svg': ('icon.svg','image/svg+xml')}
+        if ruta in publicos:
+            archivo, tipo = publicos[ruta]
+            with open(os.path.join(AQUI, 'choferes', archivo), 'rb') as recurso:
+                return super()._responder(recurso.read(), tipo)
         if ruta == "/api/vales":
             return atender_vales(self, base, self.command == "POST")
-        self.ruta_original = ruta
 
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
@@ -315,11 +394,11 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(alr.services(cx)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta actualizar los services. Ejecutar gomeria/20_alertas.sql y "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
-                    "en Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/22_planes_mantenimiento.sql "
+                        "en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los services: {e}", 500)
@@ -330,25 +409,40 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(mant.listar(cx)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e, "Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la parametrización: {e}", 500)
 
-        # Los logos de las marcas de cubierta. Que falte uno no es un
-        # error: la pantalla muestra el nombre en texto y sigue.
-        if ruta.startswith("/marcas/") and ruta.endswith(".png"):
+        # Los logos de las marcas de cubierta. Primero el que se subió
+        # desde la pantalla, que vive en la base; si no hay, el archivo
+        # que vino con el repositorio. Que falte uno no es un error: la
+        # pantalla muestra el nombre en texto y sigue.
+        if ruta.startswith("/marcas/"):
             if not self._exigir_sesion():
                 return
-            camino = os.path.join(AQUI, "marcas", os.path.basename(ruta))
-            if not os.path.isfile(camino):
-                return self._error("No hay logo de esa marca.", 404)
-            cuerpo = open(camino, "rb").read()
+            nombre = os.path.basename(ruta)
+            cuerpo = tipo = None
+            try:
+                with base.conectar() as cx:
+                    subido = mcs.logo_de(cx, os.path.splitext(nombre)[0])
+                if subido:
+                    cuerpo, tipo = subido
+            except Exception:
+                # Sin 31_marcas_medidas.sql corrido se sigue como siempre.
+                pass
+            if cuerpo is None:
+                camino = os.path.join(AQUI, "marcas", nombre)
+                if not os.path.isfile(camino):
+                    return self._error("No hay logo de esa marca.", 404)
+                cuerpo, tipo = open(camino, "rb").read(), "image/png"
             self.send_response(200)
-            self.send_header("Content-Type", "image/png")
+            self.send_header("Content-Type", tipo)
             self.send_header("Content-Length", str(len(cuerpo)))
-            self.send_header("Cache-Control", "public, max-age=604800")
+            # Poco tiempo: un logo que se acaba de cambiar tiene que
+            # verse hoy, no la semana que viene.
+            self.send_header("Cache-Control", "public, max-age=300")
             self.end_headers()
             return self.wfile.write(cuerpo)
 
@@ -399,7 +493,7 @@ class App(gom.Handler):
             medida = (parse_qs(urlparse(self.path).query).get("medida") or [None])[0]
             try:
                 with base.conectar() as cx:
-                    return self._responder(gom.jstr(uni.stock_para(cx, medida)))
+                    return self._responder(gom.jstr(uni.stock_para(cx, medida, buscar=(parse_qs(urlparse(self.path).query).get("buscar") or [None])[0])))
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el stock: {e}", 500)
@@ -429,10 +523,10 @@ class App(gom.Handler):
                 self.send_header("X-Unidades", str(cuantas))
                 self.end_headers()
                 return self.wfile.write(cuerpo)
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear la vista de unidades. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo armar el Excel: {e}", 500)
@@ -482,7 +576,13 @@ class App(gom.Handler):
                     if vista == "serie":
                         return self._responder(
                             gom.jstr(comb.serie_consumo(cx)))
-                    return self._responder(gom.jstr(comb.panel(cx, estado)))
+                    salida = comb.panel(cx, estado)
+                    # Cómo entra el combustible. La pantalla esconde las
+                    # zonas de importación cuando se carga a mano: dos
+                    # cajas que no se usan nunca invitan a subir cualquier
+                    # cosa, y ese archivo después hay que sacarlo.
+                    salida["parametros"] = par.combustible_como(cx)
+                    return self._responder(gom.jstr(salida))
             except psycopg.errors.UndefinedTable:
                 # Cuál de los dos SQL falta depende de qué se estaba
                 # mirando: las vistas de la flota son de un archivo
@@ -504,15 +604,15 @@ class App(gom.Handler):
                 return
             try:
                 with base.conectar() as cx:
-                    return self._responder(gom.jstr(uni.listar(cx)))
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+                    return self._responder(gom.jstr(uni.listar(cx, self.usuario)))
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "Al maestro de unidades le faltan columnas. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear la vista de unidades. Ejecutar "
-                    "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el maestro de unidades: {e}", 500)
@@ -524,15 +624,15 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(ots.listar(cx, self.usuario)))
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de órdenes de trabajo. Ejecutar "
-                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+                        "gomeria/15_ordenes.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "A las órdenes de trabajo les faltan columnas. Ejecutar "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
-                    "en el SQL Editor de Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
+                        "en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las órdenes: {e}", 500)
@@ -547,10 +647,10 @@ class App(gom.Handler):
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(sol.listar(cx, self.usuario)))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de solicitudes. Ejecutar "
-                    "gomeria/26_solicitudes.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/26_solicitudes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las solicitudes: {e}", 500)
@@ -565,10 +665,10 @@ class App(gom.Handler):
                     return self._responder(gom.jstr(permisos.panel(cx, self.usuario)))
             except PermissionError as e:
                 return self._error(str(e), 403)
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de roles. Ejecutar "
-                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/27_roles.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los usuarios: {e}", 500)
@@ -580,7 +680,7 @@ class App(gom.Handler):
                 ver = (parse_qs(urlparse(self.path).query).get("silenciadas")
                        or ["0"])[0] in ("1", "true", "si")
                 with base.conectar() as cx:
-                    salida = alr.listar(cx, incluir_silenciadas=ver)
+                    salida = alr.listar(cx, incluir_silenciadas=ver, usuario=self.usuario)
                     if salida.get("instalado"):
                         salida["services"] = alr.services(cx)
                         salida["unidades"] = cx.execute("""
@@ -591,16 +691,99 @@ class App(gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las alertas: {e}", 500)
 
+        # Los fluidos. Viven adentro de Combustible —son su solapa— y por
+        # eso comparten su permiso: el que carga gasoil carga urea.
+        if ruta == "/api/fluidos":
+            if not self._exigir_sesion():
+                return
+            try:
+                # Con ?todo=1 entran también los de baja y los proveedores
+                # dados de baja: es lo que mira la parametrización, que
+                # tiene que poder revivir uno.
+                todo = (parse_qs(urlparse(self.path).query).get("todo")
+                        or ["0"])[0] in ("1", "true", "si")
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(flu.panel(cx, self.usuario, todo)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
+                # Qué falta exactamente. Pegar el script cortado deja las
+                # primeras tablas sin las vistas, y "faltan las tablas" no
+                # deja ver eso: parece que no se corrió cuando sí.
+                try:
+                    with base.conectar() as cx:
+                        return self._error(flu.porque_falta(cx), 503)
+                except Exception:
+                    return self._error(
+                        "Faltan las tablas de fluidos. Ejecutar "
+                        "gomeria/32_fluidos.sql en el SQL Editor de Supabase.", 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los fluidos: {e}", 500)
+
+        # Los parámetros: de dónde salen los km, los planes y los
+        # umbrales. Es una pantalla sola porque son la misma pregunta.
+        if ruta == "/api/parametros":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(par.panel(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
+                    "Faltan los parámetros. Ejecutar gomeria/29_parametros.sql "
+                        "en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los parámetros: {e}", 500)
+
+        # El enganche tractor–semi, submódulo de Flota.
+        if ruta == "/api/enganches":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    return self._responder(gom.jstr(eng.panel(cx, self.usuario)))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
+                    "Falta crear la tabla de enganches. Ejecutar "
+                        "gomeria/29_parametros.sql en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los enganches: {e}", 500)
+
+        # El catálogo de marcas y medidas. Lo leen las pantallas de
+        # gomería para sus desplegables, así que no pide más que sesión;
+        # tocarlo sí, y eso lo revisa el módulo.
+        if ruta == "/api/marcas":
+            if not self._exigir_sesion():
+                return
+            try:
+                # Con ?todas=1 entran también las de baja: es lo que
+                # mira la parametrización, que tiene que poder revivir una.
+                todas = (parse_qs(urlparse(self.path).query).get("todas")
+                         or ["0"])[0] in ("1", "true", "si")
+                with base.conectar() as cx:
+                    salida = {"marcas": mcs.listar(cx, todas),
+                              "medidas": mcs.medidas(cx, todas),
+                              "puede_gestionar": permisos.gestiona(self.usuario)}
+                    return self._responder(gom.jstr(salida))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
+                    "Faltan las marcas y medidas. Ejecutar "
+                        "gomeria/31_marcas_medidas.sql en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las marcas: {e}", 500)
+
         if ruta == "/api/vencimientos":
             if not self._exigir_sesion():
                 return
             try:
                 with base.conectar() as cx:
                     return self._responder(gom.jstr(venc.listar(cx)))
-            except psycopg.errors.UndefinedTable:
-                return self._error(
-                    "Falta crear las tablas de vencimientos. Ejecutar "
-                    "gomeria/06_vencimientos.sql en el SQL Editor de Supabase.", 503)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
+                    "Falta actualizar vencimientos. Ejecutar 06_vencimientos.sql y "
+                        "gomeria/30_avisos_y_reportes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los vencimientos: {e}", 500)
@@ -639,9 +822,14 @@ class App(gom.Handler):
 
     def do_POST(self):
         ruta = urlparse(self.path).path
+        # La dirección pedida se anota siempre primero: el portero de
+        # permisos la mira, y en una conexión reutilizada la anterior
+        # seguiría diciendo otra cosa.
+        self.ruta_original = ruta
+        if ruta == '/api/reportes-chofer':
+            return self._reportes(True)
         if ruta == "/api/vales":
             return atender_vales(self, base, self.command == "POST")
-        self.ruta_original = ruta
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
                 return
@@ -760,15 +948,15 @@ class App(gom.Handler):
                 return self._error(str(e), 403)
             except ValueError as e:
                 return self._error(str(e))
-            except psycopg.errors.UndefinedTable:
-                return self._error(
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de órdenes de trabajo. Ejecutar "
-                    "gomeria/15_ordenes.sql en el SQL Editor de Supabase.", 503)
-            except psycopg.errors.UndefinedColumn:
-                return self._error(
+                        "gomeria/15_ordenes.sql en el SQL Editor de Supabase."), 503)
+            except psycopg.errors.UndefinedColumn as e:
+                return self._error(base.que_falta(e,
                     "A las órdenes de trabajo les faltan columnas. Ejecutar "
-                    "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
-                    "en el SQL Editor de Supabase.", 503)
+                        "gomeria/21_ordenes_preventivas.sql y gomeria/26_solicitudes.sql "
+                        "en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la orden: {e}", 500)
@@ -792,10 +980,10 @@ class App(gom.Handler):
                 return self._error(str(e), 403)
             except ValueError as e:
                 return self._error(str(e))
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de solicitudes. Ejecutar "
-                    "gomeria/26_solicitudes.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/26_solicitudes.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la solicitud: {e}", 500)
@@ -820,10 +1008,10 @@ class App(gom.Handler):
                 return self._error(str(e))
             except psycopg.errors.UniqueViolation:
                 return self._error("Ese usuario ya existe.")
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error(
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
                     "Falta crear las tablas de roles. Ejecutar "
-                    "gomeria/27_roles.sql en el SQL Editor de Supabase.", 503)
+                        "gomeria/27_roles.sql en el SQL Editor de Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar: {e}", 500)
@@ -833,6 +1021,31 @@ class App(gom.Handler):
         # entra en los 256 KB que alcanzan para el resto.
         if ruta == "/api/factura":
             return self._leer_factura()
+
+        # Los movimientos de fluidos. Cada uno es una fila más: el saldo no
+        # se guarda en ningún lado, se calcula, así que no hay dos números
+        # que se puedan contradecir. Por acá entran también el catálogo de
+        # fluidos y los proveedores, que son de este módulo.
+        if ruta == "/api/fluidos":
+            return self._escribir(flu.aplicar, "el movimiento",
+                                  "gomeria/32_fluidos.sql")
+
+        if ruta == "/api/parametros":
+            return self._escribir(par.aplicar, "el parámetro",
+                                  "gomeria/29_parametros.sql")
+
+        # Marcas y medidas de cubierta. El logo viaja en el mismo JSON, así
+        # que el pedido puede ser más grande que el resto.
+        if ruta == "/api/marcas":
+            return self._escribir(mcs.aplicar, "la marca",
+                                  "gomeria/31_marcas_medidas.sql", limite=1024 * 1024)
+
+        # Enganchar y desenganchar. Cada cambio rehace los kilómetros del
+        # semi: un enganche corregido cambia el pasado, y la serie tiene
+        # que decir lo que el semi rodó de verdad.
+        if ruta == "/api/enganches":
+            return self._escribir(eng.aplicar, "el enganche",
+                                  "gomeria/29_parametros.sql")
 
         if ruta == "/api/alertas":
             return self._alertas()
@@ -853,8 +1066,8 @@ class App(gom.Handler):
                 return self._error(str(e))
             except psycopg.errors.UniqueViolation:
                 return self._error("Ya existe un plan con ese nombre.")
-            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn):
-                return self._error("Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase.", 503)
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e, "Falta crear los planes. Ejecutar gomeria/22_planes_mantenimiento.sql en Supabase."), 503)
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar la parametrización: {e}", 500)
@@ -908,6 +1121,12 @@ class App(gom.Handler):
         # Los archivos llegan en base64 adentro del JSON. Es un archivo por
         # vez y de pocos cientos de filas: armar multipart para eso sería
         # cargar el servidor con un parseo que no hace falta.
+        # La contraseña de uno mismo. No es el alta de usuarios: eso es de
+        # quien administra y vive en /usuarios. Esto es el que se la quiere
+        # cambiar porque se la vieron, y no tiene por qué pedírsela a nadie.
+        if ruta == "/api/clave":
+            return self._mi_clave()
+
         if ruta == "/api/combustible":
             return self._combustible()
 
@@ -927,6 +1146,36 @@ class App(gom.Handler):
         if ruta == "/api/combustible":
             return self._combustible(borrar=True)
         return self._error("No existe", 404)
+
+    def _escribir(self, aplicar, que, script, limite=64 * 1024):
+        """El POST de un módulo: leer el JSON, aplicarlo y contestar.
+
+        Es el mismo bloque para todos —permisos, datos mal cargados, SQL
+        que falta— y escribirlo una vez por módulo era copiarlo mal la
+        quinta vez.
+        """
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > limite:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            with base.conectar() as cx:
+                salida = aplicar(cx, datos, self.usuario)
+                cx.commit()
+            return self._responder(gom.jstr(salida))
+        except PermissionError as e:
+            return self._error(str(e), 403)
+        except ValueError as e:
+            return self._error(str(e))
+        except psycopg.errors.UniqueViolation as e:
+            return self._error("Eso ya estaba cargado.", 409)
+        except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+            return self._error(base.que_falta(e,f"Falta correr {script} en el SQL Editor de Supabase."), 503)
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo guardar {que}: {e}", 500)
 
     def _alertas(self):
         """Silenciar una alerta, cambiar un umbral o anotar un service.
@@ -968,9 +1217,9 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedTable:
-            return self._error("Falta crear las tablas de alertas. Ejecutar "
-                               "gomeria/20_alertas.sql en el SQL Editor de Supabase.", 503)
+        except psycopg.errors.UndefinedTable as e:
+            return self._error(base.que_falta(e, "Falta crear las tablas de alertas. Ejecutar "
+                                   "gomeria/20_alertas.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo guardar: {e}", 500)
@@ -1016,6 +1265,52 @@ class App(gom.Handler):
             traceback.print_exc()
             return self._error(f"No se pudo leer la factura: {e}", 500)
 
+    def _mi_clave(self):
+        """Cambiar la propia contraseña, diciendo la de ahora.
+
+        Pedir la actual no es burocracia: una sesión olvidada en la
+        máquina del taller alcanzaría, si no, para quedarse con la cuenta
+        de otro. Y al cambiarla se cierran todas las sesiones —incluida
+        esta—, que es lo que uno espera cuando la cambia porque se la
+        vieron.
+        """
+        if not self._exigir_sesion():
+            return
+        try:
+            largo = int(self.headers.get("Content-Length") or 0)
+            if largo > 4 * 1024:
+                return self._error("El pedido es demasiado grande.", 413)
+            datos = json.loads(self.rfile.read(largo) or b"{}")
+            actual = str(datos.get("actual") or "")
+            nueva = str(datos.get("nueva") or "")
+            if not actual or not nueva:
+                return self._error("Faltan la contraseña de ahora y la nueva.")
+            if actual == nueva:
+                return self._error("La nueva tiene que ser distinta de la de ahora.")
+            with base.conectar() as cx:
+                # El mismo freno que el ingreso: una sesión olvidada abierta
+                # no puede servir para probar contraseñas sin límite.
+                cuenta = auth.clave_usuario(self.usuario["usuario"])
+                minutos = auth.bloqueado(cx, cuenta)
+                if minutos:
+                    return self._error(f"Demasiados intentos fallidos. Reintentar de "
+                                       f"nuevo en {minutos} minutos.", 429)
+                if not auth.autenticar(cx, self.usuario["usuario"], actual):
+                    auth.anotar_fallo(cx, cuenta)
+                    cx.commit()
+                    return self._error("La contraseña de ahora no es esa.", 403)
+                auth.cambiar_clave(cx, self.usuario["id"], nueva)
+                cx.commit()
+            return self._responder(gom.jstr(
+                {"ok": True, "cerro_sesiones": True}),
+                cookie=auth.cookie_de_sesion(None, borrar=True,
+                                             seguro=self._es_https()))
+        except ValueError as e:
+            return self._error(str(e))
+        except Exception as e:
+            traceback.print_exc()
+            return self._error(f"No se pudo cambiar la contraseña: {e}", 500)
+
     def _combustible(self, borrar=False):
         if not self._exigir_sesion():
             return
@@ -1029,6 +1324,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = comb.borrar_lote(cx, datos.get("lote_id"), self.usuario)
+                elif datos.get("op") == "traer":
+                    # La planilla del link, sin archivo ni mano. Es lo mismo
+                    # que sube una persona, traído por el servidor.
+                    salida = comb.traer(cx, self.usuario, datos)
                 else:
                     salida = comb.subir(cx, datos, self.usuario)
                 cx.commit()
@@ -1037,10 +1336,10 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedTable:
-            return self._error(
+        except psycopg.errors.UndefinedTable as e:
+            return self._error(base.que_falta(e,
                 "Falta crear las tablas de combustible. Ejecutar "
-                "gomeria/10_combustible.sql en el SQL Editor de Supabase.", 503)
+                    "gomeria/10_combustible.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo procesar el archivo: {e}", 500)
@@ -1057,6 +1356,10 @@ class App(gom.Handler):
             with base.conectar() as cx:
                 if borrar:
                     salida = uni.eliminar(cx, datos.get("id"), self.usuario)
+                elif (datos.get("op") or "") == "lote":
+                    # El mismo cambio sobre varias unidades: residencia y
+                    # marca de semi, que es lo que entra vacío de la planilla.
+                    salida = uni.en_lote(cx, datos, self.usuario)
                 elif (datos.get("op") or "") == "baja":
                     # Dar de baja no es borrar: es sacarla de la operación.
                     salida = uni.dar_de_baja(cx, datos.get("id"),
@@ -1069,10 +1372,10 @@ class App(gom.Handler):
             return self._error(str(e), 403)
         except ValueError as e:
             return self._error(str(e))
-        except psycopg.errors.UndefinedColumn:
-            return self._error(
+        except psycopg.errors.UndefinedColumn as e:
+            return self._error(base.que_falta(e,
                 "Al maestro de unidades le faltan columnas. Ejecutar "
-                "gomeria/07_unidades.sql en el SQL Editor de Supabase.", 503)
+                    "gomeria/07_unidades.sql en el SQL Editor de Supabase."), 503)
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo guardar la unidad: {e}", 500)
@@ -1108,6 +1411,9 @@ def preparar():
             "solicitudes de orden de compra": ("sucursales", "solicitudes_compra",
                                                "solicitud_eventos", "solicitudes_contador"),
             "usuarios y roles": ("roles", "rol_modulos"),
+            "fluidos y proveedores": ("fluidos", "fluido_movimientos"),
+            "parámetros y enganches": ("parametros", "enganches"),
+            "marcas y medidas": ("cubiertas_marcas", "cubiertas_medidas"),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):
@@ -1123,6 +1429,11 @@ def preparar():
         if tiene_maestro < 4:
             print("  Al maestro de unidades le faltan columnas: ejecutar "
                   "gomeria/07_unidades.sql en Supabase.")
+
+        if not auth.hay_seguridad(cx):
+            print("  ATENCIÓN: falta gomeria/35_seguridad.sql. Los administradores "
+                  "entran sin segundo factor y los intentos fallidos se cuentan "
+                  "en memoria.")
 
         inicial = os.environ.get("USUARIO_INICIAL", "").strip()
         if inicial:

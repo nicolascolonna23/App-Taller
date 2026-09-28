@@ -1,0 +1,55 @@
+name: Planilla de combustible
+
+# Trae la planilla de combustible del link cargado en Parámetros y la
+# guarda en la base, que es lo mismo que hace una persona cuando sube el
+# archivo a mano.
+#
+# No hace nada si el módulo está en manual o si no hay link: el que manda
+# es el parámetro, no este archivo. Así se prende y se apaga desde la
+# pantalla y nadie tiene que tocar el repositorio.
+#
+# Sale a las 06:00 ART. La hora que se elige en la pantalla es informativa
+# —la corrida real se agenda acá—, así que si se cambia allá conviene
+# cambiar el cron de abajo.
+#
+# También se dispara a mano desde la pestaña Actions, con "Run workflow".
+
+on:
+  schedule:
+    - cron: "0 9 * * *"       # 06:00 ART, todos los días
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  traer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install "psycopg[binary]" openpyxl
+
+      - name: Traer la planilla
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          set -o pipefail
+          python gomeria/traer_combustible.py 2>&1 | tee salida.txt
+
+      - name: Armar el resumen
+        if: always()
+        run: |
+          {
+            echo "## Planilla de combustible"
+            echo '```'
+            tail -n 20 salida.txt 2>/dev/null || echo "sin salida"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

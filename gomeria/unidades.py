@@ -14,6 +14,7 @@ import io
 import os
 import re
 
+import ordenes
 import permisos
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -51,16 +52,23 @@ def _texto(valor, limite=120):
 # =====================================================================
 # LECTURA
 # =====================================================================
-def listar(cx):
-    """Todo el maestro, más las listas que la pantalla usa en los selectores."""
+def listar(cx, usuario=None):
+    """Todo el maestro, más las listas que la pantalla usa en los selectores.
+
+    Al rol que solo ve su sucursal se le muestran sus unidades. No es un
+    secreto lo que pasa en las otras: es que no son suyas y le ensucian la
+    pantalla donde busca la propia.
+    """
+    solo = permisos.sucursal_de(usuario)
     filas = cx.execute("""
         select v.*, u.mantenimiento_plan_id, p.nombre as mantenimiento_plan,
                p.cada_km as mantenimiento_cada_km
         from v_unidades v join unidades u on u.id=v.id
         left join mantenimiento_planes p on p.id=u.mantenimiento_plan_id
+        where %s::text is null or v.sucursal = %s
         -- Los equipos al final: son pocos y no se miran todos los días.
         order by v.tipo, coalesce(nullif(v.interno,'')::text, 'zzz'), v.patente
-    """).fetchall()
+    """, (solo, solo)).fetchall()
 
     # Los valores de sucursal y uso salen de lo que ya está cargado, no de
     # una lista fija: si mañana abren una sucursal, aparece sola.
@@ -199,6 +207,56 @@ MEDIDAS = {
 }
 
 
+def _comose(familias):
+    """Cómo se le dice a una persona qué medidas lleva esa unidad.
+
+    Una familia con una sola medida se nombra por la medida —600x9—; la
+    que tiene varias, por el número que las junta, porque enumerarlas no
+    le dice nada a nadie: 295 (295/80R22.5 y las de esa familia).
+    """
+    partes = [ejemplos[0] if len(ejemplos) == 1
+              else f"{corta} ({ejemplos[0]} y las de esa familia)"
+              for corta, ejemplos in familias.items()]
+    return " o ".join(partes) or None
+
+
+def reglas_de_medidas(cx):
+    """Qué números entran en cada clase, según lo cargado en Parámetros.
+
+    La regla del taller ahora se carga: es la solapa de gomería de
+    `/parametros`, donde cada medida dice de qué familia es. Acá se lee
+    una vez y se le pasa a `medida_va`, que en un aviso se llama una vez
+    por cubierta puesta de toda la flota.
+
+    Sin la tabla corrida —o sin ninguna medida cargada con su familia—
+    vale MEDIDAS, que es la regla escrita a mano y la que rige desde antes
+    de que esto se pudiera parametrizar. Nunca se queda sin regla: sin
+    ninguna no se controlaría nada y una 700x12 entraría en un camión.
+    """
+    try:
+        filas = cx.execute("""
+            select clase, corta, medida from cubiertas_medidas
+            where activa and clase in ('camion', 'autoelevador')
+              and coalesce(btrim(corta), '') <> ''
+            order by orden, medida""").fetchall()
+    except Exception:
+        cx.rollback()
+        return MEDIDAS
+
+    familias = {}
+    for f in filas:
+        numero = _primer_numero(f["corta"])
+        if numero is None:
+            continue
+        familias.setdefault(f["clase"], {}).setdefault(numero, []).append(f["medida"])
+    if not familias:
+        return MEDIDAS
+    reglas = dict(MEDIDAS)
+    for clase, porfamilia in familias.items():
+        reglas[clase] = (tuple(porfamilia), _comose(porfamilia))
+    return reglas
+
+
 def clase_de_gomas(unidad):
     """Qué medidas lleva esta unidad: 'camion', 'autoelevador' o None.
 
@@ -232,12 +290,12 @@ def _primer_numero(medida):
     return entero
 
 
-def medida_va(unidad, medida):
+def medida_va(unidad, medida, reglas=None):
     """(entra, qué se esperaba). Sin regla para esa unidad, entra todo."""
     clase = clase_de_gomas(unidad)
     if not clase:
         return True, None
-    validos, comose = MEDIDAS[clase]
+    validos, comose = (reglas or MEDIDAS).get(clase) or MEDIDAS[clase]
     return _primer_numero(medida) in validos, comose
 
 
@@ -408,11 +466,12 @@ def medidas_que_no_van(cx):
     for f in filas:
         puestas.setdefault(f["id"], []).append(f["medida"])
 
+    reglas = reglas_de_medidas(cx)
     avisos = []
     for f in filas:
         unidad = dict(f)
         unidad["medidas"] = puestas[f["id"]]
-        entra, comose = medida_va(unidad, f["medida"])
+        entra, comose = medida_va(unidad, f["medida"], reglas)
         if entra:
             continue
         avisos.append({
@@ -551,6 +610,7 @@ def ficha(cx, unidad_id):
     quiere = modelo_3d(contada)
     archivo, version = _archivo_3d(quiere)
     ejes, por = ejes_de(contada)
+    reglas = reglas_de_medidas(cx)
     salida = {"unidad": unidad,
               "modelo_3d": quiere if archivo else None,
               "modelo_3d_archivo": archivo,
@@ -573,8 +633,7 @@ def ficha(cx, unidad_id):
               # Qué medida lleva esta unidad. La pantalla lo usa para no
               # ofrecer una cubierta que no va.
               "medida_clase": clase_de_gomas(contada),
-              "medida_espera": (MEDIDAS[clase_de_gomas(contada)][1]
-                                if clase_de_gomas(contada) else None)}
+              "medida_espera": medida_va(contada, None, reglas)[1]}
 
     salida["mapa"] = mapa
 
@@ -607,6 +666,24 @@ def ficha(cx, unidad_id):
     salida["lecturas"] = _bloque(cx, """
         select fecha, km from odometros
         where unidad_id = %s order by fecha desc limit 10""", (unidad_id,))
+
+    # Lo que pasó por el taller, abierto y cerrado, con lo que costó. Es
+    # la pregunta que se hace de verdad cuando se abre una unidad —¿qué le
+    # hicimos a este camión y cuánto salió?— y hasta ahora había que ir a
+    # buscarla a otra pantalla.
+    #
+    # Sale del módulo de órdenes y no de una consulta nueva: el historial
+    # por patente ya estaba escrito ahí, y dos consultas que dicen lo
+    # mismo terminan diciendo cosas distintas. Va por patente porque una
+    # unidad dada de baja y vuelta a cargar cambia de id y sigue siendo el
+    # mismo camión.
+    salida["ordenes"] = None
+    try:
+        salida["ordenes"] = ordenes.historial(cx, unidad["patente"])
+    except Exception:
+        # El módulo de órdenes todavía no está instalado en esta base: la
+        # ficha se dibuja igual, sin ese bloque.
+        cx.rollback()
 
     # El semi es texto: puede o no estar cargado como unidad. Si está, se
     # devuelve su id para poder saltar; si no, queda la patente sola.
@@ -695,6 +772,60 @@ def guardar(cx, datos, usuario=None):
     fila = cx.execute(f"insert into unidades ({columnas}) values ({huecos}) returning id",
                       list(campos.values())).fetchone()
     return una(cx, fila["id"])
+
+
+def en_lote(cx, datos, usuario=None):
+    """Cambia la residencia —o marca como semi— a varias unidades de una.
+
+    El maestro entra con lo que trae la planilla y lo que no trae hay que
+    ponerlo a mano. Cuarenta semis sin residencia son cuarenta fichas que
+    se abren, se completan y se cierran de a una: el mismo cambio, escrito
+    cuarenta veces, con la chance de equivocarse en cualquiera de ellas.
+
+    Marcar un semi no es solo la columna `es_semi`, que es la que lo hace
+    aparecer en Asociación de equipos: el resto del sistema mira `uso`
+    para saber qué dibuja y qué le controla, así que se escriben las dos o
+    la unidad queda a medio camino.
+    """
+    _exigir_gestor(usuario, "cambiar varias unidades de una vez")
+
+    ids = []
+    for valor in (datos.get("ids") or []):
+        try:
+            ids.append(int(valor))
+        except (TypeError, ValueError):
+            continue
+    ids = sorted(set(ids))
+    if not ids:
+        raise ValueError("No se eligió ninguna unidad.")
+    if len(ids) > 500:
+        raise ValueError("Son demasiadas unidades para un solo cambio.")
+
+    campos, valores = [], []
+    if "sucursal" in datos and str(datos.get("sucursal") or "").strip():
+        campos.append("sucursal = %s")
+        valores.append((_texto(datos["sucursal"], 40) or "").upper())
+    if datos.get("es_semi") is not None:
+        campos.append("es_semi = %s")
+        valores.append(bool(datos["es_semi"]))
+        if datos["es_semi"]:
+            campos.append("uso = %s")
+            valores.append("SEMIRREMOLQUE")
+        else:
+            # Al desmarcarlo se borra el uso solo si era el de un semi: el
+            # que decía "LARGA DISTANCIA" no lo escribió esta pantalla.
+            # Los % van dobles: la consulta pasa por psycopg, que usa %s.
+            campos.append("uso = case when upper(coalesce(uso, '')) like 'SEMI%%'"
+                          " or upper(coalesce(uso, '')) like '%%REMOLQUE%%'"
+                          " then null else uso end")
+    if not campos:
+        raise ValueError("No se eligió qué cambiarles.")
+
+    filas = cx.execute(
+        f"update unidades set {', '.join(campos)} where id = any(%s) returning patente",
+        valores + [ids]).fetchall()
+    return {"cambiadas": len(filas),
+            "patentes": [f["patente"] for f in filas]}
 
 
 def pendientes_de(cx, unidad_id):
@@ -964,8 +1095,8 @@ def mover_cubierta(cx, datos, usuario=None):
     if not unidad_id or not posicion_id:
         raise ValueError("Falta la unidad o la posición.")
 
-    unidad = cx.execute("select * from unidades where id = %s", (unidad_id,)).fetchone()
-    if not unidad:
+    unidad = cx.execute("select * from unidades where id = %s for update", (unidad_id,)).fetchone()
+    if not unidad or not unidad.get("activa", True):
         raise ValueError("Esa unidad no existe.")
 
     # La posición tiene que ser del mapa de esta unidad. Sin esto, un id
@@ -977,6 +1108,17 @@ def mover_cubierta(cx, datos, usuario=None):
     if not de_esta:
         raise ValueError("Esa posición no es de esta unidad.")
 
+    puesta = _base.montaje_abierto(cx, unidad_id, posicion_id)
+    if "cubierta_esperada" in datos:
+        actual = puesta["cubierta_id"] if puesta else None
+        esperado = datos["cubierta_esperada"]
+        if (str(actual) if actual is not None else None) != (str(esperado) if esperado is not None else None):
+            raise ValueError("La posición cambió desde que abriste el mapa. Actualizá antes de continuar.")
+    nota = _texto(datos.get("nota"), 300)
+    if accion == "desmontar" and not nota:
+        raise ValueError("Indicá el motivo del retiro de la cubierta.")
+    if accion == "montar" and datos.get("solo_vacia") and puesta:
+        raise ValueError("La posición está ocupada. Retirá primero la cubierta con su motivo.")
     quien = (usuario or {}).get("nombre")
 
     if accion == "desmontar":
@@ -999,10 +1141,12 @@ def mover_cubierta(cx, datos, usuario=None):
         cubierta_id = datos.get("cubierta_id")
         if not cubierta_id:
             raise ValueError("Seleccionar qué cubierta va.")
-        cubierta = cx.execute("select * from cubiertas where id = %s",
+        cubierta = cx.execute("select * from cubiertas where id = %s for update",
                               (cubierta_id,)).fetchone()
         if not cubierta:
             raise ValueError("Esa cubierta no existe.")
+        if cubierta["estado"] not in ("stock", "recapado"):
+            raise ValueError("La cubierta no está disponible en stock.")
         # Una cubierta puesta en otra unidad no se puede poner acá sin
         # sacarla antes: quedaría en dos lugares a la vez.
         otra = cx.execute("""
@@ -1014,7 +1158,8 @@ def mover_cubierta(cx, datos, usuario=None):
         # movimiento está mal: o se tipeó el número de fuego de otra
         # cubierta, o se eligió la unidad equivocada. Se corta acá y no
         # después, cuando ya quedó anotado y hay que rastrearlo.
-        entra, comose = medida_va(_con_medidas(cx, unidad), cubierta["medida"])
+        entra, comose = medida_va(_con_medidas(cx, unidad), cubierta["medida"],
+                                  reglas_de_medidas(cx))
         if not entra:
             raise ValueError(
                 f"La {cubierta['codigo']} es {cubierta['medida'] or 'sin medida'} y "
@@ -1050,7 +1195,7 @@ def _con_medidas(cx, unidad):
     return con
 
 
-def stock_para(cx, medida=None, limite=200):
+def stock_para(cx, medida=None, limite=200, buscar=None):
     """Las cubiertas que se pueden poner: en stock o recapadas, y libres.
 
     El estado no alcanza para saber si está libre. Los mapas se cargaron a
@@ -1064,6 +1209,9 @@ def stock_para(cx, medida=None, limite=200):
     if medida:
         filtro = "and c.medida = %s"
         valores.append(medida)
+    if buscar:
+        filtro += " and concat_ws(' ',c.codigo,c.marca,c.modelo,c.medida) ilike %s"
+        valores.append('%' + str(buscar).strip()[:120] + '%')
     valores.append(limite)
     return _bloque(cx, f"""
         select c.id, c.codigo, c.marca, c.modelo, c.medida, c.remanente_mm,

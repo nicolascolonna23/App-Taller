@@ -1,0 +1,307 @@
+// La pantalla de parámetros contra /api/parametros y /api/marcas simuladas.
+// Verifica lo que la pantalla promete: que el kilometraje se elija entre
+// dos opciones y no en un desplegable escondido, que un plan correctivo no
+// pida intervalo ni un preventivo pida presupuesto, que el que solo
+// gestiona pueda tocar los planes pero no los umbrales, y que la solapa de
+// gomería muestre el logo de cada marca y no deje borrar una que se usa.
+const {chromium} = require('playwright');
+const fs = require('fs'), path = require('path'), assert = require('assert');
+const dir = path.resolve(__dirname, '..');
+
+const datos = (quien) => ({
+  instalado: true,
+  parametros: {km_origen: 'automatico', km_hora: '06:30',
+               combustible_origen: 'manual', combustible_hora: '06:00',
+               combustible_fuente: null, combustible_ultima: null,
+               combustible_estado: null},
+  de_fabrica: {km_origen: 'automatico', km_hora: '05:00',
+               combustible_origen: 'manual', combustible_hora: '06:00',
+               litros_maximos: 450, service_urgente_km: 5000,
+               service_aviso_km: 15000, combustible_dias: 90},
+  planes: [
+    {id: 1, nombre: 'Service M6', descripcion: null, clase: 'preventivo', cada_km: 20000,
+     cada_dias: null, tareas: 'Aceite, filtros', horas_estimadas: null,
+     costo_estimado: null, activo: true, unidades: 12},
+    {id: 2, nombre: 'Cambio de embrague', descripcion: null, clase: 'correctivo',
+     cada_km: null, cada_dias: null, tareas: null, horas_estimadas: 8,
+     costo_estimado: 900000, activo: true, unidades: 0},
+  ],
+  asignaciones: [
+    {unidad_id: 1, patente: 'AD247MQ', interno: '2', sucursal: 'CAT', plan_id: 1,
+     plan_nombre: 'Service M6', cada_km: 20000, cada_dias: null},
+    {unidad_id: 2, patente: 'AA823XJ', interno: '300', sucursal: 'COR', plan_id: null,
+     plan_nombre: null, cada_km: null, cada_dias: null},
+  ],
+  reglas: {litros_maximos: 450, service_urgente_km: 5000, service_aviso_km: 15000,
+           combustible_dias: 90},
+  lecturas: {ayer: 47, ultima: '2026-09-17'},
+  puede_gestionar: true,
+  puede_administrar: quien === 'admin',
+});
+
+const fluidos = () => ({
+  instalado: true,
+  fluidos: [
+    {fluido_id: 1, nombre: 'Urea', clave: 'urea', unidad: 'litros', envase: 'bin',
+     capacidad: 1000, minimo: 200, saldo: 140, estado: 'aviso', activo: true, orden: 1,
+     sellados: 0, usado: true, proveedor: 'Petrobras', proveedor_id: 1, nota: null},
+    {fluido_id: 2, nombre: 'Aceite 15W40', clave: 'aceite15w40', unidad: 'litros',
+     envase: 'tambor', capacidad: 205, minimo: 41, saldo: 1602, estado: 'ok', activo: true,
+     orden: 10, sellados: 7, usado: true, proveedor: 'Shell', proveedor_id: 2, nota: null},
+    {fluido_id: 3, nombre: 'Grasa', clave: 'grasa', unidad: 'kilos', envase: 'balde',
+     capacidad: 20, minimo: 4, saldo: 0, estado: 'sin_cargar', activo: true, orden: 30,
+     sellados: 0, usado: false, proveedor: null, proveedor_id: null, nota: null},
+  ],
+  proveedores: [
+    {id: 1, nombre: 'Petrobras', cuit: '30-111', contacto: null, telefono: null,
+     email: null, rubros: ['urea'], activo: true, nota: null, compras: 4},
+    {id: 2, nombre: 'Shell', cuit: null, contacto: 'Ventas', telefono: '383-4000',
+     email: null, rubros: ['aceites', 'grasa'], activo: true, nota: null, compras: 0},
+  ],
+  movimientos: [], por_unidad: [], banda_gasoil: [3, 6],
+  envases: {bin: 'Bin', tambor: 'Tambor', tacho: 'Tacho', balde: 'Balde', tanque: 'Tanque'},
+  rubros: ['combustible', 'urea', 'aceites', 'grasa', 'repuestos'],
+  unidades: [], puede_gestionar: true,
+});
+
+const marcas = () => ({
+  marcas: [
+    {id: 1, nombre: 'Fate', slug: 'fate', activa: true, logo_tipo: 'image/png',
+     tiene_logo: true, cubiertas: 12},
+    {id: 2, nombre: 'Kumho', slug: 'kumho', activa: false, logo_tipo: null,
+     tiene_logo: false, cubiertas: 0},
+  ],
+  medidas: [
+    {id: 1, medida: '295/80R22.5', corta: '295', clase: 'camion',
+     descripcion: 'La de los camiones.', activa: true, orden: 1, cubiertas: 9},
+    {id: 2, medida: '600x9', corta: '600', clase: 'autoelevador',
+     descripcion: null, activa: true, orden: 10, cubiertas: 0},
+  ],
+  puede_gestionar: true,
+});
+
+(async () => {
+  const browser = await chromium.launch({headless: true,
+    ...(process.env.BROWSER_PATH ? {executablePath: process.env.BROWSER_PATH} : {})});
+  try {
+    const page = await browser.newPage({viewport: {width: 1280, height: 1000}});
+    const errores = [], pedidos = [];
+    let quien = 'admin';
+    page.on('pageerror', e => errores.push(e.message));
+    await page.route('**/*', route => {
+      const req = route.request(), url = new URL(req.url());
+      if (url.pathname === '/api/parametros') {
+        if (req.method() === 'GET') return route.fulfill({json: datos(quien)});
+        pedidos.push(req.postDataJSON());
+        return route.fulfill({json: {ok: true}});
+      }
+      if (url.pathname === '/api/marcas') {
+        if (req.method() === 'GET') return route.fulfill({json: marcas()});
+        pedidos.push(req.postDataJSON());
+        return route.fulfill({json: {ok: true}});
+      }
+      if (url.pathname.startsWith('/marcas/'))
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+                              contentType: 'image/png'});
+      if (url.pathname === '/api/fluidos') {
+        if (req.method() === 'GET') return route.fulfill({json: fluidos()});
+        pedidos.push(req.postDataJSON());
+        return route.fulfill({json: {ok: true}});
+      }
+      if (url.pathname === '/api/yo')
+        return route.fulfill({json: {nombre: 'Nicolás', rol: 'admin',
+                                     rol_nombre: 'Administrador', administra: true,
+                                     modulos: ['parametros', 'usuarios']}});
+      if (url.pathname === '/logo.png')
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+                              contentType: 'image/png'});
+      if (url.pathname === '/parametros')
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'parametros.html'), 'utf8'),
+                              contentType: 'text/html'});
+      return route.fulfill({status: 404, body: ''});
+    });
+
+    await page.goto('http://taller.test/parametros');
+    await page.locator('#km-lista tr').first().waitFor();
+
+    // Lo primero es lo que ya está cargado, con qué hacer al lado.
+    const flota = await page.locator('#km-lista').innerText();
+    for (const x of ['De dónde salen los kilómetros', 'Automático',
+                     'Hora de la consulta', '06:30', 'de fábrica: 05:00'])
+      assert(flota.includes(x), `falta "${x}" en los parámetros de flota: ${flota}`);
+    assert(flota.includes('de fábrica'), 'no dice con qué venía de fábrica');
+    assert(await page.locator('#km-form').isHidden(),
+           'el formulario tiene que estar atrás de Editar');
+    assert((await page.locator('#km-estado').innerText()).includes('47 lecturas'),
+           'no dice si el automático está andando');
+
+    // El kilometraje: dos opciones y la que rige marcada.
+    await page.locator('#km-lista [data-editar="km"]').first().click();
+    assert(await page.locator('#km-form').isVisible());
+    assert.equal(await page.locator('#km-opciones .opcion.on').getAttribute('data-origen'),
+                 'automatico');
+    await page.click('.opcion[data-origen="manual"]');
+    await page.click('#km-guardar');
+    await page.waitForTimeout(200);
+    const km = pedidos.find(p => p.op === 'guardar');
+    assert.equal(km.km_origen, 'manual');
+    assert(await page.locator('#km-form').isHidden(), 'el formulario queda abierto al guardar');
+
+    // Restablecer lo devuelve a lo de fábrica, que es lo más parecido a
+    // eliminarlo que puede existir sin dejar al sistema mudo.
+    page.once('dialog', d => d.accept());
+    await page.locator('#km-lista [data-restablecer="km_hora"]').click();
+    await page.waitForTimeout(200);
+    assert.equal(pedidos.find(p => p.op === 'restablecer').campo, 'km_hora');
+
+    // Los planes: el correctivo no pide intervalo, el preventivo no pide plata.
+    await page.click('[data-vista="planes"]');
+    assert.equal(await page.locator('#planes tr').count(), 2);
+    const tabla = await page.locator('#planes').innerText();
+    assert(tabla.includes('no se agenda'), 'el correctivo debería decir que no se agenda');
+    assert(tabla.includes('20.000 km'), 'falta el intervalo del preventivo');
+
+    await page.click('#plan-nuevo');
+    assert(await page.locator('#p-km').isVisible(), 'el preventivo tiene que pedir km');
+    assert(!await page.locator('#p-costo').isVisible(), 'el preventivo no pide costo');
+    await page.selectOption('#p-clase', 'correctivo');
+    assert(!await page.locator('#p-km').isVisible(), 'el correctivo no lleva intervalo');
+    assert(await page.locator('#p-costo').isVisible(), 'el correctivo pide costo estimado');
+    await page.fill('#p-nombre', 'Bomba de agua');
+    await page.fill('#p-horas', '4');
+    await page.fill('#p-costo', '250000');
+    await page.click('#plan-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const plan = pedidos.find(p => p.op === 'plan_guardar');
+    assert.equal(plan.clase, 'correctivo');
+    assert.equal(plan.horas_estimadas, '4');
+
+    // La asignación ofrece solo preventivos: el correctivo no es una agenda.
+    const opciones = await page.locator('[data-asignar="1"] option').allInnerTexts();
+    assert.deepEqual(opciones, ['Sin plan', 'Service M6'],
+                     'la asignación no debería ofrecer el correctivo: ' + opciones);
+    await page.selectOption('[data-asignar="2"]', {label: 'Service M6'});
+    await page.waitForTimeout(200);
+    const asignar = pedidos.find(p => p.op === 'asignar');
+    assert.equal(asignar.unidad_id, '2');
+
+    // Combustible: cómo entra, y el link del que se trae.
+    await page.click('[data-vista="combustible"]');
+    await page.locator('#comb-lista tr').first().waitFor();
+    assert((await page.locator('#comb-lista').innerText()).includes('Manual'),
+           'no dice cómo entra el combustible hoy');
+    assert(await page.locator('#comb-acciones').isHidden(),
+           'en manual no hay nada que traer');
+    await page.locator('#comb-lista [data-editar="comb"]').first().click();
+    await page.click('#comb-opciones [data-combustible="automatico"]');
+    await page.fill('#c-fuente', 'https://docs.google.com/spreadsheets/d/1abc/edit#gid=0');
+    await page.fill('#c-hora', '06:30');
+    await page.click('#comb-guardar');
+    await page.waitForTimeout(200);
+    const comb = pedidos.find(p => p.op === 'guardar' && p.combustible_origen);
+    assert.equal(comb.combustible_origen, 'automatico');
+    assert(comb.combustible_fuente.includes('docs.google.com'));
+    assert.equal(comb.combustible_hora, '06:30');
+
+    // Los umbrales son del que administra; los planes, del que gestiona.
+    quien = 'taller';
+    await page.reload();
+    await page.locator('#km-lista tr').first().waitFor();
+    assert.equal(await page.locator('#km-lista [data-editar]').count(), 0,
+                 'el que no administra no puede editar los parámetros');
+    assert(!await page.locator('#km-guardar').isEnabled(),
+           'el que no administra no cambia de dónde salen los km');
+    assert(await page.locator('#plan-nuevo').isEnabled(),
+           'el responsable de taller sí parametriza los planes');
+
+    // Combustible: proveedores y fluidos, con el envase y su capacidad.
+    await page.click('[data-vista="combustible"]');
+    await page.locator('#fluidos tr').first().waitFor();
+    assert((await page.locator('#v-combustible .modulo').innerText())
+             .toLowerCase().includes('combustible'));
+    assert.equal(await page.locator('#proveedores tr').count(), 2);
+    assert((await page.locator('#proveedores').innerText()).includes('aceites, grasa'),
+           'no dice qué provee cada uno');
+    assert.equal(await page.locator('[data-borrar-prov="1"]').count(), 0,
+                 'a Petrobras se le compró: se da de baja, no se borra');
+    assert.equal(await page.locator('[data-borrar-prov="2"]').count(), 1);
+    const tablaFluidos = await page.locator('#fluidos').innerText();
+    for (const x of ['Bin de 1.000', 'Tambor de 205', '7 sin abrir', 'se mide en kilos'])
+      assert(tablaFluidos.includes(x), `falta "${x}" en la tabla de fluidos`);
+    assert.equal(await page.locator('[data-borrar-fluido="2"]').count(), 0,
+                 'un fluido con movimientos se da de baja, no se borra');
+    assert.equal(await page.locator('[data-borrar-fluido="3"]').count(), 1);
+
+    // Un fluido nuevo: nombre, envase y capacidad de UN envase.
+    await page.click('#fluido-nuevo');
+    await page.fill('#fl-nombre', 'Líquido de frenos');
+    await page.selectOption('#fl-envase', 'balde');
+    await page.fill('#fl-capacidad', '20');
+    await page.click('#fluido-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const fluido = pedidos.find(p => p.op === 'fluido');
+    assert.equal(fluido.envase, 'balde');
+    assert.equal(fluido.capacidad, '20');
+
+    // Editar un proveedor trae sus rubros marcados y los manda enteros.
+    await page.click('[data-prov="2"]');
+    assert.equal(await page.isChecked('#pv-rubros input[value="aceites"]'), true);
+    await page.check('#pv-rubros input[value="combustible"]');
+    await page.click('#prov-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const prov = pedidos.find(p => p.op === 'proveedor');
+    assert.equal(prov.id, 2);
+    assert.deepEqual(prov.rubros.sort(), ['aceites', 'combustible', 'grasa']);
+
+    // Gomería: el logo en lugar del nombre, y la marca que se usa no se borra.
+    await page.click('[data-vista="gomeria"]');
+    await page.locator('#marcas tr').first().waitFor();
+    assert((await page.locator('#v-gomeria .modulo').innerText())
+             .toLowerCase().includes('gomería'),
+           'la solapa tiene que decir de qué módulo son estos parámetros');
+    assert.equal(await page.locator('#marcas td .logo-marca img').count(), 2,
+                 'cada marca se muestra con su logo');
+    assert.equal(await page.locator('[data-borrar-marca="1"]').count(), 0,
+                 'una marca con 12 cubiertas no se borra: se da de baja');
+    assert.equal(await page.locator('[data-borrar-marca="2"]').count(), 1);
+    assert((await page.locator('#marcas').innerText()).includes('de baja'),
+           'tiene que verse cuál está de baja');
+
+    // Editar carga el formulario con lo que hay, y guardar no manda logo vacío.
+    await page.click('[data-marca="1"]');
+    assert.equal(await page.inputValue('#m-nombre'), 'Fate');
+    assert(await page.locator('#marca-sin-logo').isVisible(),
+           'la marca con logo tiene que poder quedarse sin él');
+    await page.uncheck('#m-activa');
+    await page.click('#marca-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const marca = pedidos.find(p => p.op === 'guardar' && p.nombre === 'Fate');
+    assert.equal(marca.id, 1);
+    assert.equal(marca.activa, false);
+    assert.equal(marca.logo, undefined, 'sin subir un logo nuevo no se manda ninguno');
+
+    // Las medidas: la familia se elige, y el número que identifica es opcional.
+    assert((await page.locator('#medidas').innerText()).includes('identifica: 295'));
+    await page.click('#medida-nueva');
+    await page.fill('#d-medida', '11R22.5');
+    await page.selectOption('#d-clase', 'camion');
+    await page.click('#medida-form button[type="submit"]');
+    await page.waitForTimeout(200);
+    const medida = pedidos.find(p => p.op === 'medida_guardar');
+    assert.equal(medida.medida, '11R22.5');
+    assert.equal(medida.clase, 'camion');
+
+    await page.setViewportSize({width: 390, height: 844});
+    assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+           'la pantalla de parámetros desborda a lo ancho en el celular');
+    assert.deepEqual(errores, []);
+    console.log('PASS: kilometraje en dos opciones con su estado, plan correctivo sin ' +
+                'intervalo y preventivo sin presupuesto, asignación solo de preventivos, ' +
+                'umbrales del que administra, parámetros a la vista con editar y '+
+                'restablecer, combustible traído de un link, proveedores y fluidos, ' +
+                'marcas con logo que se dan de baja en vez de borrarse, medidas con ' +
+                'su familia y celular.');
+  } finally {
+    await browser.close();
+  }
+})().catch(e => { console.error(e); process.exitCode = 1; });

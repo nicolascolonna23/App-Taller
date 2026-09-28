@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Solicitudes · Fallas de choferes</title><link rel="stylesheet" href="/choferes/style.css"></head><body><main><header><a href="/solicitudes">‹ Solicitudes de compra</a><a href="/">Inicio</a></header><h1>Fallas de choferes</h1><p>Revisá las solicitudes recibidas y sus fotos. Desestimá con un motivo o generá una orden de trabajo.</p><label for="filter">Estado</label><select id="filter"><option value="PENDIENTE">Pendientes</option><option value="">Todos</option><option value="DESESTIMADA">Desestimadas</option><option value="ORDEN_CREADA">Con orden de trabajo</option></select><p id="status" role="status"></p><button id="refresh">Actualizar</button><div id="list"></div></main><script>
+const $=s=>document.querySelector(s);let rows=[],canManage=false;
+async function api(path='',body){const r=await fetch('/api/reportes-chofer'+path,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error'}:{redirect:'error',cache:'no-store'});const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo completar.');return d;}
+function el(tag,text){const n=document.createElement(tag);n.textContent=text;return n;}
+function render(){
+ $('#list').replaceChildren();
+ for(const r of rows.filter(r=>!$('#filter').value||r.estado===$('#filter').value)){
+  const a=el('article',''),p=el('p',r.descripcion);p.className='description';
+  a.append(el('h2',r.patente+' · '+r.estado.replaceAll('_',' ')),el('small',r.chofer+' · '+new Date(r.ocurrido_en).toLocaleString()+' · '+r.urgencia.replaceAll('_',' ')),p);
+  if(r.motivo)a.append(el('p','Motivo: '+r.motivo));
+  if(r.orden_id){const link=el('a','Abrir OT '+(r.orden_numero||r.orden_id));link.href='/ordenes?orden='+r.orden_id;a.append(link);}
+  if(r.fotos){const b=el('button','Ver fotos ('+r.fotos+')'),photos=el('div','');b.className='secondary';b.onclick=async()=>{b.disabled=true;try{const fs=await api('?op=fotos&id='+r.id);photos.replaceChildren();for(const f of fs){const img=el('img','');img.alt='Foto de la falla';img.src='data:'+f.mime+';base64,'+f.datos;photos.append(img);}}catch(e){$('#status').textContent=e.message;}finally{b.disabled=false;}};a.append(b,photos);}
+  if(canManage&&r.estado==='PENDIENTE'){
+   const form=el('form',''),km=el('input',''),reason=el('textarea',''),ot=el('button','Crear orden de trabajo'),no=el('button','Desestimar solicitud');
+   const kl=el('label','Kilometraje para la OT');km.type='number';km.min='0';km.step='1';km.id='km-'+r.id;kl.htmlFor=km.id;
+   const rl=el('label','Motivo para desestimar');reason.maxLength=2000;reason.id='motivo-'+r.id;rl.htmlFor=reason.id;
+   ot.type=no.type='button';no.className='secondary';
+   async function resolve(op){ot.disabled=no.disabled=true;try{if(op==='crear_orden'&&(!km.value||!km.checkValidity()))throw Error('Indicá un kilometraje válido.');await api('',{op,id:r.id,km:km.value,motivo:reason.value});await load();}catch(e){$('#status').textContent=e.message;}finally{ot.disabled=no.disabled=false;}}
+   ot.onclick=()=>resolve('crear_orden');no.onclick=()=>resolve('desestimar');form.append(kl,km,ot,rl,reason,no);a.append(form);
+  }
+  $('#list').append(a);
+ }
+ if(!$('#list').children.length)$('#list').append(el('p','No hay reportes en este estado.'));
+}
+async function load(){try{const c=await api('?op=contexto');canManage=c.gestiona;rows=await api();render();$('#status').textContent=rows.length+' reportes (hasta los últimos 500).';}catch(e){$('#status').textContent=e.message;}}
+$('#filter').onchange=render;$('#refresh').onclick=load;load();
+</script></body></html>

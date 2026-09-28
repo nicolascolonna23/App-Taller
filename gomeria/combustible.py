@@ -33,7 +33,12 @@ import base64
 import csv
 import datetime
 import io
+import ipaddress
 import re
+import socket
+import urllib.error
+import urllib.parse
+import urllib.request
 
 import permisos
 
@@ -389,6 +394,146 @@ def subir(cx, datos, usuario=None):
             "nuevas": despues - antes,
             "actualizadas": len(unicas) - (despues - antes),
             "descartadas": leido["descartadas"]}
+
+
+# =====================================================================
+# TRAER LA PLANILLA SOLA
+# ---------------------------------------------------------------------
+# El control de combustible se lleva en una hoja de Google que se edita
+# todos los días. Bajarla para volver a subirla es trabajo que la
+# computadora puede hacer sola: se guarda el link una vez en Parámetros y
+# el sistema entra a buscarla.
+#
+# Traer de nuevo la misma planilla no duplica nada: cada remito se pisa
+# con su última versión, igual que subir el archivo a mano. Por eso se
+# puede traer todos los días sin pensar.
+# =====================================================================
+
+# Lo que puede pesar la planilla que se baja. Una de un año ronda los
+# 200 KB; diez megas es un archivo que no es una planilla.
+DESCARGA_MAXIMA = 10 * 1024 * 1024
+DESCARGA_ESPERA = 30
+
+_HOJA = re.compile(r"docs\.google\.com/spreadsheets/d/([\w-]+)")
+
+
+def link_csv(url):
+    """El link como lo pega una persona → uno que devuelve un CSV.
+
+    De una hoja de Google se copia la barra de direcciones, que termina en
+    `/edit#gid=0` y devuelve la página, no los datos. Se convierte acá en
+    vez de pedirle a alguien que arme la dirección de exportación: es el
+    paso donde más se traba esto, y la computadora lo sabe hacer.
+
+    La hoja ya publicada (`/pub?...`) y cualquier otra dirección se dejan
+    como están: si devuelve un CSV, sirve.
+    """
+    url = (url or "").strip()
+    m = _HOJA.search(url)
+    if not m or "/pub" in url or "format=csv" in url or "output=csv" in url:
+        return url
+    partes = urllib.parse.urlsplit(url)
+    hoja = urllib.parse.parse_qs(partes.query).get("gid")
+    if not hoja and partes.fragment:
+        hoja = urllib.parse.parse_qs(partes.fragment).get("gid")
+    destino = f"https://docs.google.com/spreadsheets/d/{m.group(1)}/export?format=csv"
+    return destino + (f"&gid={hoja[0]}" if hoja else "")
+
+
+def _revisar_link(url):
+    """Que el link sea de afuera y por https.
+
+    El servidor es el que sale a buscar, así que una dirección de la red
+    interna lo convertiría en la puerta de entrada a lo que él ve y nadie
+    más. Se resuelve el nombre y se miran las direcciones de verdad, no
+    solo el texto: un dominio puede apuntar a 127.0.0.1.
+    """
+    partes = urllib.parse.urlsplit(url)
+    if partes.scheme != "https" or not partes.hostname:
+        raise ValueError("El link tiene que empezar con https://")
+    try:
+        destinos = socket.getaddrinfo(partes.hostname, partes.port or 443,
+                                      proto=socket.IPPROTO_TCP)
+    except OSError:
+        raise ValueError(f"No se pudo resolver {partes.hostname}. "
+                         "Revisá el link.") from None
+    for info in destinos:
+        ip = ipaddress.ip_address(info[4][0])
+        if (ip.is_private or ip.is_loopback or ip.is_link_local
+                or ip.is_reserved or ip.is_multicast):
+            raise ValueError("Ese link apunta a la red interna del servidor, "
+                             "no a un lugar de donde traer una planilla.")
+    return url
+
+
+def _bajar(url):
+    """El archivo del link. Devuelve (nombre, bytes)."""
+    pedido = urllib.request.Request(url, headers={
+        "User-Agent": "AppTaller/1.0 (planilla de combustible)"})
+    try:
+        with urllib.request.urlopen(pedido, timeout=DESCARGA_ESPERA) as respuesta:
+            crudo = respuesta.read(DESCARGA_MAXIMA + 1)
+            tipo = (respuesta.headers.get("Content-Type") or "").lower()
+            nombre = respuesta.url.rsplit("/", 1)[-1][:80] or "planilla"
+    except urllib.error.HTTPError as e:
+        raise ValueError(f"El link contestó {e.code}. "
+                         "Si es una hoja de Google, tiene que estar compartida "
+                         "como «cualquiera con el enlace».") from None
+    except Exception as e:
+        raise ValueError(f"No se pudo entrar al link: {e}") from None
+
+    if len(crudo) > DESCARGA_MAXIMA:
+        raise ValueError(f"Lo que hay en el link pesa más de "
+                         f"{DESCARGA_MAXIMA // 1024 // 1024} MB: no es una planilla.")
+    if not crudo:
+        raise ValueError("El link no devolvió nada.")
+    # Google, cuando la hoja no es pública, contesta 200 con la pantalla de
+    # login. Sin esto, el error sería "no encontré ninguna fila con remito",
+    # que manda a buscar el problema al lugar equivocado.
+    if "html" in tipo or crudo.lstrip()[:15].lower().startswith(b"<!doctype html"):
+        raise ValueError("El link devolvió una página web, no una planilla. "
+                         "Si es una hoja de Google, compartila como «cualquiera "
+                         "con el enlace» o publicala en la web.")
+    if "csv" in tipo and not nombre.endswith(".csv"):
+        nombre += ".csv"
+    return nombre, crudo
+
+
+def traer(cx, usuario=None, datos=None):
+    """Trae la planilla del link parametrizado y la guarda.
+
+    Es lo mismo que subir el archivo a mano, sin el archivo ni la mano.
+    Lo corre una persona desde Parámetros —«Traer ahora»— y todas las
+    mañanas el job de GitHub Actions.
+    """
+    _exigir_gestor(usuario, "traer la planilla de combustible")
+    fila = cx.execute("select * from parametros").fetchone()
+    fuente = (fila or {}).get("combustible_fuente")
+    if not fuente:
+        raise ValueError("Todavía no hay ningún link cargado. Se carga en "
+                         "Parámetros → Combustible.")
+
+    url = _revisar_link(link_csv(fuente))
+    try:
+        nombre, crudo = _bajar(url)
+        salida = subir(cx, {"origen": "planilla", "nombre": nombre,
+                            "contenido": base64.b64encode(crudo).decode(),
+                            "confirmar": True}, usuario)
+    except Exception as e:
+        _anotar_traida(cx, f"Falló: {e}")
+        raise
+    _anotar_traida(cx, f"{salida['guardadas']} filas · {salida['nuevas']} nuevas")
+    return {**salida, "link": url}
+
+
+def _anotar_traida(cx, estado):
+    """Cómo salió la última vez. Un link que dejó de andar se ve acá."""
+    try:
+        cx.execute("""update parametros
+                      set combustible_ultima = now(), combustible_estado = %s
+                      where unica""", (estado[:300],))
+    except Exception:
+        cx.rollback()
 
 
 def borrar_lote(cx, lote_id, usuario=None):

@@ -210,3 +210,41 @@ class Fuel(unittest.TestCase):
 
 
 if __name__=='__main__': unittest.main()
+
+
+class Cupo(unittest.TestCase):
+    """Cada consulta se paga: por persona y entre todos hay techo."""
+
+    def setUp(self):
+        a._consultas.clear()
+        a._ultimos.clear()
+        self.env = patch.dict(os.environ, {'ASISTENTE_POR_HORA': '2', 'ASISTENTE_POR_DIA': '3',
+                                           'ASISTENTE_TOTAL_DIA': '4', 'SUPABASE_DB_URL': '',
+                                           'DATABASE_URL': ''})
+        self.env.start()
+
+    def tearDown(self):
+        self.env.stop()
+        a._consultas.clear()
+
+    def test_tope_por_hora_por_dia_y_total(self):
+        a.usar_cupo(1); a.usar_cupo(1)
+        with self.assertRaisesRegex(a.Ocupado, 'por hora'):
+            a.usar_cupo(1)
+        a._consultas[:] = [(u, t - 7200) for u, t in a._consultas]
+        a.usar_cupo(1)
+        with self.assertRaisesRegex(a.Ocupado, 'por día'):
+            a.usar_cupo(1)
+        a.usar_cupo(2)
+        with self.assertRaisesRegex(a.Ocupado, 'entre todos'):
+            a.usar_cupo(3)
+
+    def test_sin_cupo_no_llama_al_modelo_y_libera_el_turno(self):
+        model = MagicMock()
+        a._consultas.extend([(1, a.time.time())] * 2)
+        with patch.dict(os.environ, {'ANTHROPIC_API_KEY': 'test-only-not-real'}):
+            with self.assertRaisesRegex(a.Ocupado, 'por hora'):
+                a.responder({'mensajes': [{'role': 'user', 'content': 'stock'}]},
+                            {'id': 1, 'rol': 'operario'}, model, MagicMock())
+        model.assert_not_called()
+        self.assertNotIn(1, a._activos)

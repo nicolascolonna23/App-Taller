@@ -68,65 +68,19 @@ python3 chat/servidor.py
 Se corta con Ctrl+C en la ventana que quedó abierta. Mientras esa ventana esté
 abierta, el chat también está en http://127.0.0.1:8000.
 
-## Que lo use toda la oficina
+## Solo en esta computadora
 
-No hace falta instalarlo en cada computadora. Se instala en **una sola** —la que
-tenga los reportes y la clave— y las demás entran por el navegador, sin instalar
-nada.
+El chat funciona únicamente en la computadora donde se arranca: escucha en
+`127.0.0.1` y no acepta otra dirección, y además rechaza los pedidos que no
+vienen de una página de esa misma máquina.
 
-En la máquina que hace de servidor, doble clic en **`chat/iniciar-en-red.command`**
-(Mac) o **`chat/iniciar-en-red.bat`** (Windows). Al arrancar imprime la dirección
-que hay que pasarle al resto:
+Es a propósito. El chat no pide usuario y muestra la deuda y los datos de
+contacto de todos los clientes; abierto a la red, cualquiera conectado al mismo
+wifi —visitas incluidas— podía consultarlos y gastar la clave de la API. Antes
+había un `iniciar-en-red` para compartirlo con la oficina: se sacó.
 
-```
-  Desde esta computadora:  http://127.0.0.1:8000
-  Desde las demas:         http://192.168.1.45:8000   <- esta es la que hay que pasar
-```
-
-Esa segunda dirección se abre desde cualquier compu de la red, y desde el celular
-si está en el mismo wifi. Tres cosas a tener en cuenta:
-
-- **La máquina servidor tiene que quedar prendida** y con esa ventana abierta.
-  Si se apaga o se cierra la ventana, el chat deja de responder para todos.
-- **El firewall puede bloquear el puerto.** En Windows, la primera vez salta el
-  aviso del Firewall: hay que permitir el acceso en redes privadas. En Mac,
-  Configuración del Sistema → Red → Firewall.
-- **La IP puede cambiar** si el router la asigna por DHCP. Si un día deja de
-  andar, volvé a mirar la dirección que imprime al arrancar. Para que no cambie,
-  pedile a quien maneje la red una IP fija para esa máquina.
-
-Instalarlo en cada computadora también funciona, pero no conviene: habría que
-copiar la clave de la API y la base con los datos de todos los clientes a cada
-máquina, y correr la ingesta en todas cada vez que se actualizan los reportes.
-
-**Sobre el acceso:** el chat no pide usuario ni contraseña; asume que quien llega
-a la dirección está autorizado. En una red de oficina cerrada alcanza, pero
-cualquiera conectado a ese wifi —incluidas visitas— puede abrirlo y ver la deuda
-y los datos de contacto de todos los clientes. Si eso preocupa, se pone una clave
-adelante con el proxy del servidor web interno.
-
-## Ponerlo en el servidor de la empresa
-
-1. **Ingesta programada.** Que `ingesta.py` corra solo cuando se actualizan los
-   reportes. En Linux, un cron; en Windows, el Programador de tareas:
-
-   ```
-   0 7 * * *  cd /opt/chat && /usr/bin/python3 ingesta.py >> ingesta.log 2>&1
-   ```
-
-   La ingesta reescribe las tablas de cero, así que se puede correr las veces
-   que haga falta. Tarda menos de un minuto con estos volúmenes.
-
-2. **El servicio.** `python3 servidor.py --host 0.0.0.0 --sin-navegador` y dejarlo
-   como servicio (systemd en Linux, NSSM en Windows) para que levante solo.
-
-3. **Detrás del servidor web interno.** Conviene que Apache/Nginx/IIS haga de
-   proxy hacia el 8000 y sea el que resuelve el login. El chat no trae usuarios:
-   asume que quien llega ya está autorizado.
-
-4. **Que no salga a internet.** El servidor necesita alcanzar `api.anthropic.com`,
-   nada más. La pantalla en sí tiene que quedar solo en la red interna o detrás
-   de la VPN: muestra deuda, márgenes y datos de contacto de todos los clientes.
+Si más adelante lo tiene que usar más gente, el camino es pasarlo adentro de la
+app principal, con su login, su verificación en dos pasos y sus permisos por rol.
 
 ## Conectarlo a la base de verdad
 

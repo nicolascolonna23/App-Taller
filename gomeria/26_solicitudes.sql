@@ -24,8 +24,29 @@
 -- veces que haga falta: no borra nada.
 --
 -- ANTES tienen que estar corridos 01_esquema.sql, 03_usuarios.sql,
--- 15_ordenes.sql y 20_alertas.sql.
+-- 07_unidades.sql, 15_ordenes.sql, 20_alertas.sql y
+-- 21_ordenes_preventivas.sql. Si falta alguno, el script se frena acá y
+-- dice cuál: si no, fallaba más abajo con un error que no lo nombraba, y
+-- Supabase descartaba el script entero sin que se note.
 -- =====================================================================
+
+do $$
+declare
+  falta text := '';
+begin
+  if to_regclass('public.usuarios') is null then falta := falta || ' 03_usuarios.sql'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public'
+                 and table_name = 'unidades' and column_name = 'chasis') then
+    falta := falta || ' 07_unidades.sql'; end if;
+  if to_regclass('public.ordenes_trabajo') is null then falta := falta || ' 15_ordenes.sql'; end if;
+  if to_regclass('public.services') is null then falta := falta || ' 20_alertas.sql'; end if;
+  if not exists (select 1 from information_schema.columns where table_schema = 'public'
+                 and table_name = 'ordenes_trabajo' and column_name = 'mantenimiento') then
+    falta := falta || ' 21_ordenes_preventivas.sql'; end if;
+  if falta <> '' then
+    raise exception 'Antes de 26_solicitudes.sql hay que correr:%', falta;
+  end if;
+end $$;
 
 
 -- ---------------------------------------------------------------------

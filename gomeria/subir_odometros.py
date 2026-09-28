@@ -116,6 +116,17 @@ def subir(lecturas, url=None):
     import psycopg
 
     with psycopg.connect(url) as cx:
+        # El sistema puede estar en manual: ahí los kilómetros los carga
+        # una persona y una lectura automática le pisaría el número. Se
+        # pregunta antes de escribir nada (ver parametros.py).
+        try:
+            fila = cx.execute("select km_origen from parametros").fetchone()
+            if fila and fila[0] == "manual":
+                print("\n[supabase] el kilometraje está en manual: no se sube nada")
+                return 0
+        except Exception:
+            cx.rollback()      # sin 29_parametros.sql corrido, como siempre
+
         with cx.cursor() as cur:
             # Cuántas había antes, para poder decir después cuántas son
             # nuevas de verdad. En la corrida de todos los días se manda el
