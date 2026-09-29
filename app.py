@@ -131,12 +131,51 @@ def _sin_permiso(modulo, usuario):
 </main></body></html>"""
 
 
-class App(gom.Handler):
+class CupoPorPedido:
+    """Pide turno para atender un pedido, y lo devuelve al terminarlo.
+
+    Va antes que el manejador en el orden de herencia, para que sus métodos
+    ganen y llamen a los de abajo con super().
+
+    El enganche es parse_request() a propósito: la biblioteca la llama
+    DESPUÉS de leer la línea del pedido, así que el turno queda afuera de lo
+    único que no es trabajo —la conexión abierta esperando a que el navegador
+    se decida a pedir algo—. Tomarlo antes es lo que hacía que una conexión
+    ociosa le sacara el lugar a un pedido de verdad.
+    """
+
+    cupo = None          # lo pone la clase que lo use
+
+    def parse_request(self):
+        entendido = super().parse_request()
+        if entendido and self.cupo is not None:
+            self.cupo.acquire()
+            self._con_cupo = True
+        return entendido
+
+    def handle_one_request(self):
+        self._con_cupo = False
+        try:
+            super().handle_one_request()
+        finally:
+            # Siempre se devuelve, haya respondido bien, mal o roto: un turno
+            # que no vuelve es un cupo menos para siempre, y al vigésimo
+            # cuarto el servidor deja de atender.
+            if getattr(self, "_con_cupo", False):
+                self._con_cupo = False
+                self.cupo.release()
+
+
+class App(CupoPorPedido, gom.Handler):
     """El manejador de gomería, más las pantallas de flota y repuestos."""
 
     # Un navegador que abre la conexión y no manda nada (una solapa que se
     # durmió, un celular que perdió señal) ocupaba un hilo para siempre.
-    timeout = 60
+    # Diez segundos alcanzan de sobra para que un pedido real llegue: lo que
+    # no llegó en ese rato no va a llegar.
+    timeout = 10
+
+
 
     def _ruta_pedida(self):
         """La dirección que escribió el navegador, antes de reescribirla.
@@ -1472,30 +1511,23 @@ def preparar():
 # Cuántos pedidos se atienden a la vez. Cada uno puede traer una consulta
 # grande a memoria; sin tope, un pico de visitas multiplicaba ese consumo
 # hasta superar el límite del servicio y Render lo reiniciaba (503). Los
-# que exceden el tope esperan en la cola del puerto, no se rechazan.
-PEDIDOS_SIMULTANEOS = int(os.environ.get("PEDIDOS_SIMULTANEOS", 12))
+# que exceden el tope esperan su turno, no se rechazan.
+#
+# El tope cuenta PEDIDOS, no conexiones. La diferencia no es de matiz: como
+# el servidor habla HTTP/1.0, cada archivo de una pantalla viaja en su
+# propia conexión, y abrir la portada dispara una docena —la hoja de
+# estilos, los scripts, el logo, la foto, y encima las cuatro llamadas a la
+# API—. Contando conexiones, una sola pantalla agotaba el cupo entero y el
+# resto se quedaba esperando hasta que Render cortaba con un 502. Peor
+# todavía: el navegador abre conexiones por adelantado y no las usa, y esas
+# retenían su lugar hasta que vencía el tiempo de espera, sin hacer nada.
+PEDIDOS_SIMULTANEOS = int(os.environ.get("PEDIDOS_SIMULTANEOS", 24))
+CUPO = threading.BoundedSemaphore(PEDIDOS_SIMULTANEOS)
+App.cupo = CUPO
 
 
 class Servidor(ThreadingHTTPServer):
     daemon_threads = True
-
-    def __init__(self, *args, **kw):
-        super().__init__(*args, **kw)
-        self._cupo = threading.BoundedSemaphore(PEDIDOS_SIMULTANEOS)
-
-    def process_request(self, request, client_address):
-        self._cupo.acquire()
-        try:
-            super().process_request(request, client_address)
-        except BaseException:
-            self._cupo.release()
-            raise
-
-    def process_request_thread(self, request, client_address):
-        try:
-            super().process_request_thread(request, client_address)
-        finally:
-            self._cupo.release()
 
 
 def _limitar_arenas_de_memoria():
