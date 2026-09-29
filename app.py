@@ -131,6 +131,22 @@ def _sin_permiso(modulo, usuario):
 </main></body></html>"""
 
 
+class _SinCuerpo:
+    """El wfile de un HEAD: deja pasar los encabezados y traga el cuerpo."""
+
+    def __init__(self, real):
+        self.real = real
+        self.cuerpo = False
+
+    def write(self, datos):
+        # Se devuelve lo que se habría escrito: quien escribe puede estar
+        # contando bytes, y un cero lo haría pensar que la conexión murió.
+        return len(datos) if self.cuerpo else self.real.write(datos)
+
+    def __getattr__(self, nombre):
+        return getattr(self.real, nombre)
+
+
 class CupoPorPedido:
     """Pide turno para atender un pedido, y lo devuelve al terminarlo.
 
@@ -892,6 +908,38 @@ class App(CupoPorPedido, gom.Handler):
         except Exception as e:
             traceback.print_exc()
             return self._error(f"No se pudo sacar la portada: {e}", 500)
+
+    def do_HEAD(self):
+        """Lo mismo que un GET, pero sin el cuerpo.
+
+        Un HEAD contestaba 501 «método no soportado». Lo mandan el probe
+        de arranque de Render, los monitores de disponibilidad y cualquier
+        `curl -I`, y a todos les contestaba que el servidor no sabe hacer
+        eso. Un 501 en la puerta de entrada es, para el que mira desde
+        afuera, un servicio caído.
+
+        Se atiende el GET de siempre y se le tapa el cuerpo. Así el HEAD
+        dice exactamente lo que diría el GET —el mismo código, los mismos
+        encabezados, el mismo Content-Length— sin mandar los bytes, que es
+        justo lo que pide el protocolo. Una sola manera de contestar, y no
+        dos que se van separando.
+        """
+        real, tapa = self.wfile, _SinCuerpo(self.wfile)
+        self.wfile = tapa
+        # El cuerpo empieza donde terminan los encabezados. Se marca ahí y
+        # no contando escrituras: hay respuestas que escriben de a pedazos.
+        cerrar = self.end_headers
+
+        def end_headers():
+            cerrar()
+            tapa.cuerpo = True
+
+        self.end_headers = end_headers
+        try:
+            self.do_GET()
+        finally:
+            self.wfile = real
+            del self.end_headers
 
     def do_POST(self):
         ruta = urlparse(self.path).path

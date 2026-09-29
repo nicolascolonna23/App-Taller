@@ -1,4 +1,12 @@
 # Deploy automático en Render. Cada push a la rama publica la versión nueva.
+#
+# OJO: este archivo solo lo lee Render si el servicio se creó como Blueprint.
+# El de producción se creó a mano desde el panel, así que hoy lo de acá no se
+# aplica: manda lo que esté cargado en Settings y en Environment. Se mantiene
+# igual para que quede escrito con qué está pensado que corra —y para poder
+# recrear el servicio— pero cualquier cambio hay que hacerlo también en el
+# panel. Se vio con la versión de Python: acá dice 3.12.6 y el log del deploy
+# decía "Using Python version 3.14.3 (default)".
 services:
   - type: web
     name: app-taller
@@ -17,5 +25,7 @@ services:
         value: "claude-opus-5"
       - key: USUARIO_INICIAL      # "usuario:Nombre Completo:contraseña". Borrala después.
         sync: false
+      - key: PEDIDOS_SIMULTANEOS  # Cuántos pedidos se atienden a la vez
+        value: "24"
       - key: PYTHON_VERSION
         value: "3.12.6"
