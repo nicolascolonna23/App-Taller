@@ -1028,7 +1028,9 @@ function pintarRuedas(){
     let color = RUEDA.sin_datos;
     if (suya) {
       color = enfocadas && enfocadas.has(m) ? RUEDA.foco : RUEDA.elegida;
-    } else if (e.lado !== 'ambos') {
+    } else {
+      // La pieza que abarca el eje entero se pinta igual que cualquier
+      // otra: posicionesDe() le devuelve las posiciones de los dos lados.
       const posiciones = posicionesDe(e);
       const montadas = posiciones.filter(p => p.cubierta_id).length;
       if (montadas === posiciones.length && montadas) color = RUEDA.puesta;
@@ -1061,10 +1063,18 @@ function ejeDelMapa(numero){
   return ejes[Math.min(numero, ejes.length) - 1];
 }
 
+/* Las posiciones del mapa que le tocan a una esquina del modelo.
+
+   Cuando la pieza abarca las dos ruedas del eje —el semirremolque y el
+   autoelevador vienen así— la esquina no es de un lado ni del otro, y se
+   le cuentan las posiciones de los dos lados. Es lo mismo que se hace al
+   pintarla: no se puede pintar media pieza, así que la pieza entera
+   responde por el eje entero. Antes esa esquina no encontraba ninguna
+   posición y quedaba gris, como si la unidad no tuviera mapa. */
 function posicionesDe(esquina){
   const mapa = VISOR.mapa || [];
   const eje = ejeDelMapa(esquina.eje);
   return eje == null ? []
-    : mapa.filter(p => !p.es_auxilio && p.lado === esquina.lado &&
-                       p.eje === eje);
+    : mapa.filter(p => !p.es_auxilio && p.eje === eje &&
+                       (esquina.lado === 'ambos' || p.lado === esquina.lado));
 }

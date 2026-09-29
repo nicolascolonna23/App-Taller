@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Banco de pruebas del visor 3D</title>
+<style>body{margin:0;background:#11161b}#visor{width:900px;height:600px}</style>
+</head><body>
+<!-- Los cuatro nodos que el visor toca. Nada más: acá no se prueba la
+     pantalla de la unidad, se prueba de qué color queda cada goma. -->
+<div id="visor"></div>
+<div id="visor-vacio" hidden></div>
+<div id="visor-pista"></div>
+<div id="visor-rotulo"></div>
+<script src="/vendor/three.min.js"></script>
+<script src="/vendor/OBJLoader.js"></script>
+<script src="/vendor/OrbitControls.js"></script>
+<script src="/vendor/fflate.min.js"></script>
+<script src="/vendor/FBXLoader.js"></script>
+<script src="/vendor/GLTFLoader.js"></script>
+<script src="/camion3d.js"></script>
+<script>
+/* Arma un mapa de cubiertas como el que manda la base: dos lugares por
+   eje y por lado, todos vacíos, que es como queda una unidad recién dada
+   de alta a la que se le asignó una configuración. */
+function mapaDePrueba(ejes, montadas){
+  const mapa = []; let orden = 0, puestas = montadas || 0;
+  for (let e = 1; e <= ejes; e++)
+    for (const lado of ['I', 'D']) {
+      const pone = puestas-- > 0;
+      mapa.push({ posicion_id: ++orden, posicion: e + lado, eje: e, lado,
+                  montaje: null, es_auxilio: false, orden,
+                  cubierta_id: pone ? orden : null });
+    }
+  return mapa;
+}
+
+/* Espera a que el modelo termine de bajar y de acomodarse. */
+window.probar = (clave, archivo, mapa) => new Promise((listo, mal) => {
+  armarVisor(clave, archivo, { mapa, por: 'mano' });
+  const desde = Date.now();
+  (function mirar(){
+    if (V.modelo) return listo({
+      ruedas: V.ruedas.length,
+      ejes: V.ejes.length,
+      colores: V.ruedas.map(m => ({
+        eje: esquinaDeLaRueda(m).eje,
+        lado: esquinaDeLaRueda(m).lado,
+        color: '#' + m.material.color.getHexString(),
+      })),
+    });
+    if (!nodo('#visor-vacio').hidden) return mal(new Error(nodo('#visor-vacio').textContent));
+    if (Date.now() - desde > 60000) return mal(new Error('el modelo no terminó de cargar'));
+    setTimeout(mirar, 120);
+  })();
+});
+window.COLORES = { goma: '#454b53', falta: '#6d3a34', puesta: '#2b5a76',
+                   parcial: '#36abc7', elegida: '#ff7a1a' };
+</script>
+</body></html>
