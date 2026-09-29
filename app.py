@@ -175,7 +175,34 @@ class App(CupoPorPedido, gom.Handler):
     # no llegó en ese rato no va a llegar.
     timeout = 10
 
+    # De a cuánto se manda un archivo estático. Los modelos 3D pesan hasta
+    # 3,5 MB y antes se leían enteros a memoria antes de escribir el primer
+    # byte: con varios pedidos a la vez —una pantalla pide el modelo, y hay
+    # gente mirando distintas unidades— el proceso se comía toda la memoria
+    # que da el servidor y lo mataban. De a 64 KB la memoria que ocupa un
+    # pedido no depende del tamaño del archivo.
+    BLOQUE = 64 * 1024
 
+    def _enviar_archivo(self, camino, tipo, cache=None):
+        """Manda el archivo de a pedazos, sin cargarlo entero a memoria."""
+        try:
+            tamano = os.path.getsize(camino)
+            with open(camino, "rb") as f:
+                self.send_response(200)
+                self.send_header("Content-Type", tipo)
+                self.send_header("Content-Length", str(tamano))
+                if cache:
+                    self.send_header("Cache-Control", cache)
+                self.end_headers()
+                while True:
+                    trozo = f.read(self.BLOQUE)
+                    if not trozo:
+                        break
+                    self.wfile.write(trozo)
+        except (BrokenPipeError, ConnectionResetError):
+            # El navegador cerró la pestaña a mitad de la bajada. No es un
+            # error del servidor y no hay a quién contestarle.
+            self.close_connection = True
 
     def _ruta_pedida(self):
         """La dirección que escribió el navegador, antes de reescribirla.
@@ -480,7 +507,10 @@ class App(CupoPorPedido, gom.Handler):
                 camino = os.path.join(AQUI, "marcas", nombre)
                 if not os.path.isfile(camino):
                     return self._error("No hay logo de esa marca.", 404)
-                cuerpo, tipo = open(camino, "rb").read(), "image/png"
+                # Poco tiempo de cache: un logo que se acaba de cambiar
+                # tiene que verse hoy, no la semana que viene.
+                return self._enviar_archivo(camino, "image/png",
+                                            "public, max-age=300")
             self.send_response(200)
             self.send_header("Content-Type", tipo)
             self.send_header("Content-Length", str(len(cuerpo)))
@@ -499,17 +529,14 @@ class App(CupoPorPedido, gom.Handler):
             camino = os.path.join(AQUI, "vendor", os.path.basename(ruta))
             if not os.path.isfile(camino):
                 return self._error("No existe ese archivo.", 404)
-            cuerpo = open(camino, "rb").read()
-            self.send_response(200)
-            self.send_header("Content-Type", "text/javascript; charset=utf-8")
-            self.send_header("Content-Length", str(len(cuerpo)))
-            self.send_header("Cache-Control", "public, max-age=604800")
-            self.end_headers()
-            return self.wfile.write(cuerpo)
+            return self._enviar_archivo(camino, "text/javascript; charset=utf-8",
+                                        "public, max-age=604800")
 
         # Los modelos 3D. Son archivos estáticos y no cambian nunca, así que
-        # se dejan cachear: son 240 KB y no tiene sentido bajarlos en cada
-        # unidad que se abre.
+        # se dejan cachear: entre los siete suman 14 MB y no tiene sentido
+        # bajarlos en cada unidad que se abre. Se mandan de a pedazos: el
+        # más grande pesa 3,5 MB y leerlo entero a memoria por cada pedido
+        # dejaba al servidor sin memoria.
         if ruta.startswith("/modelos/") and ruta.endswith((".obj", ".fbx", ".glb", ".gltf")):
             if not self._exigir_sesion():
                 return
@@ -517,17 +544,13 @@ class App(CupoPorPedido, gom.Handler):
             camino = os.path.join(AQUI, "modelos", nombre)
             if not os.path.isfile(camino):
                 return self._error("No existe ese modelo.", 404)
-            cuerpo = open(camino, "rb").read()
-            self.send_response(200)
             # El FBX es binario; el OBJ es texto. Mandar el binario como
             # texto lo rompe en el camino.
-            self.send_header("Content-Type", "application/octet-stream"
-                             if nombre.endswith((".fbx", ".glb"))
-                             else "text/plain; charset=utf-8")
-            self.send_header("Content-Length", str(len(cuerpo)))
-            self.send_header("Cache-Control", "public, max-age=604800")
-            self.end_headers()
-            return self.wfile.write(cuerpo)
+            tipo = ("application/octet-stream"
+                    if nombre.endswith((".fbx", ".glb"))
+                    else "text/plain; charset=utf-8")
+            return self._enviar_archivo(camino, tipo,
+                                        "public, max-age=604800")
 
         # Las cubiertas que se pueden poner: lo que hay en stock, con la
         # medida que ya está montada primero.
