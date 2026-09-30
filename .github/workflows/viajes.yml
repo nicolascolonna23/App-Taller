@@ -1,0 +1,50 @@
+name: Planilla de viajes
+
+# Trae la planilla de hojas de ruta del BI (reporte_hojas.xlsx), guarda los
+# viajes Buenos Aires ↔ Catamarca en la base y deja bajado su viento. Es lo
+# mismo que el botón «Releer planilla» de Viento en ruta.
+#
+# Sale a las 06:15 ART, después de la de combustible, y se dispara a mano
+# desde la pestaña Actions con "Run workflow".
+
+on:
+  schedule:
+    - cron: "15 9 * * *"      # 06:15 ART, todos los días
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  traer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Instalar dependencias
+        run: pip install "psycopg[binary]" openpyxl
+
+      - name: Traer la planilla
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          OPEN_METEO_APIKEY: ${{ secrets.OPEN_METEO_APIKEY }}
+          VIENTO_HOJAS_URL: ${{ vars.VIENTO_HOJAS_URL }}
+        run: |
+          set -o pipefail
+          python gomeria/traer_viajes.py 2>&1 | tee salida.txt
+
+      - name: Armar el resumen
+        if: always()
+        run: |
+          {
+            echo "## Planilla de viajes"
+            echo '```'
+            tail -n 20 salida.txt 2>/dev/null || echo "sin salida"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

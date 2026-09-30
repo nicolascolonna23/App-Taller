@@ -65,6 +65,23 @@ class RepartirCargas(unittest.TestCase):
         self.assertIn("no es creíble", f["motivo"])
 
 
+class ConHora(unittest.TestCase):
+    """Con la hora de la carga, el día de salida deja de ser una adivinanza."""
+
+    def test_la_del_dia_de_salida_segun_la_hora(self):
+        from datetime import time as t
+        viajes = [viaje("AA111AA", "2026-08-01T10:00", hoja="1"),
+                  viaje("AA111AA", "2026-08-03T09:00", sentido="vuelta", hoja="2")]
+        cargas = [{**carga("AA111AA", "2026-08-01", 500), "hora": t(8, 0)},    # antes de salir: de nadie
+                  {**carga("AA111AA", "2026-08-01", 120), "hora": t(18, 30)},  # ya en la ruta: viaje 1
+                  {**carga("AA111AA", "2026-08-03", 280), "hora": t(7, 0)},    # antes de volver: viaje 1
+                  {**carga("AA111AA", "2026-08-03", 90), "hora": t(15, 0)}]    # ya volviendo: viaje 2
+        f = {x["hoja"]: x for x in ind.litros_por_viaje(viajes, cargas)}
+        self.assertEqual(f["1"]["litros"], 400)
+        self.assertEqual(f["2"]["litros"], 90)
+        self.assertEqual([str(k["hora"]) for k in f["1"]["detalle_cargas"]], ["18:30:00", "07:00:00"])
+
+
 class Recta(unittest.TestCase):
     def test_recta_exacta(self):
         r = ind.recta([(x, 30 + 0.2 * x) for x in range(-10, 20)])
