@@ -21,6 +21,8 @@ services:
         sync: false
       - key: ANTHROPIC_API_KEY
         sync: false
+      - key: OPEN_METEO_APIKEY  # Opcional: clave comercial de Open-Meteo (viento en ruta)
+        sync: false
       - key: ANTHROPIC_MODEL    # Opcional: modelo usado por Pengui
         value: "claude-opus-5"
       - key: USUARIO_INICIAL      # "usuario:Nombre Completo:contraseña". Borrala después.

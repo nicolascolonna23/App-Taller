@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Viento en ruta | Gestión de flota</title>
+<link rel="icon" href="/favicon.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    color-scheme:dark;
+    --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
+    --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
+    --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
+    --brand:#ff7a1a; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
+    --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
+    /* El viento en contra y a favor: un par divergente, validado contra
+       el panel oscuro y el claro. El costado es el gris del medio. */
+    --contra:#e0620c; --favor:#3b82e0; --costado:#5d6670;
+  }
+  html[data-modo="claro"]{--contra:#c2530a; --favor:#2f6fc4; --costado:#aab2bb}
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--plane);color:var(--ink);
+    font:14px Inter,system-ui,-apple-system,sans-serif;-webkit-font-smoothing:antialiased}
+
+  .top{height:58px;display:flex;align-items:center;gap:12px;padding:0 20px;
+    background:var(--surface-1);border-bottom:1px solid var(--hairline);
+    position:sticky;top:0;z-index:10}
+  .top img{height:27px}
+  .back{color:var(--ink-muted);text-decoration:none;font-size:12px;font-weight:700;
+    padding:5px 9px;border:1px solid var(--hairline-2);border-radius:8px}
+  .back:hover{color:var(--brand);border-color:color-mix(in srgb,var(--brand) 40%,transparent)}
+  .brand{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+    color:var(--ink-muted);font-weight:800}
+  .who{margin-left:auto;color:var(--ink-muted);font-size:12px}
+  .who a{color:var(--ink-muted);margin-left:10px;text-decoration:none}
+
+  main{max-width:1320px;margin:auto;padding:20px}
+  h1{margin:0;font-size:24px;font-weight:600;letter-spacing:-.02em}
+  .sub{color:var(--ink-muted);margin:5px 0 18px;line-height:1.5}
+
+  .filtros{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:16px}
+  .filtros div{display:flex;flex-direction:column;gap:5px}
+  .filtros .crece{flex:1;min-width:180px}
+  label{color:var(--ink-muted);font-size:10px;font-weight:800;
+    text-transform:uppercase;letter-spacing:1px}
+  input,select{background:var(--surface-2);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:10px;padding:9px 11px;
+    font:inherit;outline:none}
+  input:focus,select:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
+  .btn{background:var(--brand);color:var(--marca-ink,#101419);border:0;border-radius:10px;
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+  .btn.sec{background:var(--surface-2);color:var(--ink);border:1px solid var(--hairline-2)}
+  .btn:disabled{opacity:.5;cursor:wait}
+
+  .tarjetas{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+  .tarjeta{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:13px;padding:15px}
+  .tarjeta b{display:block;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .tarjeta span{color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.9px;font-weight:700}
+  .tarjeta small{display:block;color:var(--ink-muted);font-size:12px;margin-top:4px}
+  @media(max-width:760px){.tarjetas{grid-template-columns:repeat(2,1fr)}}
+
+  .aviso{margin-bottom:10px;padding:11px 14px;border-radius:11px;font-size:13px;line-height:1.5}
+  .aviso.mal{color:#ffb3b6;background:rgba(227,93,98,.12)}
+  html[data-modo="claro"] .aviso.mal{color:#9b2229}
+  .aviso.dato{color:var(--ink-2);background:var(--surface-2);border:1px solid var(--hairline)}
+
+  .caja{background:var(--surface-1);border:1px solid var(--hairline);
+    border-radius:14px;padding:6px 15px 10px;overflow:auto;margin-bottom:16px}
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
+    letter-spacing:.8px;padding:12px 8px 10px;border-bottom:1px solid var(--hairline-2);
+    white-space:nowrap;cursor:pointer;user-select:none}
+  th[data-orden]:hover{color:var(--ink)}
+  th.on::after{content:" ↓"} th.on.asc::after{content:" ↑"}
+  td{padding:10px 8px;border-bottom:1px solid var(--hairline);vertical-align:middle;
+    white-space:nowrap}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  th.num{text-align:right}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  .apagado{color:var(--ink-muted)}
+  .supuesta{color:var(--ink-muted);font-size:11px;margin-left:4px}
+
+  .pill{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;
+    font-weight:800;background:var(--surface-3);color:var(--ink-2)}
+  .pill i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;
+    vertical-align:0}
+  .reparto{display:flex;gap:2px;width:120px;height:10px}
+  .reparto i{display:block;height:100%}
+  .reparto i:first-child{border-radius:3px 0 0 3px} .reparto i:last-child{border-radius:0 3px 3px 0}
+  .leyenda{display:flex;flex-wrap:wrap;gap:14px;color:var(--ink-2);font-size:12px;margin:10px 0 4px}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+  .fondo{position:fixed;inset:0;background:rgba(0,0,0,.76);z-index:30;
+    display:none;align-items:center;justify-content:center;padding:18px}
+  .fondo.on{display:flex}
+  .modal{width:min(980px,100%);max-height:92vh;overflow:auto;background:var(--surface-1);
+    border:1px solid var(--hairline-2);border-radius:16px;padding:20px}
+  .cabecera{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .modal h2{margin:0;font-size:19px}
+  .cerrar{border:0;background:none;color:var(--ink-muted);font-size:25px;cursor:pointer}
+  .datos{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+  .datos div{background:var(--surface-2);border-radius:10px;padding:10px 12px}
+  .datos b{display:block;font-size:18px;font-variant-numeric:tabular-nums}
+  .datos span{color:var(--ink-muted);font-size:10px;text-transform:uppercase;letter-spacing:.8px;font-weight:700}
+  @media(max-width:700px){.datos{grid-template-columns:repeat(2,1fr)}}
+
+  .grafico{position:relative;margin-top:6px}
+  .grafico svg{display:block;width:100%;height:auto;overflow:visible}
+  .grafico text{fill:var(--ink-muted);font:11px Inter,system-ui,sans-serif}
+  .grafico .grilla{stroke:var(--hairline-2);stroke-width:1}
+  .grafico .cero{stroke:var(--ink-muted);stroke-width:1}
+  .grafico .golpe{fill:transparent}
+  .grafico .golpe:hover+.marca, .grafico .marca.on{opacity:.75}
+  .tip{position:absolute;pointer-events:none;background:var(--surface-3);color:var(--ink);
+    border:1px solid var(--hairline-2);border-radius:9px;padding:8px 10px;font-size:12px;
+    line-height:1.45;white-space:nowrap;box-shadow:0 10px 24px rgba(0,0,0,.35);z-index:2}
+  details{margin-top:14px}
+  summary{cursor:pointer;color:var(--ink-2);font-weight:700;font-size:13px}
+  .pie{color:var(--ink-muted);font-size:12px;line-height:1.6;margin-top:6px}
+  .vacio{padding:30px 10px;text-align:center;color:var(--ink-muted)}
+</style>
+<script src="/tema.js"></script>
+</head>
+<body>
+
+<header class="top">
+  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <a class="back" href="/">‹ Inicio</a>
+  <span class="brand">Viento en ruta</span>
+  <span class="who" id="quien"></span>
+</header>
+
+<main>
+  <h1>Viento por viaje · Buenos Aires ↔ Catamarca</h1>
+  <p class="sub">El viento que encontró cada camión a lo largo de la ruta, por Córdoba capital,
+    hora por hora. <b>En contra</b> es cuánto del viento le pegó de frente: positivo frena,
+    negativo empuja.</p>
+
+  <div class="filtros">
+    <div><label for="desde">Desde</label><input type="date" id="desde"></div>
+    <div><label for="hasta">Hasta</label><input type="date" id="hasta"></div>
+    <div><label for="sentido">Sentido</label>
+      <select id="sentido">
+        <option value="">Ida y vuelta</option>
+        <option value="ida">Ida (a Catamarca)</option>
+        <option value="vuelta">Vuelta (a Buenos Aires)</option>
+      </select></div>
+    <div class="crece"><label for="buscar">Buscar</label>
+      <input id="buscar" placeholder="Patente, chofer u hoja"></div>
+    <button class="btn" id="consultar">Consultar</button>
+    <button class="btn sec" id="recargar" title="Vuelve a bajar la planilla del BI">Releer planilla</button>
+  </div>
+
+  <div id="avisos"></div>
+
+  <section class="tarjetas" id="tarjetas" hidden>
+    <div class="tarjeta"><span>Viajes</span><b id="kViajes">–</b><small id="kViajesSub"></small></div>
+    <div class="tarjeta"><span>Con viento en contra fuerte</span><b id="kFuerte">–</b><small id="kFuerteSub"></small></div>
+    <div class="tarjeta"><span>En contra promedio</span><b id="kContra">–</b><small id="kContraSub"></small></div>
+    <div class="tarjeta"><span>Ráfaga más fuerte</span><b id="kRafaga">–</b><small id="kRafagaSub"></small></div>
+  </section>
+
+  <div class="caja">
+    <div class="leyenda">
+      <span><i style="background:var(--contra)"></i>De frente</span>
+      <span><i style="background:var(--costado)"></i>De costado</span>
+      <span><i style="background:var(--favor)"></i>De cola</span>
+    </div>
+    <table>
+      <thead><tr>
+        <th data-orden="salida" class="on">Salida</th>
+        <th data-orden="sentido">Sentido</th>
+        <th data-orden="patente">Patente</th>
+        <th data-orden="chofer">Chofer</th>
+        <th data-orden="horas_viaje" class="num">Horas</th>
+        <th data-orden="velocidad_media" class="num">Viento medio</th>
+        <th data-orden="contra_media" class="num">En contra</th>
+        <th data-orden="calificacion">Cómo le fue</th>
+        <th>Frente · costado · cola</th>
+        <th data-orden="rafaga_max" class="num">Ráfaga máx.</th>
+      </tr></thead>
+      <tbody id="filas"><tr><td colspan="10" class="vacio">Cargando…</td></tr></tbody>
+    </table>
+  </div>
+
+  <p class="pie" id="pie"></p>
+</main>
+
+<div class="fondo" id="detalle"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
+  <div class="cabecera">
+    <div><h2 id="dTitulo"></h2><div class="apagado" id="dSub"></div></div>
+    <button class="cerrar" aria-label="Cerrar">×</button>
+  </div>
+  <div class="datos" id="dDatos"></div>
+  <div class="leyenda">
+    <span><i style="background:var(--contra)"></i>En contra (frena)</span>
+    <span><i style="background:var(--favor)"></i>A favor (empuja)</span>
+    <span class="apagado">Cada barra es una hora del viaje · km/h</span>
+  </div>
+  <div class="grafico" id="dGrafico"></div>
+  <details>
+    <summary>Hora por hora</summary>
+    <table>
+      <thead><tr><th>Hora</th><th>Dónde</th><th class="num">Km</th><th class="num">Viento</th>
+        <th>Viene del</th><th class="num">Ráfaga</th><th class="num">En contra</th><th>Tipo</th></tr></thead>
+      <tbody id="dHoras"></tbody>
+    </table>
+  </details>
+</div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fecha = s => s ? new Date(String(s).replace(' ', 'T')) : null;
+const dd = n => String(n).padStart(2, '0');
+const fechaCorta = d => d ? `${dd(d.getDate())}/${dd(d.getMonth()+1)}/${String(d.getFullYear()).slice(2)}` : '';
+const horaCorta = d => d ? `${dd(d.getHours())}:${dd(d.getMinutes())}` : '';
+const num = (n, dec = 0) => n == null ? '–' :
+  Number(n).toLocaleString('es-AR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+const conSigno = n => n == null ? '–' : (n > 0 ? '+' : n < 0 ? '−' : '') + num(Math.abs(n), 1);
+const RUMBOS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSO','SO','OSO','O','ONO','NO','NNO'];
+const cardinal = g => g == null ? '–' : RUMBOS[Math.round(g / 22.5) % 16];
+const iso = d => `${d.getFullYear()}-${dd(d.getMonth()+1)}-${dd(d.getDate())}`;
+
+const D = {datos: null, orden: 'salida', asc: false};
+const COLOR_CALIF = {'en contra fuerte':'var(--contra)', 'en contra':'var(--contra)',
+                     'neutro':'var(--costado)', 'a favor':'var(--favor)'};
+
+function avisos(lista, error) {
+  $('#avisos').innerHTML =
+    (error ? `<div class="aviso mal">${esc(error)}</div>` : '') +
+    (lista || []).map(a => `<div class="aviso dato">${esc(a)}</div>`).join('');
+}
+
+async function cargar(recargar) {
+  const q = new URLSearchParams({desde: $('#desde').value, hasta: $('#hasta').value});
+  if (recargar) q.set('recargar', '1');
+  $('#consultar').disabled = $('#recargar').disabled = true;
+  $('#filas').innerHTML = `<tr><td colspan="10" class="vacio">Bajando la planilla y el viento… la primera vez de un período largo tarda.</td></tr>`;
+  try {
+    const r = await fetch('/api/viento?' + q);
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || 'No se pudo armar el informe.');
+    D.datos = d;
+    avisos(d.avisos);
+    pintar();
+  } catch (e) {
+    D.datos = null;
+    avisos([], e.message);
+    $('#tarjetas').hidden = true;
+    $('#filas').innerHTML = `<tr><td colspan="10" class="vacio">Sin datos.</td></tr>`;
+  } finally {
+    $('#consultar').disabled = $('#recargar').disabled = false;
+  }
+}
+
+function visibles() {
+  if (!D.datos) return [];
+  const sentido = $('#sentido').value;
+  const q = $('#buscar').value.trim().toLowerCase();
+  let v = D.datos.viajes.filter(x => (!sentido || x.sentido === sentido) &&
+    (!q || [x.patente, x.chofer, x.hoja, x.semi].some(c => String(c || '').toLowerCase().includes(q))));
+  const k = D.orden, s = D.asc ? 1 : -1;
+  return v.slice().sort((a, b) => {
+    const x = a[k], y = b[k];
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (x > y ? 1 : x < y ? -1 : 0) * s;
+  });
+}
+
+function reparto(x) {
+  if (x.pct_frente == null) return '<span class="apagado">–</span>';
+  const t = [['frente', x.pct_frente, 'var(--contra)'], ['costado', x.pct_costado, 'var(--costado)'],
+             ['cola', x.pct_cola, 'var(--favor)']].filter(p => p[1] > 0);
+  return `<div class="reparto" title="De frente ${x.pct_frente}% · costado ${x.pct_costado}% · cola ${x.pct_cola}%">` +
+    t.map(p => `<i style="width:${p[1]}%;background:${p[2]}"></i>`).join('') + '</div>';
+}
+
+function pintar() {
+  const v = visibles();
+  document.querySelectorAll('th[data-orden]').forEach(th => {
+    th.classList.toggle('on', th.dataset.orden === D.orden);
+    th.classList.toggle('asc', th.dataset.orden === D.orden && D.asc);
+  });
+  $('#filas').innerHTML = v.length ? v.map((x, i) => {
+    const s = fecha(x.salida);
+    return `<tr data-i="${D.datos.viajes.indexOf(x)}">
+      <td>${fechaCorta(s)} ${horaCorta(s)}${x.salida_real ? '' : '<span class="supuesta" title="La planilla no trae la hora: se supuso">(hora supuesta)</span>'}</td>
+      <td>${x.sentido === 'ida' ? 'Ida →' : '← Vuelta'}</td>
+      <td>${esc(x.patente) || '<span class="apagado">–</span>'}</td>
+      <td>${esc(x.chofer) || '<span class="apagado">–</span>'}</td>
+      <td class="num">${num(x.horas_viaje, 0)}${x.llegada_real ? '' : '<span class="supuesta" title="Llegada estimada">~</span>'}</td>
+      <td class="num">${x.velocidad_media == null ? '–' : num(x.velocidad_media, 0) + ' km/h'}</td>
+      <td class="num"><b>${conSigno(x.contra_media)}</b></td>
+      <td>${x.estado === 'sin datos' ? '<span class="apagado">sin viento todavía</span>' :
+        `<span class="pill"><i style="background:${COLOR_CALIF[x.calificacion] || 'var(--costado)'}"></i>${esc(x.calificacion)}</span>`}</td>
+      <td>${reparto(x)}</td>
+      <td class="num">${x.rafaga_max == null ? '–' : num(x.rafaga_max, 0) + ' km/h'}</td>
+    </tr>`;
+  }).join('') : `<tr><td colspan="10" class="vacio">No hay viajes Buenos Aires ↔ Catamarca en este período.</td></tr>`;
+  $('#filas').querySelectorAll('tr[data-i]').forEach(tr =>
+    tr.onclick = () => detalle(D.datos.viajes[+tr.dataset.i]));
+  tarjetas(v);
+  const cols = Object.entries(D.datos.columnas || {}).map(([k, c]) => `${k} = «${esc(c)}»`).join(' · ');
+  $('#pie').innerHTML = `Fuente del viento: ${esc(D.datos.fuente)}. Recorrido de ${num(D.datos.km_total)} km: ` +
+    D.datos.ruta.map(p => esc(p.lugar)).join(' → ') + '.<br>' +
+    `Dónde estaba el camión se estima repartiendo el viaje parejo entre la salida y la llegada.<br>` +
+    `Columnas de la planilla que se usaron: ${cols || '–'}. ` +
+    `Viajes de otros tramos en la planilla: ${num(D.datos.otros_viajes)}.`;
+}
+
+function tarjetas(v) {
+  $('#tarjetas').hidden = false;
+  const con = v.filter(x => x.contra_media != null);
+  $('#kViajes').textContent = num(v.length);
+  $('#kViajesSub').textContent = `${v.filter(x => x.sentido === 'ida').length} de ida · ${v.filter(x => x.sentido === 'vuelta').length} de vuelta`;
+  const fuertes = con.filter(x => x.calificacion === 'en contra fuerte');
+  $('#kFuerte').textContent = num(fuertes.length);
+  $('#kFuerteSub').textContent = con.length ? `${Math.round(100 * fuertes.length / con.length)}% de los viajes con dato · 15 km/h o más` : 'sin datos';
+  const prom = arr => arr.length ? arr.reduce((s, x) => s + x.contra_media, 0) / arr.length : null;
+  const p = prom(con);
+  $('#kContra').textContent = p == null ? '–' : conSigno(p) + ' km/h';
+  const pi = prom(con.filter(x => x.sentido === 'ida')), pv = prom(con.filter(x => x.sentido === 'vuelta'));
+  $('#kContraSub').textContent = `ida ${conSigno(pi)} · vuelta ${conSigno(pv)}`;
+  const peor = con.filter(x => x.rafaga_max != null).sort((a, b) => b.rafaga_max - a.rafaga_max)[0];
+  $('#kRafaga').textContent = peor ? num(peor.rafaga_max) + ' km/h' : '–';
+  $('#kRafagaSub').textContent = peor ? `${peor.rafaga_lugar} · ${fechaCorta(fecha(peor.rafaga_hora))} ${horaCorta(fecha(peor.rafaga_hora))}` : '';
+}
+
+function detalle(x) {
+  const s = fecha(x.salida), l = fecha(x.llegada);
+  $('#dTitulo').textContent = `${x.sentido === 'ida' ? 'Buenos Aires → Catamarca' : 'Catamarca → Buenos Aires'}` +
+    (x.patente ? ` · ${x.patente}` : '');
+  $('#dSub').textContent = [x.hoja && `Hoja ${x.hoja}`, x.chofer,
+    `salió ${fechaCorta(s)} ${horaCorta(s)}${x.salida_real ? '' : ' (hora supuesta)'}`,
+    `llegó ${fechaCorta(l)} ${horaCorta(l)}${x.llegada_real ? '' : ' (estimada)'}`].filter(Boolean).join(' · ');
+  $('#dDatos').innerHTML = [
+    ['En contra promedio', x.contra_media == null ? '–' : conSigno(x.contra_media) + ' km/h'],
+    ['Viento medio', x.velocidad_media == null ? '–' : num(x.velocidad_media) + ' km/h'],
+    ['Ráfaga máxima', x.rafaga_max == null ? '–' : `${num(x.rafaga_max)} km/h`],
+    ['Horas de frente', x.pct_frente == null ? '–' : `${x.pct_frente}%`],
+  ].map(([t, v]) => `<div><span>${t}</span><b>${v}</b></div>`).join('');
+  grafico(x.detalle);
+  $('#dHoras').innerHTML = x.detalle.map(h => {
+    const d = fecha(h.hora);
+    return `<tr><td>${fechaCorta(d)} ${horaCorta(d)}</td><td>${esc(h.lugar)}</td><td class="num">${num(h.km)}</td>
+      <td class="num">${h.velocidad == null ? 'sin dato' : num(h.velocidad) + ' km/h'}</td>
+      <td>${cardinal(h.direccion)}</td><td class="num">${h.rafaga == null ? '–' : num(h.rafaga)}</td>
+      <td class="num">${conSigno(h.contra)}</td><td>${esc(h.tipo || '')}</td></tr>`;
+  }).join('');
+  $('#detalle').classList.add('on');
+}
+
+/* Una barra por hora: hacia arriba lo que frenó, hacia abajo lo que empujó.
+   Un solo eje, con el cero marcado. */
+function grafico(horas) {
+  const caja = $('#dGrafico');
+  const con = horas.filter(h => h.contra != null);
+  if (!con.length) { caja.innerHTML = '<p class="vacio">Todavía no hay viento para este viaje.</p>'; return; }
+  const W = 900, H = 260, izq = 44, der = 8, arr = 12, aba = 38;
+  const tope = Math.max(10, ...con.map(h => Math.abs(h.contra)));
+  const paso = tope > 40 ? 20 : tope > 20 ? 10 : 5;
+  const max = Math.ceil(tope / paso) * paso;
+  const y = v => arr + (max - v) * (H - arr - aba) / (2 * max);
+  const n = horas.length, ancho = (W - izq - der) / n;
+  const barra = Math.min(24, Math.max(3, ancho - 2));
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Viento en contra por hora del viaje">`;
+  for (let v = -max; v <= max; v += paso) {
+    svg += `<line class="${v === 0 ? 'cero' : 'grilla'}" x1="${izq}" x2="${W - der}" y1="${y(v)}" y2="${y(v)}"/>` +
+      `<text x="${izq - 6}" y="${y(v) + 4}" text-anchor="end">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</text>`;
+  }
+  // Etiquetas abajo: la ciudad cada vez que cambia, sin pisarse.
+  let ultimaX = -99, ultimoLugar = '';
+  horas.forEach((h, i) => {
+    const cx = izq + ancho * i + ancho / 2;
+    const lugar = h.lugar.startsWith('después de ') ? '' : h.lugar;
+    if (lugar && lugar !== ultimoLugar && cx - ultimaX > 70) {
+      svg += `<text x="${cx}" y="${H - aba + 16}" text-anchor="middle">${esc(lugar)}</text>`;
+      ultimaX = cx; ultimoLugar = lugar;
+    }
+    const d = fecha(h.hora);
+    if (d.getHours() % 6 === 0)
+      svg += `<text x="${cx}" y="${H - 6}" text-anchor="middle">${horaCorta(d)}</text>`;
+    if (h.contra == null) return;
+    const v = h.contra, y0 = y(0), y1 = y(v), alto = Math.abs(y1 - y0);
+    const r = Math.min(4, alto, barra / 2), x = cx - barra / 2;
+    const color = v >= 0 ? 'var(--contra)' : 'var(--favor)';
+    // Punta redondeada, base recta sobre el cero.
+    const forma = v >= 0
+      ? `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + barra - r}Q${x + barra},${y1} ${x + barra},${y1 + r}V${y0}Z`
+      : `M${x},${y0}V${y1 - r}Q${x},${y1} ${x + r},${y1}H${x + barra - r}Q${x + barra},${y1} ${x + barra},${y1 - r}V${y0}Z`;
+    svg += `<rect class="golpe" data-i="${i}" x="${izq + ancho * i}" y="${arr}" width="${ancho}" height="${H - arr - aba}"/>` +
+      `<path class="marca" d="${forma}" fill="${color}"/>`;
+  });
+  svg += '</svg><div class="tip" hidden></div>';
+  caja.innerHTML = svg;
+  const tip = caja.querySelector('.tip');
+  caja.querySelectorAll('.golpe').forEach(g => {
+    g.onmousemove = e => {
+      const h = horas[+g.dataset.i], d = fecha(h.hora);
+      tip.innerHTML = `<b>${fechaCorta(d)} ${horaCorta(d)}</b> · ${esc(h.lugar)} (km ${num(h.km)})<br>` +
+        `Viento ${num(h.velocidad)} km/h del ${cardinal(h.direccion)} · ráfaga ${num(h.rafaga)} km/h<br>` +
+        `En contra ${conSigno(h.contra)} km/h · de ${esc(h.tipo)}`;
+      tip.hidden = false;
+      const b = caja.getBoundingClientRect();
+      let left = e.clientX - b.left + 14;
+      if (left + tip.offsetWidth > b.width) left = e.clientX - b.left - tip.offsetWidth - 14;
+      tip.style.left = Math.max(0, left) + 'px';
+      tip.style.top = (e.clientY - b.top - tip.offsetHeight - 10) + 'px';
+    };
+    g.onmouseleave = () => { tip.hidden = true; };
+  });
+}
+
+document.querySelectorAll('th[data-orden]').forEach(th => th.onclick = () => {
+  if (D.orden === th.dataset.orden) D.asc = !D.asc;
+  else { D.orden = th.dataset.orden; D.asc = false; }
+  if (D.datos) pintar();
+});
+$('#sentido').onchange = $('#buscar').oninput = () => D.datos && pintar();
+$('#consultar').onclick = () => cargar(false);
+$('#recargar').onclick = () => cargar(true);
+const fondo = $('#detalle');
+fondo.onclick = e => { if (e.target === fondo) fondo.classList.remove('on'); };
+fondo.querySelector('.cerrar').onclick = () => fondo.classList.remove('on');
+addEventListener('keydown', e => { if (e.key === 'Escape') fondo.classList.remove('on'); });
+
+(async () => {
+  const hoy = new Date(), antes = new Date(hoy - 90 * 864e5);
+  $('#hasta').value = iso(hoy);
+  $('#desde').value = iso(antes);
+  try {
+    const u = await fetch('/api/yo').then(r => r.ok ? r.json() : null);
+    if (u) $('#quien').innerHTML = `${esc(u.nombre)} <a href="/salir">Salir</a>`;
+  } catch (e) {}
+  cargar(false);
+})();
+</script>
+</body>
+</html>
