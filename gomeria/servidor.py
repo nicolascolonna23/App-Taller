@@ -164,6 +164,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._responder(jstr({
                         "cubiertas": base.inventario_cubiertas(cx),
                         "resumen": base.resumen_cubiertas(cx),
+                        "sin_fuego": base.sin_fuego(cx),
                     }))
             except Exception as e:
                 traceback.print_exc()
@@ -504,6 +505,13 @@ class Handler(BaseHTTPRequestHandler):
                     inicial_mm=datos.get("inicial_mm"),
                     usuario=self.usuario["nombre"],
                     nota=str(datos.get("nota") or "").strip() or None)
+            elif op == "codigo":
+                # Le llegó el número de fuego a una cubierta que había
+                # entrado con uno provisorio. Es la misma ficha: cambia
+                # cómo se llama, no de qué goma se está hablando.
+                cubierta_id = int(datos.get("id") or 0)
+                base.cambiar_codigo(cx, cubierta_id, datos.get("codigo"),
+                                    usuario=self.usuario["nombre"])
             elif op == "criterio":
                 cubierta_id = None
                 desgaste.guardar_criterio(cx, str(datos.get("funcion") or ""),
@@ -524,6 +532,7 @@ class Handler(BaseHTTPRequestHandler):
                 "ok": True, "cubierta_id": cubierta_id,
                 "cubiertas": base.inventario_cubiertas(cx),
                 "resumen": base.resumen_cubiertas(cx),
+                "sin_fuego": base.sin_fuego(cx),
             }))
 
     def _movimientos(self, datos):

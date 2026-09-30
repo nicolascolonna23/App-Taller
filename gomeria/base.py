@@ -647,6 +647,56 @@ def alta_cubierta(cx, codigo, **datos):
     return fila["id"]
 
 
+def cambiar_codigo(cx, cubierta_id, codigo, usuario=None):
+    """Le graba el número de fuego a una cubierta que entró sin él.
+
+    El código de una cubierta es su número de fuego. Las que entraron por
+    el alta de stock, o por una factura antes de que el gomero las grabe,
+    llevan uno provisorio (STK-…, FC-…) que solo sirve para poder
+    cargarlas. Esto lo reemplaza por el de verdad.
+
+    Se cambia el código y nada más: la ficha sigue siendo la misma, con
+    sus kilómetros, sus vidas y su historial. Cambiarle el nombre a una
+    cubierta no la convierte en otra.
+    """
+    codigo = " ".join(str(codigo or "").split()).upper()
+    if not codigo:
+        raise ValueError("Ingresar el número de fuego.")
+
+    actual = cx.execute("select codigo, codigo_provisorio from cubiertas where id = %s",
+                        (cubierta_id,)).fetchone()
+    if not actual:
+        raise ValueError("La cubierta no existe.")
+    if actual["codigo"] == codigo:
+        return codigo
+
+    ocupado = cx.execute("select id from cubiertas where codigo = %s and id <> %s",
+                         (codigo, cubierta_id)).fetchone()
+    if ocupado:
+        raise ValueError(f"Ya hay otra cubierta con el código {codigo}.")
+
+    cx.execute("""update cubiertas set codigo = %s, codigo_provisorio = false
+                  where id = %s""", (codigo, cubierta_id))
+    # Queda en el historial de la cubierta: dentro de un año, el que mire
+    # de dónde salió este número lo encuentra acá y no en la memoria de
+    # nadie.
+    _log(cx, uuid.uuid4(), "alta", cubierta_id=cubierta_id, usuario=usuario,
+         nota=f"Número de fuego: {actual['codigo']} → {codigo}")
+    return codigo
+
+
+def sin_fuego(cx):
+    """Las cubiertas que esperan su número de fuego."""
+    try:
+        return [dict(f) for f in cx.execute(
+            "select * from v_cubiertas_sin_fuego").fetchall()]
+    except Exception:
+        # Sin 39_codigo_de_fuego.sql corrido, la pantalla sigue andando
+        # como antes: simplemente no hay nada que completar.
+        cx.rollback()
+        return []
+
+
 def _hay_vidas(cx):
     """Si ya se corrió el SQL de desgaste.
 
