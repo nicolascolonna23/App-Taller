@@ -179,9 +179,10 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 </style>
 <script src="/tema.js"></script></head><body>
 <header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
-<nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="changes">Cambios por eje</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
+<nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="retread">Recapado</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="changes">Cambios por eje</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
 <main><section class="panel on" id="fleet"><div class="card fleet-picker" id="unitPicker"><label for="unitSearch">Elegir unidad <span class="sub" id="unitCount">Cargando…</span></label><div class="picker-box"><input class="search" id="unitSearch" role="combobox" aria-expanded="false" aria-controls="unitList" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" placeholder="Buscar patente, interno o sucursal"><button class="picker-abrir" id="unitToggle" type="button" tabindex="-1" aria-label="Ver todas las unidades">▾</button><div class="units" id="unitList" role="listbox" aria-label="Unidades" hidden></div></div></div><p id="benchStatus" role="status"></p><div class="grid"><aside class="card stock-shelf"><h2>Stock de cubiertas</h2><p class="workbench-help">Seleccionar una cubierta o arrastrarla a un casillero vacío. Se muestran hasta 200 resultados; usar el buscador para encontrar otras.</p><input id="shelfSearch" placeholder="Código, marca o medida" aria-label="Buscar cubierta en stock"><div class="drop-stock" id="returnStock">Arrastrar a esta zona la cubierta que se retira.<br><small>Se pedirá destino y motivo.</small></div><div id="shelfList" class="shelf-list"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div><aside class="card tire-inspector" id="tireInspector"><h3>Neumático seleccionado</h3><p class="workbench-help">Seleccionar una cubierta del stock o una posición del vehículo.</p></aside></div></section>
 <section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select><select id="stockFuego"><option value="">Con y sin número de fuego</option><option value="1">Solo sin número de fuego</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
+<section class="panel" id="retread"><div id="retreadBody"><div class="card loading"><span class="pulse"></span>Cargando el recapado…</div></div></section>
 <section class="panel" id="wear"><div id="wearBody"><div class="card loading"><span class="pulse"></span>Calculando desgaste…</div></div></section>
 <section class="panel" id="changes"><div id="neuBody"><div class="card loading"><span class="pulse"></span>Calculando cambios…</div></div></section>
 <section class="panel" id="register"><div class="card register"><h1>Registrar trabajo</h1><p class="sub">Revisar la propuesta antes de guardar el movimiento.</p><label for="workSearch">Unidad <span class="help">(opcional si figura en el texto)</span></label><div class="picker-box"><input class="search" id="workSearch" role="combobox" aria-expanded="false" aria-controls="workList" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" placeholder="Buscar patente, interno o sucursal"><button class="picker-abrir" id="workToggle" type="button" tabindex="-1" aria-label="Ver todas las unidades">&#9662;</button><div class="units" id="workList" role="listbox" aria-label="Unidades" hidden></div><input type="hidden" id="workUnit"></div><label>Trabajo realizado</label><textarea id="workText" placeholder="Patente: AD 900 UK&#10;3 eje lado izquierdo entran 2 Michelin 079 y 327 recapadas.. salen 2 Fate 380 y 381 para recapar.."></textarea><p class="help">Se escribe como el parte: la patente arriba y debajo qué entra y qué sale, con el número de fuego. Los kilómetros se toman automáticamente de Hawk según la fecha del movimiento.</p><button class="btn" id="interpret">Interpretar movimiento</button><div id="workResult"></div></div></section></main>
@@ -189,6 +190,7 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 <div class="modalbg" id="measureModal"><div class="modal"><div class="modaltop"><h2 id="measureTitle">Medir dibujo</h2><button class="close" data-close="measureModal">×</button></div><p class="sub">Milímetros remanentes. Determinan la alerta y el costo por milímetro.</p><div class="formgrid"><div><label>Remanente (mm)</label><input id="mMm" type="number" min="0" max="40" step=".5"></div></div><div id="measureError"></div><button class="btn" id="saveMeasure">Guardar medición</button></div></div>
 <div class="modalbg" id="retreadModal"><div class="modal"><div class="modaltop"><h2 id="retreadTitle">Volvió del recapador</h2><button class="close" data-close="retreadModal">×</button></div><p class="sub">Se cierra la vida anterior con su rendimiento y comienza la siguiente. Este valor permite comparar el rendimiento entre bandas.</p><div class="formgrid"><div><label>Marca de la banda</label><input id="rBrand" placeholder="BANDAG"></div><div><label>Banda / dibujo</label><input id="rBand" placeholder="BDR-HT"></div><div><label>Recapador</label><input id="rProv"></div><div><label>Costo del recapado</label><input id="rCost" type="number" min="0" step=".01"></div><div><label>Dibujo con el que volvió (mm)</label><input id="rMm" type="number" min="0" max="40" step=".5"></div><div><label>Nota</label><input id="rNote"></div></div><div id="retreadError"></div><button class="btn" id="saveRetread">Registrar recapado</button></div></div>
 <div class="modalbg" id="neuModal"><div class="modal"><div class="modaltop"><h2>Registrar cambio de cubiertas</h2><button class="close" data-close="neuModal">×</button></div><p class="sub">Desde esta fecha se vuelve a contar para ese eje. Si las cubiertas están cargadas y montadas en el mapa, no hace falta: se cuenta solo.</p><div class="formgrid"><div class="wide"><label>Unidad</label><select id="ncUnit" style="max-width:none"></select></div><div class="wide"><label>Ejes que se cambiaron</label><div id="ncEjes" class="ejes-check"></div></div><div><label>Fecha</label><input id="ncFecha" type="date"></div><div><label>Odómetro ese día <span class="help">(opcional)</span></label><input id="ncKm" inputmode="numeric" placeholder="1.652.322"></div><div><label>Marca</label><input id="ncMarca" placeholder="MICHELIN"></div><div><label>Modelo</label><input id="ncModelo" placeholder="X MULTI Z"></div><div><label>Medida</label><input id="ncMedida" placeholder="295/80R22.5"></div><div><label>Nota</label><input id="ncNota"></div></div><p class="help">Marca y modelo son opcionales, pero sin ellos este cambio no entra en la comparación de marcas.</p><div id="ncError"></div><button class="btn" id="ncGuardar" style="margin-top:10px">Guardar cambio</button></div></div>
+<div class="modalbg" id="recModal"><div class="modal"><div class="modaltop"><h2 id="recModalTitle">Recibir del recapador</h2><button class="close" data-close="recModal">×</button></div><div id="recModalBody"></div><button class="btn" id="recGuardar" style="margin-top:12px">Registrar la vuelta</button></div></div>
 <datalist id="catMarcas"></datalist><datalist id="catMedidas"></datalist>
 <div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" list="catMedidas" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand" list="catMarcas"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
 <script src="/vendor/three.min.js"></script>
@@ -202,10 +204,10 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 "use strict";const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)],esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtPat=p=>{let m=String(p||'').match(/^([A-Z]{2})(\d{3})([A-Z]{2})$/);if(m)return`${m[1]} ${m[2]} ${m[3]}`;m=String(p||'').match(/^([A-Z]{3})(\d{3})$/);return m?`${m[1]} ${m[2]}`:p},fmtDate=v=>v?new Date(v).toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
 let D={units:[],configs:[],tires:[],summary:{},user:null,selected:null,parte:null,wear:null,alertaDe:{},tocada:null,unidadId:null,movimientos:[],historial:[],verDeshechos:false};async function api(url,body){let r=await fetch(url,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{}),d={};try{d=await r.json()}catch{}if(!r.ok)throw Error(d.error||`Error ${r.status}`);return d}
-function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(n==='wear'&&!D.wear)loadWear();if(n==='changes'&&!D.neu)loadNeu();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
+function tab(n,marcar=true){$$('.tab').forEach(x=>x.classList.toggle('on',x.dataset.tab===n));$$('.panel').forEach(x=>x.classList.toggle('on',x.id===n));if(n==='stock'&&!D.tires.length)loadStock();if(n==='wear'&&!D.wear)loadWear();if(n==='changes'&&!D.neu)loadNeu();if(n==='retread'&&!D.rec)loadRec();if(marcar&&location.hash.slice(1)!==n)window.history.replaceState(null,'','#'+n)}$$('.tab').forEach(x=>x.onclick=()=>tab(x.dataset.tab));
 /* La solapa vive en la direccion: /gomeria#register abre directo la carga de
    texto, que es a donde apunta el QR del taller. Volver atras la respeta. */
-const SOLAPAS=['fleet','stock','wear','changes','register'];
+const SOLAPAS=['fleet','stock','retread','wear','changes','register'];
 function solapaDeLaUrl(){const h=location.hash.slice(1);return SOLAPAS.includes(h)?h:null}
 addEventListener('hashchange',()=>{const h=solapaDeLaUrl();if(h)tab(h,false)});
 /* El buscador de unidad es un desplegable: la lista aparece sobre la
@@ -566,6 +568,165 @@ async function interpret(){let p=$('#workUnit').value,t=$('#workText').value.tri
 if(!p)return out.innerHTML='<div class="result error">Elegir la unidad de la lista.</div>';
 if(!t)return out.innerHTML='<div class="result error">Escribir el trabajo realizado.</div>';
 let b=$('#interpret');b.disabled=true;out.innerHTML='<div class="result"><span class="pulse"></span>Interpretando…</div>';try{let d=await api('/api/interpretar',{patente:p,texto:t}),x=d.propuesta;D.parte=d.parte_id;if(!x.acciones?.length)out.innerHTML=`<div class="result error">${esc(x.pregunta||'No quedó claro el movimiento.')}</div>`;else{out.innerHTML=`<div class="result proposal"><b>${esc(x.resumen||'Movimiento interpretado')}</b><ul>${x.acciones.map(a=>`<li>${esc(a.tipo)} · ${esc(a.posicion||'')}${a.posicion_destino?' → '+esc(a.posicion_destino):''}${a.cubierta?' · '+esc(a.cubierta):''}</li>`).join('')}</ul><div class="actions"><button class="btn" id="confirm">Confirmar</button><button class="btn alt" id="discard">Descartar</button></div></div>`;$('#confirm').onclick=confirm;$('#discard').onclick=discard}}catch(e){out.innerHTML=`<div class="result error">${esc(e.message)}</div>`}finally{b.disabled=false}}async function confirm(){try{let d=await api('/api/confirmar',{parte_id:D.parte});$('#workResult').innerHTML=`<div class="result success">Guardado.<br>${d.hecho.map(esc).join('<br>')}</div>`;$('#workText').value='';await dashboard();if(D.selected)await selectUnit(D.selected);if(D.tires.length)await loadStock()}catch(e){$('#workResult').innerHTML=`<div class="result error">${esc(e.message)}</div>`}}async function discard(){await api('/api/descartar',{parte_id:D.parte}).catch(()=>{});$('#workResult').innerHTML=''}$('#interpret').onclick=interpret;
+
+/* =====================================================================
+   RECAPADO
+   ---------------------------------------------------------------------
+   Todas las semanas sale un lote a recapar y vuelve el de la semana
+   anterior. Lo primero que se ve es lo que está afuera, porque es la
+   pregunta que antes no se podía contestar: si se llevó doce y trajo
+   diez, cuáles son las dos que faltan.
+
+   El remito lo emite el sistema. La salida es el único momento del
+   circuito en que el dato se tiene antes que el papel, así que el papel
+   lo hace el sistema y no hay nada que volver a cargar.
+   ===================================================================== */
+let REC = { elegidas: new Set(), recibiendo: null };
+
+async function loadRec(){
+  try{ D.rec = await api('/api/recapado'); pintarRec(); }
+  catch(e){ $('#retreadBody').innerHTML = `<div class="card error">${esc(e.message)}</div>`; }
+}
+async function recEscribir(cuerpo){
+  try{ const d = await api('/api/recapado', cuerpo); await loadRec();
+       await loadStock(); return d; }
+  catch(e){ alert(e.message); return null; }
+}
+
+function pintarRec(){
+  const d = D.rec, gestor = d.puede_gestionar;
+  $('#retreadBody').innerHTML = afueraHtml(d) + armarHtml(d, gestor) + enviosHtml(d);
+  engancharRec(gestor);
+}
+
+/* Lo que está en lo del recapador. Ordenado por días: la de arriba es la
+   que hay que reclamar. */
+function afueraHtml(d){
+  const a = d.afuera || [];
+  if(!a.length) return `<div class="card section"><h3>Qué hay afuera</h3><div class="emptymsg">No hay cubiertas en lo del recapador.</div></div>`;
+  const viejas = a.filter(x => x.dias_afuera > 21).length;
+  return `<div class="card section"><h3>Qué hay afuera · ${a.length} cubierta${a.length===1?'':'s'}</h3>
+    ${viejas?`<p class="sub">${viejas} llevan más de tres semanas afuera.</p>`:''}
+    <div class="tablewrap"><table class="datos"><thead><tr><th>Código</th><th>Marca</th><th>Medida</th><th>Remito</th><th>Recapador</th><th class="num">Días</th></tr></thead><tbody>
+    ${a.map(x=>`<tr><td class="fuerte">${esc(x.codigo)}${x.codigo_provisorio?'<span class="sinfuego">sin fuego</span>':''}</td><td>${esc(x.marca||'—')}</td><td>${esc(x.medida||'—')}</td><td>${esc(x.envio_id)}</td><td>${esc(x.recapador)}</td><td class="num ${x.dias_afuera>21?'pending':''}">${x.dias_afuera}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+/* Armar el remito: elegir las gomas y mandarlas. */
+function armarHtml(d, gestor){
+  if(!gestor) return '';
+  const c = d.candidatas || [];
+  if(!c.length) return `<div class="card section"><h3>Enviar a recapar</h3><div class="emptymsg">No hay cubiertas en el depósito con vida para recapar. El máximo son ${d.tope} recapados por carcasa.</div></div>`;
+  const n = REC.elegidas.size;
+  return `<div class="card section"><h3>Enviar a recapar</h3>
+    <p class="sub">Se muestran las que están en el depósito y no llegaron al tope de ${d.tope} recapados. Al enviar sale el remito para imprimir.</p>
+    <div class="actions"><input id="recProv" list="recProvs" placeholder="A qué recapador" autocomplete="off">
+      <datalist id="recProvs">${(d.recapadores||[]).map(r=>`<option value="${esc(r)}">`).join('')}</datalist>
+      <input id="recFecha" type="date" value="${new Date().toISOString().slice(0,10)}">
+      <button class="btn" id="recEnviar"${n?'':' disabled'}>Enviar ${n||''} y generar remito</button></div>
+    <div class="tablewrap"><table class="datos"><thead><tr><th></th><th>Código</th><th>Marca / modelo</th><th>Medida</th><th class="num">Recapados</th><th class="num">Remanente</th></tr></thead><tbody>
+    ${c.map(x=>`<tr><td><input type="checkbox" data-rec-pick="${x.id}"${REC.elegidas.has(x.id)?' checked':''}></td><td class="fuerte">${esc(x.codigo)}${x.codigo_provisorio?'<span class="sinfuego">sin fuego</span>':''}</td><td>${esc([x.marca,x.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(x.medida||'—')}</td><td class="num">${x.recapados}/${d.tope}</td><td class="num">${x.remanente_mm!=null?esc(x.remanente_mm)+' mm':'—'}</td></tr>`).join('')}
+    </tbody></table></div></div>`;
+}
+
+function enviosHtml(d){
+  const e = (d.envios||[]).filter(x=>x.estado!=='anulado');
+  if(!e.length) return '';
+  return `<div class="card section"><h3>Remitos</h3><div class="tablewrap"><table class="datos"><thead><tr><th>Remito</th><th>Fecha</th><th>Recapador</th><th class="num">Salieron</th><th class="num">Volvieron</th><th>Factura</th><th></th></tr></thead><tbody>
+  ${e.map(x=>`<tr><td class="fuerte">${esc(x.id)}</td><td>${fmtDate(x.fecha)}</td><td>${esc(x.recapador)}</td><td class="num">${x.enviadas}</td><td class="num">${x.volvieron}${x.rechazadas?' · '+x.rechazadas+' rech.':''}</td><td>${esc(x.factura||'—')}</td><td style="white-space:nowrap"><button class="btn alt btnchico" data-rec-remito="${esc(x.id)}">Remito</button>${x.pendientes&&d.puede_gestionar?` <button class="btn btnchico" data-rec-recibir="${esc(x.id)}">Recibir</button>`:''}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+
+function engancharRec(gestor){
+  $$('[data-rec-pick]').forEach(x=>x.onchange=()=>{
+    const id=+x.dataset.recPick;
+    x.checked?REC.elegidas.add(id):REC.elegidas.delete(id);
+    pintarRec();
+  });
+  if($('#recEnviar'))$('#recEnviar').onclick=async()=>{
+    const prov=$('#recProv').value.trim();
+    if(!prov)return alert('Indicar a qué recapador se mandan.');
+    const d=await recEscribir({op:'enviar',recapador:prov,fecha:$('#recFecha').value,
+      cubiertas:[...REC.elegidas]});
+    if(d){REC.elegidas.clear();imprimirRemito(d)}
+  };
+  $$('[data-rec-remito]').forEach(x=>x.onclick=async()=>{
+    const d=await api('/api/recapado?id='+encodeURIComponent(x.dataset.recRemito));
+    imprimirRemito(d);
+  });
+  $$('[data-rec-recibir]').forEach(x=>x.onclick=()=>abrirRecibir(x.dataset.recRecibir));
+}
+
+/* El remito. Se abre en una ventana aparte y se imprime: así no hay que
+   esconder media pantalla con @media print. */
+function imprimirRemito(d){
+  const e=d.envio, r=d.renglones||[];
+  const w=window.open('','_blank');
+  if(!w)return alert('El navegador bloqueó la ventana del remito.');
+  w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8">
+  <title>Remito ${esc(e.id)}</title><style>
+  body{font:13px/1.5 Inter,system-ui,sans-serif;color:#111;margin:32px;max-width:720px}
+  h1{font-size:19px;margin:0} .sub{color:#666;font-size:12px}
+  .cab{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:12px;margin-bottom:18px}
+  .num{font:600 22px/1 ui-monospace,monospace;letter-spacing:.04em}
+  table{width:100%;border-collapse:collapse;margin-top:8px}
+  th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.09em;color:#666;border-bottom:1px solid #999;padding:7px 6px}
+  td{padding:8px 6px;border-bottom:1px solid #e3e3e3}
+  .r{text-align:right} .firma{margin-top:48px;display:flex;gap:56px}
+  .firma div{flex:1;border-top:1px solid #111;padding-top:6px;font-size:11px;color:#666}
+  @media print{body{margin:0}}
+  </style></head><body>
+  <div class="cab"><div><h1>Remito de recapado</h1>
+    <div class="sub">Expreso Diemar · Gomería</div></div>
+    <div style="text-align:right"><div class="num">${esc(e.id)}</div>
+    <div class="sub">${fmtDate(e.fecha)}</div></div></div>
+  <p><b>Recapador:</b> ${esc(e.recapador)}<br><b>Cubiertas:</b> ${r.length}</p>
+  <table><thead><tr><th>#</th><th>Número de fuego</th><th>Marca / modelo</th><th>Medida</th><th class="r">Recapados</th><th class="r">Remanente</th></tr></thead><tbody>
+  ${r.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.codigo)}</b></td><td>${esc([x.marca,x.modelo].filter(Boolean).join(' · ')||'—')}</td><td>${esc(x.medida||'—')}</td><td class="r">${x.recapados_al_salir??'—'}</td><td class="r">${x.remanente_salida_mm!=null?esc(x.remanente_salida_mm)+' mm':'—'}</td></tr>`).join('')}
+  </tbody></table>
+  ${e.nota?`<p class="sub">${esc(e.nota)}</p>`:''}
+  <div class="firma"><div>Entregó</div><div>Recibió · ${esc(e.recapador)}</div></div>
+  </body></html>`);
+  w.document.close();
+  w.focus(); w.print();
+}
+
+/* Recibir: se marca lo que volvió, con su costo. Lo que no se marca sigue
+   afuera, que es justamente el punto. */
+async function abrirRecibir(envioId){
+  const d = await api('/api/recapado?id='+encodeURIComponent(envioId));
+  REC.recibiendo = d;
+  const p = (d.renglones||[]).filter(x=>x.estado==='enviada');
+  $('#recModalTitle').textContent = 'Recibir · remito ' + envioId;
+  $('#recModalBody').innerHTML = `<p class="sub">Marcar las que volvieron y cargar lo que salió cada una. Las que no se marquen siguen figurando afuera.</p>
+    <div class="formgrid"><div><label>Factura del recapador</label><input id="recFactura" placeholder="0001-00001234"></div>
+    <div><label>Banda que le pusieron</label><input id="recBanda" placeholder="BDR-HT"></div></div>
+    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th></th><th>Código</th><th>Medida</th><th class="num">Costo</th><th class="num">Dibujo (mm)</th><th>Rechazada</th></tr></thead><tbody>
+    ${p.map(x=>`<tr><td><input type="checkbox" data-rv="${x.cubierta_id}"></td><td class="fuerte">${esc(x.codigo)}</td><td>${esc(x.medida||'—')}</td><td class="num"><input class="chico" data-rc="${x.cubierta_id}" type="number" min="0" step="0.01" placeholder="0,00"></td><td class="num"><input class="chico" data-rm="${x.cubierta_id}" type="number" min="0" max="40" step=".5"></td><td><input type="checkbox" data-rr="${x.cubierta_id}" title="El recapador la rechazó: se da de baja"></td></tr>`).join('')}
+    </tbody></table></div><div id="recError"></div>`;
+  modal('recModal');
+  $('#recGuardar').onclick = guardarRecibir;
+}
+
+async function guardarRecibir(){
+  const d = REC.recibiendo; if(!d) return;
+  const banda = $('#recBanda').value.trim();
+  const vueltas = [];
+  $$('[data-rv]').forEach(x=>{
+    const id = +x.dataset.rv;
+    const rech = $(`[data-rr="${id}"]`).checked;
+    if(!x.checked && !rech) return;
+    const costo = $(`[data-rc="${id}"]`).value, mm = $(`[data-rm="${id}"]`).value;
+    vueltas.push({cubierta_id:id, rechazada:rech, banda:banda||null,
+                  costo:costo||null, inicial_mm:mm||null});
+  });
+  if(!vueltas.length) return $('#recError').innerHTML='<p class="error">Marcar al menos una cubierta.</p>';
+  const b=$('#recGuardar'); b.disabled=true;
+  const ok = await recEscribir({op:'recibir', envio_id:d.envio.id,
+                                factura:$('#recFactura').value, vueltas});
+  b.disabled=false;
+  if(ok) modal('recModal', false);
+}
 
 /* =====================================================================
    DESGASTE Y COSTOS

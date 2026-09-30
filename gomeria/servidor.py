@@ -19,7 +19,7 @@ sys.path.insert(0, AQUI)
 
 import anthropic
 import auth
-import permisos, base, desgaste, interpretar, mapas, neumaticos
+import permisos, base, desgaste, interpretar, mapas, neumaticos, recapado
 
 
 def jstr(d):
@@ -186,6 +186,22 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(str(e), 500)
+
+        if ruta == "/api/recapado":
+            try:
+                with base.conectar() as cx:
+                    # Con id, el remito de ese envío para imprimirlo.
+                    envio = (params.get("id") or [""])[0].strip()
+                    if envio:
+                        return self._responder(jstr(recapado.uno(cx, envio)))
+                    return self._responder(jstr(recapado.listar(cx, self.usuario)))
+            except ValueError as e:
+                return self._error(str(e), 400)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(
+                    "No se pudo leer el recapado. Puede faltar correr "
+                    f"gomeria/41_recapado.sql en Supabase. ({e})", 503)
 
         if ruta == "/api/desgaste":
             try:
@@ -420,6 +436,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._descartar(datos)
             if ruta == "/api/cubiertas":
                 return self._cubiertas(datos)
+            if ruta == "/api/recapado":
+                self._exigir_encargado()
+                with base.conectar() as cx:
+                    salida = recapado.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                    return self._responder(jstr(salida))
             if ruta == "/api/unidades":
                 return self._unidades(datos)
             if ruta == "/api/movimientos":
