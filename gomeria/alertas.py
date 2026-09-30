@@ -464,9 +464,13 @@ def services(cx):
 
 
 def historial_services(cx, unidad_id, limite=30):
+    # Del último para atrás, por fecha: es el orden en que pasaron las
+    # cosas. Ordenar por kilometraje escondía abajo de todo un service
+    # cargado con un número más chico que el de otro anterior, que es
+    # justo el que hay que encontrar para corregirlo.
     return _tabla(cx, """
         select * from services where unidad_id = %s
-        order by km desc, fecha desc limit %s
+        order by fecha desc, km desc, id desc limit %s
     """, (int(unidad_id), limite)) or []
 
 
@@ -502,6 +506,26 @@ def guardar_service(cx, datos, usuario=None):
         raise ValueError("«Cada cuántos km» tiene que ser mayor que cero.")
 
     fecha = str(datos.get("fecha") or "").strip() or None
+
+    # Un service no puede tener menos kilómetros de los que la unidad ya
+    # había recorrido ese día. Cuando pasa es un error de tipeo, y antes
+    # entraba sin decir nada: el service quedaba guardado pero con un
+    # número que no es el de esa unidad, y el próximo vencimiento salía
+    # calculado sobre él. Se compara contra la lectura del satelital de esa
+    # fecha —no contra la de hoy— así una carga retroactiva sigue
+    # entrando: se la mide contra lo que el camión tenía entonces.
+    lectura = cx.execute("""
+        select fecha, km from odometros
+        where unidad_id = %s and fecha <= coalesce(%s::date, current_date)
+        order by fecha desc limit 1""", (unidad_id, fecha)).fetchone()
+    if lectura and km < float(lectura["km"]):
+        miles = lambda n: f"{n:,.0f}".replace(",", ".")
+        raise ValueError(
+            f"El service dice {miles(km)} km y el {lectura['fecha']:%d/%m/%Y} "
+            f"la unidad {unidad['patente']} ya marcaba "
+            f"{miles(float(lectura['km']))} km en el satelital. "
+            f"Revisar el kilometraje antes de guardar.")
+
     limpio = lambda x, n=200: (str(x).strip()[:n] or None) if x else None
     orden_id = int(datos.get("orden_id") or 0) or None
     valores = (unidad_id, fecha, km, limpio(datos.get("tipo"), 60), cada,

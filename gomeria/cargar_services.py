@@ -234,7 +234,8 @@ def revisar(ruta, cx, unidades, internos):
                 cada = proximo - km
         if not cada or cada <= 0:
             previo = cx.execute("""select cada_km from services
-                                   where unidad_id = %s order by km desc limit 1""",
+                                   where unidad_id = %s
+                                   order by fecha desc, km desc limit 1""",
                                 (unidad_id,)).fetchone()
             cada = float(previo["cada_km"]) if previo else CADA_KM_POR_DEFECTO
             sin_intervalo += 1

@@ -146,9 +146,16 @@ from (
          r.service_urgente_km, r.service_aviso_km
   from unidades u
   cross join alertas_reglas r
+  -- El último service es el más reciente, no el de más kilómetros. Ordenar
+  -- por km hacía que un service cargado con un número más bajo que el de
+  -- otro anterior —un error de tipeo— no apareciera nunca: el que lo cargó
+  -- veía la pantalla igual que antes y no tenía cómo darse cuenta. Con la
+  -- fecha adelante, ese service entra, y si su km no cierra con el odómetro
+  -- el estado 'km_dudoso' de más abajo lo dice. El km queda de desempate
+  -- para los dos services del mismo día.
   left join lateral (
     select * from services sv where sv.unidad_id = u.id
-    order by sv.km desc, sv.fecha desc, sv.id desc limit 1
+    order by sv.fecha desc, sv.km desc, sv.id desc limit 1
   ) s on true
   left join lateral (
     select od.km, od.fecha from odometros od where od.unidad_id = u.id
