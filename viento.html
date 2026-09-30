@@ -169,6 +169,19 @@
     box-shadow:0 8px 20px rgba(0,0,0,.3)}
   .grafico .marca.on{opacity:1;stroke:var(--ink);stroke-width:1.5}
   .elegir{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .tocable{cursor:pointer}
+  .tocable:hover{background:color-mix(in srgb,var(--brand) 6%,transparent)}
+  .tocable td:first-child::after{content:" ›";color:var(--ink-muted)}
+  a.tocable{color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+  a.tocable::after{content:" ›";color:var(--ink-muted)}
+  .cargas{margin:0;padding:0;list-style:none;font-size:12px;color:var(--ink-2);line-height:1.5}
+  .cargas b{color:var(--ink);font-variant-numeric:tabular-nums}
+  #lista .modal{width:min(1200px,100%)}
+  #lista td{white-space:normal;vertical-align:top}
+  #lista td.num,#lista td:last-child,#lista td:first-child{white-space:nowrap}
+  .como{margin:-8px 0 16px;color:var(--ink-2);font-size:13px;line-height:1.6}
+  .como summary{font-size:13px}
+  .como p{margin:8px 0 0;max-width:860px}
 </style>
 <link rel="stylesheet" href="/vendor/leaflet.css">
 <script src="/tema.js"></script>
@@ -194,6 +207,18 @@
   <p class="sub">El viento que encontró cada camión a lo largo de la ruta, por Córdoba capital,
     hora por hora. <b>En contra</b> es cuánto del viento le pegó de frente: positivo frena,
     negativo empuja.</p>
+  <details class="como">
+    <summary>¿Cómo se sabe si el viento es en contra?</summary>
+    <p>Son dos datos, hora por hora. <b>De dónde viene el viento</b> lo da Open-Meteo para cada punto de la ruta
+      (por ejemplo, 25 km/h del norte). <b>Hacia dónde va el camión</b> sale del recorrido: de Buenos Aires a
+      Rosario va al noroeste, de Córdoba a Deán Funes casi al norte; de vuelta, al revés.</p>
+    <p>Con el ángulo entre los dos se calcula qué parte del viento le pega de frente:
+      viento × coseno del ángulo. Si viene justo de adelante cuenta entero; a 45° cuenta el 70%; de costado
+      no suma ni resta; de atrás cuenta en negativo, porque empuja. Eso es <b>"en contra"</b>, en km/h.
+      El promedio de todas las horas del viaje es el "en contra" del viaje.</p>
+    <p>Dónde estaba el camión a cada hora se estima repartiendo el viaje parejo entre la salida y la llegada:
+      el satelital no guarda el recorrido.</p>
+  </details>
 
   <div class="filtros" id="filtros">
     <div><label for="desde">Desde</label><input type="date" id="desde"></div>
@@ -264,7 +289,7 @@
         <p class="sub">Cada punto es un viaje. La línea es la tendencia.</p>
         <div class="grafico" id="iDispersion"></div></div>
       <div class="panel"><h3>Consumo promedio según el viento</h3>
-        <p class="sub">L/100 km, sin estadística: el promedio de cada grupo.</p>
+        <p class="sub">L/100 km, sin estadística: el promedio de cada grupo. Tocá un grupo para ver sus viajes.</p>
         <div id="iGrupos"></div>
         <h3 style="margin-top:16px">Por qué quedaron viajes afuera</h3>
         <div id="iDescartes" class="pie"></div></div>
@@ -333,6 +358,18 @@
     </div>
   </div>
 </main>
+
+<div class="fondo" id="lista"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="lTitulo">
+  <div class="cabecera">
+    <div><h2 id="lTitulo"></h2><div class="apagado" id="lSub"></div></div>
+    <button class="cerrar" aria-label="Cerrar">×</button>
+  </div>
+  <div style="overflow:auto;margin-top:12px"><table>
+    <thead><tr><th>Salida</th><th>Hoja</th><th>De → a</th><th>Patente</th><th>Chofer</th>
+      <th class="num">En contra</th><th class="num">Consumo</th><th class="num">Litros</th>
+      <th>Cargas de combustible</th><th></th></tr></thead>
+    <tbody id="lFilas"></tbody></table></div>
+</div></div>
 
 <div class="fondo" id="detalle"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
   <div class="cabecera">
@@ -680,13 +717,30 @@ function pintarIndicadores() {
   dispersion(c.puntos, a);
   const maxG = Math.max(1, ...c.grupos.map(g => g.consumo || 0));
   const colorG = {'a favor':'var(--favor)','neutro':'var(--costado)','en contra':'var(--contra)','en contra fuerte':'var(--contra)'};
-  $('#iGrupos').innerHTML = `<table><tbody>` + c.grupos.map(g => `<tr>
+  $('#iGrupos').innerHTML = `<table><tbody>` + c.grupos.map(g => `<tr class="${g.viajes ? 'tocable' : ''}" data-grupo="${esc(g.grupo)}">
       <td style="width:130px">${esc(g.grupo)}</td>
       <td><div style="height:12px;width:${(g.consumo || 0) / maxG * 100}%;max-width:100%;background:${colorG[g.grupo]};border-radius:0 3px 3px 0"></div></td>
       <td class="num"><b>${g.consumo == null ? '–' : num(g.consumo, 1)}</b></td>
       <td class="num apagado">${g.viajes} viajes</td></tr>`).join('') + `</tbody></table>`;
   $('#iDescartes').innerHTML = c.descartes.length ?
-    c.descartes.map(x => `${esc(x.motivo)}: <b>${x.viajes}</b>`).join('<br>') : 'Ninguno.';
+    c.descartes.map(x => `<a href="#" class="tocable" data-motivo="${esc(x.motivo)}">${esc(x.motivo)}</a>: <b>${x.viajes}</b>`).join('<br>') : 'Ninguno.';
+  $('#iGrupos').querySelectorAll('tr.tocable').forEach(tr => tr.onclick = () => {
+    const g = tr.dataset.grupo, grupo = c.grupos.find(x => x.grupo === g);
+    listaViajes(c.viajes.filter(v => v.grupo === g && v.consumo != null),
+      `Viajes con viento ${g === 'neutro' ? 'neutro' : g}`,
+      `${grupo.viajes} viajes · ${num(grupo.consumo, 1)} L/100 km de promedio`);
+  });
+  $('#iDescartes').querySelectorAll('a[data-motivo]').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    const m = a.dataset.motivo;
+    listaViajes(c.viajes.filter(v => v.motivo && (m === 'consumo no creíble' ? v.motivo.includes('no es creíble') : v.motivo === m)),
+      `Viajes afuera: ${m}`,
+      m === 'sin cargas después del viaje'
+        ? 'La patente no tiene cargas en la planilla de combustible entre el día después de salir y el día siguiente a llegar.'
+        : m === 'consumo no creíble'
+          ? `Los litros de esas cargas dan menos de ${cr.consumo_minimo} o más de ${cr.consumo_maximo} L/100 km: carga parcial, o cargas de otro viaje.`
+          : 'Todavía no hay viento publicado para esos días.');
+  });
 
   const tablaAjuste = (filas, titulo) => filas.length ? `<table><thead><tr><th>${titulo}</th><th class="num">Viajes</th>
       <th class="num">Consumo</th><th class="num">Sin viento</th><th class="num">En contra medio</th></tr></thead><tbody>` +
@@ -744,6 +798,40 @@ function pintarIndicadores() {
     if (tr.dataset.hoja) tr.onclick = () => abrirMapa(tr.dataset.hoja, tr.dataset.salida);
   });
 }
+
+/* La lista de viajes de un grupo, con lo que cargó cada uno. */
+function listaViajes(viajes, titulo, sub) {
+  $('#lTitulo').textContent = titulo;
+  $('#lSub').textContent = sub + ' · Las cargas que cuentan son las de la patente desde el día después de salir hasta el día siguiente a llegar.';
+  const lugar = t => esc(t || '–');
+  $('#lFilas').innerHTML = viajes.length ? viajes.map(v => {
+    const s = fecha(v.salida), l = fecha(v.llegada);
+    const cargas = v.detalle_cargas.length ? '<ul class="cargas">' + v.detalle_cargas.map(k =>
+      `<li>${fechaCorta(fecha(k.fecha))} · <b>${num(k.litros, 0)} L</b>` +
+      (k.importe ? ` · $ ${num(k.importe)}` : '') +
+      (k.estacion ? ` · ${esc(k.estacion)}` : '') + (k.remito ? ` · remito ${esc(k.remito)}` : '') + '</li>').join('') + '</ul>'
+      : `<span class="apagado">ninguna entre ${fechaCorta(fecha(v.cargas_desde))} y ${fechaCorta(fecha(v.cargas_hasta))}</span>`;
+    return `<tr><td>${fechaCorta(s)} ${horaCorta(s)}<br><span class="apagado">llegó ${fechaCorta(l)} ${horaCorta(l)}${v.llegada_real ? '' : ' ~'}</span></td>
+      <td>${esc(v.hoja) || '–'}</td>
+      <td>${lugar(v.origen)} → ${lugar(v.destino)}</td>
+      <td>${esc(v.patente)}</td><td>${esc(v.chofer) || '–'}</td>
+      <td class="num">${v.contra_media == null ? '–' : conSigno(v.contra_media) + ' km/h'}</td>
+      <td class="num"><b>${v.consumo != null ? num(v.consumo, 1) : v.consumo_calculado != null ? `<span class="apagado" title="Fuera de rango: no cuenta">${num(v.consumo_calculado, 1)}</span>` : '–'}</b></td>
+      <td class="num">${v.litros ? num(v.litros, 0) : '–'}</td>
+      <td>${cargas}</td>
+      <td>${v.hoja ? `<a href="#" class="tocable" data-hoja="${esc(v.hoja)}" data-salida="${esc(v.salida)}">Mapa</a>` : ''}</td></tr>`;
+  }).join('') : '<tr><td colspan="10" class="vacio">Sin viajes.</td></tr>';
+  $('#lFilas').querySelectorAll('a[data-hoja]').forEach(a => a.onclick = e => {
+    e.preventDefault();
+    $('#lista').classList.remove('on');
+    abrirMapa(a.dataset.hoja, a.dataset.salida);
+  });
+  $('#lista').classList.add('on');
+}
+const lista = $('#lista');
+lista.onclick = e => { if (e.target === lista) lista.classList.remove('on'); };
+lista.querySelector('.cerrar').onclick = () => lista.classList.remove('on');
+addEventListener('keydown', e => { if (e.key === 'Escape') lista.classList.remove('on'); });
 
 /* Consumo contra viento en contra: un punto por viaje y la recta. */
 function dispersion(puntos, ajuste) {

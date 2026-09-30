@@ -59,17 +59,33 @@ def leer_cargas(cx, patentes, desde, hasta):
         return []
     try:
         filas = cx.execute("""
-            select patente, fecha, litros, importe from combustible_cargas
+            select patente, fecha, litros, importe, estacion, chofer,
+                   coalesce(remito_bruto, remito) as remito
+            from combustible_cargas
             where origen = 'planilla' and fecha between %s and %s
-              and patente = any(%s) and litros > 0""",
+              and patente = any(%s) and litros > 0
+            order by fecha""",
             (desde, hasta, sorted(patentes))).fetchall()
     except Exception:
         cx.rollback()
         return None
     return [{"patente": _patente(f["patente"]), "fecha": f["fecha"],
              "litros": float(f["litros"]),
-             "importe": None if f["importe"] is None else float(f["importe"])}
+             "importe": None if f["importe"] is None else float(f["importe"]),
+             "estacion": f.get("estacion"), "chofer": f.get("chofer"),
+             "remito": f.get("remito")}
             for f in filas]
+
+
+def grupo_de(contra):
+    """En qué grupo de viento cae un viaje, con los mismos cortes de siempre."""
+    if contra is None:
+        return None
+    if contra <= -6:
+        return "a favor"
+    if contra < 6:
+        return "neutro"
+    return "en contra" if contra < 15 else "en contra fuerte"
 
 
 def litros_por_viaje(viajes, cargas):
@@ -97,17 +113,30 @@ def litros_por_viaje(viajes, cargas):
         litros = sum(c["litros"] for c in suyas)
         importes = [c["importe"] for c in suyas if c["importe"]]
         fila = {"hoja": v.get("hoja"), "patente": pat, "chofer": v.get("chofer"),
-                "sentido": v["sentido"], "salida": v["salida"],
-                "contra_media": v.get("contra_media"), "cargas": len(suyas),
+                "sentido": v["sentido"], "origen": v.get("origen"),
+                "destino": v.get("destino"), "salida": v["salida"],
+                "llegada": v["llegada"], "llegada_real": v.get("llegada_real"),
+                "contra_media": v.get("contra_media"),
+                "velocidad_media": v.get("velocidad_media"),
+                "rafaga_max": v.get("rafaga_max"),
+                "pct_frente": v.get("pct_frente"),
+                "grupo": grupo_de(v.get("contra_media")),
+                # Qué días se miraron: después de la salida y hasta acá.
+                "cargas_desde": desde + timedelta(days=1), "cargas_hasta": hasta,
+                "cargas": len(suyas),
+                "detalle_cargas": [{k: c.get(k) for k in ("fecha", "litros", "importe",
+                                                          "estacion", "chofer", "remito")}
+                                   for c in sorted(suyas, key=lambda c: c["fecha"])],
                 "litros": round(litros, 1),
                 "importe": round(sum(importes), 2) if importes else None,
-                "consumo": None, "motivo": None}
+                "consumo": None, "consumo_calculado": None, "motivo": None}
         if not suyas:
             fila["motivo"] = "sin cargas después del viaje"
         elif v.get("contra_media") is None:
             fila["motivo"] = "sin viento"
         else:
             consumo = litros * 100 / vto.KM_TOTAL
+            fila["consumo_calculado"] = round(consumo, 1)
             if CONSUMO_MINIMO <= consumo <= CONSUMO_MAXIMO:
                 fila["consumo"] = round(consumo, 1)
             else:
@@ -153,11 +182,8 @@ def combustible_y_viento(viajes, cargas):
     # El consumo según cómo le fue con el viento: sin estadística, para
     # que se entienda de un vistazo.
     grupos = []
-    for nombre, cumple in (("a favor", lambda c: c <= -6),
-                           ("neutro", lambda c: -6 < c < 6),
-                           ("en contra", lambda c: 6 <= c < 15),
-                           ("en contra fuerte", lambda c: c >= 15)):
-        suyas = [f for f in validas if cumple(f["contra_media"])]
+    for nombre in ("a favor", "neutro", "en contra", "en contra fuerte"):
+        suyas = [f for f in validas if f["grupo"] == nombre]
         grupos.append({"grupo": nombre, "viajes": len(suyas),
                        "consumo": _media(f["consumo"] for f in suyas)})
 
@@ -203,6 +229,9 @@ def combustible_y_viento(viajes, cargas):
         "grupos": grupos, "costo": costo,
         "por_patente": ajustado("patente"), "por_chofer": ajustado("chofer"),
         "viajes_con_consumo": len(validas), "viajes_total": len(filas),
+        # Todos, con sus cargas: la pantalla los muestra al tocar un grupo
+        # o un motivo de descarte.
+        "viajes": sorted(filas, key=lambda f: f["salida"], reverse=True),
         "descartes": _contar(f["motivo"] for f in filas if f["motivo"]),
     }
 

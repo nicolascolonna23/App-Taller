@@ -40,6 +40,19 @@ class RepartirCargas(unittest.TestCase):
         self.assertEqual(f["1"]["litros"], 400)
         self.assertEqual(f["2"]["litros"], 400)
 
+    def test_cada_viaje_trae_sus_cargas_y_su_grupo(self):
+        viajes = [viaje("AA111AA", "2026-08-01T20:00", contra=8, hoja="1")]
+        cargas = [{**carga("AA111AA", "2026-08-02", 150), "estacion": "YPF Rosario", "remito": "0001-12"},
+                  {**carga("AA111AA", "2026-08-03", 250), "estacion": "YPF Catamarca", "remito": "0001-13"}]
+        f = ind.litros_por_viaje(viajes, cargas)[0]
+        self.assertEqual(f["grupo"], "en contra")
+        self.assertEqual([k["estacion"] for k in f["detalle_cargas"]], ["YPF Rosario", "YPF Catamarca"])
+        self.assertEqual(f["cargas_desde"], date(2026, 8, 2))
+        self.assertEqual(f["cargas_hasta"], date(2026, 8, 3))
+        self.assertEqual(f["consumo_calculado"], f["consumo"])
+        r = ind.combustible_y_viento(viajes, cargas)
+        self.assertEqual(r["viajes"][0]["hoja"], "1")
+
     def test_no_mezcla_patentes_y_normaliza(self):
         viajes = [viaje("aa 111 aa", "2026-08-01T20:00")]
         cargas = [carga("AA111AA", "2026-08-02", 400), carga("BB222BB", "2026-08-02", 999)]
