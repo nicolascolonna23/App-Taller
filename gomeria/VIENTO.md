@@ -29,6 +29,58 @@ La pantalla avisa cuántos viajes cayeron en cada caso.
 - **Frente · costado · cola**: qué parte de las horas del viaje tuvo el viento
   dentro de los 45° de cada lado.
 
+## Las tres solapas
+
+| Solapa | Qué hay |
+|---|---|
+| **Viajes** | la lista, un viaje por renglón, con el detalle hora por hora |
+| **Indicadores** | combustible y viento, horarios, meses, tramos y seguridad |
+| **Mapa del viaje** | se busca por número de hoja; se ve la ruta sobre el mapa y el viento de toda la ruta a cada hora |
+
+Se puede entrar directo a un viaje: `/viento#mapa=1234`.
+
+## Indicadores
+
+El cálculo está en `gomeria/viento_indicadores.py`.
+
+### Combustible y viento
+
+No hay un número de litros por viaje en ningún lado, así que se arma con las
+cargas de `combustible_cargas` (nuestra planilla). La idea es que el camión
+sale con el tanque lleno y que lo que carga después es lo que gastó en ese
+viaje:
+
+- El viaje se queda con las cargas de su patente **después del día de salida
+  y hasta el día siguiente a la llegada**.
+- Si la misma patente vuelve a salir antes, el viaje corta ese día. La carga
+  del día de salida corresponde al viaje anterior.
+- Los km son los del recorrido.
+- Se descartan los viajes con un consumo que no es creíble (menos de 18 o
+  más de 70 L/100 km): son cargas parciales o viajes que se mezclaron.
+
+Con eso sale:
+
+- **La relación (r)** entre el viento en contra y el consumo. Solo se toma
+  como **confiable** con 10 viajes o más y un t de Student de 2 o más (≈95%).
+- **Cada 10 km/h en contra**: cuántos L/100 km suma, y cuántos litros por
+  viaje.
+- **Lo que costó el viento en contra** en el período, en litros y en pesos (al
+  precio promedio de esas mismas cargas). También lo que devolvió el viento a
+  favor.
+- **El consumo sin viento**, por camión y por chofer: el que habría tenido
+  con viento neutro. Es la comparación justa entre choferes.
+
+### Los que salen solo del viento
+
+- **Según la hora de salida**, en franjas de 3 horas, de ida y de vuelta.
+  Dice cuál es la franja con menos viento en contra (hacen falta 3 viajes
+  o más en la franja). Solo cuentan los viajes con hora de salida real.
+- **Mes a mes**: en qué época cuesta más cada sentido.
+- **Tramo por tramo**: dónde pega más fuerte.
+- **Seguridad**: horas con ráfagas de 70 km/h o más, o con viento cruzado de
+  40 km/h o más, y la lista de los viajes que las tuvieron. Los umbrales
+  están al principio de `viento_indicadores.py`.
+
 ## Si la planilla no se lee
 
 Las columnas se reconocen por el nombre: fecha y hora de salida, fecha y hora
