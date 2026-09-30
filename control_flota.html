@@ -44,6 +44,7 @@
       --st-serious:   #ec835a;
       --st-critical:  #d03b3b;
       --st-none:      #7b828b;
+      --st-dudoso:    #966ed7;
 
       /* Chrome de graficos */
       --grid:         #22262b;
@@ -250,6 +251,7 @@
     .st-proximo  { color: var(--st-warning);  background: rgba(250,178,25,0.10); }
     .st-ok       { color: var(--st-good);     background: rgba(12,163,12,0.10); }
     .st-sindato  { color: var(--st-none);     background: rgba(123,130,139,0.10); }
+    .st-dudoso   { color: var(--st-dudoso);   background: rgba(150,110,215,0.12); }
 
     /* ===================== FILTROS ===================== */
     .filterbar {
@@ -563,6 +565,7 @@
         <option value="proximo">Próximo (&lt; 15.000 km)</option>
         <option value="ok">Al día</option>
         <option value="sindato">Sin datos</option>
+        <option value="dudoso">Km no coinciden</option>
       </select>
     </div>
     <div class="card">
@@ -585,6 +588,7 @@
         <option value="proximo">Próximo (&lt; 15.000 km)</option>
         <option value="ok">Al día</option>
         <option value="sindato">Sin datos</option>
+        <option value="dudoso">Km no coinciden</option>
       </select>
     </div>
     <div class="card">
@@ -705,9 +709,13 @@ const ESTADOS = {
   urgente : { label:'URGENTE',   icon:'▲', cls:'st-urgente', color: CSSV.getPropertyValue('--st-serious').trim(),  orden:1 },
   proximo : { label:'PRÓXIMO',   icon:'◆', cls:'st-proximo', color: CSSV.getPropertyValue('--st-warning').trim(),  orden:2 },
   ok      : { label:'AL DÍA',    icon:'✓', cls:'st-ok',      color: CSSV.getPropertyValue('--st-good').trim(),     orden:3 },
-  sindato : { label:'SIN DATOS', icon:'?', cls:'st-sindato', color: CSSV.getPropertyValue('--st-none').trim(),     orden:4 }
+  sindato : { label:'SIN DATOS', icon:'?', cls:'st-sindato', color: CSSV.getPropertyValue('--st-none').trim(),     orden:4 },
+  // El kilometraje del último service es mayor que el que marca el
+  // odómetro. No es que falte o sobre: es que uno de los dos está mal
+  // cargado, y hasta saber cuál no se puede decir nada del vencimiento.
+  dudoso  : { label:'KM NO COINCIDEN', icon:'≠', cls:'st-dudoso', color: CSSV.getPropertyValue('--st-dudoso').trim(), orden:5 }
 };
-const ORDEN_ESTADOS = ['vencido','urgente','proximo','ok','sindato'];
+const ORDEN_ESTADOS = ['vencido','urgente','proximo','ok','sindato','dudoso'];
 
 const UMBRAL_URGENTE = 5000;
 const UMBRAL_PROXIMO = 15000;
@@ -843,7 +851,11 @@ async function cargarServicios() {
       planId: s.mantenimiento_plan_id || null, planNombre: s.plan_nombre || '',
       fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
       kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km),
-      kmAct: num(s.km_actual), falta: num(s.km_restantes)
+      kmAct: num(s.km_actual), falta: num(s.km_restantes),
+      // Lo que dictaminó la base. Solo se usa para el caso que desde acá
+      // no se puede ver: que el km del service y el del odómetro no
+      // cierren entre sí.
+      estadoBase: s.estado || ''
     };
   });
 
@@ -940,7 +952,12 @@ function construirUnidades(flota, servicios, setLAD, consumo) {
     if (s.planId) u.planId = s.planId;
     if (s.planNombre) u.planNombre = s.planNombre;
     // Sin lectura de odometro no se puede afirmar nada del service
-    u.estado = (s.kmAct === null || !isFinite(s.kmAct)) ? 'sindato' : estadoDe(s.falta);
+    // Un service cargado con más kilómetros de los que tiene la unidad no
+    // está ni vencido ni al día: está mal cargado, y decir «VENCIDO» sería
+    // mandar a hacer un service que capaz no toca.
+    u.estado = s.estadoBase === 'km_dudoso' ? 'dudoso'
+             : (s.kmAct === null || !isFinite(s.kmAct)) ? 'sindato'
+             : estadoDe(s.falta);
     if (!u.marca)  u.marca  = s.marca;
     if (!u.chofer) u.chofer = s.chofer;
     if (!u.sucursal) u.sucursal = (s.residencia || '').trim();
@@ -1268,7 +1285,7 @@ function kpiHTML(label, value, foot, accent) {
 }
 
 function contarEstados(lista) {
-  const c = { vencido:0, urgente:0, proximo:0, ok:0, sindato:0 };
+  const c = { vencido:0, urgente:0, proximo:0, ok:0, sindato:0, dudoso:0 };
   lista.forEach(u => c[u.estado]++);
   return c;
 }
@@ -1487,9 +1504,11 @@ const COL = {
 
 // La operacion de larga distancia comparte sucursal (LAD); la de
 // distribucion necesita verla, porque reparte desde varias.
-const COLS_LAD  = [COL.patente, COL.modelo, COL.plan, COL.chofer, COL.fecha, COL.kmUlt,
+// El modelo no entra en la tabla: lo que se mira acá es el vencimiento, y
+// el modelo está en la ficha de la unidad, a un clic de la patente.
+const COLS_LAD  = [COL.patente, COL.plan, COL.chofer, COL.fecha, COL.kmUlt,
                    COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
-const COLS_DIST = [COL.patente, COL.modelo, COL.plan, COL.sucursal, COL.chofer, COL.fecha,
+const COLS_DIST = [COL.patente, COL.plan, COL.sucursal, COL.chofer, COL.fecha,
                    COL.kmUlt, COL.kmProx, COL.kmAct, COL.falta, COL.estado, COL.c100];
 
 function filaUnidad(u, cols) {
