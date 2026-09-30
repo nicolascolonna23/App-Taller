@@ -409,7 +409,7 @@ function visibles() {
   const sentido = $('#sentido').value;
   const q = $('#buscar').value.trim().toLowerCase();
   let v = D.datos.viajes.filter(x => (!sentido || x.sentido === sentido) &&
-    (!q || [x.patente, x.chofer, x.hoja, x.semi].some(c => String(c || '').toLowerCase().includes(q))));
+    (!q || [x.patente, (x.patentes || []).join(' '), x.chofer, x.hoja, x.semi].some(c => String(c || '').toLowerCase().includes(q))));
   const k = D.orden, s = D.asc ? 1 : -1;
   return v.slice().sort((a, b) => {
     const x = a[k], y = b[k];

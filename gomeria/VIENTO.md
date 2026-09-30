@@ -81,6 +81,21 @@ Con eso sale:
   40 km/h o más, y la lista de los viajes que las tuvieron. Los umbrales
   están al principio de `viento_indicadores.py`.
 
+## La patente de cada viaje
+
+La planilla trae en una sola columna varias patentes: el tractor, el semi
+y a veces otra. Se leen todas, con cualquier separador, y **se cruzan con
+Flota**. La que manda es la primera que es de larga distancia (sucursal
+`LAD` o un uso que diga LARGA, el mismo criterio que el resto del sistema) y
+que no es un semi. Con esa patente se buscan las cargas de combustible.
+
+Un viaje sin ninguna patente de larga distancia se ve igual, con el viento,
+pero no entra en los indicadores de combustible. La pantalla avisa cuáles
+patentes trajeron esas hojas, para catalogarlas en Flota si corresponde.
+
+Si la columna de patentes no se reconoce por el nombre, se buscan patentes
+en la fila entera.
+
 ## Si la planilla no se lee
 
 Las columnas se reconocen por el nombre: fecha y hora de salida, fecha y hora

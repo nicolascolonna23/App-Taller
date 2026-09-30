@@ -311,9 +311,10 @@ def seguridad(viajes):
 # LO QUE PIDE LA PANTALLA
 # ---------------------------------------------------------------------
 def indicadores(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=None,
-                cargas=None):
+                cargas=None, lad=None):
     """Todo lo de la solapa Indicadores. Es la respuesta de /api/viento/indicadores."""
-    base = vto.informe(cx, desde, hasta, forzar=forzar, leer_hojas=leer_hojas, pedir=pedir)
+    base = vto.informe(cx, desde, hasta, forzar=forzar, leer_hojas=leer_hojas, pedir=pedir,
+                       lad=lad)
     viajes = base["viajes"]
     avisos = list(base["avisos"])
     patentes = {_patente(v.get("patente")) for v in viajes} - {""}
@@ -324,8 +325,8 @@ def indicadores(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir
                           "gomeria/10_combustible.sql.")
             cargas = []
     if not patentes:
-        avisos.append("La planilla de viajes no trae la patente: sin ella no se puede "
-                      "cruzar con el combustible.")
+        avisos.append("Ningún viaje del período tiene una patente de larga distancia de "
+                      "Flota: sin ella no se puede cruzar con el combustible.")
     return {
         "desde": base["desde"], "hasta": base["hasta"], "avisos": avisos,
         "viajes": len(viajes), "km_total": vto.KM_TOTAL,
@@ -341,7 +342,7 @@ def _hoja(texto):
     return str(texto or "").strip().lstrip("0").upper()
 
 
-def viaje_en_mapa(cx, hoja, leer_hojas=None, pedir=None):
+def viaje_en_mapa(cx, hoja, leer_hojas=None, pedir=None, lad=None):
     """El viaje de esa hoja de ruta, con el viento de toda la ruta a cada hora.
 
     Para el mapa no alcanza con el viento donde estaba el camión: se ve el
@@ -352,7 +353,8 @@ def viaje_en_mapa(cx, hoja, leer_hojas=None, pedir=None):
     if not buscada:
         raise ValueError("Escribí el número de hoja de ruta.")
     planilla = leer_hojas() if leer_hojas else vto.hojas()
-    viajes = [v for v in planilla["viajes"] if _hoja(v.get("hoja")) == buscada]
+    viajes = [dict(v) for v in planilla["viajes"] if _hoja(v.get("hoja")) == buscada]
+    vto.elegir_patentes(viajes, vto.unidades_lad(cx) if lad is None else lad)
     if not viajes:
         raise ValueError(f"La hoja {hoja} no es un viaje Buenos Aires ↔ Catamarca "
                          "en la planilla, o no existe.")

@@ -170,9 +170,10 @@ COLUMNAS = {
                      "destino*"),
     "recorrido":    ("recorrido", "ruta", "trayecto", "itinerario", "tramo",
                      "viaje", "descripcion"),
-    "patente":      ("patente", "dominio", "patente tractor", "tractor",
-                     "dominio tractor", "unidad", "camion", "vehiculo", "movil",
-                     "patente*", "dominio*"),
+    "patente":      ("patente", "patentes", "dominio", "dominios",
+                     "patente tractor", "tractor", "dominio tractor", "unidad",
+                     "unidades", "camion", "vehiculo", "vehiculos", "movil",
+                     "moviles", "equipo", "equipos", "patente*", "dominio*"),
     "semi":         ("semi", "semirremolque", "acoplado", "patente semi",
                      "dominio semi"),
     "chofer":       ("chofer", "conductor", "chofer*", "conductor*"),
@@ -286,6 +287,27 @@ def sentido(origen, destino, recorrido=None):
     return None
 
 
+# Una patente argentina: la del Mercosur (AB 123 CD) o la vieja (ABC 123),
+# con o sin espacios adentro, y entera: «Tractor AE123CD» no es «RAE123».
+PATENTE = re.compile(r"\b(?:[A-Z]{2} ?\d{3} ?[A-Z]{2}|[A-Z]{3} ?\d{3})\b")
+
+
+def patentes_de(texto):
+    """Todas las patentes de una celda, en el orden en que aparecen.
+
+    La planilla trae en una sola columna el tractor, el semi y a veces
+    otra más, separadas por coma, barra o guión: cualquier cosa que no sea
+    letra ni número cuenta como separador.
+    """
+    limpio = re.sub(r"[^A-Z0-9]+", " ", str(texto or "").upper())
+    salida = []
+    for m in PATENTE.finditer(limpio):
+        p = m.group().replace(" ", "")
+        if p not in salida:
+            salida.append(p)
+    return salida
+
+
 def _texto(v):
     if v is None:
         return ""
@@ -342,9 +364,18 @@ def leer_filas(filas):
             continue
         llegada, llegada_real = _con_hora(_fecha(celda(fila, "llegada")),
                                           _hora(celda(fila, "hora_llegada")))
+        # Todas las patentes de la columna. Si no hay columna, o viene
+        # vacía, se buscan en la fila entera: una patente tiene una forma
+        # que no se confunde con una fecha, un número de hoja o un nombre.
+        patentes = patentes_de(_texto(celda(fila, "patente")))
+        if not patentes:
+            patentes = patentes_de(" , ".join(_texto(c) for c in fila))
         viajes.append({
             "hoja": _texto(celda(fila, "hoja")),
-            "patente": _texto(celda(fila, "patente")).upper().replace(" ", ""),
+            "patentes": patentes,
+            # Hasta cruzarla con Flota, la primera. `elegir_patentes` la
+            # cambia por la de larga distancia.
+            "patente": patentes[0] if patentes else "",
             "semi": _texto(celda(fila, "semi")).upper().replace(" ", ""),
             "chofer": _texto(celda(fila, "chofer")),
             "origen": _texto(celda(fila, "origen")),
@@ -396,6 +427,59 @@ def hojas(forzar=False):
         datos = leer_xlsx(contenido)
         _HOJAS.update(cuando=time.time(), datos=datos)
         return datos
+
+
+# ---------------------------------------------------------------------
+# CUÁL DE LAS PATENTES ES EL CAMIÓN
+# ---------------------------------------------------------------------
+def unidades_lad(cx):
+    """Las patentes de larga distancia de Flota: {patente: es_semi}.
+
+    Larga distancia es lo mismo que en el resto del sistema: la sucursal
+    LAD o un uso que diga LARGA. None si no se pudo leer (sin base, o sin
+    la tabla): el que llama sigue con la primera patente de la hoja.
+    """
+    if cx is None:
+        return None
+    consulta = """
+        select patente, {semi} as es_semi from unidades
+        where patente is not null
+          and (upper(btrim(coalesce(sucursal, ''))) = 'LAD'
+               or upper(coalesce(uso, '')) like '%%LARGA%%')"""
+    for semi in ("coalesce(es_semi, false) or upper(coalesce(uso, '')) like '%%SEMI%%'",
+                 "upper(coalesce(uso, '')) like '%%SEMI%%'"):
+        # es_semi llegó con 29_parametros.sql: en una base sin correrlo,
+        # alcanza con el uso.
+        try:
+            filas = cx.execute(consulta.format(semi=semi)).fetchall()
+            return {re.sub(r"[^A-Z0-9]", "", str(f["patente"]).upper()): bool(f["es_semi"])
+                    for f in filas}
+        except Exception:
+            cx.rollback()
+    return None
+
+
+def elegir_patentes(viajes, lad):
+    """A cada viaje le deja como `patente` la de larga distancia.
+
+    De las patentes de la hoja, la primera que en Flota es de larga
+    distancia y no es un semi; si solo el semi es de larga distancia,
+    queda vacía, porque el combustible se le carga al tractor. Sin Flota
+    (`lad` None) queda la primera, como vino.
+
+    Devuelve las patentes de las hojas que no son de larga distancia en
+    Flota, para avisar.
+    """
+    ajenas = set()
+    if lad is None:
+        return ajenas
+    for v in viajes:
+        todas = v.get("patentes") or ([v["patente"]] if v.get("patente") else [])
+        tractores = [p for p in todas if p in lad and not lad[p]]
+        v["patente"] = tractores[0] if tractores else ""
+        if not tractores:
+            ajenas.update(todas)
+    return ajenas
 
 
 # ---------------------------------------------------------------------
@@ -495,7 +579,7 @@ def resumir(viaje, viento):
     con = [h for h in horas if h["velocidad"] is not None]
     n = len(con)
     resumen = {
-        **{k: viaje.get(k) for k in ("hoja", "patente", "semi", "chofer", "origen",
+        **{k: viaje.get(k) for k in ("hoja", "patente", "patentes", "semi", "chofer", "origen",
                                      "destino", "sentido", "salida", "salida_real")},
         "llegada": llegada, "llegada_real": llegada_real,
         "horas_viaje": round((llegada - viaje["salida"]).total_seconds() / 3600, 1),
@@ -681,7 +765,8 @@ def _dia(texto, defecto):
         return defecto
 
 
-def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=None):
+def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=None,
+            lad=None):
     """Los viajes del período con su viento. Es la respuesta de /api/viento."""
     hoy = date.today()
     hasta = _dia(hasta, hoy)
@@ -692,8 +777,11 @@ def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=Non
         desde = hasta - timedelta(days=400)
 
     planilla = leer_hojas() if leer_hojas else hojas(forzar)
-    viajes = [v for v in planilla["viajes"] if desde <= v["salida"].date() <= hasta]
+    # Una copia de cada viaje: la planilla queda media hora en memoria y la
+    # patente elegida no se le puede pegar.
+    viajes = [dict(v) for v in planilla["viajes"] if desde <= v["salida"].date() <= hasta]
     viajes.sort(key=lambda v: v["salida"], reverse=True)
+    ajenas = elegir_patentes(viajes, unidades_lad(cx) if lad is None else lad)
 
     dias = set()
     for v in viajes:
@@ -714,6 +802,15 @@ def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=Non
     if estimada:
         avisos.append(f"{estimada} viaje(s) sin una llegada que cierre: se estimó a "
                       f"{VELOCIDAD_MEDIA} km/h de promedio.")
+    sin_patente = sum(not v.get("patente") for v in viajes)
+    if sin_patente:
+        avisos.append(
+            f"{sin_patente} viaje(s) sin ninguna patente de larga distancia en Flota: "
+            "no se cruzan con el combustible."
+            + (" Patentes de esas hojas: " + ", ".join(sorted(ajenas)[:12])
+               + ("…" if len(ajenas) > 12 else "") + "." if ajenas else "")
+            + " Si son de larga distancia, en Flota tienen que tener sucursal LAD "
+              "o un uso que diga LARGA DISTANCIA.")
     if planilla["descartados"]:
         avisos.append(f"{planilla['descartados']} fila(s) del tramo sin fecha de salida "
                       "legible: no se muestran.")
