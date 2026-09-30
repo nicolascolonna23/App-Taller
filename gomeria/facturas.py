@@ -15,7 +15,11 @@ Se le pasa el listado de patentes de la flota. Sin eso, "AD247MQ" escrito
 a mano en un remito arrugado sale con la Q por O una de cada tres veces;
 con el listado, Claude elige entre las que existen.
 """
-import base64, json, os, re
+import json, os, re
+
+# Lo que puede tener un base64 y nada más. Se mira con fullmatch, que
+# recorre la cadena sin copiarla: con un archivo de 12 MB eso importa.
+B64 = re.compile(r"(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?")
 import anthropic
 
 import ia
@@ -160,16 +164,34 @@ def leer(archivos, patentes=None, cliente=None):
         if tipo not in TIPOS:
             raise ValueError("La factura tiene que ser una foto (.jpg, .png o "
                              ".webp) o un PDF.")
-        try:
-            crudo = base64.b64decode(archivo.get("contenido") or "", validate=False)
-        except Exception:
-            raise ValueError("El archivo llegó cortado. Debe reintentarse.")
-        if not crudo:
+        # El archivo se manda tal como llegó. Antes se lo abría y se lo
+        # volvía a cerrar —b64decode y enseguida b64encode— y eso dejaba
+        # tres copias del mismo archivo en memoria: el base64 que vino, el
+        # binario, y el base64 nuevo, que es igual al primero. Con cuatro
+        # hojas de 12 MB eran 233 MB para un solo pedido, y el servidor se
+        # quedaba sin memoria y lo reiniciaban. Ese es el 503.
+        limpio = archivo.get("contenido") or ""
+        if not limpio:
             raise ValueError("El archivo llegó vacío.")
-        if len(crudo) > MAXIMO:
-            raise ValueError(f"El archivo pesa {len(crudo) // (1024*1024)} MB y el "
+        if not B64.fullmatch(limpio):
+            # La pantalla manda el base64 pelado, pero un cliente puede
+            # mandar el data URI entero o cortarlo en líneas. Se arregla
+            # solo si hace falta: hacerlo siempre sería otra copia del
+            # archivo al pedo, que es justo lo que se vino a evitar.
+            limpio = "".join(limpio.split())
+            if limpio.startswith("data:"):
+                limpio = limpio.partition(",")[2]
+            if not limpio:
+                raise ValueError("El archivo llegó vacío.")
+            if not B64.fullmatch(limpio):
+                raise ValueError("El archivo llegó cortado. Debe reintentarse.")
+        # Cuánto pesa, sin abrirlo: cada 4 caracteres de base64 son 3
+        # bytes, menos el relleno del final. Así el archivo grande se
+        # rechaza antes de gastar la memoria, y no después.
+        pesa = len(limpio) // 4 * 3 - limpio[-2:].count("=")
+        if pesa > MAXIMO:
+            raise ValueError(f"El archivo pesa {pesa // (1024*1024)} MB y el "
                              f"máximo son {MAXIMO // (1024*1024)}.")
-        limpio = base64.b64encode(crudo).decode()
         if tipo == PDF:
             contenido.append({"type": "document",
                               "source": {"type": "base64", "media_type": PDF,

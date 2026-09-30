@@ -984,6 +984,8 @@ class App(CupoPorPedido, gom.Handler):
                 return
             try:
                 largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 64 * 1024:
+                    return self._error("El contenido es demasiado grande.", 413)
                 datos = json.loads(self.rfile.read(largo) or b"{}")
                 with base.conectar() as cx:
                     salida = prefs.guardar(cx, self.usuario["id"], datos)
@@ -1176,6 +1178,13 @@ class App(CupoPorPedido, gom.Handler):
                 return
             try:
                 largo = int(self.headers.get("Content-Length") or 0)
+                # Por acá entra la planilla de planes, así que el tope es
+                # más alto que el de una pantalla común. Se mira antes de
+                # leer: un Content-Length de 500 MB no se puede rechazar
+                # después de haberlo leído, porque para entonces la
+                # memoria ya se gastó.
+                if largo > 16 * 1024 * 1024:
+                    return self._error("El archivo es demasiado grande.", 413)
                 datos = json.loads(self.rfile.read(largo) or b"{}")
                 with base.conectar() as cx:
                     salida = mant.aplicar(cx, datos, self.usuario)
