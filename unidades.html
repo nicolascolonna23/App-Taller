@@ -461,7 +461,15 @@
         <select id="c-modelo_3d" name="modelo_3d">
           <option value="">Según los ejes</option>
         </select>
-        <span class="ayuda">Vacío, la app lo deduce del mapa de cubiertas o del modelo.</span>
+        <span class="ayuda">El dibujo que se muestra. Vacío, la app lo deduce del mapa de cubiertas o del modelo.</span>
+      </div>
+      <div class="campo">
+        <label for="c-configuracion_id">Mapa de cubiertas</label>
+        <select id="c-configuracion_id" name="configuracion_id">
+          <option value="">Sin mapa asignado</option>
+        </select>
+        <span class="ayuda">Dónde entra cada cubierta. Sin esto, Gomería no puede
+          trabajar la unidad. No se puede cambiar con cubiertas montadas.</span>
       </div>
       <div class="campo ancho">
         <label for="c-nota">Nota</label>
@@ -753,6 +761,16 @@ function abrir(u){
   set('#c-semi', u && u.semi ? fmtPat(u.semi) : '');
   $('#c-tipo').value = u ? u.tipo : 'vehiculo';
   $('#c-modelo_3d').value = (u && u.modelo_3d) || '';
+  /* Si el mapa que tiene la unidad no está en la lista —se renombró, o la
+     lista no llegó— igual se muestra. Sin esto el desplegable quedaría en
+     «Sin mapa asignado» y guardar la ficha se lo sacaría sin que nadie lo
+     haya pedido. */
+  const mapaActual = u && u.configuracion_id ? String(u.configuracion_id) : '';
+  const sel = $('#c-configuracion_id');
+  if (mapaActual && !sel.querySelector(`option[value="${mapaActual}"]`))
+    sel.insertAdjacentHTML('beforeend',
+      `<option value="${esc(mapaActual)}">${esc(u.configuracion || 'Mapa ' + mapaActual)}</option>`);
+  sel.value = mapaActual;
   $('#c-activa').value = u ? (u.activa ? '1' : '0') : '1';
   $('#c-mantenimiento_plan_id').value = u && u.mantenimiento_plan_id ? String(u.mantenimiento_plan_id) : '';
 
@@ -1224,7 +1242,8 @@ $('#ficha').onsubmit = async e => {
   $('#ficha-error').hidden = true;
   const cuerpo = { id: EDITANDO ? EDITANDO.id : null };
   for (const c of ['patente','interno','marca','modelo','chasis','chofer',
-                   'semi','sucursal','uso','nota','tipo','modelo_3d','mantenimiento_plan_id'])
+                   'semi','sucursal','uso','nota','tipo','modelo_3d',
+                   'mantenimiento_plan_id','configuracion_id'])
     cuerpo[c] = $('#c-' + c).value;
   cuerpo.activa = $('#c-activa').value === '1';
   $('#guardar').disabled = true;
@@ -1296,11 +1315,31 @@ async function cargar(){
     (DATOS.modelos_3d || []).map(m =>
       `<option value="${esc(m.valor)}">${esc(m.nombre)}</option>`).join('');
 
+  // El mapa de cubiertas se elige acá y en ningún otro lado: es parte de
+  // la ficha de la unidad, igual que el plan de mantenimiento.
+  $('#c-configuracion_id').innerHTML = '<option value="">Sin mapa asignado</option>' +
+    (DATOS.configuraciones || []).map(c => {
+      const detalle = c.descripcion || (c.posiciones ? c.posiciones + ' posiciones' : '');
+      return `<option value="${c.id}">${esc(c.nombre)}${detalle ? ' — ' + esc(detalle) : ''}</option>`;
+    }).join('');
+
   const planes = DATOS.planes_mantenimiento || [];
   $('#c-mantenimiento_plan_id').innerHTML = '<option value="">Sin plan asignado</option>' +
     planes.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${Number(p.cada_km).toLocaleString('es-AR')} km</option>`).join('');
 
   pintar();
+  fichaDeLaUrl();
+}
+
+/* Se puede llegar acá desde Gomería con la unidad en la dirección:
+   /unidades?patente=AG055TX abre esa ficha. Sin esto, el que viene a
+   ponerle el mapa aterriza en la lista y tiene que buscarla de nuevo. */
+function fichaDeLaUrl(){
+  const pedida = new URLSearchParams(location.search).get('patente');
+  if (!pedida) return;
+  const plano = t => String(t || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const u = (DATOS.unidades || []).find(x => plano(x.patente) === plano(pedida));
+  if (u) abrir(u);
 }
 
 for (const id of ['#buscar','#f-sucursal','#f-marca','#f-uso','#f-estado'])

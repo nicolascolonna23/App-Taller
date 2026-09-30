@@ -81,8 +81,15 @@ def listar(cx, usuario=None):
         "unidades": filas,
         "sucursales": distintos("sucursal"),
         "usos": distintos("uso"),
-        "configuraciones": cx.execute(
-            "select id, nombre from configuraciones order by nombre").fetchall(),
+        # El mapa se elige desde acá, así que la lista trae con qué
+        # decidir: el nombre solo no dice si son seis lugares o diez.
+        "configuraciones": cx.execute("""
+            select c.id, c.nombre, c.descripcion,
+                   count(p.id) filter (where not p.es_auxilio)::int as posiciones
+            from configuraciones c
+            left join configuracion_posiciones p on p.configuracion_id = c.id
+            group by c.id, c.nombre, c.descripcion
+            order by c.nombre""").fetchall(),
         "revisar": (cx.execute("select * from v_unidades_a_revisar").fetchall()
                     + medidas_que_no_van(cx)),
         # Qué tipos de vehículo hay y cuáles todavía no tienen 3D.
@@ -730,6 +737,36 @@ def _limpiar(datos):
     return limpio
 
 
+def _mapa(cx, unidad_id, configuracion_id):
+    """Le pone —o le saca— el mapa de cubiertas a una unidad.
+
+    Pasa por base.asignar_configuracion y no por el update general porque
+    ahí vive la regla que importa: el mapa no se cambia mientras haya
+    cubiertas montadas. Sacarlo sí se hace acá, y con la misma regla: una
+    unidad con gomas puestas no puede quedarse sin los lugares donde
+    están puestas.
+    """
+    import base as _base
+
+    actual = cx.execute("select configuracion_id from unidades where id = %s",
+                        (unidad_id,)).fetchone()
+    if actual and actual["configuracion_id"] == configuracion_id:
+        return                       # no cambió: no hay nada que validar
+
+    if configuracion_id is None:
+        puestas = cx.execute("""
+            select count(*) as n from montajes
+            where unidad_id = %s and hasta is null""", (unidad_id,)).fetchone()["n"]
+        if puestas:
+            raise ValueError("No se puede sacar el mapa mientras haya "
+                             "cubiertas montadas.")
+        cx.execute("update unidades set configuracion_id = null where id = %s",
+                   (unidad_id,))
+        return
+
+    _base.asignar_configuracion(cx, unidad_id, configuracion_id)
+
+
 def guardar(cx, datos, usuario=None):
     """Da de alta una unidad o cambia la que ya está. Devuelve la unidad."""
     _exigir_gestor(usuario)
@@ -741,6 +778,14 @@ def guardar(cx, datos, usuario=None):
         raise ValueError("Falta la patente, o el código si es un equipo.")
 
     campos = _limpiar(datos)
+
+    # El mapa de cubiertas no entra por acá aunque venga en la ficha: tiene
+    # su propia regla —no se puede cambiar con cubiertas montadas— y
+    # meterlo en el update general se la saltearía. Se aplica aparte, más
+    # abajo, cuando la unidad ya existe.
+    mapa = datos.get("configuracion_id")
+    mapa = int(mapa) if str(mapa or "").strip().isdigit() else None
+    quiere_mapa = "configuracion_id" in datos
 
     # El tipo no se pide: se deduce de la patente, salvo que lo manden.
     if "tipo" not in campos and patente:
@@ -755,11 +800,12 @@ def guardar(cx, datos, usuario=None):
             if ya:
                 raise ValueError(f"{base_fmt(patente)} ya está cargada en otra unidad.")
             campos["patente"] = patente
-        if not campos:
-            return una(cx, unidad_id)
-        sets = ", ".join(f"{c} = %s" for c in campos)
-        cx.execute(f"update unidades set {sets} where id = %s",
-                   list(campos.values()) + [unidad_id])
+        if campos:
+            sets = ", ".join(f"{c} = %s" for c in campos)
+            cx.execute(f"update unidades set {sets} where id = %s",
+                       list(campos.values()) + [unidad_id])
+        if quiere_mapa:
+            _mapa(cx, unidad_id, mapa)
         return una(cx, unidad_id)
 
     ya = cx.execute("select id from unidades where patente = %s", (patente,)).fetchone()
@@ -771,6 +817,8 @@ def guardar(cx, datos, usuario=None):
     huecos = ", ".join(["%s"] * len(campos))
     fila = cx.execute(f"insert into unidades ({columnas}) values ({huecos}) returning id",
                       list(campos.values())).fetchone()
+    if quiere_mapa:
+        _mapa(cx, fila["id"], mapa)
     return una(cx, fila["id"])
 
 
