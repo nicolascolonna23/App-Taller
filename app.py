@@ -17,6 +17,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /usuarios    altas, bajas, roles y qué módulos abre cada uno
     /parametros  de dónde salen los km, los planes y los umbrales de aviso
     /alertas     todo lo que hay que mirar hoy, de las cuatro fuentes
+    /viento      el viento que encontró cada viaje Buenos Aires ↔ Catamarca
 
 Configuración, toda por variables de entorno:
 
@@ -53,6 +54,7 @@ import unidades as uni
 import fluidos as flu
 import reportes_chofer as reportes
 import vencimientos as venc
+import viento
 import servidor as gom
 from flota_vales.http import atender as atender_vales
 
@@ -77,6 +79,7 @@ PANTALLAS = {
     "/control":    ("control_flota.html",      "text/html; charset=utf-8"),
     "/repuestos":  ("stock_repuestos.html",    "text/html; charset=utf-8"),
     "/vencimientos": ("vencimientos.html",     "text/html; charset=utf-8"),
+    "/viento":     ("viento.html",             "text/html; charset=utf-8"),
     "/alertas":     ("alertas.html",           "text/html; charset=utf-8"),
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
     "/asistente": ("asistente.html", "text/html; charset=utf-8"),
@@ -374,6 +377,27 @@ class App(CupoPorPedido, gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el resumen: {e}", 500)
+
+        # El viento que encontró cada viaje a Catamarca. Baja la planilla
+        # del BI y le pide a Open-Meteo lo que no esté guardado: la primera
+        # vez de un período largo tarda.
+        if ruta == "/api/viento":
+            if not self._exigir_sesion():
+                return
+            params = parse_qs(urlparse(self.path).query)
+            uno = lambda k: (params.get(k) or [None])[0]
+            try:
+                with base.conectar() as cx:
+                    datos = viento.informe(cx, uno("desde"), uno("hasta"),
+                                           forzar=uno("recargar") == "1")
+                return self._responder(gom.jstr(datos))
+            except ValueError as e:
+                return self._error(str(e), 422)
+            except RuntimeError as e:
+                return self._error(str(e), 502)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo armar el informe de viento: {e}", 500)
 
         # Cómo ve la aplicación este usuario: tema, paleta y portada.
         if ruta == "/api/preferencias":
