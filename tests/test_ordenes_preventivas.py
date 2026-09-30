@@ -67,6 +67,10 @@ class BaseService:
             return Resultado({"id": 7, "patente": "AD247MQ", "km_actual": 123000})
         if sql.startswith("select p.cada_km from unidades"):
             return Resultado({"cada_km": 20000} if self.con_plan else None)
+        if sql.startswith("select fecha, km from odometros"):
+            # Lo que marcaba el satelital ese día. Acá, menos que el km del
+            # service: la carga es buena y tiene que entrar.
+            return Resultado({"fecha": date(2026, 9, 1), "km": 120000})
         if sql.startswith("select id from services where orden_id"):
             return Resultado(None)
         if sql.startswith("insert into services"):
