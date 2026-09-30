@@ -67,6 +67,10 @@ Con eso sale:
 - **Lo que costó el viento en contra** en el período, en litros y en pesos (al
   precio promedio de esas mismas cargas). También lo que devolvió el viento a
   favor.
+- **Los viajes de cada grupo**: tocando un grupo de viento (a favor, neutro,
+  en contra) o un motivo de descarte se ve la lista de viajes: de dónde a
+  dónde, patente, chofer, consumo y cada carga que se le asignó (fecha,
+  litros, importe, estación, remito).
 - **El consumo sin viento**, por camión y por chofer: el que habría tenido
   con viento neutro. Es la comparación justa entre choferes.
 
