@@ -494,6 +494,8 @@ function pintar() {
   $('#pie').innerHTML = `Fuente del viento: ${esc(D.datos.fuente)}. Recorrido de ${num(D.datos.km_total)} km: ` +
     D.datos.ruta.map(p => esc(p.lugar)).join(' → ') + '.<br>' +
     `Dónde estaba el camión se estima repartiendo el viaje parejo entre la salida y la llegada.<br>` +
+    (D.datos.traida ? `Planilla de viajes traída el ${fechaCorta(fecha(D.datos.traida.cuando))} a las ` +
+      `${horaCorta(fecha(D.datos.traida.cuando))}: ${esc(D.datos.traida.estado || '')}. ` : '') +
     `Columnas de la planilla que se usaron: ${cols || '–'}. ` +
     `Viajes de otros tramos en la planilla: ${num(D.datos.otros_viajes)}.`;
 }
@@ -802,12 +804,13 @@ function pintarIndicadores() {
 /* La lista de viajes de un grupo, con lo que cargó cada uno. */
 function listaViajes(viajes, titulo, sub) {
   $('#lTitulo').textContent = titulo;
-  $('#lSub').textContent = sub + ' · Las cargas que cuentan son las de la patente desde el día después de salir hasta el día siguiente a llegar.';
+  $('#lSub').textContent = sub + ' · Cuentan las cargas de la patente después de salir y hasta el día siguiente a llegar ' +
+    '(sin hora de carga: desde el día después de salir). Si la patente vuelve a salir antes, hasta esa salida.';
   const lugar = t => esc(t || '–');
   $('#lFilas').innerHTML = viajes.length ? viajes.map(v => {
     const s = fecha(v.salida), l = fecha(v.llegada);
     const cargas = v.detalle_cargas.length ? '<ul class="cargas">' + v.detalle_cargas.map(k =>
-      `<li>${fechaCorta(fecha(k.fecha))} · <b>${num(k.litros, 0)} L</b>` +
+      `<li>${fechaCorta(fecha(k.fecha))}${k.hora ? ' ' + esc(String(k.hora).slice(0, 5)) : ''} · <b>${num(k.litros, 0)} L</b>` +
       (k.importe ? ` · $ ${num(k.importe)}` : '') +
       (k.estacion ? ` · ${esc(k.estacion)}` : '') + (k.remito ? ` · remito ${esc(k.remito)}` : '') + '</li>').join('') + '</ul>'
       : `<span class="apagado">ninguna entre ${fechaCorta(fecha(v.cargas_desde))} y ${fechaCorta(fecha(v.cargas_hasta))}</span>`;

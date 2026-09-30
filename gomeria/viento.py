@@ -33,8 +33,8 @@ import urllib.request
 import json
 from datetime import date, datetime, timedelta, time as hora_del_dia
 
-URL_HOJAS = os.environ.get("VIENTO_HOJAS_URL",
-                           "http://bi.sistemaexpreso.com.ar/reporte_hojas.xlsx")
+URL_HOJAS = (os.environ.get("VIENTO_HOJAS_URL", "").strip()
+             or "http://bi.sistemaexpreso.com.ar/reporte_hojas.xlsx")
 
 # Con clave, el servidor comercial de Open-Meteo; sin clave, el gratuito,
 # que es solo para uso no comercial.
@@ -430,6 +430,119 @@ def hojas(forzar=False):
 
 
 # ---------------------------------------------------------------------
+# LOS VIAJES GUARDADOS (40_viento_viajes.sql)
+# ---------------------------------------------------------------------
+# La planilla del BI se trae sola todas las mañanas y se guarda: la
+# pantalla abre al instante, y los viajes quedan aunque el reporte deje de
+# mostrarlos. Sin la tabla, todo sigue como antes: se baja al abrir.
+def guardar_viajes(cx, planilla, estado=None):
+    """Guarda los viajes de la planilla. Devuelve cuántos, o None sin tabla.
+
+    La clave es la hoja, el sentido y la salida. Si una hoja cambió de
+    salida en el BI (la corrigieron), la versión vieja se borra: la misma
+    hoja no puede quedar dos veces.
+    """
+    unicos = {}
+    for v in planilla["viajes"]:
+        unicos[(v.get("hoja") or "", v["sentido"], v["salida"])] = v
+    filas = list(unicos.values())
+    try:
+        with cx.cursor() as cur:
+            if filas:
+                cur.execute("""
+                    delete from viento_viajes w
+                    using unnest(%s::text[], %s::text[], %s::timestamp[]) as f(hoja, sentido, salida)
+                    where w.hoja = f.hoja and w.hoja <> '' and w.sentido = f.sentido
+                      and w.salida <> f.salida""",
+                    ([v.get("hoja") or "" for v in filas], [v["sentido"] for v in filas],
+                     [v["salida"] for v in filas]))
+            cur.executemany("""
+                insert into viento_viajes (hoja, sentido, salida, salida_real, llegada,
+                    llegada_real, origen, destino, patentes, semi, chofer, actualizado)
+                values (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now())
+                on conflict (hoja, sentido, salida) do update set
+                  salida_real = excluded.salida_real, llegada = excluded.llegada,
+                  llegada_real = excluded.llegada_real, origen = excluded.origen,
+                  destino = excluded.destino, patentes = excluded.patentes,
+                  semi = excluded.semi, chofer = excluded.chofer, actualizado = now()""",
+                [(v.get("hoja") or "", v["sentido"], v["salida"], bool(v.get("salida_real")),
+                  v.get("llegada"), bool(v.get("llegada_real")), v.get("origen") or None,
+                  v.get("destino") or None,
+                  v.get("patentes") or ([v["patente"]] if v.get("patente") else []),
+                  v.get("semi") or None, v.get("chofer") or None) for v in filas])
+            cur.execute("""
+                insert into viento_traidas (unica, cuando, estado, columnas, otros)
+                values (true, now(), %s, %s::jsonb, %s)
+                on conflict (unica) do update set cuando = now(), estado = excluded.estado,
+                  columnas = excluded.columnas, otros = excluded.otros""",
+                (estado or f"{len(filas)} viajes Buenos Aires ↔ Catamarca",
+                 json.dumps(planilla.get("columnas") or {}, ensure_ascii=False),
+                 planilla.get("otros") or 0))
+        cx.commit()
+    except Exception:
+        cx.rollback()
+        return None
+    return len(filas)
+
+
+def anotar_traida(cx, estado):
+    """Anota que la traída falló, sin tocar los viajes que ya había."""
+    try:
+        cx.execute("""
+            insert into viento_traidas (unica, cuando, estado) values (true, now(), %s)
+            on conflict (unica) do update set cuando = now(), estado = excluded.estado""",
+            (estado[:300],))
+        cx.commit()
+    except Exception:
+        cx.rollback()
+
+
+def viajes_guardados(cx):
+    """Los viajes guardados, con la misma forma que leer_filas. None sin tabla o vacía."""
+    try:
+        filas = cx.execute("""
+            select hoja, sentido, salida, salida_real, llegada, llegada_real, origen,
+                   destino, patentes, semi, chofer from viento_viajes""").fetchall()
+        traida = cx.execute("select * from viento_traidas").fetchone()
+    except Exception:
+        cx.rollback()
+        return None
+    if not filas:
+        return None
+    viajes = []
+    for f in filas:
+        patentes = list(f["patentes"] or [])
+        viajes.append({"hoja": f["hoja"], "sentido": f["sentido"], "salida": f["salida"],
+                       "salida_real": f["salida_real"], "llegada": f["llegada"],
+                       "llegada_real": f["llegada_real"], "origen": f["origen"] or "",
+                       "destino": f["destino"] or "", "patentes": patentes,
+                       "patente": patentes[0] if patentes else "",
+                       "semi": f["semi"] or "", "chofer": f["chofer"] or ""})
+    return {"viajes": viajes, "descartados": 0,
+            "otros": (traida or {}).get("otros") or 0,
+            "columnas": (traida or {}).get("columnas") or {}, "encabezados": [],
+            "traida": traida and {"cuando": traida["cuando"], "estado": traida["estado"]}}
+
+
+def planilla_de(cx, forzar=False):
+    """Los viajes: los guardados, o los del BI si se pide releer o no hay tabla.
+
+    Releer también guarda, así el botón hace lo mismo que la traída de la
+    mañana.
+    """
+    if cx is not None and not forzar:
+        guardados = viajes_guardados(cx)
+        if guardados:
+            return guardados
+    datos = hojas(forzar)
+    if cx is not None and guardar_viajes(cx, datos) is not None:
+        guardados = viajes_guardados(cx)
+        if guardados:
+            return guardados
+    return datos
+
+
+# ---------------------------------------------------------------------
 # CUÁL DE LAS PATENTES ES EL CAMIÓN
 # ---------------------------------------------------------------------
 def unidades_lad(cx):
@@ -776,7 +889,7 @@ def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=Non
     if (hasta - desde).days > 400:
         desde = hasta - timedelta(days=400)
 
-    planilla = leer_hojas() if leer_hojas else hojas(forzar)
+    planilla = leer_hojas() if leer_hojas else planilla_de(cx, forzar)
     # Una copia de cada viaje: la planilla queda media hora en memoria y la
     # patente elegida no se le puede pegar.
     viajes = [dict(v) for v in planilla["viajes"] if desde <= v["salida"].date() <= hasta]
@@ -821,4 +934,5 @@ def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=Non
         "ruta": [{"lugar": n, "lat": la, "lon": lo} for n, la, lo in RUTA],
         "km_total": KM_TOTAL,
         "fuente": "Open-Meteo (ERA5), viento a 10 m",
+        "traida": planilla.get("traida"),
     }

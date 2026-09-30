@@ -19,6 +19,10 @@ patente vuelve a salir, el viaje corta el día de esa nueva salida: la carga
 de ese día es la que repone lo que se gastó en este viaje. La carga del día
 de salida es del viaje anterior.
 
+Cuando la carga tiene hora (la planilla de tickets la trae) no hace falta
+adivinar por el día: es del viaje si fue después de la salida y antes de
+la próxima salida de la misma patente.
+
 Los km son los del recorrido (~1.120 km): el tramo es siempre el mismo y el
 satelital da una lectura por día, que no alcanza para cortar un viaje de
 20 horas.
@@ -57,19 +61,24 @@ def leer_cargas(cx, patentes, desde, hasta):
     """Las cargas de nuestra planilla de esas patentes, entre dos fechas."""
     if cx is None or not patentes:
         return []
-    try:
-        filas = cx.execute("""
-            select patente, fecha, litros, importe, estacion, chofer,
-                   coalesce(remito_bruto, remito) as remito
-            from combustible_cargas
-            where origen = 'planilla' and fecha between %s and %s
-              and patente = any(%s) and litros > 0
-            order by fecha""",
-            (desde, hasta, sorted(patentes))).fetchall()
-    except Exception:
-        cx.rollback()
+    filas = None
+    # La hora llegó con 40_viento_viajes.sql: sin la columna, sin hora.
+    for hora in ("hora", "null::time as hora"):
+        try:
+            filas = cx.execute(f"""
+                select patente, fecha, {hora}, litros, importe, estacion, chofer,
+                       coalesce(remito_bruto, remito) as remito
+                from combustible_cargas
+                where origen = 'planilla' and fecha between %s and %s
+                  and patente = any(%s) and litros > 0
+                order by fecha""",
+                (desde, hasta, sorted(patentes))).fetchall()
+            break
+        except Exception:
+            cx.rollback()
+    if filas is None:
         return None
-    return [{"patente": _patente(f["patente"]), "fecha": f["fecha"],
+    return [{"patente": _patente(f["patente"]), "fecha": f["fecha"], "hora": f["hora"],
              "litros": float(f["litros"]),
              "importe": None if f["importe"] is None else float(f["importe"]),
              "estacion": f.get("estacion"), "chofer": f.get("chofer"),
@@ -86,6 +95,30 @@ def grupo_de(contra):
     if contra < 6:
         return "neutro"
     return "en contra" if contra < 15 else "en contra fuerte"
+
+
+def _momento(carga):
+    """Cuándo fue la carga: con la hora si la tiene, si no el día entero."""
+    return datetime.combine(carga["fecha"], carga.get("hora") or datetime.min.time())
+
+
+def _es_del_viaje(carga, salida, hasta, siguiente):
+    """Si la carga repone lo que se gastó en este viaje.
+
+    Con hora es exacto: después de salir, y antes de la próxima salida de
+    la misma patente. Sin hora se mira el día: después del día de salida
+    (la de ese día puede haber sido antes de salir: es del viaje anterior)
+    y hasta el día de la próxima salida inclusive (la de ese día es la que
+    repone este viaje antes de volver a salir). En los dos casos, nunca
+    después del día siguiente a la llegada.
+    """
+    if carga["fecha"] > hasta:
+        return False
+    if carga.get("hora") is not None:
+        cuando = _momento(carga)
+        return salida < cuando and (siguiente is None or cuando < siguiente)
+    return (salida.date() < carga["fecha"]
+            and (siguiente is None or carga["fecha"] <= siguiente.date()))
 
 
 def litros_por_viaje(viajes, cargas):
@@ -106,10 +139,10 @@ def litros_por_viaje(viajes, cargas):
         desde = v["salida"].date()
         hasta = v["llegada"].date() + timedelta(days=1)
         siguiente = viajes[i + 1] if i + 1 < len(viajes) else None
-        if siguiente and _patente(siguiente["patente"]) == pat:
-            hasta = min(hasta, siguiente["salida"].date())
         suyas = [c for c in por_patente.get(pat, ())
-                 if desde < c["fecha"] <= hasta]
+                 if _es_del_viaje(c, v["salida"], hasta,
+                                  siguiente["salida"] if siguiente and
+                                  _patente(siguiente["patente"]) == pat else None)]
         litros = sum(c["litros"] for c in suyas)
         importes = [c["importe"] for c in suyas if c["importe"]]
         fila = {"hoja": v.get("hoja"), "patente": pat, "chofer": v.get("chofer"),
@@ -122,11 +155,13 @@ def litros_por_viaje(viajes, cargas):
                 "pct_frente": v.get("pct_frente"),
                 "grupo": grupo_de(v.get("contra_media")),
                 # Qué días se miraron: después de la salida y hasta acá.
-                "cargas_desde": desde + timedelta(days=1), "cargas_hasta": hasta,
+                "cargas_desde": desde + timedelta(days=1),
+                "cargas_hasta": min(hasta, siguiente["salida"].date())
+                if siguiente and _patente(siguiente["patente"]) == pat else hasta,
                 "cargas": len(suyas),
-                "detalle_cargas": [{k: c.get(k) for k in ("fecha", "litros", "importe",
+                "detalle_cargas": [{k: c.get(k) for k in ("fecha", "hora", "litros", "importe",
                                                           "estacion", "chofer", "remito")}
-                                   for c in sorted(suyas, key=lambda c: c["fecha"])],
+                                   for c in sorted(suyas, key=_momento)],
                 "litros": round(litros, 1),
                 "importe": round(sum(importes), 2) if importes else None,
                 "consumo": None, "consumo_calculado": None, "motivo": None}
@@ -381,7 +416,7 @@ def viaje_en_mapa(cx, hoja, leer_hojas=None, pedir=None, lad=None):
     buscada = _hoja(hoja)
     if not buscada:
         raise ValueError("Escribí el número de hoja de ruta.")
-    planilla = leer_hojas() if leer_hojas else vto.hojas()
+    planilla = leer_hojas() if leer_hojas else vto.planilla_de(cx)
     viajes = [dict(v) for v in planilla["viajes"] if _hoja(v.get("hoja")) == buscada]
     vto.elegir_patentes(viajes, vto.unidades_lad(cx) if lad is None else lad)
     if not viajes:

@@ -51,6 +51,7 @@ import permisos
 ALIAS = {
     "remito":  ("REMITO", "COMPROBANTE", "TICKET", "NRO REMITO", "N REMITO", "VALE"),
     "fecha":   ("FECHA", "DIA"),
+    "hora":    ("HORA",),
     "patente": ("PATENTE", "DOMINIO", "MOVIL", "MÓVIL", "UNIDAD", "CHAPA"),
     "litros":  ("LITROS", "LTS", "CANTIDAD", "VOLUMEN"),
     "importe": ("IMPORTE", "TOTAL", "MONTO", "PRECIO"),
@@ -184,6 +185,43 @@ def _fecha(valor):
         return None
 
 
+def _hora(valor, fecha=None):
+    """La hora de la carga, o None.
+
+    Sale de la columna Hora ("12:14", "8:28", una hora de Excel) y, si no
+    hay, de la fecha cuando trae la hora pegada ("05/05/2026 08:28"). La
+    planilla dice "no encontrado" cuando el ticket no la tenía: eso es
+    None, no medianoche.
+    """
+    for v in (valor, fecha):
+        if isinstance(v, datetime.datetime):
+            if v is fecha and (v.hour, v.minute) == (0, 0):
+                continue
+            return v.time().replace(second=0, microsecond=0)
+        if isinstance(v, datetime.time):
+            return v.replace(second=0, microsecond=0)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and 0 <= v < 1:
+            minutos = round(v * 24 * 60) % (24 * 60)
+            return datetime.time(minutos // 60, minutos % 60)
+        texto = str(v or "")
+        m = re.search(r"(?<!\d)(\d{1,2})[:.](\d{2})(?!\d)", texto if v is valor else texto[10:])
+        if m and int(m[1]) < 24 and int(m[2]) < 60:
+            return datetime.time(int(m[1]), int(m[2]))
+    return None
+
+
+def _tiene_hora(cx):
+    """Si combustible_cargas ya tiene la columna hora (40_viento_viajes.sql)."""
+    try:
+        return bool(cx.execute("""
+            select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'combustible_cargas'
+              and column_name = 'hora'""").fetchone())
+    except Exception:
+        cx.rollback()
+        return False
+
+
 # =====================================================================
 # LEER EL ARCHIVO
 # =====================================================================
@@ -272,6 +310,7 @@ def leer(nombre, crudo, elegidas=None):
             "remito": remito,
             "remito_bruto": str(celda(fila, "remito") or "").strip()[:40],
             "fecha": _fecha(celda(fila, "fecha")),
+            "hora": _hora(celda(fila, "hora"), celda(fila, "fecha")),
             "patente": _patente(celda(fila, "patente")),
             "litros": _numero(celda(fila, "litros"), decimal["litros"]),
             "importe": _numero(celda(fila, "importe"), decimal["importe"]),
@@ -359,8 +398,11 @@ def subir(cx, datos, usuario=None):
     # que sube la planilla del año se cansa antes de que termine.
     porrada = 500
     valores = list(unicas.values())
+    con_hora = _tiene_hora(cx)
     for desde in range(0, len(valores), porrada):
         tanda = valores[desde:desde + porrada]
+        # La hora va aparte, después del insert: así el insert de siempre no
+        # cambia, y una base sin la columna sigue guardando igual.
         cx.execute("""
             insert into combustible_cargas
               (lote_id, origen, remito, remito_bruto, fecha, patente,
@@ -384,6 +426,15 @@ def subir(cx, datos, usuario=None):
              [f["importe"] for f in tanda],
              [f["estacion"] or (datos.get("estacion") or None) for f in tanda],
              [f["chofer"] for f in tanda]))
+        if con_hora:
+            cx.execute("""
+                update combustible_cargas c set hora = f.hora
+                from unnest(%s::text[], %s::text[], %s::time[]) as f(remito, patente, hora)
+                where c.origen = %s and c.remito = f.remito
+                  and coalesce(c.patente, '') = coalesce(f.patente, '')
+                  and c.hora is distinct from f.hora""",
+                ([f["remito"] for f in tanda], [f["patente"] for f in tanda],
+                 [f["hora"] for f in tanda], origen))
 
     despues = cx.execute("select count(*) as n from combustible_cargas where origen = %s",
                          (origen,)).fetchone()["n"]

@@ -111,9 +111,35 @@ agregar ese nombre en `COLUMNAS`, en `gomeria/viento.py`.
 El origen y el destino se reconocen con las listas `BUENOS_AIRES` y `CATAMARCA`
 del mismo archivo.
 
+## Traída automática
+
+Todas las mañanas a las 06:15 ART, GitHub Actions (`.github/workflows/viajes.yml`)
+corre `gomeria/traer_viajes.py`:
+
+1. Baja `reporte_hojas.xlsx` del BI.
+2. Guarda los viajes Buenos Aires ↔ Catamarca en `viento_viajes`.
+3. Deja bajado de Open-Meteo el viento de los viajes de los últimos 45 días.
+
+La pantalla lee de esa tabla: abre al instante, y los viajes quedan aunque
+el reporte del BI deje de mostrarlos. **Releer planilla** hace lo mismo en el
+momento. Abajo de la lista se ve cuándo se trajo por última vez y cómo salió.
+Se puede disparar a mano desde la pestaña Actions de GitHub → *Planilla de
+viajes* → *Run workflow*.
+
+Sin la tabla (sin correr `40_viento_viajes.sql`), la pantalla baja la
+planilla del BI cada vez que se abre, como antes.
+
+## La hora de la carga
+
+La planilla de tickets trae la hora de cada carga (columna **Hora**). Se
+guarda en `combustible_cargas.hora` y se usa para repartir las cargas: con
+hora, una carga es del viaje si fue **después de la salida y antes de la
+próxima salida** de la misma patente. Sin hora se sigue mirando el día.
+"no encontrado" queda sin hora.
+
 ## Puesta en marcha
 
-1. Correr `gomeria/39_viento.sql` en Supabase. Crea la tabla donde se guarda el
+1. Correr `gomeria/39_viento.sql` y `gomeria/40_viento_viajes.sql` en Supabase. Crea la tabla donde se guarda el
    viento ya bajado y le habilita el módulo a admin y encargado. Sin la tabla
    la pantalla anda igual, pero vuelve a pedir el viento después de cada
    reinicio.

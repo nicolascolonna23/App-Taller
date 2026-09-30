@@ -91,6 +91,7 @@ armarlo a su manera:
 |---|---|
 | **remito** | REMITO · COMPROBANTE · TICKET · VALE · NRO REMITO |
 | fecha | FECHA · DIA |
+| hora | HORA (o la hora pegada a la fecha). Necesita `40_viento_viajes.sql`; sin la columna se guarda igual, sin hora |
 | patente | PATENTE · DOMINIO · MOVIL · UNIDAD · CHAPA |
 | litros | LITROS · LTS · CANTIDAD · VOLUMEN |
 | importe | IMPORTE · TOTAL · MONTO · PRECIO |
