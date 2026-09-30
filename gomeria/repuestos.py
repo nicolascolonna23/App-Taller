@@ -27,6 +27,7 @@ def listar(cx, usuario):
     """).fetchall()
     movimientos = cx.execute("""
         select m.id, m.fecha, m.tipo, m.cantidad, m.patente, m.observaciones,
+               m.costo_unitario,
                extract(epoch from m.creado_en) * 1000 as ts,
                a.codigo, a.descripcion
         from repuestos_movimientos m
@@ -52,6 +53,7 @@ def listar(cx, usuario):
             "patente": m["patente"] or "",
             "tipo": m["tipo"],
             "cantidad": m["cantidad"],
+            "costo": float(m["costo_unitario"]) if m["costo_unitario"] is not None else None,
             "obs": m["observaciones"] or "",
         } for m in movimientos],
         "puede_gestionar": puede_gestionar(usuario),
@@ -64,6 +66,24 @@ def _texto(datos, campo, obligatorio=False):
     if obligatorio and not valor:
         raise ValueError(f"Falta {campo}.")
     return valor
+
+
+def _costo(valor):
+    """Lo que salió cada unidad, o None si no se cargó.
+
+    Vacío no es cero: la mayoría de los movimientos viejos no tienen
+    costo, y contarlos como gratis ensuciaría todo lo que se calcule
+    encima.
+    """
+    if valor in (None, ""):
+        return None
+    try:
+        costo = float(str(valor).replace(",", "."))
+    except (TypeError, ValueError):
+        raise ValueError("El costo tiene que ser un número.") from None
+    if costo < 0:
+        raise ValueError("El costo no puede ser negativo.")
+    return round(costo, 2)
 
 
 def crear_movimiento(cx, datos, usuario):
@@ -89,6 +109,14 @@ def crear_movimiento(cx, datos, usuario):
     if tipo == "Salida" and not patente:
         raise ValueError("Cargar la patente de la unidad que recibe el repuesto.")
 
+    costo = _costo(datos.get("costo_unitario"))
+    # Solo lleva costo lo que entra. Una salida es el repuesto que ya se
+    # compró saliendo del estante: su costo es el que tenía cuando entró,
+    # no uno nuevo. Un ajuste que resta, lo mismo.
+    if costo is not None and (tipo == "Salida" or cantidad < 0):
+        raise ValueError("El costo se carga cuando el repuesto entra, "
+                         "no cuando sale.")
+
     articulo = cx.execute(
         "select id, activo from repuestos_articulos where codigo = %s", (codigo,)
     ).fetchone()
@@ -99,11 +127,12 @@ def crear_movimiento(cx, datos, usuario):
 
     fila = cx.execute("""
         insert into repuestos_movimientos
-          (articulo_id, fecha, tipo, cantidad, patente, observaciones, usuario_id)
-        values (%s,%s,%s,%s,%s,%s,%s)
+          (articulo_id, fecha, tipo, cantidad, patente, observaciones,
+           usuario_id, costo_unitario)
+        values (%s,%s,%s,%s,%s,%s,%s,%s)
         returning id
     """, (articulo["id"], fecha, tipo, cantidad, patente or None,
-          _texto(datos, "obs") or None, usuario["id"])).fetchone()
+          _texto(datos, "obs") or None, usuario["id"], costo)).fetchone()
     return fila["id"]
 
 

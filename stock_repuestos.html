@@ -341,6 +341,22 @@ function stockDe(cod){
     if(m.codigo===cod) t += (m.tipo==="Salida" ? -m.cantidad : m.cantidad); }
   return t;
 }
+/* El último costo conocido de un repuesto: el de la compra más reciente
+   que lo traiga. Se valoriza con ese y no con un promedio, porque se
+   puede explicar de una frase —"tantos por lo que salió el último"— y
+   porque las entradas viejas no tienen costo: promediarlas daría un
+   número que parece preciso y no lo es. */
+function costoDe(cod){
+  var mejor=null;
+  for(var i=0;i<S.movs.length;i++){ var m=S.movs[i];
+    if(m.codigo!==cod || m.costo==null) continue;
+    if(!mejor || m.fecha>mejor.fecha || (m.fecha===mejor.fecha && m.id>mejor.id)) mejor=m; }
+  return mejor ? mejor.costo : null;
+}
+function plata(n){
+  return n==null ? "—" : "$ "+Number(n).toLocaleString("es-AR",
+    {minimumFractionDigits:2, maximumFractionDigits:2});
+}
 function mapaStock(){
   var mp={}; S.movs.forEach(m=>{ mp[m.codigo]=(mp[m.codigo]||0)+(m.tipo==="Salida"?-m.cantidad:m.cantidad); });
   return mp;
@@ -382,12 +398,19 @@ function toast(msg){
    ======================================================================= */
 function pintar(){
   var mp=mapaStock(), act=S.arts.filter(a=>a.activo);
-  var unid=0, rep=0, cero=0;
+  var unid=0, rep=0, cero=0, plata_=0, sinCosto=0;
   act.forEach(a=>{ var s=mp[a.codigo]||0; if(s>0) unid+=s;
-    if(s===0) cero++; else if(a.minimo>0 && s<=a.minimo) rep++; });
+    if(s===0) cero++; else if(a.minimo>0 && s<=a.minimo) rep++;
+    /* Lo que vale el estante. Los que no tienen costo cargado se cuentan
+       aparte en vez de sumar cero: así el total dice de cuánto sale y no
+       se lee como si fuera todo. */
+    var c=costoDe(a.codigo);
+    if(c==null){ if(s>0) sinCosto++; } else plata_ += c*s; });
   document.getElementById("kpis").innerHTML =
     kpi(act.length,"Repuestos activos")+kpi(unid,"Unidades en stock")+
-    kpi(rep,"A reponer")+kpi(cero,"Sin stock")+kpi(S.movs.length,"Movimientos");
+    kpi(rep,"A reponer")+kpi(cero,"Sin stock")+
+    kpi(plata(plata_), sinCosto ? "Valorizado · faltan "+sinCosto : "Valorizado")+
+    kpi(S.movs.length,"Movimientos");
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===S.tab));
   var v=document.getElementById("view");
   v.innerHTML = S.tab==="stock" ? vistaStock(mp) : S.tab==="movs" ? vistaMovs() : vistaDatos();
@@ -425,15 +448,20 @@ function vistaStock(mp){
   if(!lista.length) return h+'<div class="card"><div class="empty"><b>Sin resultados</b>Modificar el filtro o cargar un repuesto nuevo.</div></div>';
 
   h+='<div class="card"><table><thead><tr><th>Código</th><th>Descripción</th><th>Rubro</th>'+
-     '<th class="num">Mín.</th><th class="num">Stock</th><th>Estado</th><th></th></tr></thead><tbody>';
+     '<th class="num">Mín.</th><th class="num">Stock</th><th class="num">Último costo</th>'+
+     '<th class="num">Valorizado</th><th>Estado</th><th></th></tr></thead><tbody>';
   lista.forEach(a=>{
-    var st=mp[a.codigo]||0, e=estado(a,st);
+    var st=mp[a.codigo]||0, e=estado(a,st), c=costoDe(a.codigo);
     h+='<tr class="'+(a.activo?"":"baja")+'">'+
       '<td class="code">'+esc(a.codigo)+'</td>'+
       '<td class="desc">'+esc(a.descripcion)+'</td>'+
       '<td class="rubro">'+esc(a.rubro)+'</td>'+
       '<td class="num">'+(a.minimo||"—")+'</td>'+
       '<td class="stock"><span class="mob-only">Stock</span>'+st+'</td>'+
+      '<td class="num"><span class="mob-only">Último costo</span>'+plata(c)+'</td>'+
+      /* Sin costo conocido queda en raya y no en cero: no saber cuánto
+         vale no es que no valga nada. */
+      '<td class="num"><span class="mob-only">Valorizado</span>'+(c==null?"—":plata(c*st))+'</td>'+
       '<td><span class="tag '+e.c+'">'+e.t+'</span></td>'+
       '<td class="acts">'+
         (a.activo?'<button class="ic plus" title="Entrada" data-act="mov" data-cod="'+esc(a.codigo)+'" data-tipo="Entrada">+</button>'+
@@ -471,7 +499,8 @@ function vistaMovs(){
     (S.movs.length?'Ningún movimiento coincide con el filtro.':'Cargar el primero con el botón “+ Movimiento”.')+'</div></div>';
 
   h+='<div class="card"><table><thead><tr><th>Fecha</th><th>Código</th><th>Producto</th><th>Patente</th>'+
-     '<th>Tipo</th><th class="num">Cantidad</th><th>Observaciones</th><th></th></tr></thead><tbody>';
+     '<th>Tipo</th><th class="num">Cantidad</th><th class="num">Costo unit.</th>'+
+     '<th>Observaciones</th><th></th></tr></thead><tbody>';
   lista.forEach(m=>{
     var cls = m.tipo==="Entrada"?"t-ent":m.tipo==="Salida"?"t-sal":"t-aju";
     var sig = m.tipo==="Salida"?"−":"+";
@@ -482,6 +511,7 @@ function vistaMovs(){
       '<td>'+(m.patente?'<span class="plate"><i></i><span>'+esc(m.patente)+'</span></span>':'<span class="rubro">—</span>')+'</td>'+
       '<td><span class="tag '+cls+'">'+m.tipo+'</span></td>'+
       '<td class="num"><span class="mob-only">Cantidad</span>'+sig+Math.abs(m.cantidad)+'</td>'+
+      '<td class="num"><span class="mob-only">Costo unit.</span>'+plata(m.costo)+'</td>'+
       '<td class="rubro">'+esc(m.obs||"")+'</td>'+
       '<td class="acts">'+(S.puedeGestionar?'<button class="ic" title="Borrar movimiento" data-act="del-mov" data-id="'+m.id+'">✕</button>':'')+'</td>'+
     '</tr>';
@@ -518,7 +548,7 @@ function abrir(html){ document.getElementById("modal").innerHTML='<div class="sc
 
 /* ---- movimiento ---- */
 function modalMov(cod,tipo){
-  M={ tipo:tipo||"Salida", cod:cod||"", fecha:hoy(), cant:1, pat:"", obs:"", q:"", open:false, err:"" };
+  M={ tipo:tipo||"Salida", cod:cod||"", fecha:hoy(), cant:1, pat:"", obs:"", q:"", open:false, err:"", costo:null };
   pintarMov();
 }
 function pintarMov(){
@@ -540,6 +570,12 @@ function pintarMov(){
         '<button data-act="mv-menos">−</button><input type="number" id="mv-cant" value="'+M.cant+'" step="1">'+
         '<button data-act="mv-mas">+</button></div></div>'+
     '</div>'+
+    (M.tipo==="Entrada"||(M.tipo==="Ajuste"&&M.cant>0)
+      ? '<div class="f"><label>Costo unitario (opcional)</label>'+
+        '<input type="number" id="mv-costo" min="0" step="0.01" value="'+(M.costo==null?"":M.costo)+'" placeholder="0,00">'+
+        '<div class="hint">Lo que salió cada unidad, sin IVA. Con esto el estante '+
+        'queda valorizado y se sabe cuánto costó lo que se le puso a cada camión.</div></div>'
+      : '')+
     '<div class="f"><label>Patente'+(M.tipo==="Salida"?"":" (opcional)")+'</label>'+
       '<div class="plate-wrap plate"><i></i><input class="plate-in" id="mv-pat" maxlength="9" placeholder="AB123CD" value="'+esc(M.pat)+'"></div>'+
       '<div class="hint">Unidad a la que se destina el repuesto.</div></div>'+
@@ -562,6 +598,7 @@ function leerMov(){
   if(g("mv-fecha")) M.fecha=g("mv-fecha").value;
   if(g("mv-cant"))  M.cant=parseInt(g("mv-cant").value||"0",10);
   if(g("mv-pat"))   M.pat=g("mv-pat").value.toUpperCase().replace(/\s+/g,"");
+  M.costo = g("mv-costo") && g("mv-costo").value!=="" ? Number(g("mv-costo").value) : null;
   if(g("mv-obs"))   M.obs=g("mv-obs").value;
   if(g("mv-q"))     M.q=g("mv-q").value;
 }
@@ -577,7 +614,11 @@ async function guardarMov(){
     var st=stockDe(a.codigo);
     if(M.cant>st && !confirm("El stock de “"+a.descripcion+"” es "+st+" y se está retirando "+M.cant+". ¿Confirma el registro?")) return;
   }
+  if(M.costo!=null && (isNaN(M.costo) || M.costo<0)){ M.err="El costo no puede ser negativo."; return pintarMov(); }
   var nuevo={fecha:M.fecha,codigo:a.codigo,patente:M.pat,tipo:M.tipo,cantidad:M.cant,obs:M.obs};
+  /* Solo viaja cuando el movimiento suma stock: el backend rechaza un
+     costo en una salida, y mandarlo igual sería un error seguro. */
+  if(M.costo!=null && (M.tipo==="Entrada"||(M.tipo==="Ajuste"&&M.cant>0))) nuevo.costo_unitario=M.costo;
   var etiqueta=M.tipo+" · "+a.descripcion;
   cerrar();
   if(await guardar("mov+",nuevo)) toast("Movimiento guardado · "+etiqueta);
