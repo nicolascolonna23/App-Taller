@@ -55,6 +55,7 @@ import fluidos as flu
 import reportes_chofer as reportes
 import vencimientos as venc
 import viento
+import viento_indicadores
 import servidor as gom
 from flota_vales.http import atender as atender_vales
 
@@ -399,6 +400,43 @@ class App(CupoPorPedido, gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo armar el informe de viento: {e}", 500)
 
+        # Los indicadores del viento: el combustible que cuesta, los
+        # tramos, los horarios y la seguridad.
+        if ruta == "/api/viento/indicadores":
+            if not self._exigir_sesion():
+                return
+            params = parse_qs(urlparse(self.path).query)
+            uno = lambda k: (params.get(k) or [None])[0]
+            try:
+                with base.conectar() as cx:
+                    datos = viento_indicadores.indicadores(
+                        cx, uno("desde"), uno("hasta"), forzar=uno("recargar") == "1")
+                return self._responder(gom.jstr(datos))
+            except ValueError as e:
+                return self._error(str(e), 422)
+            except RuntimeError as e:
+                return self._error(str(e), 502)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron calcular los indicadores: {e}", 500)
+
+        # Un viaje, por número de hoja, con el viento de toda la ruta.
+        if ruta == "/api/viento/mapa":
+            if not self._exigir_sesion():
+                return
+            params = parse_qs(urlparse(self.path).query)
+            try:
+                with base.conectar() as cx:
+                    datos = viento_indicadores.viaje_en_mapa(cx, (params.get("hoja") or [""])[0])
+                return self._responder(gom.jstr(datos))
+            except ValueError as e:
+                return self._error(str(e), 404)
+            except RuntimeError as e:
+                return self._error(str(e), 502)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo armar el mapa del viaje: {e}", 500)
+
         # Cómo ve la aplicación este usuario: tema, paleta y portada.
         if ruta == "/api/preferencias":
             if not self._exigir_sesion():
@@ -563,14 +601,16 @@ class App(CupoPorPedido, gom.Handler):
         # Three.js y sus complementos viven en el repo, no en un CDN: el
         # taller no siempre tiene buena conexión y una pantalla que depende
         # de que conteste Cloudflare es una pantalla que un día no abre.
-        if ruta.startswith("/vendor/") and ruta.endswith(".js"):
+        # Leaflet, el mapa de Viento en ruta, igual.
+        if ruta.startswith("/vendor/") and ruta.endswith((".js", ".css")):
             if not self._exigir_sesion():
                 return
             camino = os.path.join(AQUI, "vendor", os.path.basename(ruta))
             if not os.path.isfile(camino):
                 return self._error("No existe ese archivo.", 404)
-            return self._enviar_archivo(camino, "text/javascript; charset=utf-8",
-                                        "public, max-age=604800")
+            tipo = ("text/css; charset=utf-8" if ruta.endswith(".css")
+                    else "text/javascript; charset=utf-8")
+            return self._enviar_archivo(camino, tipo, "public, max-age=604800")
 
         # Los modelos 3D. Son archivos estáticos y no cambian nunca, así que
         # se dejan cachear: entre los siete suman 14 MB y no tiene sentido

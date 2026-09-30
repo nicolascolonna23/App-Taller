@@ -26,3 +26,17 @@ Licencia MIT (three.js). Para actualizarlos:
 
 Desde la 0.150 los complementos dejaron de publicarse como scripts sueltos
 y pasaron a módulos ES: subir de versión no es copiar y pegar.
+
+## Leaflet
+
+`leaflet.js` y `leaflet.css` **1.9.4**, el mapa de *Viento en ruta*. Van acá
+por lo mismo que three.js. Licencia BSD-2 (`LICENSE-leaflet.txt`). Los
+mapas de fondo sí se piden a OpenStreetMap: sin conexión, las flechas del
+viento y la ruta se ven igual, solo que sobre fondo liso.
+
+    npm pack leaflet@<version>
+    tar xzf leaflet-<version>.tgz
+    cp package/dist/leaflet.js package/dist/leaflet.css vendor/
+
+No se usan las imágenes de `package/dist/images`: el mapa no lleva los
+marcadores de fábrica.

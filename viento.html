@@ -124,8 +124,55 @@
   summary{cursor:pointer;color:var(--ink-2);font-weight:700;font-size:13px}
   .pie{color:var(--ink-muted);font-size:12px;line-height:1.6;margin-top:6px}
   .vacio{padding:30px 10px;text-align:center;color:var(--ink-muted)}
+
+  .solapas{display:flex;gap:2px;padding:0 20px;background:var(--surface-1);
+    border-bottom:1px solid var(--hairline);position:sticky;top:58px;z-index:9}
+  .solapas button{padding:11px 15px;font-size:13px;font-weight:700;background:none;
+    border:0;border-bottom:2px solid transparent;color:var(--ink-muted);
+    cursor:pointer;font-family:inherit;margin-bottom:-1px}
+  .solapas button:hover{color:var(--ink)}
+  .solapas button.on{color:var(--brand);border-bottom-color:var(--brand)}
+  @media(max-width:640px){.solapas{padding:0 8px;overflow-x:auto}}
+
+  h2.seccion{font-size:17px;font-weight:600;margin:26px 0 4px}
+  .seccion+.sub{margin-top:2px}
+  .panel{background:var(--surface-1);border:1px solid var(--hairline);border-radius:14px;
+    padding:15px;margin-bottom:14px}
+  .panel h3{margin:0 0 3px;font-size:14px;font-weight:700}
+  .panel .sub{margin:0 0 10px;font-size:12.5px}
+  .dos{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:900px){.dos{grid-template-columns:1fr}}
+  .frase{font-size:15px;line-height:1.55;margin:0 0 12px}
+  .frase b{color:var(--ink)}
+  .barrita{position:relative;height:12px;width:140px;background:none}
+  .barrita .eje{position:absolute;left:50%;top:-2px;bottom:-2px;width:1px;background:var(--ink-muted)}
+  .barrita i{position:absolute;top:0;bottom:0;border-radius:3px}
+  .multi{display:grid;grid-template-columns:70px 1fr;gap:4px 10px;align-items:center}
+  .multi .fila-nom{color:var(--ink-2);font-size:12px;font-weight:700}
+
+  .mapa-barra{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+  .mapa-barra div{display:flex;flex-direction:column;gap:5px}
+  #mapa{height:540px;border-radius:14px;border:1px solid var(--hairline);overflow:hidden;
+    background:var(--surface-2)}
+  @media(max-width:700px){#mapa{height:420px}}
+  html:not([data-modo="claro"]) #mapa .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.9) contrast(.9)}
+  .flecha{background:none;border:0}
+  .flecha svg{display:block;overflow:visible}
+  .camion{background:none;border:0}
+  .camion div{width:18px;height:18px;border-radius:50%;background:var(--brand);
+    border:3px solid var(--surface-1);box-shadow:0 0 0 2px var(--brand)}
+  .reloj{display:flex;gap:12px;align-items:center;margin:12px 0 4px;flex-wrap:wrap}
+  .reloj input[type=range]{flex:1;min-width:200px;accent-color:var(--brand);padding:0}
+  .reloj .ahora{font-weight:700;min-width:250px}
+  .leaflet-container{font:12px Inter,system-ui,sans-serif}
+  .leaflet-tooltip{background:var(--surface-3);color:var(--ink);border:1px solid var(--hairline-2);
+    box-shadow:0 8px 20px rgba(0,0,0,.3)}
+  .grafico .marca.on{opacity:1;stroke:var(--ink);stroke-width:1.5}
+  .elegir{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
 </style>
+<link rel="stylesheet" href="/vendor/leaflet.css">
 <script src="/tema.js"></script>
+<script src="/vendor/leaflet.js"></script>
 </head>
 <body>
 
@@ -136,13 +183,19 @@
   <span class="who" id="quien"></span>
 </header>
 
+<nav class="solapas">
+  <button class="on" data-solapa="viajes">Viajes</button>
+  <button data-solapa="indicadores">Indicadores</button>
+  <button data-solapa="mapa">Mapa del viaje</button>
+</nav>
+
 <main>
   <h1>Viento por viaje · Buenos Aires ↔ Catamarca</h1>
   <p class="sub">El viento que encontró cada camión a lo largo de la ruta, por Córdoba capital,
     hora por hora. <b>En contra</b> es cuánto del viento le pegó de frente: positivo frena,
     negativo empuja.</p>
 
-  <div class="filtros">
+  <div class="filtros" id="filtros">
     <div><label for="desde">Desde</label><input type="date" id="desde"></div>
     <div><label for="hasta">Hasta</label><input type="date" id="hasta"></div>
     <div><label for="sentido">Sentido</label>
@@ -159,6 +212,7 @@
 
   <div id="avisos"></div>
 
+  <div id="solViajes">
   <section class="tarjetas" id="tarjetas" hidden>
     <div class="tarjeta"><span>Viajes</span><b id="kViajes">–</b><small id="kViajesSub"></small></div>
     <div class="tarjeta"><span>Con viento en contra fuerte</span><b id="kFuerte">–</b><small id="kFuerteSub"></small></div>
@@ -190,6 +244,94 @@
   </div>
 
   <p class="pie" id="pie"></p>
+  </div>
+
+  <div id="solIndicadores" hidden>
+    <div id="iAvisos"></div>
+    <h2 class="seccion">Combustible y viento</h2>
+    <p class="sub">A cada viaje le tocan las cargas de su patente después de salir y hasta el día
+      siguiente a llegar; los km son los del recorrido. Con eso sale un consumo por viaje, y se
+      compara con el viento en contra que tuvo.</p>
+    <p class="frase" id="iFrase"></p>
+    <section class="tarjetas">
+      <div class="tarjeta"><span>Relación viento–consumo</span><b id="iR">–</b><small id="iRSub"></small></div>
+      <div class="tarjeta"><span>Cada 10 km/h en contra</span><b id="iPend">–</b><small id="iPendSub"></small></div>
+      <div class="tarjeta"><span>Gastado por viento en contra</span><b id="iCosto">–</b><small id="iCostoSub"></small></div>
+      <div class="tarjeta"><span>Viajes con consumo</span><b id="iN">–</b><small id="iNSub"></small></div>
+    </section>
+    <div class="dos">
+      <div class="panel"><h3>Consumo contra viento en contra, viaje por viaje</h3>
+        <p class="sub">Cada punto es un viaje. La línea es la tendencia.</p>
+        <div class="grafico" id="iDispersion"></div></div>
+      <div class="panel"><h3>Consumo promedio según el viento</h3>
+        <p class="sub">L/100 km, sin estadística: el promedio de cada grupo.</p>
+        <div id="iGrupos"></div>
+        <h3 style="margin-top:16px">Por qué quedaron viajes afuera</h3>
+        <div id="iDescartes" class="pie"></div></div>
+    </div>
+    <div class="dos">
+      <div class="panel"><h3>Por camión: consumo real y sin viento</h3>
+        <p class="sub">"Sin viento" es lo que habría gastado con viento neutro: la comparación justa.</p>
+        <div id="iPatentes" style="overflow:auto"></div></div>
+      <div class="panel"><h3>Por chofer: consumo real y sin viento</h3>
+        <p class="sub">Un chofer que siempre sale con viento en contra no gasta más por manejar peor.</p>
+        <div id="iChoferes" style="overflow:auto"></div></div>
+    </div>
+
+    <h2 class="seccion">Cuándo y dónde pega el viento</h2>
+    <p class="sub">Viento en contra promedio, en km/h. Hacia la derecha y naranja frena; hacia la izquierda y azul empuja.</p>
+    <div class="dos">
+      <div class="panel"><h3>Según la hora de salida</h3>
+        <p class="sub" id="iMejorHora"></p><div id="iHoras"></div></div>
+      <div class="panel"><h3>Mes a mes</h3>
+        <p class="sub">Para ver la época del año en que más cuesta cada sentido.</p><div id="iMeses"></div></div>
+    </div>
+    <div class="panel"><h3>Tramo por tramo</h3>
+      <p class="sub">Dónde pega más fuerte. Cada hora de cada viaje cuenta en el tramo por el que iba el camión.</p>
+      <div id="iTramos" style="overflow:auto"></div></div>
+
+    <h2 class="seccion">Seguridad</h2>
+    <p class="sub" id="iSegSub"></p>
+    <section class="tarjetas">
+      <div class="tarjeta"><span>Viajes con viento peligroso</span><b id="iSegViajes">–</b></div>
+      <div class="tarjeta"><span>Horas con ráfagas fuertes</span><b id="iSegRaf">–</b><small id="iSegRafSub"></small></div>
+      <div class="tarjeta"><span>Horas con viento cruzado fuerte</span><b id="iSegCruz">–</b><small id="iSegCruzSub"></small></div>
+      <div class="tarjeta"><span>Viajes del período</span><b id="iSegTotal">–</b></div>
+    </section>
+    <div class="caja"><table>
+      <thead><tr><th>Salida</th><th>Hoja</th><th>Sentido</th><th>Patente</th><th>Chofer</th>
+        <th class="num">Ráfaga</th><th>Dónde</th><th class="num">Cruzado</th><th>Dónde</th><th></th></tr></thead>
+      <tbody id="iSeguridad"></tbody></table></div>
+  </div>
+
+  <div id="solMapa" hidden>
+    <div class="mapa-barra">
+      <div><label for="hoja">Hoja de ruta</label><input id="hoja" placeholder="Número de hoja" inputmode="numeric"></div>
+      <button class="btn" id="verMapa">Ver en el mapa</button>
+    </div>
+    <div id="mAvisos"></div>
+    <div class="elegir" id="mElegir"></div>
+    <div id="mResumen" hidden>
+      <h2 class="seccion" id="mTitulo" style="margin-top:4px"></h2>
+      <p class="sub" id="mSub"></p>
+    </div>
+    <div id="mapa"></div>
+    <div id="mControles" hidden>
+      <div class="reloj">
+        <button class="btn sec" id="mPlay" aria-label="Reproducir">▶</button>
+        <input type="range" id="mHora" min="0" max="0" value="0" aria-label="Hora del viaje">
+        <span class="ahora" id="mAhora"></span>
+      </div>
+      <div class="leyenda">
+        <span><i style="background:var(--contra)"></i>En contra del camión</span>
+        <span><i style="background:var(--costado)"></i>De costado</span>
+        <span><i style="background:var(--favor)"></i>A favor</span>
+        <span class="apagado">La flecha va hacia donde sopla; más grande, más fuerte · el círculo con borde es el camión</span>
+      </div>
+      <div class="datos" id="mDatos"></div>
+      <div class="grafico" id="mGrafico"></div>
+    </div>
+  </div>
 </main>
 
 <div class="fondo" id="detalle"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="dTitulo">
@@ -198,6 +340,7 @@
     <button class="cerrar" aria-label="Cerrar">×</button>
   </div>
   <div class="datos" id="dDatos"></div>
+  <p><button class="btn sec" id="dMapa">Ver en el mapa</button></p>
   <div class="leyenda">
     <span><i style="background:var(--contra)"></i>En contra (frena)</span>
     <span><i style="background:var(--favor)"></i>A favor (empuja)</span>
@@ -350,6 +493,8 @@ function detalle(x) {
     ['Horas de frente', x.pct_frente == null ? '–' : `${x.pct_frente}%`],
   ].map(([t, v]) => `<div><span>${t}</span><b>${v}</b></div>`).join('');
   grafico(x.detalle);
+  $('#dMapa').hidden = !x.hoja;
+  $('#dMapa').onclick = () => { fondo.classList.remove('on'); abrirMapa(x.hoja, x.salida); };
   $('#dHoras').innerHTML = x.detalle.map(h => {
     const d = fecha(h.hora);
     return `<tr><td>${fechaCorta(d)} ${horaCorta(d)}</td><td>${esc(h.lugar)}</td><td class="num">${num(h.km)}</td>
@@ -362,8 +507,7 @@ function detalle(x) {
 
 /* Una barra por hora: hacia arriba lo que frenó, hacia abajo lo que empujó.
    Un solo eje, con el cero marcado. */
-function grafico(horas) {
-  const caja = $('#dGrafico');
+function grafico(horas, caja = $('#dGrafico'), alTocar = null) {
   const con = horas.filter(h => h.contra != null);
   if (!con.length) { caja.innerHTML = '<p class="vacio">Todavía no hay viento para este viaje.</p>'; return; }
   const W = 900, H = 260, izq = 44, der = 8, arr = 12, aba = 38;
@@ -379,13 +523,16 @@ function grafico(horas) {
       `<text x="${izq - 6}" y="${y(v) + 4}" text-anchor="end">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</text>`;
   }
   // Etiquetas abajo: la ciudad cada vez que cambia, sin pisarse.
-  let ultimaX = -99, ultimoLugar = '';
+  let ultimaX = -999, ultimoAncho = 0, ultimoLugar = '';
   horas.forEach((h, i) => {
     const cx = izq + ancho * i + ancho / 2;
     const lugar = h.lugar.startsWith('después de ') ? '' : h.lugar;
-    if (lugar && lugar !== ultimoLugar && cx - ultimaX > 70) {
+    // Cada nombre ocupa ~6,5 unidades por letra: si no entra entero
+    // entre el anterior y este, se saltea.
+    const largo = lugar.length * 6.5;
+    if (lugar && lugar !== ultimoLugar && cx - ultimaX > (largo + ultimoAncho) / 2 + 10) {
       svg += `<text x="${cx}" y="${H - aba + 16}" text-anchor="middle">${esc(lugar)}</text>`;
-      ultimaX = cx; ultimoLugar = lugar;
+      ultimaX = cx; ultimoAncho = largo; ultimoLugar = lugar;
     }
     const d = fecha(h.hora);
     if (d.getHours() % 6 === 0)
@@ -399,7 +546,7 @@ function grafico(horas) {
       ? `M${x},${y0}V${y1 + r}Q${x},${y1} ${x + r},${y1}H${x + barra - r}Q${x + barra},${y1} ${x + barra},${y1 + r}V${y0}Z`
       : `M${x},${y0}V${y1 - r}Q${x},${y1} ${x + r},${y1}H${x + barra - r}Q${x + barra},${y1} ${x + barra},${y1 - r}V${y0}Z`;
     svg += `<rect class="golpe" data-i="${i}" x="${izq + ancho * i}" y="${arr}" width="${ancho}" height="${H - arr - aba}"/>` +
-      `<path class="marca" d="${forma}" fill="${color}"/>`;
+      `<path class="marca" data-i="${i}" d="${forma}" style="fill:${color}"/>`;
   });
   svg += '</svg><div class="tip" hidden></div>';
   caja.innerHTML = svg;
@@ -418,7 +565,12 @@ function grafico(horas) {
       tip.style.top = (e.clientY - b.top - tip.offsetHeight - 10) + 'px';
     };
     g.onmouseleave = () => { tip.hidden = true; };
+    if (alTocar) { g.style.cursor = 'pointer'; g.onclick = () => alTocar(+g.dataset.i); }
   });
+}
+
+function marcarHora(caja, i) {
+  caja.querySelectorAll('.marca').forEach(m => m.classList.toggle('on', +m.dataset.i === i));
 }
 
 document.querySelectorAll('th[data-orden]').forEach(th => th.onclick = () => {
@@ -427,12 +579,372 @@ document.querySelectorAll('th[data-orden]').forEach(th => th.onclick = () => {
   if (D.datos) pintar();
 });
 $('#sentido').onchange = $('#buscar').oninput = () => D.datos && pintar();
-$('#consultar').onclick = () => cargar(false);
-$('#recargar').onclick = () => cargar(true);
+$('#consultar').onclick = () => SOLAPA === 'indicadores' ? cargarIndicadores(false) : cargar(false);
+$('#recargar').onclick = () => SOLAPA === 'indicadores' ? cargarIndicadores(true) : cargar(true);
 const fondo = $('#detalle');
 fondo.onclick = e => { if (e.target === fondo) fondo.classList.remove('on'); };
 fondo.querySelector('.cerrar').onclick = () => fondo.classList.remove('on');
 addEventListener('keydown', e => { if (e.key === 'Escape') fondo.classList.remove('on'); });
+
+/* ---------------------------------------------------------------------
+   SOLAPAS
+   --------------------------------------------------------------------- */
+let SOLAPA = 'viajes';
+function solapa(nombre) {
+  SOLAPA = nombre;
+  document.querySelectorAll('.solapas button').forEach(b => b.classList.toggle('on', b.dataset.solapa === nombre));
+  $('#solViajes').hidden = nombre !== 'viajes';
+  $('#solIndicadores').hidden = nombre !== 'indicadores';
+  $('#solMapa').hidden = nombre !== 'mapa';
+  $('#filtros').hidden = nombre === 'mapa';
+  $('#avisos').hidden = nombre !== 'viajes';
+  $('#sentido').parentElement.hidden = $('#buscar').parentElement.hidden = nombre !== 'viajes';
+  if (nombre === 'indicadores' && I.clave !== claveFechas()) cargarIndicadores(false);
+  if (nombre === 'mapa') { asegurarMapa(); setTimeout(() => M.mapa && M.mapa.invalidateSize(), 50); }
+  if (nombre !== 'mapa') pararReloj();
+  history.replaceState(null, '', nombre === 'viajes' ? location.pathname : '#' + nombre);
+}
+document.querySelectorAll('.solapas button').forEach(b => b.onclick = () => solapa(b.dataset.solapa));
+const claveFechas = () => $('#desde').value + '|' + $('#hasta').value;
+
+/* Una barrita divergente: el cero al medio, naranja a la derecha si frena,
+   azul a la izquierda si empuja. */
+function barrita(v, max = 15) {
+  if (v == null) return '<span class="apagado">–</span>';
+  const ancho = Math.min(50, Math.abs(v) / max * 50);
+  const color = v >= 0 ? 'var(--contra)' : 'var(--favor)';
+  const lado = v >= 0 ? `left:50%` : `left:${50 - ancho}%`;
+  return `<span style="display:inline-flex;align-items:center;gap:8px"><span class="barrita"><span class="eje"></span>` +
+    `<i style="${lado};width:${ancho}%;background:${color}"></i></span>` +
+    `<b style="min-width:42px;text-align:right;font-variant-numeric:tabular-nums">${conSigno(v)}</b></span>`;
+}
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+
+/* ---------------------------------------------------------------------
+   INDICADORES
+   --------------------------------------------------------------------- */
+const I = {datos: null, clave: ''};
+async function cargarIndicadores(recargar) {
+  const q = new URLSearchParams({desde: $('#desde').value, hasta: $('#hasta').value});
+  if (recargar) q.set('recargar', '1');
+  I.clave = claveFechas();
+  $('#consultar').disabled = $('#recargar').disabled = true;
+  $('#iFrase').textContent = 'Calculando: bajando viajes, viento y cargas de combustible…';
+  $('#iAvisos').innerHTML = '';
+  try {
+    const r = await fetch('/api/viento/indicadores?' + q);
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || 'No se pudieron calcular los indicadores.');
+    I.datos = d;
+    pintarIndicadores();
+  } catch (e) {
+    I.clave = '';
+    $('#iAvisos').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+    $('#iFrase').textContent = '';
+  } finally {
+    $('#consultar').disabled = $('#recargar').disabled = false;
+  }
+}
+
+function fuerza(r) {
+  const a = Math.abs(r);
+  return a < .2 ? 'sin relación' : a < .4 ? 'relación débil' : a < .6 ? 'relación moderada' : 'relación fuerte';
+}
+
+function pintarIndicadores() {
+  const d = I.datos, c = d.combustible, a = c.ajuste, k = c.costo, cr = d.criterios;
+  $('#iAvisos').innerHTML = d.avisos.map(x => `<div class="aviso dato">${esc(x)}</div>`).join('');
+
+  if (a.firme)
+    $('#iFrase').innerHTML = `Con ${a.n} viajes, <b>cada 10 km/h de viento en contra suma ${num(a.pendiente * 10, 1)} L/100 km</b>, ` +
+      `unos ${num(k.litros_cada_10)} litros por viaje. En el período, el viento en contra se llevó <b>${num(k.litros_en_contra)} litros</b>` +
+      (k.pesos_en_contra ? ` ($ ${num(k.pesos_en_contra)})` : '') + ` y el viento a favor devolvió ${num(k.litros_a_favor)}.`;
+  else if (a.n < cr.viajes_minimos)
+    $('#iFrase').innerHTML = `Hay ${a.n} viajes con un consumo que se pueda calcular: hacen falta al menos ${cr.viajes_minimos} ` +
+      `para decir algo del viento. Ampliá el período.`;
+  else
+    $('#iFrase').innerHTML = `Con ${a.n} viajes no aparece una relación firme entre el viento y el consumo` +
+      (a.r != null ? ` (r = ${num(a.r, 2)})` : '') + `: lo que pesa más es otra cosa (la carga, el chofer, el camión).`;
+
+  $('#iR').textContent = a.r == null ? '–' : num(a.r, 2);
+  $('#iRSub').textContent = a.r == null ? 'sin datos suficientes' :
+    `${fuerza(a.r)} · ${a.firme ? 'confiable' : 'no concluyente'}`;
+  $('#iPend').textContent = a.pendiente == null ? '–' : `${conSigno(a.pendiente * 10)} L/100 km`;
+  $('#iPendSub').textContent = k ? `≈ ${conSigno(k.litros_cada_10)} litros por viaje` : '';
+  $('#iCosto').textContent = k ? `${num(k.litros_en_contra)} L` : '–';
+  $('#iCostoSub').textContent = k ? [k.pesos_en_contra && `$ ${num(k.pesos_en_contra)}`,
+    `neto con el viento a favor: ${num(k.litros_neto)} L`].filter(Boolean).join(' · ') : 'sin una relación firme no se estima';
+  $('#iN').textContent = num(c.viajes_con_consumo);
+  $('#iNSub').textContent = `de ${num(c.viajes_total)} viajes con patente · consumo entre ${cr.consumo_minimo} y ${cr.consumo_maximo} L/100 km`;
+
+  dispersion(c.puntos, a);
+  const maxG = Math.max(1, ...c.grupos.map(g => g.consumo || 0));
+  const colorG = {'a favor':'var(--favor)','neutro':'var(--costado)','en contra':'var(--contra)','en contra fuerte':'var(--contra)'};
+  $('#iGrupos').innerHTML = `<table><tbody>` + c.grupos.map(g => `<tr>
+      <td style="width:130px">${esc(g.grupo)}</td>
+      <td><div style="height:12px;width:${(g.consumo || 0) / maxG * 100}%;max-width:100%;background:${colorG[g.grupo]};border-radius:0 3px 3px 0"></div></td>
+      <td class="num"><b>${g.consumo == null ? '–' : num(g.consumo, 1)}</b></td>
+      <td class="num apagado">${g.viajes} viajes</td></tr>`).join('') + `</tbody></table>`;
+  $('#iDescartes').innerHTML = c.descartes.length ?
+    c.descartes.map(x => `${esc(x.motivo)}: <b>${x.viajes}</b>`).join('<br>') : 'Ninguno.';
+
+  const tablaAjuste = (filas, titulo) => filas.length ? `<table><thead><tr><th>${titulo}</th><th class="num">Viajes</th>
+      <th class="num">Consumo</th><th class="num">Sin viento</th><th class="num">En contra medio</th></tr></thead><tbody>` +
+    filas.map(f => `<tr><td>${esc(f.nombre)}</td><td class="num">${f.viajes}</td>
+      <td class="num">${num(f.consumo, 1)}</td><td class="num"><b>${f.sin_viento == null ? '–' : num(f.sin_viento, 1)}</b></td>
+      <td class="num">${conSigno(f.contra_media)}</td></tr>`).join('') + '</tbody></table>' +
+    (a.firme ? '' : '<p class="pie">"Sin viento" aparece cuando la relación viento–consumo es confiable.</p>')
+    : '<p class="vacio">Sin viajes con consumo.</p>';
+  $('#iPatentes').innerHTML = tablaAjuste(c.por_patente, 'Patente');
+  $('#iChoferes').innerHTML = tablaAjuste(c.por_chofer, 'Chofer');
+
+  const idaVuelta = (filas, nombre) => `<table><thead><tr><th></th><th>Ida (a Catamarca)</th><th>Vuelta (a Buenos Aires)</th></tr></thead><tbody>` +
+    filas.map(f => `<tr><td>${nombre(f)}</td>
+      <td>${barrita(f.ida.contra)} <span class="apagado">${f.ida.viajes || ''}</span></td>
+      <td>${barrita(f.vuelta.contra)} <span class="apagado">${f.vuelta.viajes || ''}</span></td></tr>`).join('') + '</tbody></table>';
+  const franjas = d.por_hora_salida;
+  $('#iHoras').innerHTML = idaVuelta(franjas, f => `${dd(f.desde)}–${dd(f.hasta % 24)} h`) +
+    '<p class="pie">El número gris es la cantidad de viajes. Solo cuentan los que traen la hora de salida.</p>';
+  const mejor = s => franjas.filter(f => f[s].viajes >= 3).sort((x, y) => x[s].contra - y[s].contra)[0];
+  const mi = mejor('ida'), mv = mejor('vuelta');
+  $('#iMejorHora').innerHTML = (mi || mv) ? 'Menos viento en contra saliendo ' + [
+    mi && `<b>de ida entre las ${mi.desde} y las ${mi.hasta} h</b> (${conSigno(mi.ida.contra)} km/h)`,
+    mv && `<b>de vuelta entre las ${mv.desde} y las ${mv.hasta} h</b> (${conSigno(mv.vuelta.contra)} km/h)`].filter(Boolean).join(' y ') + '.'
+    : 'Hacen falta al menos 3 viajes en una franja para recomendar un horario.';
+  $('#iMeses').innerHTML = d.por_mes.length ? idaVuelta(d.por_mes.map(m => ({
+      mes: m.mes, ida: m.ida || {contra: null, viajes: 0}, vuelta: m.vuelta || {contra: null, viajes: 0}})),
+    m => { const [y, mm] = m.mes.split('-'); return `${MESES[+mm - 1]} ${y.slice(2)}`; })
+    : '<p class="vacio">Sin viajes con viento.</p>';
+  $('#iTramos').innerHTML = `<table><thead><tr><th>Tramo desde</th><th>Ida: en contra</th><th>Vuelta: en contra</th>
+      <th class="num">Viento medio</th><th class="num">Ráfaga máx.</th></tr></thead><tbody>` +
+    d.por_tramo.map(t => `<tr><td>${esc(t.tramo)}</td><td>${barrita(t.ida.contra)}</td><td>${barrita(t.vuelta.contra)}</td>
+      <td class="num">${t.ida.velocidad == null && t.vuelta.velocidad == null ? '–' :
+        num(((t.ida.velocidad ?? t.vuelta.velocidad) + (t.vuelta.velocidad ?? t.ida.velocidad)) / 2) + ' km/h'}</td>
+      <td class="num">${Math.max(t.ida.rafaga || 0, t.vuelta.rafaga || 0) ? num(Math.max(t.ida.rafaga || 0, t.vuelta.rafaga || 0)) + ' km/h' : '–'}</td></tr>`).join('') +
+    '</tbody></table>';
+
+  const sg = d.seguridad;
+  $('#iSegSub').textContent = `Ráfagas de ${sg.umbral_rafaga} km/h o más, o viento de costado de ${sg.umbral_cruzado} km/h o más: ` +
+    `con esto un semi vacío o una carga alta se mueven. Sirve para avisar al chofer y para explicar un incidente.`;
+  $('#iSegViajes').textContent = num(sg.viajes);
+  $('#iSegRaf').textContent = num(sg.horas_rafaga);
+  $('#iSegRafSub').textContent = `ráfaga ≥ ${sg.umbral_rafaga} km/h`;
+  $('#iSegCruz').textContent = num(sg.horas_cruzado);
+  $('#iSegCruzSub').textContent = `de costado ≥ ${sg.umbral_cruzado} km/h`;
+  $('#iSegTotal').textContent = num(d.viajes);
+  $('#iSeguridad').innerHTML = sg.lista.length ? sg.lista.map(x => {
+    const s = fecha(x.salida);
+    return `<tr data-hoja="${esc(x.hoja)}" data-salida="${esc(x.salida)}"><td>${fechaCorta(s)} ${horaCorta(s)}</td><td>${esc(x.hoja) || '–'}</td>
+      <td>${x.sentido === 'ida' ? 'Ida →' : '← Vuelta'}</td><td>${esc(x.patente) || '–'}</td><td>${esc(x.chofer) || '–'}</td>
+      <td class="num">${x.rafaga == null ? '–' : num(x.rafaga) + ' km/h'}</td><td>${esc(x.rafaga_lugar || '')}</td>
+      <td class="num">${x.cruzado == null ? '–' : num(x.cruzado) + ' km/h'}</td><td>${esc(x.cruzado_lugar || '')}</td>
+      <td>${x.hoja ? '<span class="apagado">ver mapa ›</span>' : ''}</td></tr>`;
+  }).join('') : `<tr><td colspan="10" class="vacio">Ningún viaje del período tuvo viento peligroso.</td></tr>`;
+  $('#iSeguridad').querySelectorAll('tr[data-hoja]').forEach(tr => {
+    if (tr.dataset.hoja) tr.onclick = () => abrirMapa(tr.dataset.hoja, tr.dataset.salida);
+  });
+}
+
+/* Consumo contra viento en contra: un punto por viaje y la recta. */
+function dispersion(puntos, ajuste) {
+  const caja = $('#iDispersion');
+  if (!puntos.length) { caja.innerHTML = '<p class="vacio">Sin viajes con consumo.</p>'; return; }
+  const W = 560, H = 300, izq = 44, der = 12, arr = 12, aba = 42;
+  const xs = puntos.map(p => p.x), ys = puntos.map(p => p.y);
+  const xm = Math.max(10, ...xs.map(Math.abs)), x0 = -Math.ceil(xm / 5) * 5, x1 = -x0;
+  const ymin = Math.floor(Math.min(...ys) / 5) * 5, ymax = Math.ceil(Math.max(...ys) / 5) * 5 || ymin + 5;
+  const X = v => izq + (v - x0) / (x1 - x0) * (W - izq - der);
+  const Y = v => arr + (ymax - v) / Math.max(1, ymax - ymin) * (H - arr - aba);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Consumo contra viento en contra">`;
+  const pasoY = ymax - ymin > 20 ? 10 : 5;
+  for (let v = ymin; v <= ymax; v += pasoY)
+    svg += `<line class="grilla" x1="${izq}" x2="${W - der}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${izq - 6}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  const pasoX = x1 > 20 ? 10 : 5;
+  for (let v = x0; v <= x1; v += pasoX)
+    svg += `<text x="${X(v)}" y="${H - aba + 16}" text-anchor="middle">${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(v)}</text>`;
+  svg += `<line class="cero" x1="${X(0)}" x2="${X(0)}" y1="${arr}" y2="${H - aba}"/>`;
+  svg += `<text x="${(W + izq) / 2}" y="${H - 6}" text-anchor="middle">viento en contra promedio del viaje (km/h)</text>`;
+  svg += `<text x="12" y="${arr + (H - arr - aba) / 2}" text-anchor="middle" transform="rotate(-90 12 ${arr + (H - arr - aba) / 2})">L/100 km</text>`;
+  if (ajuste.pendiente != null) {
+    const ya = ajuste.ordenada + ajuste.pendiente * x0, yb = ajuste.ordenada + ajuste.pendiente * x1;
+    svg += `<line x1="${X(x0)}" x2="${X(x1)}" y1="${Y(ya)}" y2="${Y(yb)}" style="stroke:var(--ink-2);stroke-width:2;stroke-dasharray:${ajuste.firme ? '0' : '5 4'}"/>`;
+  }
+  puntos.forEach((p, i) => {
+    const color = p.x >= 6 ? 'var(--contra)' : p.x <= -6 ? 'var(--favor)' : 'var(--costado)';
+    svg += `<circle class="punto" data-i="${i}" cx="${X(p.x)}" cy="${Y(p.y)}" r="5" style="fill:${color};stroke:var(--surface-1);stroke-width:2"/>`;
+  });
+  svg += '</svg><div class="tip" hidden></div>';
+  caja.innerHTML = svg;
+  const tip = caja.querySelector('.tip');
+  caja.querySelectorAll('.punto').forEach(c => {
+    c.style.cursor = 'pointer';
+    c.onmousemove = e => {
+      const p = puntos[+c.dataset.i], d = fecha(p.salida);
+      tip.innerHTML = `<b>Hoja ${esc(p.hoja) || '–'}</b> · ${esc(p.patente)} · ${p.sentido === 'ida' ? 'ida' : 'vuelta'}<br>` +
+        `${fechaCorta(d)} · en contra ${conSigno(p.x)} km/h · ${num(p.y, 1)} L/100 km`;
+      tip.hidden = false;
+      const b = caja.getBoundingClientRect();
+      let left = e.clientX - b.left + 14;
+      if (left + tip.offsetWidth > b.width) left = e.clientX - b.left - tip.offsetWidth - 14;
+      tip.style.left = Math.max(0, left) + 'px';
+      tip.style.top = (e.clientY - b.top - tip.offsetHeight - 10) + 'px';
+    };
+    c.onmouseleave = () => { tip.hidden = true; };
+    c.onclick = () => { const p = puntos[+c.dataset.i]; if (p.hoja) abrirMapa(p.hoja, p.salida); };
+  });
+}
+
+/* ---------------------------------------------------------------------
+   MAPA DEL VIAJE
+   --------------------------------------------------------------------- */
+const M = {mapa: null, capas: null, flechas: [], camion: null, datos: null, v: null, i: 0, reloj: null};
+
+function asegurarMapa() {
+  if (M.mapa) return true;
+  if (!window.L) {
+    $('#mAvisos').innerHTML = '<div class="aviso mal">No se pudo cargar el mapa.</div>';
+    return false;
+  }
+  M.mapa = L.map('mapa', {zoomSnap: 0.5, scrollWheelZoom: true}).setView([-31.6, -62], 5.5);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 13, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(M.mapa);
+  M.capas = L.layerGroup().addTo(M.mapa);
+  return true;
+}
+
+async function abrirMapa(hoja, salida) {
+  solapa('mapa');
+  $('#hoja').value = hoja;
+  await buscarMapa(salida);
+}
+
+async function buscarMapa(salida) {
+  const hoja = $('#hoja').value.trim();
+  if (!hoja) return;
+  if (!asegurarMapa()) return;
+  pararReloj();
+  $('#verMapa').disabled = true;
+  $('#mAvisos').innerHTML = '<div class="aviso dato">Buscando el viaje y el viento…</div>';
+  history.replaceState(null, '', '#mapa=' + encodeURIComponent(hoja));
+  try {
+    const r = await fetch('/api/viento/mapa?hoja=' + encodeURIComponent(hoja));
+    const d = await r.json();
+    if (!r.ok) throw Error(d.error || 'No se encontró el viaje.');
+    M.datos = d;
+    $('#mAvisos').innerHTML = d.avisos.map(x => `<div class="aviso dato">${esc(x)}</div>`).join('');
+    const i = Math.max(0, d.viajes.findIndex(v => salida && v.salida === salida));
+    $('#mElegir').innerHTML = d.viajes.length > 1 ? d.viajes.map((v, k) =>
+      `<button class="btn ${k === i ? '' : 'sec'}" data-k="${k}">${v.sentido === 'ida' ? 'Ida →' : '← Vuelta'} · ${fechaCorta(fecha(v.salida))}</button>`).join('') : '';
+    $('#mElegir').querySelectorAll('button').forEach(b => b.onclick = () => {
+      $('#mElegir').querySelectorAll('button').forEach(x => x.classList.toggle('sec', x !== b));
+      mostrarViaje(d.viajes[+b.dataset.k]);
+    });
+    mostrarViaje(d.viajes[i]);
+  } catch (e) {
+    $('#mAvisos').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+    $('#mResumen').hidden = $('#mControles').hidden = true;
+    $('#mElegir').innerHTML = '';
+    M.capas.clearLayers();
+  } finally {
+    $('#verMapa').disabled = false;
+  }
+}
+
+function mostrarViaje(v) {
+  pararReloj();
+  M.v = v;
+  const d = M.datos;
+  M.capas.clearLayers();
+  const linea = L.polyline(d.ruta.map(p => [p.lat, p.lon]), {color: getComputedStyle(document.body).getPropertyValue('--ink-muted').trim() || '#8d959e', weight: 3, opacity: .9});
+  M.capas.addLayer(linea);
+  d.ruta.forEach(p => M.capas.addLayer(L.circleMarker([p.lat, p.lon], {radius: 3, weight: 0, fillOpacity: .9,
+    fillColor: getComputedStyle(document.body).getPropertyValue('--ink-2').trim() || '#a9b0b8'})
+    .bindTooltip(esc(p.lugar), {direction: 'top'})));
+  M.flechas = d.puntos.map(p => {
+    const m = L.marker([p.lat, p.lon], {icon: L.divIcon({className: 'flecha', html: '', iconSize: [1, 1]}), keyboard: false});
+    M.capas.addLayer(m);
+    return m;
+  });
+  M.camion = L.marker([d.puntos[0].lat, d.puntos[0].lon], {zIndexOffset: 1000,
+    icon: L.divIcon({className: 'camion', html: '<div></div>', iconSize: [24, 24], iconAnchor: [12, 12]})});
+  M.capas.addLayer(M.camion);
+  M.mapa.fitBounds(linea.getBounds(), {padding: [30, 30]});
+
+  const s = fecha(v.salida), l = fecha(v.llegada);
+  $('#mResumen').hidden = false;
+  $('#mTitulo').textContent = (v.sentido === 'ida' ? 'Buenos Aires → Catamarca' : 'Catamarca → Buenos Aires') +
+    (v.patente ? ` · ${v.patente}` : '') + (v.hoja ? ` · hoja ${v.hoja}` : '');
+  $('#mSub').innerHTML = [v.chofer && esc(v.chofer),
+    `salió ${fechaCorta(s)} ${horaCorta(s)}${v.salida_real ? '' : ' (hora supuesta)'}`,
+    `llegó ${fechaCorta(l)} ${horaCorta(l)}${v.llegada_real ? '' : ' (estimada)'}`,
+    v.contra_media == null ? 'sin viento todavía' : `en contra promedio <b>${conSigno(v.contra_media)} km/h</b> · ${esc(v.calificacion)}`,
+    v.rafaga_max == null ? '' : `ráfaga máxima ${num(v.rafaga_max)} km/h en ${esc(v.rafaga_lugar)}`].filter(Boolean).join(' · ');
+  $('#mControles').hidden = false;
+  $('#mHora').max = Math.max(0, v.detalle.length - 1);
+  grafico(v.detalle, $('#mGrafico'), i => ponerHora(i));
+  // Arranca en la peor hora: es lo primero que se quiere ver.
+  const peor = v.detalle.reduce((m, h, i) => (h.contra ?? -1e9) > (v.detalle[m].contra ?? -1e9) ? i : m, 0);
+  ponerHora(peor);
+}
+
+function flecha(c) {
+  // c = [velocidad, de dónde viene, ráfaga, en contra del camión]
+  const tam = Math.round(Math.min(46, 16 + c[0] * 0.75));
+  const color = c[3] >= 6 ? 'var(--contra)' : c[3] <= -6 ? 'var(--favor)' : 'var(--costado)';
+  const va = (c[1] + 180) % 360;   // hacia dónde sopla
+  return L.divIcon({className: 'flecha', iconSize: [tam, tam], iconAnchor: [tam / 2, tam / 2],
+    html: `<svg width="${tam}" height="${tam}" viewBox="-12 -12 24 24" style="transform:rotate(${va}deg)">` +
+      `<path d="M0,-11 L6.5,3 L1.8,1.2 L1.8,11 L-1.8,11 L-1.8,1.2 L-6.5,3Z" style="fill:${color};stroke:var(--surface-1);stroke-width:1.3;stroke-linejoin:round"/></svg>`});
+}
+
+function ponerHora(i) {
+  const v = M.v;
+  if (!v || !v.detalle.length) return;
+  i = Math.max(0, Math.min(v.detalle.length - 1, i));
+  M.i = i;
+  $('#mHora').value = i;
+  const h = v.detalle[i], campo = v.campo[i] || [];
+  M.flechas.forEach((m, k) => {
+    const c = campo[k], p = M.datos.puntos[k];
+    if (!c) { m.setOpacity(0); m.unbindTooltip(); return; }
+    m.setOpacity(1);
+    m.setIcon(flecha(c));
+    m.bindTooltip(`<b>${esc(p.lugar)}</b><br>${num(c[0])} km/h del ${cardinal(c[1])}` +
+      (c[2] != null ? ` · ráfaga ${num(c[2])}` : '') + `<br>para el camión: ${conSigno(c[3])} km/h en contra`, {direction: 'top'});
+  });
+  M.camion.setLatLng([h.lat, h.lon]);
+  const d = fecha(h.hora);
+  $('#mAhora').textContent = `${fechaCorta(d)} ${horaCorta(d)} · ${h.lugar} · km ${num(h.km)}`;
+  $('#mDatos').innerHTML = [
+    ['Viento donde está el camión', h.velocidad == null ? 'sin dato' : `${num(h.velocidad)} km/h del ${cardinal(h.direccion)}`],
+    ['En contra', h.contra == null ? '–' : `${conSigno(h.contra)} km/h`],
+    ['De costado', h.cruzado == null ? '–' : `${num(h.cruzado)} km/h`],
+    ['Ráfaga', h.rafaga == null ? '–' : `${num(h.rafaga)} km/h`],
+  ].map(([t, x]) => `<div><span>${t}</span><b>${x}</b></div>`).join('');
+  marcarHora($('#mGrafico'), i);
+}
+
+function pararReloj() {
+  if (M.reloj) clearInterval(M.reloj);
+  M.reloj = null;
+  $('#mPlay').textContent = '▶';
+  $('#mPlay').setAttribute('aria-label', 'Reproducir');
+}
+$('#mPlay').onclick = () => {
+  if (M.reloj) return pararReloj();
+  if (!M.v) return;
+  if (M.i >= M.v.detalle.length - 1) ponerHora(0);
+  $('#mPlay').textContent = '❚❚';
+  $('#mPlay').setAttribute('aria-label', 'Pausar');
+  M.reloj = setInterval(() => {
+    if (M.i >= M.v.detalle.length - 1) return pararReloj();
+    ponerHora(M.i + 1);
+  }, 700);
+};
+$('#mHora').oninput = e => { pararReloj(); ponerHora(+e.target.value); };
+$('#verMapa').onclick = () => buscarMapa();
+$('#hoja').onkeydown = e => { if (e.key === 'Enter') buscarMapa(); };
 
 (async () => {
   const hoy = new Date(), antes = new Date(hoy - 90 * 864e5);
@@ -443,6 +955,10 @@ addEventListener('keydown', e => { if (e.key === 'Escape') fondo.classList.remov
     if (u) $('#quien').innerHTML = `${esc(u.nombre)} <a href="/salir">Salir</a>`;
   } catch (e) {}
   cargar(false);
+  // Se puede llegar directo: /viento#mapa=1234 o /viento#indicadores.
+  const h = decodeURIComponent(location.hash.slice(1));
+  if (h.startsWith('mapa=')) abrirMapa(h.slice(5));
+  else if (h === 'mapa' || h === 'indicadores') solapa(h);
 })();
 </script>
 </body>

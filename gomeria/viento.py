@@ -452,6 +452,11 @@ def de_frente(velocidad, desde, rumbo):
     return round(contra, 1), tipo
 
 
+def cruzado(velocidad, desde, rumbo):
+    """La parte del viento que le pega de costado, en km/h (siempre positiva)."""
+    return round(abs(velocidad * math.sin(math.radians(desde - rumbo))), 1)
+
+
 def calificar(contra_media):
     if contra_media is None:
         return "sin datos"
@@ -475,16 +480,18 @@ def resumir(viaje, viento):
     for r in recorrido_por_hora(viaje["salida"], llegada, viaje["sentido"] == "vuelta"):
         p = PUNTOS[r["punto"]]
         v = viento(p["lat"], p["lon"], r["hora"])
+        donde = {"hora": r["hora"], "lugar": p["lugar"], "km": r["km"],
+                 "lat": p["lat"], "lon": p["lon"], "punto": r["punto"]}
         if not v or v.get("velocidad") is None or v.get("direccion") is None:
-            horas.append({"hora": r["hora"], "lugar": p["lugar"], "km": r["km"],
-                          "velocidad": None})
+            horas.append({**donde, "velocidad": None})
             continue
         contra, tipo = de_frente(v["velocidad"], v["direccion"], r["rumbo"])
-        horas.append({"hora": r["hora"], "lugar": p["lugar"], "km": r["km"],
+        horas.append({**donde,
                       "velocidad": round(v["velocidad"], 1),
                       "rafaga": None if v.get("rafaga") is None else round(v["rafaga"], 1),
                       "direccion": round(v["direccion"]), "rumbo": r["rumbo"],
-                      "contra": contra, "tipo": tipo})
+                      "contra": contra, "tipo": tipo,
+                      "cruzado": cruzado(v["velocidad"], v["direccion"], r["rumbo"])})
     con = [h for h in horas if h["velocidad"] is not None]
     n = len(con)
     resumen = {

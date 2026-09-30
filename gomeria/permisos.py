@@ -95,6 +95,7 @@ RUTAS = {
     "/alertas": "alertas", "/api/alertas": "alertas",
     "/vencimientos": "vencimientos", "/api/vencimientos": "vencimientos",
     "/viento": "viento", "/api/viento": "viento",
+    "/api/viento/indicadores": "viento", "/api/viento/mapa": "viento",
     "/asistente": "asistente", "/api/asistente": "asistente",
     "/usuarios": "usuarios", "/api/usuarios": "usuarios",
     "/parametros": "parametros", "/api/parametros": "parametros",
