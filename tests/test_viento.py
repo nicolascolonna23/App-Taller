@@ -86,6 +86,52 @@ class Planilla(unittest.TestCase):
         self.assertEqual(v._fecha(46239.5), datetime(2026, 8, 5, 12, 0))
 
 
+class Patentes(unittest.TestCase):
+    def test_varias_en_una_celda(self):
+        self.assertEqual(v.patentes_de("AE 123 CD, AB456EF / ABC123"),
+                         ["AE123CD", "AB456EF", "ABC123"])
+        self.assertEqual(v.patentes_de("ae123cd-ab456ef"), ["AE123CD", "AB456EF"])
+        self.assertEqual(v.patentes_de("AE123CD y AB456EF"), ["AE123CD", "AB456EF"])
+        self.assertEqual(v.patentes_de(""), [])
+
+    def test_se_queda_con_el_tractor_de_larga_distancia(self):
+        lad = {"AB456EF": False, "SEM111": True}
+        viajes = [{"patentes": ["SEM111", "ZZ999ZZ", "AB456EF"]},
+                  {"patentes": ["SEM111"]},
+                  {"patentes": ["XX111XX"]}]
+        ajenas = v.elegir_patentes(viajes, lad)
+        self.assertEqual([x["patente"] for x in viajes], ["AB456EF", "", ""])
+        self.assertEqual(ajenas, {"SEM111", "XX111XX"})
+
+    def test_sin_flota_queda_la_primera(self):
+        viajes = [{"patentes": ["AA111AA", "BB222BB"], "patente": "AA111AA"}]
+        v.elegir_patentes(viajes, None)
+        self.assertEqual(viajes[0]["patente"], "AA111AA")
+
+    def test_la_planilla_trae_todas(self):
+        d = v.leer_filas([["Fecha Salida", "Origen", "Destino", "Patentes"],
+                          ["05/08/2026", "BUENOS AIRES", "CATAMARCA", "AE123CD, AB456EF"]])
+        self.assertEqual(d["viajes"][0]["patentes"], ["AE123CD", "AB456EF"])
+
+    def test_sin_columna_las_busca_en_la_fila(self):
+        d = v.leer_filas([["Fecha Salida", "Origen", "Destino", "Observaciones"],
+                          ["05/08/2026", "BUENOS AIRES", "CATAMARCA", "Tractor AE123CD"]])
+        self.assertEqual(d["viajes"][0]["patentes"], ["AE123CD"])
+
+    def test_informe_avisa_las_que_no_son_de_larga_distancia(self):
+        hojas = {"viajes": [
+            {"hoja": "1", "sentido": "ida", "salida": datetime(2026, 3, 5, 21),
+             "salida_real": True, "llegada": None, "llegada_real": False,
+             "patentes": ["QQ111QQ"], "patente": "QQ111QQ"}],
+            "descartados": 0, "otros": 0, "columnas": {}, "encabezados": []}
+        r = v.informe(None, "2026-03-01", "2026-03-31", leer_hojas=lambda: hojas,
+                      pedir=lambda a, b: [], lad={"AB456EF": False})
+        self.assertEqual(r["viajes"][0]["patente"], "")
+        self.assertTrue(any("QQ111QQ" in a for a in r["avisos"]))
+        # La planilla en memoria no se toca.
+        self.assertEqual(hojas["viajes"][0]["patente"], "QQ111QQ")
+
+
 class Recorrido(unittest.TestCase):
     def test_empieza_en_buenos_aires_y_termina_en_catamarca(self):
         ida = v.recorrido_por_hora(datetime(2026, 8, 5, 0), datetime(2026, 8, 5, 20))
