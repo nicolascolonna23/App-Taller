@@ -524,22 +524,21 @@ def viajes_guardados(cx):
             "traida": traida and {"cuando": traida["cuando"], "estado": traida["estado"]}}
 
 
-def planilla_de(cx, forzar=False):
-    """Los viajes: los guardados, o los del BI si se pide releer o no hay tabla.
+def planilla_de(cx):
+    """Los viajes guardados en la base.
 
-    Releer también guarda, así el botón hace lo mismo que la traída de la
-    mañana.
+    La planilla del BI no se baja desde el servidor: pesa mucho y abrirla
+    dejaba a la app sin memoria (Render la reiniciaba y daba 502). La trae
+    GitHub Actions todas las mañanas (gomeria/traer_viajes.py), y a mano
+    con "Run workflow" en la pestaña Actions.
     """
-    if cx is not None and not forzar:
-        guardados = viajes_guardados(cx)
-        if guardados:
-            return guardados
-    datos = hojas(forzar)
-    if cx is not None and guardar_viajes(cx, datos) is not None:
-        guardados = viajes_guardados(cx)
-        if guardados:
-            return guardados
-    return datos
+    guardados = viajes_guardados(cx) if cx is not None else None
+    if not guardados:
+        raise RuntimeError(
+            "Todavía no hay viajes guardados. La planilla del BI se trae sola "
+            "todas las mañanas a las 06:15; para traerla ahora: GitHub → Actions "
+            "→ Planilla de viajes → Run workflow.")
+    return guardados
 
 
 # ---------------------------------------------------------------------
@@ -731,6 +730,10 @@ def resumir(viaje, viento):
 # después de cada reinicio.
 _MEMORIA = {}
 _MEMORIA_LOCK = threading.Lock()
+# Cada hora de cada punto ocupa unos 350 bytes: 150.000 son unos 50 MB,
+# más de 6 meses de viajes. Pasado eso se vacía y se vuelve a leer de la
+# base, para que la memoria no crezca sin límite.
+TOPE_MEMORIA = 150_000
 # Open-Meteo tarda con muchos días y muchos puntos a la vez.
 DIAS_POR_PEDIDO = 62
 
@@ -817,6 +820,8 @@ def viento_para(cx, dias, pedir=_pedir_meteo):
         desde, hasta = dias[0], dias[-1]
         n_puntos = len({(p["lat"], p["lon"]) for p in PUNTOS})
         with _MEMORIA_LOCK:
+            if len(_MEMORIA) > TOPE_MEMORIA:
+                _MEMORIA.clear()
             tenemos = {}
             for k, v in _MEMORIA.items():
                 if desde <= k[2].date() <= hasta:
@@ -878,7 +883,7 @@ def _dia(texto, defecto):
         return defecto
 
 
-def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=None,
+def informe(cx, desde=None, hasta=None, leer_hojas=None, pedir=None,
             lad=None):
     """Los viajes del período con su viento. Es la respuesta de /api/viento."""
     hoy = date.today()
@@ -889,7 +894,7 @@ def informe(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=Non
     if (hasta - desde).days > 400:
         desde = hasta - timedelta(days=400)
 
-    planilla = leer_hojas() if leer_hojas else planilla_de(cx, forzar)
+    planilla = leer_hojas() if leer_hojas else planilla_de(cx)
     # Una copia de cada viaje: la planilla queda media hora en memoria y la
     # patente elegida no se le puede pegar.
     viajes = [dict(v) for v in planilla["viajes"] if desde <= v["salida"].date() <= hasta]

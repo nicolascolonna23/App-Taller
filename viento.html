@@ -51,7 +51,7 @@
     font:inherit;outline:none}
   input:focus,select:focus{border-color:color-mix(in srgb,var(--brand) 60%,transparent)}
   .btn{background:var(--brand);color:var(--marca-ink,#101419);border:0;border-radius:10px;
-    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap}
+    padding:10px 15px;font:inherit;font-weight:800;cursor:pointer;white-space:nowrap;text-decoration:none}
   .btn.sec{background:var(--surface-2);color:var(--ink);border:1px solid var(--hairline-2)}
   .btn:disabled{opacity:.5;cursor:wait}
 
@@ -232,7 +232,9 @@
     <div class="crece"><label for="buscar">Buscar</label>
       <input id="buscar" placeholder="Patente, chofer u hoja"></div>
     <button class="btn" id="consultar">Consultar</button>
-    <button class="btn sec" id="recargar" title="Vuelve a bajar la planilla del BI">Releer planilla</button>
+    <a class="btn sec" href="https://github.com/nicolascolonna23/App-Taller/actions/workflows/viajes.yml"
+       target="_blank" rel="noopener"
+       title="La planilla del BI se trae sola a las 06:15. Para traerla ahora: Run workflow">Traer planilla</a>
   </div>
 
   <div id="avisos"></div>
@@ -419,11 +421,10 @@ function avisos(lista, error) {
     (lista || []).map(a => `<div class="aviso dato">${esc(a)}</div>`).join('');
 }
 
-async function cargar(recargar) {
+async function cargar() {
   const q = new URLSearchParams({desde: $('#desde').value, hasta: $('#hasta').value});
-  if (recargar) q.set('recargar', '1');
-  $('#consultar').disabled = $('#recargar').disabled = true;
-  $('#filas').innerHTML = `<tr><td colspan="10" class="vacio">Bajando la planilla y el viento… la primera vez de un período largo tarda.</td></tr>`;
+  $('#consultar').disabled = true;
+  $('#filas').innerHTML = `<tr><td colspan="10" class="vacio">Buscando los viajes y el viento… la primera vez de un período largo tarda.</td></tr>`;
   try {
     const r = await fetch('/api/viento?' + q);
     const d = await r.json();
@@ -437,7 +438,7 @@ async function cargar(recargar) {
     $('#tarjetas').hidden = true;
     $('#filas').innerHTML = `<tr><td colspan="10" class="vacio">Sin datos.</td></tr>`;
   } finally {
-    $('#consultar').disabled = $('#recargar').disabled = false;
+    $('#consultar').disabled = false;
   }
 }
 
@@ -619,7 +620,6 @@ document.querySelectorAll('th[data-orden]').forEach(th => th.onclick = () => {
 });
 $('#sentido').onchange = $('#buscar').oninput = () => D.datos && pintar();
 $('#consultar').onclick = () => SOLAPA === 'indicadores' ? cargarIndicadores(false) : cargar(false);
-$('#recargar').onclick = () => SOLAPA === 'indicadores' ? cargarIndicadores(true) : cargar(true);
 const fondo = $('#detalle');
 fondo.onclick = e => { if (e.target === fondo) fondo.classList.remove('on'); };
 fondo.querySelector('.cerrar').onclick = () => fondo.classList.remove('on');
@@ -663,11 +663,10 @@ const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov'
    INDICADORES
    --------------------------------------------------------------------- */
 const I = {datos: null, clave: ''};
-async function cargarIndicadores(recargar) {
+async function cargarIndicadores() {
   const q = new URLSearchParams({desde: $('#desde').value, hasta: $('#hasta').value});
-  if (recargar) q.set('recargar', '1');
   I.clave = claveFechas();
-  $('#consultar').disabled = $('#recargar').disabled = true;
+  $('#consultar').disabled = true;
   $('#iFrase').textContent = 'Calculando: bajando viajes, viento y cargas de combustible…';
   $('#iAvisos').innerHTML = '';
   try {
@@ -681,7 +680,7 @@ async function cargarIndicadores(recargar) {
     $('#iAvisos').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
     $('#iFrase').textContent = '';
   } finally {
-    $('#consultar').disabled = $('#recargar').disabled = false;
+    $('#consultar').disabled = false;
   }
 }
 

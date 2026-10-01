@@ -236,3 +236,26 @@ class Informe(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SinBajarElBI(unittest.TestCase):
+    """El servidor no baja la planilla del BI: la deja sin memoria."""
+
+    def test_sin_viajes_guardados_avisa_y_no_baja(self):
+        bajadas = []
+        original = v.hojas
+        v.hojas = lambda *a, **k: bajadas.append(1)
+        try:
+            with self.assertRaises(RuntimeError) as e:
+                v.planilla_de(None)
+        finally:
+            v.hojas = original
+        self.assertEqual(bajadas, [])
+        self.assertIn("Run workflow", str(e.exception))
+
+    def test_la_memoria_del_viento_tiene_tope(self):
+        v._MEMORIA.clear()
+        for i in range(v.TOPE_MEMORIA + 1):
+            v._MEMORIA[i] = {}
+        v.viento_para(None, [date.today()], pedir=lambda d, h: [])
+        self.assertLessEqual(len(v._MEMORIA), v.TOPE_MEMORIA)

@@ -7,7 +7,7 @@ viento que encontró el camión en la ruta hora por hora. Pasa por Córdoba capi
 
 | Qué | De dónde |
 |---|---|
-| Los viajes | `reporte_hojas.xlsx` del BI. Lo baja el servidor y lo guarda media hora en memoria. El botón **Releer planilla** lo vuelve a bajar. |
+| Los viajes | `reporte_hojas.xlsx` del BI. Lo baja GitHub Actions todas las mañanas y lo guarda en `viento_viajes`; el servidor solo lee esa tabla. |
 | El viento | Open-Meteo, reanálisis ERA5: viento medio y ráfaga a 10 m, hora por hora. Tarda unos cinco días en publicarse. |
 | El recorrido | `RUTA` en `gomeria/viento.py`: RN 9 hasta Córdoba, Deán Funes, Recreo, Chumbicha, Catamarca. Unos 1.120 km. |
 
@@ -121,8 +121,9 @@ corre `gomeria/traer_viajes.py`:
 3. Deja bajado de Open-Meteo el viento de los viajes de los últimos 45 días.
 
 La pantalla lee de esa tabla: abre al instante, y los viajes quedan aunque
-el reporte del BI deje de mostrarlos. **Releer planilla** hace lo mismo en el
-momento. Abajo de la lista se ve cuándo se trajo por última vez y cómo salió.
+el reporte del BI deje de mostrarlos. El servidor no baja el reporte: es
+muy grande y abrirlo dejaba a la app sin memoria (Render la reiniciaba y
+daba 502). El botón **Traer planilla** lleva a la pestaña Actions. Abajo de la lista se ve cuándo se trajo por última vez y cómo salió.
 Se puede disparar a mano desde la pestaña Actions de GitHub → *Planilla de
 viajes* → *Run workflow*.
 

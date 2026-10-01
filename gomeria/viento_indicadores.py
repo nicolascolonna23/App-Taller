@@ -374,10 +374,10 @@ def seguridad(viajes):
 # ---------------------------------------------------------------------
 # LO QUE PIDE LA PANTALLA
 # ---------------------------------------------------------------------
-def indicadores(cx, desde=None, hasta=None, forzar=False, leer_hojas=None, pedir=None,
+def indicadores(cx, desde=None, hasta=None, leer_hojas=None, pedir=None,
                 cargas=None, lad=None):
     """Todo lo de la solapa Indicadores. Es la respuesta de /api/viento/indicadores."""
-    base = vto.informe(cx, desde, hasta, forzar=forzar, leer_hojas=leer_hojas, pedir=pedir,
+    base = vto.informe(cx, desde, hasta, leer_hojas=leer_hojas, pedir=pedir,
                        lad=lad)
     viajes = base["viajes"]
     avisos = list(base["avisos"])

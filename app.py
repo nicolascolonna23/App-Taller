@@ -379,9 +379,9 @@ class App(CupoPorPedido, gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer el resumen: {e}", 500)
 
-        # El viento que encontró cada viaje a Catamarca. Baja la planilla
-        # del BI y le pide a Open-Meteo lo que no esté guardado: la primera
-        # vez de un período largo tarda.
+        # El viento que encontró cada viaje a Catamarca. Lee los viajes que
+        # GitHub Actions trae del BI cada mañana y le pide a Open-Meteo lo
+        # que no esté guardado: la primera vez de un período largo tarda.
         if ruta == "/api/viento":
             if not self._exigir_sesion():
                 return
@@ -389,8 +389,7 @@ class App(CupoPorPedido, gom.Handler):
             uno = lambda k: (params.get(k) or [None])[0]
             try:
                 with base.conectar() as cx:
-                    datos = viento.informe(cx, uno("desde"), uno("hasta"),
-                                           forzar=uno("recargar") == "1")
+                    datos = viento.informe(cx, uno("desde"), uno("hasta"))
                 return self._responder(gom.jstr(datos))
             except ValueError as e:
                 return self._error(str(e), 422)
@@ -409,8 +408,7 @@ class App(CupoPorPedido, gom.Handler):
             uno = lambda k: (params.get(k) or [None])[0]
             try:
                 with base.conectar() as cx:
-                    datos = viento_indicadores.indicadores(
-                        cx, uno("desde"), uno("hasta"), forzar=uno("recargar") == "1")
+                    datos = viento_indicadores.indicadores(cx, uno("desde"), uno("hasta"))
                 return self._responder(gom.jstr(datos))
             except ValueError as e:
                 return self._error(str(e), 422)
