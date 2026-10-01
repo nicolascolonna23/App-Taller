@@ -37,7 +37,6 @@ let PREFS={tema:'claro',paleta:'diemar'};
    if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',mantenimiento_plan_id:1,plan_nombre:'Autos 10K',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:10000,proximo_km:51259,km_actual:41833,km_restantes:9426,estado:'proximo'},{unidad_id:9,patente:'AH522SI',interno:'17',sucursal:'LAD',mantenimiento_plan_id:2,plan_nombre:'S-WAY',ultimo_fecha:'2026-08-01',ultimo_km:150000,cada_km:45000,proximo_km:195000,km_actual:170000,km_restantes:25000,estado:'ok'}]});
    if(p==='/api/mantenimiento')return route.fulfill({json:{planes:[{id:1,nombre:'Autos 10K',descripcion:'Autos',cada_km:10000,activo:true,unidades:1},{id:2,nombre:'S-WAY',descripcion:'Camiones S-WAY',cada_km:45000,activo:true,unidades:1}],asignaciones:[{unidad_id:7,patente:'AG797NJ',interno:'102',plan_id:1,plan_nombre:'Autos 10K',cada_km:10000},{unidad_id:9,patente:'AH522SI',interno:'17',plan_id:2,plan_nombre:'S-WAY',cada_km:45000}]}});
    if(p==='/api/alertas')return route.fulfill({json:{instalado:true,resumen:{total:2,grave:1},alertas:[{severidad:'grave',titulo:'VTV vencida',detalle:'AD 247 MQ · venció hace 3 días',enlace:'/alertas'},{severidad:'media',titulo:'Service próximo',detalle:'faltan 2.700 km',enlace:'/control'}]}});
-   if(p==='/api/vencimientos')return route.fulfill({json:{resumen:{vencido:1,por_vencer:2,vigente:40},faltantes:[],vencimientos:[{tipo:'VTV',patente:'AD 247 MQ',interno:'12',estado:'vencido',dias:-3,vence:'2026-09-28'},{tipo:'Licencia profesional',persona:'FRUTOS JAVIER',estado:'por_vencer',dias:9,vence:'2026-10-10'},{tipo:'Seguro',patente:'AG 797 NJ',interno:'102',estado:'por_vencer',dias:20,vence:'2026-10-21'},{tipo:'RUTA',patente:'AH 522 SI',estado:'vigente',dias:200,vence:'2027-04-19'}]}});
    if(p.startsWith('/api/'))return route.fulfill({status:503,json:{error:'Datos no conectados en esta prueba visual'}});
    if(files[p]){
     let html=fs.readFileSync(path.join(dir,files[p]),'utf8');
@@ -125,12 +124,11 @@ let PREFS={tema:'claro',paleta:'diemar'};
      // encima del tablero.
      assert.equal(await page.locator('.top-actions #pengui').count(),0);
      assert.equal(await page.locator('.rail #pengui iframe').count(),1);
-     // Los vencimientos, a la derecha de los números.
-     await page.locator('.venc-row').first().waitFor();
-     assert.equal(await page.locator('.venc-row').count(),3);
-     assert.equal(await page.locator('#venc-vencidos').innerText(),'1');
+     // Vencimientos va en la barra de módulos, no como tarjeta.
+     assert.equal(await page.locator('.nav a[href="/vencimientos"]').count(),1);
+     assert.equal(await page.locator('#dashboard-venc').count(),0);
      const rb=await page.locator('.rail').boundingBox(),kb=await page.locator('#km').boundingBox();
-     assert(rb.x>kb.x+kb.width,'la columna de Pengui y vencimientos no quedó a la derecha');
+     assert(rb.x>kb.x+kb.width,'Pengui no quedó a la derecha de los números');
      await page.locator('#alertas-btn').click();
      await page.locator('.alert-item').first().waitFor();
      assert.equal(await page.locator('.alert-item').count(),2);
