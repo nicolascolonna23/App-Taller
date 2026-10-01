@@ -201,7 +201,7 @@ class Handler(BaseHTTPRequestHandler):
                 traceback.print_exc()
                 return self._error(
                     "No se pudo leer el recapado. Puede faltar correr "
-                    f"gomeria/41_recapado.sql en Supabase. ({e})", 503)
+                    f"gomeria/43_recapado.sql en Supabase. ({e})", 503)
 
         if ruta == "/api/desgaste":
             try:

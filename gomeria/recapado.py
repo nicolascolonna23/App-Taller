@@ -37,7 +37,7 @@ def tope(cx):
         fila = cx.execute("select recapados_maximo from parametros").fetchone()
         return int(fila["recapados_maximo"]) if fila else TOPE_POR_DEFECTO
     except Exception:
-        # Sin 41_recapado.sql corrido se usa el de siempre.
+        # Sin 43_recapado.sql corrido se usa el de siempre.
         cx.rollback()
         return TOPE_POR_DEFECTO
 
@@ -97,7 +97,7 @@ def _numero(cx):
         update recapado_contador set ultimo = ultimo + 1
         where unica returning ultimo""").fetchone()
     if not fila:
-        raise ValueError("Falta correr gomeria/41_recapado.sql en la base.")
+        raise ValueError("Falta correr gomeria/43_recapado.sql en la base.")
     return fila["ultimo"]
 
 

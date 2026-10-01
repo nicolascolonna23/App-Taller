@@ -691,7 +691,7 @@ def sin_fuego(cx):
         return [dict(f) for f in cx.execute(
             "select * from v_cubiertas_sin_fuego").fetchall()]
     except Exception:
-        # Sin 39_codigo_de_fuego.sql corrido, la pantalla sigue andando
+        # Sin 41_codigo_de_fuego.sql corrido, la pantalla sigue andando
         # como antes: simplemente no hay nada que completar.
         cx.rollback()
         return []

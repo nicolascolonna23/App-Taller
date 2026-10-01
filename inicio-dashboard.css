@@ -93,3 +93,62 @@ body.operations-home .dashboard-costos{grid-column:1/-1}
 .cost-table td strong{display:block;font-weight:600}
 .cost-table td small{display:block;margin-top:3px;font-size:11px;color:var(--muted)}
 @media(max-width:760px){.cost-kpis{grid-template-columns:1fr}.dashboard-costos .dashboard-section-head{flex-wrap:wrap}.dashboard-costos .dashboard-section-head>span{margin-left:0}}
+
+/* ---------------------------------------------------------------------
+   Columna de la derecha: Pengui y los vencimientos. Pengui es una tarjeta
+   más, en su lugar: no flota ni se abre encima del tablero, así que no
+   tapa nada. En pantalla ancha va al costado de los números; en una
+   mediana, debajo del título y en dos columnas; en el celular, al final.
+   --------------------------------------------------------------------- */
+body.operations-home .summary>*{order:2}
+body.operations-home .summary-head{order:0}
+body.operations-home .rail{order:1;grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start;align-self:start;align-content:start}
+body.operations-home .summary .pengui-card{padding:0;overflow:hidden;display:flex;flex-direction:column;height:560px}
+.pengui-head{display:flex;align-items:center;gap:11px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.pengui-head>span:nth-child(2){flex:1;min-width:0}
+.pengui-head b{display:block;font-size:15px;font-weight:600}
+.pengui-head small{display:block;margin-top:3px;font-size:12px;color:var(--muted)}
+.pengui-avatar{width:36px;height:36px;flex:none;display:grid;place-items:center;border-radius:9px;background:var(--panel-2);border:1px solid var(--line)}
+.pengui-avatar svg{width:20px;height:24px}
+.pengui-head a{flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--line);color:var(--ink);text-decoration:none;font-size:16px}
+.pengui-head a:hover{border-color:var(--brand);background:var(--panel-2)}
+.pengui-card iframe{flex:1;min-height:0;width:100%;border:0;background:var(--panel)}
+
+.venc-resumen{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:16px 0 6px}
+.venc-cifra{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);color:var(--ink);text-decoration:none}
+.venc-cifra:hover{border-color:var(--brand)}
+.venc-cifra b{display:block;font-size:24px;font-weight:600;letter-spacing:-.04em;font-variant-numeric:tabular-nums}
+.venc-cifra small{display:block;margin-top:2px;font-size:11px;color:var(--muted)}
+.venc-cifra.vencido b{color:var(--bad)}.venc-cifra.por_vencer b{color:var(--warn,#f0b429)}.venc-cifra.vigente b{color:var(--ok)}
+.venc-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--line);color:var(--ink);text-decoration:none}
+.venc-row:hover strong{text-decoration:underline}
+.venc-row>span:nth-child(2){flex:1;min-width:0}
+.venc-row strong{display:block;font-size:13px;font-weight:500;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.venc-row small{display:block;margin-top:2px;font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.venc-marca{width:4px;align-self:stretch;flex:none;border-radius:2px;background:var(--muted)}
+.venc-row.vencido .venc-marca{background:var(--bad)}.venc-row.por_vencer .venc-marca{background:var(--warn,#f0b429)}
+.venc-cuando{flex:none;text-align:right}
+.venc-cuando b{display:block;font-size:12px;font-weight:600}
+.venc-row.vencido .venc-cuando b{color:var(--bad)}
+.venc-mas{display:block;padding-top:12px;font-size:12px;color:var(--ink-2);text-decoration:none}
+.venc-mas:hover{text-decoration:underline}
+
+/* Mediana: los cuadros en una columna y la de la derecha al costado. */
+@media(min-width:1180px){
+  body.operations-home .summary{grid-template-columns:minmax(0,1fr) clamp(300px,27vw,360px);max-width:1700px}
+  body.operations-home .summary>*{grid-column:1}
+  body.operations-home .summary-head{grid-column:1/-1}
+  body.operations-home .rail{grid-column:2;grid-row:2/span 6;grid-template-columns:minmax(0,1fr)}
+}
+/* Ancha: los dos cuadros de siempre y la columna de la derecha. */
+@media(min-width:1560px){
+  body.operations-home .summary{grid-template-columns:minmax(0,1.35fr) minmax(0,1fr) clamp(320px,22vw,380px)}
+  body.operations-home .summary>*{grid-column:auto}
+  body.operations-home .summary-head{grid-column:1/-1}
+  body.operations-home .dashboard-costos{grid-column:1/3}
+  body.operations-home .rail{grid-column:3;grid-row:2/span 4}
+}
+@media(max-width:760px){
+  body.operations-home .rail{order:3;grid-template-columns:minmax(0,1fr)}
+  body.operations-home .summary .pengui-card{height:520px}
+}
