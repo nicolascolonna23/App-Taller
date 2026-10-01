@@ -157,6 +157,18 @@ html[data-modo="claro"] .workspace::after{display:none}
     <div class="workspace">
       <section class="summary" aria-label="Resumen operativo">
         <div class="summary-head"><div><p class="dashboard-eyebrow">Centro operativo</p><h1>Actividad de la flota</h1></div><div class="dashboard-context"><a class="alert-mini" href="/alertas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 8v5m0 4h.01M10.3 4 2.7 17.2a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/></svg><strong id="alert-mini-count">Consultando alertas…</strong><small id="alert-mini-priority"></small><b aria-hidden="true">↗</b></a><span id="dashboard-status" role="status">Actualizando datos…</span></div></div>
+        <aside class="rail" aria-label="Asistente y vencimientos">
+          <section class="card pengui-card" id="pengui" aria-label="Pengui, el asistente" hidden></section>
+          <section class="card dashboard-venc" id="dashboard-venc" aria-labelledby="dashboard-venc-title">
+            <div class="dashboard-section-head"><h2 id="dashboard-venc-title">Vencimientos</h2><a href="/vencimientos">Ver todos <span aria-hidden="true">↗</span></a></div>
+            <div class="venc-resumen" id="venc-resumen" hidden>
+              <a class="venc-cifra vencido" href="/vencimientos"><b id="venc-vencidos">—</b><small>vencidos</small></a>
+              <a class="venc-cifra por_vencer" href="/vencimientos"><b id="venc-por-vencer">—</b><small>por vencer</small></a>
+              <a class="venc-cifra vigente" href="/vencimientos"><b id="venc-vigentes">—</b><small>al día</small></a>
+            </div>
+            <div id="venc-lista"><p class="dashboard-empty">Cargando vencimientos…</p></div>
+          </section>
+        </aside>
         <div class="card km" id="km">
           <div class="km-head">
             <span><b>Kilómetros de la flota</b><small id="km-pie">Telemetría</small></span>
@@ -380,6 +392,37 @@ function pintarConsumo(c){
   document.getElementById('cons-sub').innerHTML=txt;
   caja.hidden=false;
 }
+/* Vencimientos: lo vencido y lo que está por vencer, lo más urgente
+   arriba. El orden lo trae el servidor (vencido y por vencer primero,
+   después por días). Si el rol no abre el módulo, la tarjeta no se muestra:
+   ver una puerta cerrada es peor que no verla. */
+function cuantoFalta(d){
+  if(d<0)return `venció hace ${-d} día${d===-1?'':'s'}`;
+  if(d===0)return 'vence hoy';
+  if(d===1)return 'vence mañana';
+  return `vence en ${d} días`;
+}
+fetch('/api/vencimientos').then(async r=>{
+  const caja=document.getElementById('dashboard-venc');
+  if(r.status===401||r.status===403){caja.hidden=true;return}
+  const d=await r.json();
+  if(!r.ok)throw Error(d.error||'No se pudieron leer los vencimientos.');
+  const res=d.resumen||{};
+  document.getElementById('venc-vencidos').textContent=nfm.format(res.vencido||0);
+  document.getElementById('venc-por-vencer').textContent=nfm.format(res.por_vencer||0);
+  document.getElementById('venc-vigentes').textContent=nfm.format(res.vigente||0);
+  document.getElementById('venc-resumen').hidden=false;
+  const pend=(d.vencimientos||[]).filter(v=>v.estado!=='vigente');
+  const lista=document.getElementById('venc-lista');
+  if(!pend.length){lista.innerHTML='<p class="dashboard-empty">Nada vencido ni por vencer.</p>';return}
+  const fecha=f=>f?String(f).slice(8,10)+'/'+String(f).slice(5,7)+'/'+String(f).slice(2,4):'';
+  const quien=v=>v.patente?(v.patente+(v.interno?' · int. '+v.interno:'')):(v.persona||v.identificador||'');
+  lista.innerHTML=pend.slice(0,7).map(v=>`<a class="venc-row ${esc(v.estado)}" href="/vencimientos">
+      <span class="venc-marca" aria-hidden="true"></span>
+      <span><strong>${esc(v.tipo)}${v.identificador&&v.patente?' · '+esc(v.identificador):''}</strong><small>${esc(quien(v))}</small></span>
+      <span class="venc-cuando"><b>${esc(cuantoFalta(v.dias))}</b><small>${esc(fecha(v.vence))}</small></span>
+    </a>`).join('')+(pend.length>7?`<a class="venc-mas" href="/vencimientos">${nfm.format(pend.length-7)} más para revisar ↗</a>`:'');
+}).catch(e=>{document.getElementById('venc-lista').innerHTML=`<p class="dashboard-empty">${esc(e.message||'No se pudieron leer los vencimientos.')}</p>`});
 /* Alertas rápidas: el detalle se pide recién cuando se abre la campana. */
 const alertasMenu=document.getElementById('alertas-menu');
 const alertasBtn=document.getElementById('alertas-btn');
