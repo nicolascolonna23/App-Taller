@@ -20,6 +20,7 @@ const contraste=(page,selector)=>page.evaluate(sel=>{
  return (a+.05)/(b+.05);
 },selector);
 
+let PREFS={tema:'claro',paleta:'diemar'};
 (async()=>{
  const browser=await chromium.launch({headless:true,...(process.env.BROWSER_PATH?{executablePath:process.env.BROWSER_PATH}:{})});
  try{
@@ -27,7 +28,7 @@ const contraste=(page,selector)=>page.evaluate(sel=>{
   page.on('pageerror',e=>console.log('PAGE',page.url(),e.message));
   await page.route('**/*',route=>{
    const req=route.request(),url=new URL(req.url()),p=url.pathname;
-   if(p==='/api/preferencias')return route.fulfill({json:{tema:'claro',paleta:'diemar'}});
+   if(p==='/api/preferencias')return route.fulfill({json:PREFS});
    if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba local',rol:'admin',puede_administrar:true}});
    if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Pengui, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
    const litros={total:758709,cargas:2600,desde:'2024-10-25',hasta:'2026-09-18',cortes:{dia:{serie:[{periodo:'2026-09-17',litros:0,cargas:0,importe:null,unidades:0},{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}],actual:{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}},mes:{serie:[{periodo:'2026-08-01',litros:30658,cargas:99,importe:null,unidades:4},{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}],actual:{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}},anio:{serie:[{periodo:'2025-01-01',litros:394821,cargas:1300,importe:null,unidades:4},{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}],actual:{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}}}};
@@ -36,6 +37,7 @@ const contraste=(page,selector)=>page.evaluate(sel=>{
    if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',mantenimiento_plan_id:1,plan_nombre:'Autos 10K',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:10000,proximo_km:51259,km_actual:41833,km_restantes:9426,estado:'proximo'},{unidad_id:9,patente:'AH522SI',interno:'17',sucursal:'LAD',mantenimiento_plan_id:2,plan_nombre:'S-WAY',ultimo_fecha:'2026-08-01',ultimo_km:150000,cada_km:45000,proximo_km:195000,km_actual:170000,km_restantes:25000,estado:'ok'}]});
    if(p==='/api/mantenimiento')return route.fulfill({json:{planes:[{id:1,nombre:'Autos 10K',descripcion:'Autos',cada_km:10000,activo:true,unidades:1},{id:2,nombre:'S-WAY',descripcion:'Camiones S-WAY',cada_km:45000,activo:true,unidades:1}],asignaciones:[{unidad_id:7,patente:'AG797NJ',interno:'102',plan_id:1,plan_nombre:'Autos 10K',cada_km:10000},{unidad_id:9,patente:'AH522SI',interno:'17',plan_id:2,plan_nombre:'S-WAY',cada_km:45000}]}});
    if(p==='/api/alertas')return route.fulfill({json:{instalado:true,resumen:{total:2,grave:1},alertas:[{severidad:'grave',titulo:'VTV vencida',detalle:'AD 247 MQ · venció hace 3 días',enlace:'/alertas'},{severidad:'media',titulo:'Service próximo',detalle:'faltan 2.700 km',enlace:'/control'}]}});
+   if(p==='/api/vencimientos')return route.fulfill({json:{resumen:{vencido:1,por_vencer:2,vigente:40},faltantes:[],vencimientos:[{tipo:'VTV',patente:'AD 247 MQ',interno:'12',estado:'vencido',dias:-3,vence:'2026-09-28'},{tipo:'Licencia profesional',persona:'FRUTOS JAVIER',estado:'por_vencer',dias:9,vence:'2026-10-10'},{tipo:'Seguro',patente:'AG 797 NJ',interno:'102',estado:'por_vencer',dias:20,vence:'2026-10-21'},{tipo:'RUTA',patente:'AH 522 SI',estado:'vigente',dias:200,vence:'2027-04-19'}]}});
    if(p.startsWith('/api/'))return route.fulfill({status:503,json:{error:'Datos no conectados en esta prueba visual'}});
    if(files[p]){
     let html=fs.readFileSync(path.join(dir,files[p]),'utf8');
@@ -119,29 +121,44 @@ const contraste=(page,selector)=>page.evaluate(sel=>{
      assert.equal(await page.locator('.side-footer').count(),0);
      assert.equal(await page.locator('#sello').count(),0);
      assert.equal(await page.locator('.brand-copy').innerText(),'PENGUIN FLEET\nMANAGEMENT');
-     assert.equal(await page.locator('.top-actions #pengui').count(),1);
-     const pb=await page.locator('#pengui .launch').boundingBox(),cb=await page.locator('#alertas-btn').boundingBox();
-     assert(pb.y+pb.height<=cb.y+cb.height+2&&pb.x<cb.x);
+     // Pengui es una tarjeta de la portada, no un botón que abre algo
+     // encima del tablero.
+     assert.equal(await page.locator('.top-actions #pengui').count(),0);
+     assert.equal(await page.locator('.rail #pengui iframe').count(),1);
+     // Los vencimientos, a la derecha de los números.
+     await page.locator('.venc-row').first().waitFor();
+     assert.equal(await page.locator('.venc-row').count(),3);
+     assert.equal(await page.locator('#venc-vencidos').innerText(),'1');
+     const rb=await page.locator('.rail').boundingBox(),kb=await page.locator('#km').boundingBox();
+     assert(rb.x>kb.x+kb.width,'la columna de Pengui y vencimientos no quedó a la derecha');
      await page.locator('#alertas-btn').click();
      await page.locator('.alert-item').first().waitFor();
      assert.equal(await page.locator('.alert-item').count(),2);
      await page.locator('#alertas-btn').click();
     }
   }
-  await page.goto('http://taller.test/');await page.locator('#pengui .launch').click();
+  await page.goto('http://taller.test/');
   const chat=page.frameLocator('iframe[title="Conversación con Pengui"]');
   await chat.locator('#send:enabled').waitFor();
   await chat.locator('#question').fill('Hola');await chat.locator('#send').click();
   await chat.locator('.message.assistant').waitFor();
   await page.screenshot({path:'/tmp/pengui-desktop.png'});
-  await page.locator('#pengui .close').click();await page.locator('#pengui .launch').click();
   assert.equal(await chat.locator('.message.assistant').count(),1);
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'/tmp/pengui-mobile.png'});
   console.log('Overflow',await page.evaluate(()=>[...document.querySelectorAll('body *')].filter(e=>e.getBoundingClientRect().right>innerWidth+1).map(e=>({tag:e.tagName,cls:e.className,width:e.getBoundingClientRect().width,right:e.getBoundingClientRect().right})).slice(0,15)));
   assert(!await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth));
   assert(!await chat.locator('body').evaluate(()=>document.documentElement.scrollWidth>innerWidth));
-  await chat.locator('#question').press('Escape');await page.waitForFunction(()=>document.querySelector('#pengui').shadowRoot.querySelector('.launch').getAttribute('aria-expanded')==='false');
+  // Con el tema oscuro los botones del chat eran cajas blancas con letra
+  // blanca: el asistente fijaba el fondo y el tema le cambiaba la tinta.
+  PREFS={tema:'oscuro',paleta:'naranja'};
+  await page.setViewportSize({width:1300,height:900});
+  await page.goto('http://taller.test/');
+  await chat.locator('#send:enabled').waitFor();
+  const marco=page.frames().find(f=>f.url().includes('/asistente'));
+  for(const sel of ['.examples button','#reset','#status','#question','#send'])
+   assert(await contraste(marco,sel)>=4.5,'no se lee '+sel+' en Pengui con el tema oscuro');
+  await page.screenshot({path:'/tmp/pengui-oscuro.png'});
   console.log('PASS: shared theme on 10 modules; litros por día, mes y año; Pengui only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
