@@ -181,7 +181,7 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 <header class="top"><img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'"><a class="back" href="/">‹ Inicio</a><span class="brand">Gomería</span><span class="who" id="who"></span></header>
 <nav class="tabs"><button class="tab on" data-tab="fleet">Flota y mapas</button><button class="tab" data-tab="stock">Stock de cubiertas</button><button class="tab" data-tab="retread">Recapado</button><button class="tab" data-tab="wear">Desgaste y costos</button><button class="tab" data-tab="changes">Cambios por eje</button><button class="tab" data-tab="register">Registrar trabajo</button></nav>
 <main><section class="panel on" id="fleet"><div class="card fleet-picker" id="unitPicker"><label for="unitSearch">Elegir unidad <span class="sub" id="unitCount">Cargando…</span></label><div class="picker-box"><input class="search" id="unitSearch" role="combobox" aria-expanded="false" aria-controls="unitList" aria-autocomplete="list" aria-haspopup="listbox" autocomplete="off" placeholder="Buscar patente, interno o sucursal"><button class="picker-abrir" id="unitToggle" type="button" tabindex="-1" aria-label="Ver todas las unidades">▾</button><div class="units" id="unitList" role="listbox" aria-label="Unidades" hidden></div></div></div><p id="benchStatus" role="status"></p><div class="grid"><aside class="card stock-shelf"><h2>Stock de cubiertas</h2><p class="workbench-help">Seleccionar una cubierta o arrastrarla a un casillero vacío. Se muestran hasta 200 resultados; usar el buscador para encontrar otras.</p><input id="shelfSearch" placeholder="Código, marca o medida" aria-label="Buscar cubierta en stock"><div class="drop-stock" id="returnStock">Arrastrar a esta zona la cubierta que se retira.<br><small>Se pedirá destino y motivo.</small></div><div id="shelfList" class="shelf-list"></div></aside><div id="unitDetail"><div class="card loading"><span class="pulse"></span>Cargando mapas…</div></div><aside class="card tire-inspector" id="tireInspector"><h3>Neumático seleccionado</h3><p class="workbench-help">Seleccionar una cubierta del stock o una posición del vehículo.</p></aside></div></section>
-<section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select><select id="stockFuego"><option value="">Con y sin número de fuego</option><option value="1">Solo sin número de fuego</option></select></div><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
+<section class="panel" id="stock"><div class="metrics" id="metrics"></div><div class="card"><div class="stockbar"><div class="filters"><input id="stockSearch" placeholder="Buscar código, marca o medida"><select id="stockState"><option value="">Todos los estados</option><option value="stock">En stock</option><option value="montada">Montadas</option><option value="reparacion">En reparación</option><option value="recapado">En recapado</option><option value="baja">De baja</option></select><select id="stockFuego"><option value="">Con y sin número de fuego</option><option value="1">Solo sin número de fuego</option></select></div><button class="btn alt" id="tireFactura">Alta por factura</button><button class="btn" id="newTire">+ Alta de cubierta</button></div><div class="tablewrap"><table><thead><tr><th>Código</th><th>Estado</th><th>Marca / modelo</th><th>Medida</th><th>Remanente</th><th>Ubicación</th></tr></thead><tbody id="stockRows"></tbody></table></div></div></section>
 <section class="panel" id="retread"><div id="retreadBody"><div class="card loading"><span class="pulse"></span>Cargando el recapado…</div></div></section>
 <section class="panel" id="wear"><div id="wearBody"><div class="card loading"><span class="pulse"></span>Calculando desgaste…</div></div></section>
 <section class="panel" id="changes"><div id="neuBody"><div class="card loading"><span class="pulse"></span>Calculando cambios…</div></div></section>
@@ -190,6 +190,7 @@ main{max-width:1800px}.fleet-picker{margin-bottom:14px}.fleet-picker label{displ
 <div class="modalbg" id="measureModal"><div class="modal"><div class="modaltop"><h2 id="measureTitle">Medir dibujo</h2><button class="close" data-close="measureModal">×</button></div><p class="sub">Milímetros remanentes. Determinan la alerta y el costo por milímetro.</p><div class="formgrid"><div><label>Remanente (mm)</label><input id="mMm" type="number" min="0" max="40" step=".5"></div></div><div id="measureError"></div><button class="btn" id="saveMeasure">Guardar medición</button></div></div>
 <div class="modalbg" id="retreadModal"><div class="modal"><div class="modaltop"><h2 id="retreadTitle">Volvió del recapador</h2><button class="close" data-close="retreadModal">×</button></div><p class="sub">Se cierra la vida anterior con su rendimiento y comienza la siguiente. Este valor permite comparar el rendimiento entre bandas.</p><div class="formgrid"><div><label>Marca de la banda</label><input id="rBrand" placeholder="BANDAG"></div><div><label>Banda / dibujo</label><input id="rBand" placeholder="BDR-HT"></div><div><label>Recapador</label><input id="rProv"></div><div><label>Costo del recapado</label><input id="rCost" type="number" min="0" step=".01"></div><div><label>Dibujo con el que volvió (mm)</label><input id="rMm" type="number" min="0" max="40" step=".5"></div><div><label>Nota</label><input id="rNote"></div></div><div id="retreadError"></div><button class="btn" id="saveRetread">Registrar recapado</button></div></div>
 <div class="modalbg" id="neuModal"><div class="modal"><div class="modaltop"><h2>Registrar cambio de cubiertas</h2><button class="close" data-close="neuModal">×</button></div><p class="sub">Desde esta fecha se vuelve a contar para ese eje. Si las cubiertas están cargadas y montadas en el mapa, no hace falta: se cuenta solo.</p><div class="formgrid"><div class="wide"><label>Unidad</label><select id="ncUnit" style="max-width:none"></select></div><div class="wide"><label>Ejes que se cambiaron</label><div id="ncEjes" class="ejes-check"></div></div><div><label>Fecha</label><input id="ncFecha" type="date"></div><div><label>Odómetro ese día <span class="help">(opcional)</span></label><input id="ncKm" inputmode="numeric" placeholder="1.652.322"></div><div><label>Marca</label><input id="ncMarca" placeholder="MICHELIN"></div><div><label>Modelo</label><input id="ncModelo" placeholder="X MULTI Z"></div><div><label>Medida</label><input id="ncMedida" placeholder="295/80R22.5"></div><div><label>Nota</label><input id="ncNota"></div></div><p class="help">Marca y modelo son opcionales, pero sin ellos este cambio no entra en la comparación de marcas.</p><div id="ncError"></div><button class="btn" id="ncGuardar" style="margin-top:10px">Guardar cambio</button></div></div>
+<div class="modalbg" id="facModal"><div class="modal"><div class="modaltop"><h2>Alta de cubiertas por factura</h2><button class="close" data-close="facModal">×</button></div><p class="sub">Se lee la factura y se proponen los renglones. El número de fuego no está en la factura —lo graba el gomero— así que entran con un código provisorio y se completa desde el stock.</p><div class="actions"><input id="facArch" type="file" accept="image/*,application/pdf" multiple><button class="btn" id="facLeer">Leer la factura</button></div><div id="facSalida"></div></div></div>
 <div class="modalbg" id="recModal"><div class="modal"><div class="modaltop"><h2 id="recModalTitle">Recibir del recapador</h2><button class="close" data-close="recModal">×</button></div><div id="recModalBody"></div><button class="btn" id="recGuardar" style="margin-top:12px">Registrar la vuelta</button></div></div>
 <datalist id="catMarcas"></datalist><datalist id="catMedidas"></datalist>
 <div class="modalbg" id="newModal"><div class="modal"><div class="modaltop"><h2>Alta de cubierta</h2><button class="close" data-close="newModal">×</button></div><div class="formgrid"><div><label>Código / número de fuego</label><input id="nCode"></div><div><label>Medida</label><input id="nSize" list="catMedidas" placeholder="295/80R22.5"></div><div><label>Marca</label><input id="nBrand" list="catMarcas"></div><div><label>Modelo</label><input id="nModel"></div><div><label>Remanente inicial (mm)</label><input id="nMm" type="number" min="0" step=".1"></div><div><label>Costo de compra</label><input id="nCost" type="number" min="0" step=".01"></div><div class="wide"><label>Observaciones</label><input id="nObs"></div></div><div id="newError"></div><button class="btn" id="saveTire">Guardar cubierta</button></div></div>
@@ -568,6 +569,57 @@ async function openTire(id){modal('tireModal');$('#tireBody').innerHTML='<div cl
       }catch(e){err.textContent=e.message;err.hidden=false}
       finally{b.disabled=false}};
     if($('#tState')){$('#tState').value=t.estado;$('#saveState').onclick=async()=>{await api('/api/cubiertas',{op:'estado',id:t.id,estado:$('#tState').value,nota:$('#tNote').value});modal('tireModal',false);await loadStock();if(D.selected)await selectUnit(D.selected)}}}catch(e){$('#tireBody').innerHTML=`<p class="error">${esc(e.message)}</p>`}}
+/* El alta por factura. El modelo propone los renglones; lo que entra lo
+   decide el que carga, renglón por renglón. */
+let FAC = null;
+$('#tireFactura').onclick=()=>{FAC=null;$('#facSalida').innerHTML='';modal('facModal')};
+$('#facLeer').onclick=async()=>{
+  const archivos = await archivosDelInput($('#facArch'));
+  if(!archivos.length) return alert('Elegir la foto o el PDF de la factura.');
+  const b=$('#facLeer'); b.disabled=true;
+  $('#facSalida').innerHTML='<div class="result"><span class="pulse"></span>Leyendo la factura…</div>';
+  try{ FAC = await api('/api/factura-cubiertas',{op:'leer',que:'cubiertas',archivos});
+       pintarFac(); }
+  catch(e){ $('#facSalida').innerHTML=`<div class="result error">${esc(e.message)}</div>`; }
+  finally{ b.disabled=false; }
+};
+function pintarFac(){
+  const d=FAC, r=d.renglones||[];
+  if(!r.length) return $('#facSalida').innerHTML='<div class="result error">No se reconoció ningún renglón de cubiertas en la factura.</div>';
+  $('#facSalida').innerHTML=`<div class="section">
+    ${d.dudas?.length?`<div class="result error"><b>Lo que no se leyó con seguridad</b><ul>${d.dudas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
+    <div class="formgrid"><div><label>Número de factura</label><input id="facNum" value="${esc(d.factura||'')}" placeholder="0001-00001234"></div>
+    <div><label>Proveedor</label><input id="facProv" value="${esc(d.proveedor||'')}"></div></div>
+    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th>Entra</th><th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Cant.</th><th class="num">Costo c/u</th></tr></thead><tbody>
+    ${r.map((x,i)=>`<tr><td><input type="checkbox" data-fe="${i}" checked></td>
+      <td><input class="chico" data-fm="${i}" value="${esc(x.marca||'')}"></td>
+      <td><input class="chico" data-fo="${i}" value="${esc(x.modelo||'')}"></td>
+      <td><input class="chico" data-fd="${i}" value="${esc(x.medida||'')}"></td>
+      <td class="num"><input class="chico" data-fc="${i}" type="number" min="1" step="1" value="${x.cantidad||1}"></td>
+      <td class="num"><input class="chico" data-fp="${i}" type="number" min="0" step="0.01" value="${x.costo_unitario??''}"></td></tr>`).join('')}
+    </tbody></table></div>
+    <div id="facError"></div>
+    <button class="btn" id="facGuardar" style="margin-top:12px">Dar de alta</button></div>`;
+  $('#facGuardar').onclick=guardarFac;
+}
+async function guardarFac(){
+  const renglones=(FAC.renglones||[]).map((x,i)=>({
+    omitir: !$(`[data-fe="${i}"]`).checked,
+    marca: $(`[data-fm="${i}"]`).value.trim().toUpperCase() || null,
+    modelo: $(`[data-fo="${i}"]`).value.trim().toUpperCase() || null,
+    medida: $(`[data-fd="${i}"]`).value.trim().toUpperCase() || null,
+    cantidad: +$(`[data-fc="${i}"]`).value || 1,
+    costo_unitario: $(`[data-fp="${i}"]`).value || null,
+  }));
+  const b=$('#facGuardar'); b.disabled=true; $('#facError').innerHTML='';
+  try{
+    const d=await api('/api/factura-cubiertas',{op:'guardar',que:'cubiertas',
+      factura:$('#facNum').value, proveedor:$('#facProv').value, renglones});
+    modal('facModal',false); await loadStock();
+    alert(d.aviso);
+  }catch(e){ $('#facError').innerHTML=`<p class="error">${esc(e.message)}</p>`; }
+  finally{ b.disabled=false; }
+}
 $('#newTire').onclick=()=>modal('newModal');$('#saveTire').onclick=async()=>{let b=$('#saveTire');b.disabled=true;$('#newError').innerHTML='';try{await api('/api/cubiertas',{op:'alta',codigo:$('#nCode').value,medida:$('#nSize').value,marca:$('#nBrand').value,modelo:$('#nModel').value,remanente_mm:$('#nMm').value,costo_compra:$('#nCost').value,observaciones:$('#nObs').value});['nCode','nSize','nBrand','nModel','nMm','nCost','nObs'].forEach(x=>$('#'+x).value='');modal('newModal',false);await loadStock()}catch(e){$('#newError').innerHTML=`<p class="error">${esc(e.message)}</p>`}finally{b.disabled=false}};
 async function interpret(){let p=$('#workUnit').value,t=$('#workText').value.trim(),out=$('#workResult');
 if(!p)return out.innerHTML='<div class="result error">Elegir la unidad de la lista.</div>';
@@ -586,7 +638,32 @@ let b=$('#interpret');b.disabled=true;out.innerHTML='<div class="result"><span c
    circuito en que el dato se tiene antes que el papel, así que el papel
    lo hace el sistema y no hay nada que volver a cargar.
    ===================================================================== */
-let REC = { elegidas: new Set(), recibiendo: null };
+let REC = { elegidas: new Set(), recibiendo: null, cruce: null };
+
+/* Los archivos del <input type=file> en base64, como los quiere la API.
+   Las fotos se achican antes: una foto de celular sin achicar son 8 MB y
+   lo único que hace es tardar más. */
+function archivosDelInput(input){
+  const files = [...(input?.files || [])].slice(0, 4);
+  return Promise.all(files.map(f => new Promise(listo => {
+    if(!/^image\//.test(f.type)){
+      const fr = new FileReader();
+      fr.onload = () => listo({tipo: f.type, contenido: String(fr.result).split(',')[1], nombre: f.name});
+      fr.readAsDataURL(f);
+      return;
+    }
+    const img = new Image(), url = URL.createObjectURL(f);
+    img.onload = () => {
+      const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      listo({tipo: 'image/jpeg', contenido: c.toDataURL('image/jpeg', .85).split(',')[1], nombre: f.name});
+    };
+    img.src = url;
+  })));
+}
 
 async function loadRec(){
   try{ D.rec = await api('/api/recapado'); pintarRec(); }
@@ -600,8 +677,41 @@ async function recEscribir(cuerpo){
 
 function pintarRec(){
   const d = D.rec, gestor = d.puede_gestionar;
-  $('#retreadBody').innerHTML = afueraHtml(d) + armarHtml(d, gestor) + enviosHtml(d);
+  $('#retreadBody').innerHTML = facturaHtml(d, gestor) + afueraHtml(d)
+                               + armarHtml(d, gestor) + enviosHtml(d);
   engancharRec(gestor);
+}
+
+/* La factura del recapador. Se sube, se lee y se cruza contra lo que el
+   sistema sabe que mandó: no hay que creerle al modelo, porque lo que
+   leyó se compara con los envíos abiertos. */
+function facturaHtml(d, gestor){
+  if(!gestor || !(d.afuera||[]).length) return '';
+  return `<div class="card section"><h3>Factura del recapador</h3>
+    <p class="sub">Se lee la factura y se cruza contra lo que está afuera. Lo que no aparezca en la factura queda marcado como que no volvió.</p>
+    <div class="actions"><input id="recFcArch" type="file" accept="image/*,application/pdf" multiple>
+      <button class="btn" id="recFcLeer">Leer la factura</button></div>
+    <div id="recFcSalida"></div></div>`;
+}
+
+/* El cuadro del cruce. Las tres listas, y la del medio es la que no
+   existía: lo que salió y la factura no trae. */
+function cruceHtml(c){
+  const fila = x => `<tr><td class="fuerte">${esc(x.codigo)}</td><td>${esc(x.envio_id||'—')}</td><td class="num">${x.costo!=null?nfmt(x.costo):'—'}</td><td>${esc(x.banda||'—')}</td></tr>`;
+  let h = `<div class="section"><p class="sub">Factura ${esc(c.factura||'sin número')}${c.fecha?' · '+esc(c.fecha):''}</p>`;
+  if(c.dudas.length) h += `<div class="result error"><b>Lo que no se leyó con seguridad</b><ul>${c.dudas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`;
+  h += `<h3>Vuelven · ${c.vuelven.length}</h3>`;
+  h += c.vuelven.length
+    ? `<div class="tablewrap"><table class="datos"><thead><tr><th>Código</th><th>Remito</th><th class="num">Costo</th><th>Banda</th></tr></thead><tbody>${c.vuelven.map(fila).join('')}</tbody></table></div>`
+    : '<div class="emptymsg">Ninguna de la factura está afuera.</div>';
+  if(c.faltan.length) h += `<h3 style="margin-top:14px">No volvieron · ${c.faltan.length}</h3>
+    <p class="sub">Salieron y la factura no las trae. Siguen figurando afuera.</p>
+    <div class="tablewrap"><table class="datos"><thead><tr><th>Código</th><th>Remito</th><th class="num">Días</th></tr></thead><tbody>${c.faltan.map(x=>`<tr><td class="fuerte">${esc(x.codigo)}</td><td>${esc(x.envio_id)}</td><td class="num">${x.dias_afuera}</td></tr>`).join('')}</tbody></table></div>`;
+  if(c.desconocidas.length) h += `<h3 style="margin-top:14px">No salieron de acá · ${c.desconocidas.length}</h3>
+    <p class="sub">Están en la factura pero no en ningún remito abierto. Puede ser un número mal leído o una goma que entró por otro lado.</p>
+    <ul>${c.desconocidas.map(x=>`<li>${esc(x.codigo_fuego||'(sin número)')}${x.repetida?' — repetida en la factura':''}</li>`).join('')}</ul>`;
+  h += `<div class="actions" style="margin-top:14px">${c.vuelven.length?'<button class="btn" id="recFcGuardar">Registrar las '+c.vuelven.length+' que vuelven</button>':''}<button class="btn alt" id="recFcCancelar">Descartar</button></div></div>`;
+  return h;
 }
 
 /* Lo que está en lo del recapador. Ordenado por días: la de arriba es la
@@ -660,6 +770,39 @@ function engancharRec(gestor){
     imprimirRemito(d);
   });
   $$('[data-rec-recibir]').forEach(x=>x.onclick=()=>abrirRecibir(x.dataset.recRecibir));
+  if($('#recFcLeer'))$('#recFcLeer').onclick=leerFacturaRecapado;
+  if(REC.cruce && $('#recFcSalida')){ $('#recFcSalida').innerHTML=cruceHtml(REC.cruce); engancharCruce(); }
+}
+
+async function leerFacturaRecapado(){
+  const archivos = await archivosDelInput($('#recFcArch'));
+  if(!archivos.length) return alert('Elegir la foto o el PDF de la factura.');
+  const b=$('#recFcLeer'); b.disabled=true;
+  $('#recFcSalida').innerHTML='<div class="result"><span class="pulse"></span>Leyendo la factura…</div>';
+  try{
+    REC.cruce = await api('/api/recapado',{op:'cotejar',archivos});
+    $('#recFcSalida').innerHTML=cruceHtml(REC.cruce); engancharCruce();
+  }catch(e){ $('#recFcSalida').innerHTML=`<div class="result error">${esc(e.message)}</div>`; }
+  finally{ b.disabled=false; }
+}
+
+function engancharCruce(){
+  if($('#recFcCancelar'))$('#recFcCancelar').onclick=()=>{REC.cruce=null;pintarRec()};
+  if($('#recFcGuardar'))$('#recFcGuardar').onclick=async()=>{
+    const c=REC.cruce; if(!c) return;
+    /* Cada envío se registra por separado: una factura puede traer gomas
+       de dos remitos distintos. */
+    const porEnvio={};
+    c.vuelven.forEach(x=>{(porEnvio[x.envio_id]=porEnvio[x.envio_id]||[]).push(
+      {cubierta_id:x.cubierta_id, costo:x.costo, banda:x.banda})});
+    const b=$('#recFcGuardar'); b.disabled=true;
+    try{
+      for(const [envio, vueltas] of Object.entries(porEnvio))
+        await api('/api/recapado',{op:'recibir',envio_id:envio,
+                                   factura:c.factura, vueltas});
+      REC.cruce=null; await loadRec(); await loadStock();
+    }catch(e){ alert(e.message); b.disabled=false; }
+  };
 }
 
 /* El remito. Se abre en una ventana aparte y se imprime: así no hay que

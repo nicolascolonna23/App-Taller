@@ -632,14 +632,18 @@ def crear_unidad(cx, patente, configuracion_id, **datos):
 
 
 def alta_cubierta(cx, codigo, **datos):
+    # El código provisorio es el de la goma que entró sin número de fuego:
+    # el gomero lo graba cuando la recibe. Ver 41_codigo_de_fuego.sql.
     fila = cx.execute("""
-        insert into cubiertas (codigo, marca, modelo, medida, costo_compra, remanente_mm, observaciones)
-        values (%s,%s,%s,%s,%s,%s,%s)
+        insert into cubiertas (codigo, marca, modelo, medida, costo_compra,
+                               remanente_mm, observaciones, codigo_provisorio)
+        values (%s,%s,%s,%s,%s,%s,%s,%s)
         on conflict (codigo) do update set marca = excluded.marca
         returning id""",
         (str(codigo).strip(), datos.get("marca"), datos.get("modelo"), datos.get("medida"),
          datos.get("costo_compra"), datos.get("remanente_mm"),
-         datos.get("observaciones"))).fetchone()
+         datos.get("observaciones"),
+         bool(datos.get("codigo_provisorio")))).fetchone()
     cx.execute("""insert into movimientos (tipo, cubierta_id, nota, usuario)
                   values ('alta', %s, %s, %s)""",
                (fila["id"], datos.get("nota"), datos.get("usuario")))

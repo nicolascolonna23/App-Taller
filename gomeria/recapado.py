@@ -296,10 +296,68 @@ def anular(cx, datos, usuario=None):
     return {"ok": True}
 
 
+# =====================================================================
+# LA FACTURA DEL RECAPADOR
+# =====================================================================
+def cotejar(cx, datos, usuario=None):
+    """Cruza lo que dice la factura contra lo que el sistema sabe que mandó.
+
+    No guarda nada: arma el cuadro para que una persona lo mire. Lo que
+    vuelve son tres listas, y la tercera es la que no existía antes:
+
+        vuelven       el fuego está en la factura y en un envío abierto
+        desconocidas  está en la factura y no salió de acá
+        faltan        salió y la factura no la trae: ésa no volvió
+
+    Si se mandaron doce y la factura trae diez, las dos que faltan quedan
+    señaladas con nombre y apellido.
+    """
+    import factura_recapado
+
+    _exigir_gestor(usuario, "leer la factura del recapador")
+
+    afuera = [dict(a) for a in cx.execute(
+        "select * from v_recapado_afuera").fetchall()]
+    if not afuera:
+        raise ValueError("No hay cubiertas en lo del recapador: no hay contra "
+                         "qué cotejar esta factura.")
+
+    leido = factura_recapado.leer(
+        datos.get("archivos"), [a["codigo"] for a in afuera],
+        cliente=datos.get("cliente"))
+
+    porcodigo = {a["codigo"]: a for a in afuera}
+    vuelven, desconocidas, vistos = [], [], set()
+    for r in leido["renglones"]:
+        codigo = r.get("codigo_fuego")
+        encontrada = porcodigo.get(codigo)
+        if not encontrada:
+            desconocidas.append(r)
+            continue
+        # La misma goma dos veces en la factura es un error de carga, no
+        # dos recapados: se cobra una sola.
+        if codigo in vistos:
+            desconocidas.append({**r, "repetida": True})
+            continue
+        vistos.add(codigo)
+        vuelven.append({**encontrada, **r})
+
+    faltan = [a for a in afuera if a["codigo"] not in vistos]
+    return {
+        "factura": leido.get("factura"),
+        "fecha": leido.get("fecha"),
+        "dudas": leido.get("dudas") or [],
+        "vuelven": vuelven,
+        "desconocidas": desconocidas,
+        "faltan": faltan,
+    }
+
+
 def aplicar(cx, datos, usuario=None):
     """Punto de entrada de la API."""
     op = str(datos.get("op") or "").strip()
-    acciones = {"enviar": enviar, "recibir": recibir, "anular": anular}
+    acciones = {"enviar": enviar, "recibir": recibir, "anular": anular,
+                "cotejar": cotejar}
     if op not in acciones:
         raise ValueError("Operación de recapado inválida.")
     return acciones[op](cx, datos, usuario)

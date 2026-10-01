@@ -440,7 +440,8 @@ function vistaStock(mp){
     '<select id="festado" style="width:auto">'+
       [["activos","Activos"],["rep","A reponer"],["cero","Sin stock"],["baja","Dados de baja"],["todos","Todos"]]
       .map(o=>'<option value="'+o[0]+'" '+(f.estado===o[0]?"selected":"")+'>'+o[1]+'</option>').join("")+'</select>'+
-    (S.puedeGestionar?'<button class="btn" data-act="nuevo-art">+ Repuesto nuevo</button>':'')+
+    (S.puedeGestionar?'<button class="btn" data-act="nuevo-art">+ Repuesto nuevo</button>'+
+      '<button class="btn ghost" data-act="factura">Cargar factura</button>':'')+
     '<button class="btn ghost" data-act="nuevo-mov">Cargar movimiento</button>'+
     '<a class="btn ghost" href="'+enlaceEtiquetas()+'" target="_blank" rel="noopener">Etiquetas QR</a>'+
     '<span class="count">'+lista.length+' de '+S.arts.length+'</span></div>';
@@ -624,6 +625,116 @@ async function guardarMov(){
   if(await guardar("mov+",nuevo)) toast("Movimiento guardado · "+etiqueta);
 }
 
+/* ---- factura de compra ----
+   El modelo propone y la persona decide. El riesgo real no es que lea mal
+   un número: es que cree duplicados —"FILTRO ACEITE", "FILTRO DE ACEITE"
+   y "F. ACEITE" como tres artículos— y eso no se arregla después. */
+var F = null;
+function modalFactura(){
+  F = null;
+  abrir('<h2>Cargar factura de repuestos</h2><div class="body">'+
+    '<div class="f"><label>Foto o PDF de la factura</label>'+
+    '<input type="file" id="fc-arch" accept="image/*,application/pdf" multiple>'+
+    '<div class="hint">Hasta cuatro hojas. Se lee la factura y se proponen los renglones; nada se carga sin que lo confirmes.</div></div>'+
+    '<div id="fc-salida"></div></div>'+
+    '<div class="foot"><button class="btn ghost" data-act="cerrar">Cancelar</button>'+
+    '<button class="btn" data-act="fc-leer">Leer la factura</button></div>');
+}
+
+async function archivosDe(input){
+  var files=[...(input&&input.files||[])].slice(0,4);
+  return Promise.all(files.map(f=>new Promise(listo=>{
+    if(!/^image\//.test(f.type)){
+      var fr=new FileReader();
+      fr.onload=()=>listo({tipo:f.type,contenido:String(fr.result).split(',')[1],nombre:f.name});
+      return fr.readAsDataURL(f);
+    }
+    var img=new Image(), url=URL.createObjectURL(f);
+    img.onload=()=>{
+      var k=Math.min(1,1600/Math.max(img.width,img.height));
+      var c=document.createElement('canvas');
+      c.width=Math.round(img.width*k); c.height=Math.round(img.height*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+      URL.revokeObjectURL(url);
+      listo({tipo:'image/jpeg',contenido:c.toDataURL('image/jpeg',.85).split(',')[1],nombre:f.name});
+    };
+    img.src=url;
+  })));
+}
+
+async function leerFactura(){
+  var archivos=await archivosDe(document.getElementById("fc-arch"));
+  if(!archivos.length) return toast("Elegir la foto o el PDF de la factura.");
+  var salida=document.getElementById("fc-salida");
+  salida.innerHTML='<div class="hint">Leyendo la factura…</div>';
+  try{
+    var r=await fetch("/api/factura-repuestos",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({op:"leer",que:"repuestos",archivos})});
+    var d=await r.json().catch(()=>({error:"Respuesta ilegible del servidor."}));
+    if(!r.ok) throw new Error(d.error||"No se pudo leer la factura.");
+    F=d; F.renglones.forEach(x=>{ x.codigo=x.articulo?x.articulo.codigo:""; x.nuevo=false; });
+    pintarFactura();
+  }catch(e){ salida.innerHTML='<div class="err">'+esc(e.message)+'</div>'; }
+}
+
+function pintarFactura(){
+  var r=F.renglones||[];
+  if(!r.length) return document.getElementById("fc-salida").innerHTML=
+    '<div class="err">No se reconoció ningún renglón en la factura.</div>';
+  var h='';
+  if(F.dudas&&F.dudas.length) h+='<div class="err"><b>Lo que no se leyó con seguridad</b><ul>'+
+    F.dudas.map(x=>'<li>'+esc(x)+'</li>').join("")+'</ul></div>';
+  h+='<div class="row2"><div class="f"><label>Factura</label><input type="text" id="fc-num" value="'+esc(F.factura||"")+'"></div>'+
+     '<div class="f"><label>Fecha</label><input type="date" id="fc-fecha" value="'+esc((F.fecha||"").slice(0,10)||hoy())+'"></div></div>'+
+     '<div class="f"><label>Proveedor</label><input type="text" id="fc-prov" value="'+esc(F.proveedor||"")+'"></div>';
+  h+=r.map(function(x,i){
+    var estado = x.omitir ? '<span class="tag t-baja">No entra</span>'
+      : x.nuevo ? '<span class="tag t-ent">Se da de alta</span>'
+      : x.codigo ? '<span class="tag t-ok">'+esc(x.codigo)+'</span>'
+      : '<span class="tag t-neg">Falta elegir</span>';
+    var ops = x.articulo ? ''
+      : (x.candidatos||[]).map(c=>'<button class="link" data-act="fc-elegir" data-i="'+i+'" data-cod="'+esc(c.codigo)+'">'+
+          esc(c.descripcion)+' ('+Math.round(c.parecido*100)+'%)</button>').join(" · ");
+    return '<div class="f" style="border-top:1px solid var(--rule);padding-top:10px">'+
+      '<label>'+esc(x.descripcion)+' '+estado+'</label>'+
+      '<div class="row2"><input type="number" id="fc-cant-'+i+'" value="'+(x.cantidad||1)+'" min="1" step="1" placeholder="Cantidad">'+
+      '<input type="number" id="fc-costo-'+i+'" value="'+(x.costo_unitario!=null?x.costo_unitario:"")+'" min="0" step="0.01" placeholder="Costo c/u"></div>'+
+      (x.nuevo?'<input type="text" id="fc-cod-'+i+'" value="'+esc(x.codigo||"")+'" placeholder="Código con el que se da de alta">':'')+
+      '<div class="hint">'+(ops||(x.articulo?'Reconocido por el código del proveedor.':'No se parece a ninguno del catálogo.'))+
+      ' · <button class="link" data-act="fc-nuevo" data-i="'+i+'">darlo de alta como nuevo</button>'+
+      ' · <button class="link" data-act="fc-omitir" data-i="'+i+'">'+(x.omitir?"volver a incluir":"no cargarlo")+'</button></div></div>';
+  }).join("");
+  h+='<div id="fc-err"></div><button class="btn" data-act="fc-guardar" style="margin-top:12px">Cargar al stock</button>';
+  document.getElementById("fc-salida").innerHTML=h;
+}
+
+async function guardarFactura(){
+  var renglones=F.renglones.map(function(x,i){
+    var g=id=>document.getElementById(id);
+    return {omitir:!!x.omitir, nuevo:!!x.nuevo,
+      codigo: x.nuevo ? (g("fc-cod-"+i)||{}).value||"" : x.codigo,
+      descripcion: x.descripcion, codigo_proveedor: x.codigo_proveedor,
+      cantidad: +(g("fc-cant-"+i)||{}).value||0,
+      costo_unitario: (g("fc-costo-"+i)||{}).value||null};
+  });
+  var falta=renglones.find(x=>!x.omitir&&!String(x.codigo||"").trim());
+  if(falta) return document.getElementById("fc-err").innerHTML=
+    '<div class="err">«'+esc(falta.descripcion)+'» no tiene repuesto elegido. Elegí uno, dalo de alta como nuevo, o sacalo.</div>';
+  try{
+    var r=await fetch("/api/factura-repuestos",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({op:"guardar",que:"repuestos",
+        factura:document.getElementById("fc-num").value,
+        fecha:document.getElementById("fc-fecha").value,
+        proveedor:document.getElementById("fc-prov").value, renglones})});
+    var d=await r.json().catch(()=>({error:"Respuesta ilegible del servidor."}));
+    if(!r.ok) throw new Error(d.error||"No se pudo cargar la factura.");
+    cerrar(); await cargar(true);
+    toast(d.cargados+" renglones cargados"+(d.nuevos?" · "+d.nuevos+" repuestos nuevos":""));
+  }catch(e){ document.getElementById("fc-err").innerHTML='<div class="err">'+esc(e.message)+'</div>'; }
+}
+
 /* ---- artículo ---- */
 function modalArt(cod){
   var a=cod?art(cod):null;
@@ -746,6 +857,15 @@ document.addEventListener("click", async e=>{
     if(M.tipo!=="Ajuste"&&M.cant<1) M.cant=1; return pintarMov(); }
   if(a==="mv-guardar") return guardarMov();
   if(a==="nuevo-art") return modalArt("");
+  if(a==="factura") return modalFactura();
+  if(a==="fc-leer") return leerFactura();
+  if(a==="fc-guardar") return guardarFactura();
+  if(a==="fc-elegir"){ F.renglones[+t.dataset.i].codigo=t.dataset.cod;
+    F.renglones[+t.dataset.i].nuevo=false; return pintarFactura(); }
+  if(a==="fc-nuevo"){ var r=F.renglones[+t.dataset.i];
+    r.nuevo=true; r.codigo=r.codigo_proveedor||""; return pintarFactura(); }
+  if(a==="fc-omitir"){ var o=F.renglones[+t.dataset.i];
+    o.omitir=!o.omitir; return pintarFactura(); }
   if(a==="edit-art") return modalArt(t.dataset.cod);
   if(a==="ar-guardar") return guardarArt();
   if(a==="ar-borrar") return borrarArt();

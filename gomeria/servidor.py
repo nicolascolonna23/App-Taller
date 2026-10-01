@@ -21,6 +21,11 @@ import anthropic
 import auth
 import permisos, base, desgaste, interpretar, mapas, neumaticos, recapado
 
+# Por acá entran fotos de facturas: la factura del recapador y las de
+# compra. Son las únicas rutas con el techo alto.
+CON_ARCHIVOS = {"/api/recapado", "/api/factura-repuestos",
+                "/api/factura-cubiertas"}
+
 
 def jstr(d):
     return json.dumps(d, ensure_ascii=False, default=str)
@@ -421,8 +426,17 @@ class Handler(BaseHTTPRequestHandler):
                 return self._error(f"No se pudo entrar: {e}", 500)
         if not self._exigir_sesion():
             return
+        # Un Content-Length de 500 MB no se puede rechazar despues de
+        # haberlo leido: para entonces la memoria ya se gasto y el
+        # servidor se cae. Se mira antes. Las rutas que reciben fotos
+        # tienen su propio techo, mas alto: cuatro hojas de 12 MB en
+        # base64 son unos 64 MB.
+        techo = (68 * 1024 * 1024 if ruta in CON_ARCHIVOS else 1024 * 1024)
         try:
             largo = int(self.headers.get("Content-Length") or 0)
+            if largo > techo:
+                return self._error(
+                    f"El contenido supera los {techo // (1024*1024)} MB.", 413)
             datos = json.loads(self.rfile.read(largo) or b"{}")
         except Exception:
             return self._error("Cuerpo inválido")
@@ -436,6 +450,42 @@ class Handler(BaseHTTPRequestHandler):
                 return self._descartar(datos)
             if ruta == "/api/cubiertas":
                 return self._cubiertas(datos)
+            if ruta in ("/api/factura-repuestos", "/api/factura-cubiertas"):
+                # Leer la factura y proponer; o guardar lo que ya se
+                # decidió en la pantalla. Son dos pasos distintos y el
+                # segundo no vuelve a llamar al modelo.
+                # Son dos rutas y no una con un parámetro: el permiso de
+                # repuestos y el de gomería no son el mismo, y quien carga
+                # la factura del taller no tiene por qué poder dar de alta
+                # cubiertas.
+                self._exigir_encargado()
+                import factura_compra
+                op = (datos.get("op") or "").strip()
+                que = "repuestos" if ruta.endswith("repuestos") else "cubiertas"
+                with base.conectar() as cx:
+                    if op == "leer":
+                        if que == "repuestos":
+                            leido = factura_compra.leer_repuestos(
+                                datos.get("archivos"))
+                            catalogo = [dict(a) for a in cx.execute(
+                                """select codigo, descripcion, rubro, codigo_interno
+                                   from repuestos_articulos where activo
+                                   order by descripcion""").fetchall()]
+                            leido["renglones"] = factura_compra.emparejar(
+                                leido["renglones"], catalogo)
+                        else:
+                            leido = factura_compra.leer_cubiertas(
+                                datos.get("archivos"))
+                        return self._responder(jstr(leido))
+                    if op == "guardar":
+                        guardar = (factura_compra.guardar_repuestos
+                                   if que == "repuestos"
+                                   else factura_compra.guardar_cubiertas)
+                        salida = guardar(cx, datos, self.usuario)
+                        cx.commit()
+                        return self._responder(jstr(salida))
+                raise ValueError("Operación de factura inválida.")
+
             if ruta == "/api/recapado":
                 self._exigir_encargado()
                 with base.conectar() as cx:

@@ -15,27 +15,17 @@ Se le pasa el listado de patentes de la flota. Sin eso, "AD247MQ" escrito
 a mano en un remito arrugado sale con la Q por O una de cada tres veces;
 con el listado, Claude elige entre las que existen.
 """
-import json, os, re
+import json, re
 
-# Lo que puede tener un base64 y nada más. Se mira con fullmatch, que
-# recorre la cadena sin copiarla: con un archivo de 12 MB eso importa.
-B64 = re.compile(r"(?:[A-Za-z0-9+/]{4})+(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?")
-import anthropic
+import lector
 
-import ia
-
-MODELO = "claude-opus-5"
-
-# Lo que se acepta desde el navegador. El PDF entra igual que una foto:
-# la mitad de las facturas llegan por mail y nadie las va a imprimir para
-# sacarles una foto.
-IMAGENES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
-PDF = "application/pdf"
-TIPOS = IMAGENES | {PDF}
-
-# Una foto de celular ronda los 3 MB. Más que esto es una foto sin
-# achicar, y el navegador ya la achica antes de mandarla.
-MAXIMO = 12 * 1024 * 1024
+# Leer el papel —validarlo, mandárselo al modelo, quedarse con lo que
+# contestó— es igual para las tres facturas que entran por foto. Vive en
+# lector.py. Acá queda lo único que cambia: qué se le pide.
+B64 = lector.B64
+MODELO = lector.MODELO
+IMAGENES, PDF, TIPOS = lector.IMAGENES, lector.PDF, lector.TIPOS
+MAXIMO = lector.MAXIMO
 
 HERRAMIENTA = {
     "name": "cargar_servicio",
@@ -158,75 +148,11 @@ def leer(archivos, patentes=None, cliente=None):
     if len(archivos) > 4:
         raise ValueError("Son cuatro archivos como mucho por factura.")
 
-    contenido = []
-    for archivo in archivos:
-        tipo = (archivo.get("tipo") or "").split(";")[0].strip().lower()
-        if tipo not in TIPOS:
-            raise ValueError("La factura tiene que ser una foto (.jpg, .png o "
-                             ".webp) o un PDF.")
-        # El archivo se manda tal como llegó. Antes se lo abría y se lo
-        # volvía a cerrar —b64decode y enseguida b64encode— y eso dejaba
-        # tres copias del mismo archivo en memoria: el base64 que vino, el
-        # binario, y el base64 nuevo, que es igual al primero. Con cuatro
-        # hojas de 12 MB eran 233 MB para un solo pedido, y el servidor se
-        # quedaba sin memoria y lo reiniciaban. Ese es el 503.
-        limpio = archivo.get("contenido") or ""
-        if not limpio:
-            raise ValueError("El archivo llegó vacío.")
-        if not B64.fullmatch(limpio):
-            # La pantalla manda el base64 pelado, pero un cliente puede
-            # mandar el data URI entero o cortarlo en líneas. Se arregla
-            # solo si hace falta: hacerlo siempre sería otra copia del
-            # archivo al pedo, que es justo lo que se vino a evitar.
-            limpio = "".join(limpio.split())
-            if limpio.startswith("data:"):
-                limpio = limpio.partition(",")[2]
-            if not limpio:
-                raise ValueError("El archivo llegó vacío.")
-            if not B64.fullmatch(limpio):
-                raise ValueError("El archivo llegó cortado. Debe reintentarse.")
-        # Cuánto pesa, sin abrirlo: cada 4 caracteres de base64 son 3
-        # bytes, menos el relleno del final. Así el archivo grande se
-        # rechaza antes de gastar la memoria, y no después.
-        pesa = len(limpio) // 4 * 3 - limpio[-2:].count("=")
-        if pesa > MAXIMO:
-            raise ValueError(f"El archivo pesa {pesa // (1024*1024)} MB y el "
-                             f"máximo son {MAXIMO // (1024*1024)}.")
-        if tipo == PDF:
-            contenido.append({"type": "document",
-                              "source": {"type": "base64", "media_type": PDF,
-                                         "data": limpio}})
-        else:
-            contenido.append({"type": "image",
-                              "source": {"type": "base64", "media_type": tipo,
-                                         "data": limpio}})
+    contenido = lector.preparar(archivos)
 
-    contenido.append({"type": "text",
-                      "text": "Leé esta factura y cargá el servicio externo."})
-
-    # Se revisa después de validar los archivos: si el problema es la foto,
-    # que lo diga la foto y no la clave.
-    if cliente is None and not (os.environ.get("ANTHROPIC_API_KEY")
-                                or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
-        raise ValueError("Falta la clave de la API de Claude: sin eso no se "
-                         "pueden leer facturas. Cargar los datos a mano.")
-
-    cliente = cliente or ia.cliente()
-    r = cliente.messages.create(
-        model=MODELO,
-        max_tokens=4000,
-        system=_instrucciones(patentes),
-        thinking={"type": "adaptive"},
-        tools=[HERRAMIENTA],
-        tool_choice={"type": "tool", "name": "cargar_servicio"},
-        messages=[{"role": "user", "content": contenido}],
-    )
-    for bloque in r.content:
-        if bloque.type == "tool_use" and bloque.name == "cargar_servicio":
-            leido = dict(bloque.input)
-            break
-    else:
-        raise ValueError("No se pudo leer la factura. Cargarla a mano.")
+    leido = lector.preguntar(
+        contenido, HERRAMIENTA, _instrucciones(patentes),
+        "Leé esta factura y cargá el servicio externo.", cliente=cliente)
 
     # La patente se valida contra la flota: es el campo del que cuelga todo
     # lo demás —la orden va a parar al historial de esa unidad— y el único
