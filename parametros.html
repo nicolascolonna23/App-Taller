@@ -93,6 +93,7 @@
     font-weight:800;text-transform:uppercase;letter-spacing:.5px}
   .marca.preventivo{color:var(--ok);background:rgba(49,189,101,.12)}
   .marca.correctivo{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.prefiltro{color:var(--brand);background:color-mix(in srgb,var(--brand) 14%,transparent)}
   .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
     font-size:12px;text-decoration:underline;padding:0 7px 0 0}
   .accion:hover{color:var(--brand)}
@@ -185,7 +186,9 @@
         tantos días —el aceite se vence aunque el camión no ruede—. El
         <b>correctivo</b> no se agenda, porque una rotura no se agenda: es el catálogo
         de trabajos con lo que deberían llevar de tiempo y de plata, para poder
-        comparar contra lo que salieron.</p>
+        comparar contra lo que salieron. El <b>prefiltro</b> se controla como el
+        service, cada tantos kilómetros, pero solo en las unidades que lo llevan:
+        esas tienen dos planes.</p>
       <div class="fila" style="margin:0 0 14px">
         <button class="btn" id="plan-nuevo">+ Nuevo plan</button>
       </div>
@@ -196,12 +199,13 @@
           <div><label>Clase</label><select id="p-clase">
             <option value="preventivo">Preventivo · se agenda</option>
             <option value="correctivo">Correctivo · catálogo</option>
+            <option value="prefiltro">Prefiltro · se agenda por km</option>
           </select></div>
           <div><label>Nombre</label><input id="p-nombre" maxlength="60"
             placeholder="Service M6, cambio de embrague…" required></div>
           <div class="km-solo"><label>Cada cuántos km</label>
             <input id="p-km" type="number" min="1" step="100" placeholder="20000"></div>
-          <div class="km-solo"><label>O cada cuántos días</label>
+          <div class="km-solo dias-solo"><label>O cada cuántos días</label>
             <input id="p-dias" type="number" min="1" step="1" placeholder="180"></div>
           <div class="corr-solo" hidden><label>Horas estimadas</label>
             <input id="p-horas" type="number" min="0" step="0.5"></div>
@@ -228,10 +232,28 @@
     <div class="caja">
       <h2>Qué plan tiene cada unidad</h2>
       <p class="que">Solo los preventivos se asignan: son los que avisan. Una unidad
-        sin plan no puede reclamar service, y por eso aparece marcada.</p>
+        sin plan no puede reclamar service, y por eso aparece marcada. El prefiltro
+        va aparte: se le pone solo a las unidades que lo llevan.</p>
       <table><thead><tr>
         <th>Unidad</th><th>Sucursal</th><th>Plan preventivo</th><th class="num">Cada</th>
+        <th class="col-prefiltro">Plan de prefiltro</th>
       </tr></thead><tbody id="asignaciones"></tbody></table>
+    </div>
+
+    <div class="caja">
+      <h2>Carga masiva desde Excel</h2>
+      <p class="que">El archivo lleva dos columnas: <b>PATENTE</b> y <b>TIPO DE SERVICE</b>.
+        Cada tipo tiene que coincidir con el nombre de un plan creado arriba. Donde dice
+        SIN DATOS, la unidad queda sin plan.</p>
+      <div class="campos" style="max-width:640px">
+        <div><label>Qué se asigna</label><select id="xl-campo">
+          <option value="service">Plan de service</option>
+          <option value="prefiltro">Plan de prefiltro</option>
+        </select></div>
+        <div><label>Archivo .xlsx</label><input id="xl-archivo" type="file" accept=".xlsx"></div>
+      </div>
+      <div class="fila"><button class="btn" id="xl-importar">Importar Excel</button></div>
+      <p class="chico" id="xl-resultado" style="margin-top:10px"></p>
     </div>
   </section>
 
@@ -633,6 +655,10 @@ function pintar() {
   $('#planes-vacio').hidden = d.planes.length > 0;
 
   const preventivos = d.planes.filter(p => p.clase === 'preventivo' && p.activo);
+  const deprefiltro = d.planes.filter(p => p.clase === 'prefiltro' && p.activo);
+  document.querySelectorAll('.col-prefiltro').forEach(e => e.hidden = !d.prefiltros);
+  $('#xl-campo').querySelector('[value="prefiltro"]').disabled = !d.prefiltros;
+  $('#xl-importar').disabled = !d.puede_gestionar;
   $('#asignaciones').innerHTML = d.asignaciones.map(a => `
     <tr>
       <td><b>${esc(pat(a.patente))}</b>${a.interno ? ` <span class="chico">· ${esc(a.interno)}</span>` : ''}</td>
@@ -645,6 +671,13 @@ function pintar() {
       <td class="num">${a.cada_km ? nf0.format(a.cada_km) + ' km'
         : a.cada_dias ? a.cada_dias + ' días'
         : '<span class="chico">no reclama service</span>'}</td>
+      ${d.prefiltros ? `<td class="col-prefiltro"><select data-asignar="${a.unidad_id}" data-campo="prefiltro"
+          ${d.puede_gestionar ? '' : 'disabled'}>
+        <option value="">No lleva</option>
+        ${deprefiltro.map(p => `<option value="${p.id}"${
+          String(p.id) === String(a.prefiltro_id) ? ' selected' : ''}>${esc(p.nombre)} · ${
+          nf0.format(p.cada_km)} km</option>`).join('')}
+      </select></td>` : ''}
     </tr>`).join('');
 
   const r = d.reglas || {};
@@ -687,7 +720,10 @@ function formPlan(plan) {
    mostrar los cuatro campos siempre invita a llenar los que no van. */
 function segunClase() {
   const correctivo = $('#p-clase').value === 'correctivo';
+  const prefiltro = $('#p-clase').value === 'prefiltro';
   document.querySelectorAll('.km-solo').forEach(e => { e.hidden = correctivo; });
+  // El prefiltro se controla solo por kilómetros.
+  document.querySelectorAll('.dias-solo').forEach(e => { e.hidden = correctivo || prefiltro; });
   document.querySelectorAll('.corr-solo').forEach(e => { e.hidden = !correctivo; });
 }
 
@@ -815,7 +851,8 @@ $('#plan-form').onsubmit = async e => {
   e.preventDefault();
   const datos = {
     clase: $('#p-clase').value, nombre: $('#p-nombre').value,
-    cada_km: $('#p-km').value || null, cada_dias: $('#p-dias').value || null,
+    cada_km: $('#p-km').value || null,
+    cada_dias: $('#p-clase').value === 'prefiltro' ? null : $('#p-dias').value || null,
     horas_estimadas: $('#p-horas').value || null, costo_estimado: $('#p-costo').value || null,
     tareas: $('#p-tareas').value, descripcion: $('#p-descripcion').value};
   if (D.plan) datos.id = D.plan.id;
@@ -832,11 +869,36 @@ document.addEventListener('change', async ev => {
   const select = ev.target.closest('[data-asignar]');
   if (!select) return;
   try {
-    await api('asignar', {unidad_id: select.dataset.asignar, plan_id: select.value || null});
+    await api('asignar', {unidad_id: select.dataset.asignar, plan_id: select.value || null,
+                          campo: select.dataset.campo || 'service'});
     await cargar();
-    aviso('Plan asignado.', true);
+    aviso(select.dataset.campo === 'prefiltro' ? 'Plan de prefiltro asignado.' : 'Plan asignado.', true);
   } catch (e) { aviso(e.message); await cargar(); }
 });
+
+/* La carga masiva de planes por patente. Vivía en el control de flota;
+   es parametrización, así que está acá con el resto de los planes. */
+$('#xl-importar').onclick = async () => {
+  const archivo = $('#xl-archivo').files[0];
+  if (!archivo) return aviso('Seleccionar un archivo .xlsx.');
+  const boton = $('#xl-importar');
+  boton.disabled = true; boton.textContent = 'Importando…';
+  $('#xl-resultado').textContent = '';
+  try {
+    const bytes = new Uint8Array(await archivo.arrayBuffer());
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 32768) bin += String.fromCharCode(...bytes.subarray(i, i + 32768));
+    const d = await api('importar', {archivo_b64: btoa(bin), campo: $('#xl-campo').value});
+    const partes = [`${d.asignadas} de ${d.total} filas asignadas.`];
+    if (d.planes_faltantes?.length) partes.push(`Crear previamente estos planes: ${d.planes_faltantes.join(', ')}.`);
+    if (d.patentes_faltantes?.length) partes.push(`Patentes no encontradas: ${d.patentes_faltantes.join(', ')}.`);
+    if (d.sin_datos?.length) partes.push(`Sin datos: ${d.sin_datos.join(', ')}.`);
+    $('#xl-resultado').textContent = partes.join(' ');
+    await cargar();
+    aviso('Carga procesada.', true);
+  } catch (e) { aviso(e.message); }
+  finally { boton.disabled = false; boton.textContent = 'Importar Excel'; }
+};
 
 
 /* ====================================================================

@@ -19,13 +19,21 @@ distintos o en ninguno:
      cuántos kilómetros del service empieza a avisar, cuándo se pone
      urgente, y qué carga de combustible es demasiado grande.
 """
+import base64
+import zipfile
 from datetime import datetime, timezone
 
+from xml.etree import ElementTree
+
 import alertas
+import mantenimiento
 import permisos
 
 ORIGENES = ("automatico", "manual")
-CLASES = ("preventivo", "correctivo")
+# El prefiltro es un preventivo más, con su propio plan: una unidad que lo
+# lleva tiene dos planes, el de service y el de prefiltro (44_prefiltros.sql).
+CLASES = ("preventivo", "correctivo", "prefiltro")
+FALTA_PREFILTROS = "Falta correr gomeria/44_prefiltros.sql en el SQL Editor de Supabase."
 
 # Con qué queda cada parámetro cuando se lo restablece. Es lo mismo que
 # trae el SQL al crearse la fila: «eliminar» un parámetro no es dejarlo
@@ -224,13 +232,29 @@ def restablecer(cx, datos, usuario=None):
 # =====================================================================
 # LOS PLANES
 # =====================================================================
+def hay_prefiltros(cx):
+    """Si la base ya tiene el segundo plan de la unidad."""
+    try:
+        fila = cx.execute("""
+            select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'unidades'
+              and column_name = 'prefiltro_plan_id'""").fetchone()
+    except Exception:
+        cx.rollback()
+        return False
+    return bool(fila)
+
+
 def planes(cx):
-    return [dict(p) for p in cx.execute("""
+    # Un plan de prefiltro cuenta las unidades por su propia columna.
+    usa = ("(u.mantenimiento_plan_id = p.id or u.prefiltro_plan_id = p.id)"
+           if hay_prefiltros(cx) else "u.mantenimiento_plan_id = p.id")
+    return [dict(p) for p in cx.execute(f"""
         select p.id, p.nombre, p.descripcion, p.clase, p.cada_km, p.cada_dias,
                p.tareas, p.horas_estimadas, p.costo_estimado, p.activo,
                count(u.id)::int as unidades
         from mantenimiento_planes p
-        left join unidades u on u.mantenimiento_plan_id = p.id and u.activa
+        left join unidades u on {usa} and u.activa
         group by p.id
         order by p.clase, p.activo desc, p.nombre
     """).fetchall()]
@@ -244,10 +268,19 @@ def guardar_plan(cx, datos, usuario=None):
         raise ValueError("Falta el nombre del plan.")
     clase = str(datos.get("clase") or "preventivo").strip().lower()
     if clase not in CLASES:
-        raise ValueError("El plan es preventivo o correctivo.")
+        raise ValueError("El plan es preventivo, correctivo o de prefiltro.")
+    if clase == "prefiltro" and not hay_prefiltros(cx):
+        raise ValueError(FALTA_PREFILTROS)
 
     cada_km = _entero(datos.get("cada_km"), "Cada cuántos kilómetros")
     cada_dias = _entero(datos.get("cada_dias"), "Cada cuántos días")
+    if clase == "prefiltro":
+        # El prefiltro se controla por kilómetros, como el filtro en el
+        # tablero: los días no entran en la cuenta.
+        if not cada_km:
+            raise ValueError("Un plan de prefiltro necesita cada cuántos kilómetros "
+                             "se cambia: sin eso no puede avisar.")
+        cada_dias = None
     if clase == "preventivo" and not cada_km and not cada_dias:
         raise ValueError("Un plan preventivo necesita cada cuántos kilómetros "
                          "o cada cuántos días: sin eso no puede avisar.")
@@ -289,6 +322,10 @@ def borrar_plan(cx, datos, usuario=None):
     cuantas = cx.execute("""update unidades set mantenimiento_plan_id = null
                             where mantenimiento_plan_id = %s returning id""",
                          (plan_id,)).fetchall()
+    if hay_prefiltros(cx):
+        cuantas += cx.execute("""update unidades set prefiltro_plan_id = null
+                                 where prefiltro_plan_id = %s returning id""",
+                              (plan_id,)).fetchall()
     fila = cx.execute("delete from mantenimiento_planes where id = %s returning id",
                       (plan_id,)).fetchone()
     if not fila:
@@ -297,8 +334,15 @@ def borrar_plan(cx, datos, usuario=None):
 
 
 def asignar(cx, datos, usuario=None):
-    """Le pone un plan preventivo a una unidad, o se lo saca."""
+    """Le pone un plan preventivo (o de prefiltro) a una unidad, o se lo saca.
+
+    Son dos lugares distintos: el plan de service y el de prefiltro. Poner
+    uno no toca el otro.
+    """
     _exigir_gestor(usuario)
+    prefiltro = datos.get("campo") == "prefiltro"
+    if prefiltro and not hay_prefiltros(cx):
+        raise ValueError(FALTA_PREFILTROS)
     unidad_id = _entero(datos.get("unidad_id"), "La unidad", minimo=1)
     plan_id = _entero(datos.get("plan_id"), "El plan", minimo=1)
     if plan_id:
@@ -306,10 +350,14 @@ def asignar(cx, datos, usuario=None):
                           (plan_id,)).fetchone()
         if not plan:
             raise ValueError("Ese plan no existe.")
-        if plan["clase"] != "preventivo":
+        if prefiltro and plan["clase"] != "prefiltro":
+            raise ValueError("Como prefiltro se asigna un plan de prefiltro.")
+        if not prefiltro and plan["clase"] != "preventivo":
             raise ValueError("A una unidad se le asigna un plan preventivo: el "
-                             "correctivo es un catálogo de trabajos, no una agenda.")
-    fila = cx.execute("""update unidades set mantenimiento_plan_id = %s, actualizado = now()
+                             "correctivo es un catálogo de trabajos, no una agenda, "
+                             "y el de prefiltro va en su propia columna.")
+    columna = "prefiltro_plan_id" if prefiltro else "mantenimiento_plan_id"
+    fila = cx.execute(f"""update unidades set {columna} = %s, actualizado = now()
                          where id = %s returning id""", (plan_id, unidad_id)).fetchone()
     if not fila:
         raise ValueError("Esa unidad no existe.")
@@ -327,14 +375,8 @@ def panel(cx, usuario=None):
         "de_fabrica": DE_FABRICA,
         "instalado": p is not None,
         "planes": planes(cx),
-        "asignaciones": [dict(a) for a in cx.execute("""
-            select u.id as unidad_id, u.patente, u.interno, u.sucursal,
-                   u.mantenimiento_plan_id as plan_id, p.nombre as plan_nombre,
-                   p.cada_km, p.cada_dias
-            from unidades u
-            left join mantenimiento_planes p on p.id = u.mantenimiento_plan_id
-            where u.activa and u.tipo = 'vehiculo'
-            order by u.patente""").fetchall()],
+        "prefiltros": hay_prefiltros(cx),
+        "asignaciones": _asignaciones(cx),
         "reglas": alertas.reglas(cx),
         # Cuántas lecturas del satelital entraron ayer: es lo que dice si
         # el automático está andando de verdad o quedó colgado.
@@ -345,6 +387,41 @@ def panel(cx, usuario=None):
         "puede_gestionar": permisos.gestiona(usuario),
         "puede_administrar": permisos.administra(usuario),
     }
+
+
+def _asignaciones(cx):
+    prefiltro = hay_prefiltros(cx)
+    return [dict(a) for a in cx.execute(f"""
+        select u.id as unidad_id, u.patente, u.interno, u.sucursal,
+               u.mantenimiento_plan_id as plan_id, p.nombre as plan_nombre,
+               p.cada_km, p.cada_dias,
+               {"u.prefiltro_plan_id" if prefiltro else "null::bigint"} as prefiltro_id,
+               {"pf.cada_km" if prefiltro else "null::numeric"} as prefiltro_cada_km
+        from unidades u
+        left join mantenimiento_planes p on p.id = u.mantenimiento_plan_id
+        {"left join mantenimiento_planes pf on pf.id = u.prefiltro_plan_id" if prefiltro else ""}
+        where u.activa and u.tipo = 'vehiculo'
+        order by u.patente""").fetchall()]
+
+
+def importar(cx, datos, usuario=None):
+    """Asigna planes por patente desde un Excel (PATENTE · TIPO DE SERVICE)."""
+    _exigir_gestor(usuario)
+    prefiltro = datos.get("campo") == "prefiltro"
+    if prefiltro and not hay_prefiltros(cx):
+        raise ValueError(FALTA_PREFILTROS)
+    try:
+        contenido = base64.b64decode(str(datos.get("archivo_b64") or ""), validate=True)
+    except Exception:
+        raise ValueError("El archivo recibido no es válido.") from None
+    if not contenido or len(contenido) > 2 * 1024 * 1024:
+        raise ValueError("El Excel está vacío o supera los 2 MB.")
+    try:
+        salida = mantenimiento.importar(cx, contenido, prefiltro=prefiltro)
+    except (zipfile.BadZipFile, ElementTree.ParseError, KeyError, IndexError):
+        raise ValueError("No se pudo leer el Excel. Tiene que ser un .xlsx con las "
+                         "columnas PATENTE y TIPO DE SERVICE.") from None
+    return {"ok": True, **salida}
 
 
 def _uno(cx, consulta):
@@ -367,6 +444,8 @@ def aplicar(cx, datos, usuario=None):
         return borrar_plan(cx, datos, usuario)
     if op == "asignar":
         return asignar(cx, datos, usuario)
+    if op == "importar":
+        return importar(cx, datos, usuario)
     if op == "restablecer":
         return restablecer(cx, datos, usuario)
     if op == "reglas":

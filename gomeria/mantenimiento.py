@@ -57,10 +57,17 @@ def _filas_xlsx(contenido):
     return filas
 
 
-def importar(cx, contenido):
+def importar(cx, contenido, prefiltro=False):
+    """Asigna planes por patente desde un Excel (PATENTE · TIPO DE SERVICE).
+
+    Con prefiltro=True la segunda columna es el plan de prefiltro y va a
+    `prefiltro_plan_id`: el plan de service de la unidad no se toca.
+    """
     filas = _filas_xlsx(contenido)
+    columna = "prefiltro_plan_id" if prefiltro else "mantenimiento_plan_id"
+    clase = "= 'prefiltro'" if prefiltro else "<> 'prefiltro'"
     planes = {_clave(p["nombre"]): p for p in cx.execute(
-        "select id,nombre from mantenimiento_planes where activo").fetchall()}
+        f"select id,nombre from mantenimiento_planes where activo and clase {clase}").fetchall()}
     unidades = {_patente(u["patente"]): u for u in cx.execute(
         "select id,patente from unidades where activa and tipo='vehiculo'").fetchall()}
     faltan_planes, faltan_patentes, sin_datos = set(), [], []
@@ -72,7 +79,7 @@ def importar(cx, contenido):
         unidad = unidades.get(patente)
         if nombre == "SIN DATOS":
             if unidad:
-                cx.execute("update unidades set mantenimiento_plan_id=null, actualizado=now() where id=%s",
+                cx.execute(f"update unidades set {columna}=null, actualizado=now() where id=%s",
                            (unidad["id"],))
             else:
                 faltan_patentes.append(patente_txt)
@@ -84,7 +91,7 @@ def importar(cx, contenido):
         elif not plan:
             faltan_planes.add(plan_txt)
         else:
-            cx.execute("update unidades set mantenimiento_plan_id=%s, actualizado=now() where id=%s",
+            cx.execute(f"update unidades set {columna}=%s, actualizado=now() where id=%s",
                        (plan["id"], unidad["id"]))
             asignadas += 1
     return {"asignadas": asignadas, "total": len(filas),
@@ -128,7 +135,7 @@ def aplicar(cx, datos, usuario):
             raise ValueError("El archivo recibido no es válido.") from e
         if not contenido or len(contenido) > 2 * 1024 * 1024:
             raise ValueError("El Excel está vacío o supera los 2 MB.")
-        salida = importar(cx, contenido)
+        salida = importar(cx, contenido, prefiltro=datos.get("campo") == "prefiltro")
         salida.update(listar(cx))
         return salida
     if op == "plan_guardar":

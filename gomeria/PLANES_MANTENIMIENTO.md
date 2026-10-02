@@ -32,3 +32,24 @@ La aplicación consulta Supabase al abrir la pantalla y luego se actualiza de
 forma periódica. Eso no convierte al satelital en un flujo en tiempo real: el
 kilometraje disponible sigue dependiendo de la frecuencia con que se importen
 las lecturas a `odometros`.
+
+## Prefiltros
+
+El prefiltro se controla igual que el service —cada tantos kilómetros desde
+el último cambio, con los mismos umbrales de aviso— pero lo llevan solo
+algunas unidades. Esas tienen dos planes: el de service y el de prefiltro.
+
+- Se crea el plan en **Parámetros › Mantenimiento** con la clase
+  *Prefiltro* y se asigna a cada patente en la columna *Plan de prefiltro*
+  (o por Excel, eligiendo «Plan de prefiltro»).
+- `unidades.prefiltro_plan_id` guarda el segundo plan.
+- Los cambios se anotan en `services` con `sistema = 'prefiltro'`: un cambio
+  de prefiltro no corre el próximo service, ni al revés.
+- `v_prefiltros_hoy` es la vista equivalente a `v_services_hoy`.
+- En **Control de flota** está la solapa *Prefiltros*, y en **Alertas**
+  aparecen los vencidos y próximos como fuente propia.
+
+Requiere correr `gomeria/44_prefiltros.sql` en Supabase.
+
+La creación y la asignación de planes, y la carga masiva desde Excel, viven
+en Parámetros. Control de flota solo los lee.

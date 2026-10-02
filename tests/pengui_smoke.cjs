@@ -36,6 +36,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
    if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION LOCAL',mantenimiento_plan_id:1,mantenimiento_plan:'Autos 10K',mantenimiento_cada_km:10000},{id:9,patente:'AH 522 SI',interno:'17',marca:'IVECO',modelo:'S-WAY 480',chofer:'CABRERA GUILLERMO',semi:'',sucursal:'LAD',uso:'LARGA DISTANCIA',mantenimiento_plan_id:2,mantenimiento_plan:'S-WAY',mantenimiento_cada_km:45000},{id:8,patente:'AC 111 ZZ',interno:'S1',marca:'',modelo:'SEMI',chofer:'',semi:'',sucursal:'BUE',uso:'SEMIRREMOLQUE'}]});
    if(p==='/api/services')return route.fulfill({json:[{unidad_id:7,patente:'AG797NJ',interno:'102',sucursal:'BUE',mantenimiento_plan_id:1,plan_nombre:'Autos 10K',ultimo_fecha:'2026-09-01',ultimo_km:41259,cada_km:10000,proximo_km:51259,km_actual:41833,km_restantes:9426,estado:'proximo'},{unidad_id:9,patente:'AH522SI',interno:'17',sucursal:'LAD',mantenimiento_plan_id:2,plan_nombre:'S-WAY',ultimo_fecha:'2026-08-01',ultimo_km:150000,cada_km:45000,proximo_km:195000,km_actual:170000,km_restantes:25000,estado:'ok'}]});
    if(p==='/api/mantenimiento')return route.fulfill({json:{planes:[{id:1,nombre:'Autos 10K',descripcion:'Autos',cada_km:10000,activo:true,unidades:1},{id:2,nombre:'S-WAY',descripcion:'Camiones S-WAY',cada_km:45000,activo:true,unidades:1}],asignaciones:[{unidad_id:7,patente:'AG797NJ',interno:'102',plan_id:1,plan_nombre:'Autos 10K',cada_km:10000},{unidad_id:9,patente:'AH522SI',interno:'17',plan_id:2,plan_nombre:'S-WAY',cada_km:45000}]}});
+   if(p==='/api/prefiltros')return route.fulfill({json:{instalado:true,unidades:[{unidad_id:9,patente:'AH522SI',interno:'17',sucursal:'LAD',prefiltro_plan_id:5,plan_nombre:'Prefiltro 20K',ultimo_fecha:'2026-07-01',ultimo_km:140000,cada_km:20000,proximo_km:160000,km_actual:170000,km_restantes:-10000,estado:'vencido'}]}});
    if(p==='/api/alertas')return route.fulfill({json:{instalado:true,resumen:{total:2,grave:1},alertas:[{severidad:'grave',titulo:'VTV vencida',detalle:'AD 247 MQ · venció hace 3 días',enlace:'/alertas'},{severidad:'media',titulo:'Service próximo',detalle:'faltan 2.700 km',enlace:'/control'}]}});
    if(p==='/api/vencimientos')return route.fulfill({json:{resumen:{vencido:1,por_vencer:2,vigente:40},faltantes:[],vencimientos:[{tipo:'VTV',patente:'AD 247 MQ',interno:'12',estado:'vencido',dias:-3,vence:'2026-09-28'},{tipo:'Licencia profesional',persona:'FRUTOS JAVIER',estado:'por_vencer',dias:9,vence:'2026-10-10'},{tipo:'Seguro',patente:'AG 797 NJ',interno:'102',estado:'por_vencer',dias:20,vence:'2026-10-21'},{tipo:'RUTA',patente:'AH 522 SI',estado:'vigente',dias:200,vence:'2027-04-19'}]}});
    if(p.startsWith('/api/'))return route.fulfill({status:503,json:{error:'Datos no conectados en esta prueba visual'}});
@@ -88,15 +89,13 @@ let PREFS={tema:'claro',paleta:'diemar'};
      assert.equal(ghostColor,'rgb(255, 255, 255)');
     }
     if(url==='/control'){
-     // La solapa elegida y el botón de parametrización se tienen que leer.
-     // Se mide el contraste y no un color exacto: el acento cambia con la
-     // paleta y el fondo con el tema, y lo que no puede cambiar es que se lea.
-     for(const sel of ['#tab-general','#btn-planes'])
-      assert(await contraste(page,sel)>=4.5,'no se lee '+sel+' con el tema claro');
+     // La solapa elegida se tiene que leer. Se mide el contraste y no un
+     // color exacto: el acento cambia con la paleta y el fondo con el
+     // tema, y lo que no puede cambiar es que se lea.
+     assert(await contraste(page,'#tab-general')>=4.5,'no se lee #tab-general con el tema claro');
      assert.equal(await page.locator('#btn-refresh').count(),0);
-     await page.locator('#btn-planes').click();
-     await page.locator('#planes-lista', {hasText:'Autos 10K'}).waitFor();
-     await page.locator('#pl-cerrar').click();
+     // Los planes se parametrizan en /parametros, no acá.
+     assert.equal(await page.locator('#btn-planes').count(),0);
      await page.locator('#tab-lad').click();
      assert.equal(await page.locator('#f-lad-plan option', {hasText:'S-WAY'}).count(),1);
      await page.locator('#f-lad-plan').selectOption({label:'S-WAY'});
@@ -106,6 +105,12 @@ let PREFS={tema:'claro',paleta:'diemar'};
      await page.locator('#tab-dist').click();
      await page.locator('#f-dist-plan').selectOption({label:'Autos 10K'});
      assert((await page.locator('#tbl-dist').innerText()).includes('AG 797 NJ'));
+     // Prefiltros: la unidad que lo lleva, con su propio plan y vencido.
+     await page.locator('#tab-pref').click();
+     await page.locator('#tbl-pref', {hasText:'Prefiltro 20K'}).waitFor();
+     assert((await page.locator('#tbl-pref').innerText()).includes('AH 522 SI'));
+     assert((await page.locator('#tbl-pref').innerText()).includes('VENCIDO'));
+     assert.equal(await page.locator('#cnt-pref').innerText(),'1');
      await page.locator('#tab-unidad').click();
      await page.waitForFunction(()=>document.body.innerText.includes('41.259'));
      assert((await page.locator('body').innerText()).includes('01/09/26'));

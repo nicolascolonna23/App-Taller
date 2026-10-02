@@ -175,7 +175,7 @@ andado: el error queda abajo, en rojo.
 - **Sesiones.** La cookie no la puede leer ningún script de la página
   (`HttpOnly`) y en la base queda el hash del token, no el token: quien se
   lleve una copia de la tabla no puede usar las sesiones abiertas. La
-  sesión de un operario dura 30 días; la de quien administra, 12 horas
+  sesión de quien no administra dura 7 días; la de quien administra, 12 horas
   (se cambia con `HORAS_SESION_ADMIN`). Cambiar la propia contraseña tiene
   el mismo freno que el ingreso.
 

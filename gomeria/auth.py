@@ -15,7 +15,9 @@ from http.cookies import SimpleCookie
 
 import permisos
 
-DIAS_SESION = 30           # el gomero no debería tener que entrar todos los días
+# La sesión de quien no administra dura una semana: el gomero no entra
+# todos los días, pero un celular perdido no puede quedar adentro un mes.
+DIAS_SESION = 7
 # Quien administra entra de nuevo cada jornada. Se cambia con la variable
 # de entorno HORAS_SESION_ADMIN.
 HORAS_SESION_ADMIN = int(os.environ.get("HORAS_SESION_ADMIN") or 12)
@@ -112,7 +114,7 @@ def _hash_viejo(token):
 def duracion_sesion(cx, usuario):
     """Segundos que dura la sesión de ese usuario.
 
-    La del gomero dura un mes: entra desde el celular del taller y no
+    La del gomero dura una semana: entra desde el celular del taller y no
     administra nada. La de quien administra dura una jornada: una sesión
     abierta de administrador en una máquina ajena es la llave de todo.
     """
@@ -172,15 +174,20 @@ def usuario_de_sesion(cx, token):
     if not fila:
         return None
     usuario = permisos.con_permisos(cx, fila)
+    creada = usuario["sesion_creada"]
+    if creada.tzinfo is None:
+        creada = creada.replace(tzinfo=timezone.utc)
     if permisos.administra(usuario):
         if seguridad and not usuario.get("sesion_con_2fa"):
             return None
-        creada = usuario["sesion_creada"]
-        if creada.tzinfo is None:
-            creada = creada.replace(tzinfo=timezone.utc)
-        if datetime.now(timezone.utc) - creada > timedelta(hours=HORAS_SESION_ADMIN):
-            cx.execute("delete from sesiones where token = %s", (usuario["sesion_token"],))
-            return None
+        tope = timedelta(hours=HORAS_SESION_ADMIN)
+    else:
+        # Las sesiones abiertas cuando duraban un mes también se cortan a
+        # la semana: si no, el cambio tardaría un mes en llegar a todos.
+        tope = timedelta(days=DIAS_SESION)
+    if datetime.now(timezone.utc) - creada > tope:
+        cx.execute("delete from sesiones where token = %s", (usuario["sesion_token"],))
+        return None
     if usuario["sesion_token"] == token:
         # Una sesión de antes de guardar hashes: se pasa a hash la primera
         # vez que se usa, y el que la tiene no se entera.
