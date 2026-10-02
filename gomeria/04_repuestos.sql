@@ -30,8 +30,13 @@ create index if not exists idx_repuestos_movimientos_articulo_fecha
   on repuestos_movimientos (articulo_id, fecha desc, id desc);
 
 create or replace view v_repuestos_stock as
+-- Las columnas van nombradas y no con a.*: en una vista el asterisco se
+-- expande una sola vez, al crearla. Si despues la tabla gana una columna,
+-- la vista no la tiene pero un "create or replace" si la trae, y Postgres
+-- lo rechaza porque le estaria cambiando el nombre a una columna existente.
 select
-  a.*,
+  a.id, a.codigo, a.descripcion, a.rubro, a.codigo_interno,
+  a.stock_minimo, a.activo,
   coalesce(sum(case when m.tipo = 'Salida' then -abs(m.cantidad)
                     else m.cantidad end), 0)::integer as stock_actual,
   case
