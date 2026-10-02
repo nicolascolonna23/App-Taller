@@ -149,10 +149,35 @@ faltan as (
            select 1 from information_schema.columns c
            where c.table_schema = 'public' and c.table_name = e.objeto
              and c.column_name = e.columna))
+),
+-- Las tablas abiertas a la API pública. No se nombra ninguna: se le
+-- pregunta a la base. Una tabla sin RLS la puede leer y escribir
+-- cualquiera con la clave anónima, y eso no se ve por ningún lado.
+--
+-- Así estuvieron las cuatro tablas que quedaron del módulo de vales antes
+-- de que se renombrara a solicitudes: la lista del 34 pasó a nombrar las
+-- tablas nuevas, que en esta base nunca se crearon, y a las viejas no las
+-- nombraba nadie. Un control que hay que mantener a mano no es un
+-- control; es una cosa más que se puede quedar vieja sin avisar.
+abiertas as (
+  select c.relname as tabla
+    from pg_class c
+    join pg_namespace s on s.oid = c.relnamespace
+   where s.nspname = 'public'
+     and c.relkind in ('r', 'p')
+     and not c.relrowsecurity
+     and not exists (select 1 from pg_depend d
+                      where d.objid = c.oid and d.deptype = 'e')
 )
 select script as "script a correr", string_agg(que, ', ' order by que) as "lo que falta"
 from faltan group by script
 union all
+select '34_seguridad_rls.sql',
+       'Sin RLS, abiertas a la clave pública: '
+       || (select string_agg(tabla, ', ' order by tabla) from abiertas)
+where exists (select 1 from abiertas)
+union all
 select 'Está todo', 'La base tiene todo lo que crean los scripts.'
 where not exists (select 1 from faltan)
+  and not exists (select 1 from abiertas)
 order by 1;
