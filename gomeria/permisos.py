@@ -114,6 +114,8 @@ RUTAS = {
     "/api/cubierta": "gomeria", "/api/desgaste": "gomeria",
     "/api/inventario-cubiertas": "gomeria", "/api/mapa": "gomeria",
     "/api/movimientos": "gomeria", "/api/movimientos-unidad": "gomeria",
+    "/api/recapado": "gomeria", "/api/factura-cubiertas": "gomeria",
+    "/api/factura-repuestos": "repuestos",
 
     # Los tableros de flota y mantenimiento.
     "/api/services": "flota", "/api/mantenimiento": "flota",
