@@ -109,7 +109,7 @@
     font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;
     background:var(--surface-3);color:var(--ink-muted)}
   .marca.vencimiento{color:#7db3ef;background:rgba(125,179,239,.13)}
-  .marca.service{color:var(--warn);background:rgba(240,180,41,.13)}
+  .marca.service,.marca.prefiltro{color:var(--warn);background:rgba(240,180,41,.13)}
   .marca.combustible{color:#c48cf0;background:rgba(196,140,240,.13)}
   .marca.cubierta{color:var(--ok);background:rgba(49,189,101,.12)}
   .ir{color:var(--ink-muted);text-decoration:none;font-size:12px;white-space:nowrap}
@@ -185,6 +185,7 @@
         <option value="">Todas las fuentes</option>
         <option value="vencimiento">Vencimientos</option>
         <option value="service">Services</option>
+        <option value="prefiltro">Prefiltros</option>
         <option value="combustible">Combustible</option>
         <option value="cubierta">Cubiertas</option>
       </select>
@@ -316,7 +317,7 @@ const fecha = f => f ? new Date(f + 'T12:00:00').toLocaleDateString('es-AR',
   {day:'2-digit', month:'2-digit', year:'2-digit'}) : '—';
 
 const D = {datos:null, filtro:'', usuario:null, callando:null, verCalladas:false};
-const FUENTES = {vencimiento:'Vencimiento', service:'Service',
+const FUENTES = {vencimiento:'Vencimiento', service:'Service', prefiltro:'Prefiltro',
                  combustible:'Combustible', cubierta:'Cubierta'};
 
 async function api(cuerpo) {

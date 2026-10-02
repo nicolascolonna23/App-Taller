@@ -33,14 +33,19 @@ SEVERIDADES = {"grave": 0, "media": 1, "leve": 2}
 # un camión no queda a medias, queda parado antes de salir. Y se resuelve
 # con un llamado al proveedor, si se avisa a tiempo.
 PRIORIDAD = {"fluido": 0, "vencimiento": 1, "cubierta": 2, "service": 3,
-             "combustible": 4}
+             "prefiltro": 4, "combustible": 5}
 
-FUENTES = ("vencimiento", "service", "combustible", "cubierta", "fluido")
+FUENTES = ("vencimiento", "service", "prefiltro", "combustible", "cubierta", "fluido")
+
+# De qué es cada registro de la tabla services. El prefiltro se anota en la
+# misma tabla, pero corre con su propio plan (ver 44_prefiltros.sql).
+SISTEMAS = ("service", "prefiltro")
 
 # Cómo se llama cada fuente en pantalla y adónde manda.
 DONDE = {
     "vencimiento": ("Vencimientos", "/vencimientos"),
     "service":     ("Services",     "/alertas#services"),
+    "prefiltro":   ("Prefiltros",   "/control#prefiltros"),
     "combustible": ("Combustible",  "/combustible"),
     "cubierta":    ("Gomería",      "/gomeria#wear"),
     "fluido":      ("Fluidos",      "/combustible#fluidos"),
@@ -195,9 +200,9 @@ def _vencimientos(cx):
     return salida
 
 
-def _services(cx):
-    filas = _tabla(cx, """
-        select * from v_services_hoy
+def _services(cx, vista="v_services_hoy", fuente="service", nombre="Service"):
+    filas = _tabla(cx, f"""
+        select * from {vista}
         where estado in ('vencido', 'urgente', 'proximo', 'km_dudoso')
         order by km_restantes
     """)
@@ -206,9 +211,9 @@ def _services(cx):
     salida = []
     for f in filas:
         base_alerta = {
-            "fuente": "service",
+            "fuente": fuente,
             "clave": str(f["unidad_id"]),
-            "titulo": f"Service{' ' + f['tipo'] if f['tipo'] else ''}",
+            "titulo": f"{nombre}{' ' + f['tipo'] if f['tipo'] else ''}",
             "patente": f["patente"],
             "interno": f["interno"],
             "sucursal": f["sucursal"],
@@ -224,9 +229,9 @@ def _services(cx):
             salida.append({
                 **base_alerta,
                 "severidad": "leve",
-                "titulo": "No se sabe cuándo le toca el service",
+                "titulo": f"No se sabe cuándo le toca el {nombre.lower()}",
                 "detalle": (f"el satelital marca {_miles(f['km_actual'])} km y su "
-                            f"último service fue a los {_miles(f['ultimo_km'])}"),
+                            f"último {nombre.lower()} fue a los {_miles(f['ultimo_km'])}"),
                 "orden": 0,
                 "extra": ("le cambiaron el equipo de GPS, o dejó de reportar. "
                           "Hasta que no se arregle, esta unidad no avisa."),
@@ -366,7 +371,13 @@ def _fluidos(cx):
     return salida
 
 
+def _prefiltros(cx):
+    """El cambio de prefiltro avisa igual que el service, con su propio plan."""
+    return _services(cx, "v_prefiltros_hoy", "prefiltro", "Cambio de prefiltro")
+
+
 LECTORES = {"vencimiento": _vencimientos, "service": _services,
+            "prefiltro": _prefiltros,
             "combustible": _combustible, "cubierta": _cubiertas,
             "fluido": _fluidos}
 
@@ -463,6 +474,19 @@ def services(cx):
     return filas if filas is not None else []
 
 
+def prefiltros(cx):
+    """Una fila por unidad con plan de prefiltro. Vacío sin 44_prefiltros.sql."""
+    filas = _tabla(cx, """
+        select * from v_prefiltros_hoy
+        order by case estado
+                   when 'vencido' then 0 when 'urgente' then 1
+                   when 'proximo' then 2 when 'ok' then 3
+                   when 'sin_odometro' then 4 else 5 end,
+                 km_restantes nulls last, patente
+    """)
+    return filas if filas is not None else []
+
+
 def historial_services(cx, unidad_id, limite=30):
     # Del último para atrás, por fecha: es el orden en que pasaron las
     # cosas. Ordenar por kilometraje escondía abajo de todo un service
@@ -493,13 +517,23 @@ def guardar_service(cx, datos, usuario=None):
     if km < 0:
         raise ValueError("El kilometraje no puede ser negativo.")
 
+    sistema = str(datos.get("sistema") or "service").strip().lower()
+    if sistema not in SISTEMAS:
+        raise ValueError("No se sabe si es un service o un cambio de prefiltro.")
+    prefiltro = sistema == "prefiltro"
+
     # El plan asignado a la patente es la única fuente válida del intervalo.
     # No aceptamos un valor enviado por el navegador ni inferimos uno anterior:
     # sin parametrización no se puede calcular con certeza el próximo service.
-    plan = cx.execute("""select p.cada_km from unidades u
-        join mantenimiento_planes p on p.id=u.mantenimiento_plan_id and p.activo
+    # El prefiltro tiene su propio plan: una unidad puede tener los dos.
+    columna = "prefiltro_plan_id" if prefiltro else "mantenimiento_plan_id"
+    plan = cx.execute(f"""select p.cada_km from unidades u
+        join mantenimiento_planes p on p.id=u.{columna} and p.activo
         where u.id=%s""", (unidad_id,)).fetchone()
     if not plan:
+        if prefiltro:
+            raise ValueError("La unidad no tiene un plan de prefiltro asignado. "
+                             "Asignarlo en Parámetros antes de registrar el cambio.")
         raise ValueError("La unidad no tiene un plan de mantenimiento asignado. Parametrizala antes de registrar el service.")
     cada = float(plan["cada_km"])
     if cada <= 0:
@@ -549,6 +583,14 @@ def guardar_service(cx, datos, usuario=None):
                 values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s, %s)
                 returning id
             """, (*valores, orden_id)).fetchone()
+    elif prefiltro:
+        fila = cx.execute("""
+            insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
+                                  observaciones, usuario, sistema)
+            values (%s, coalesce(%s::date, current_date), %s, %s, %s, %s, %s, %s,
+                    'prefiltro')
+            returning id
+        """, valores).fetchone()
     else:
         fila = cx.execute("""
             insert into services (unidad_id, fecha, km, tipo, cada_km, taller,
@@ -559,7 +601,7 @@ def guardar_service(cx, datos, usuario=None):
 
     # Un service nuevo es una alerta nueva: lo que se había silenciado del
     # anterior ya no aplica.
-    reactivar(cx, "service", str(unidad_id))
+    reactivar(cx, sistema, str(unidad_id))
     return fila["id"]
 
 

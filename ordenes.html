@@ -133,6 +133,15 @@
   .renglones .num{width:110px}
   .alta{display:grid;grid-template-columns:1fr 90px 120px auto;gap:8px;align-items:end}
   .alta.rep{grid-template-columns:1fr 80px 80px 120px auto}
+  /* Una factura de varias unidades: un renglón por unidad, con lo suyo. */
+  .reparto{margin-top:14px;border-top:1px solid var(--hairline-2);padding-top:12px}
+  .reparto h3{margin:0 0 4px;font-size:13px;text-transform:uppercase;
+    letter-spacing:.9px;color:var(--ink-muted)}
+  .reparto-fila{display:grid;grid-template-columns:1.4fr 110px 130px auto;gap:8px;
+    align-items:end;margin-top:10px;padding-top:10px;border-top:1px dashed var(--hairline)}
+  .reparto-fila .detalle{grid-column:1/-1}
+  @media (max-width:560px){.reparto-fila{grid-template-columns:1fr 1fr}
+    .reparto-fila .unidad{grid-column:1/-1}}
   .totales{display:flex;justify-content:flex-end;gap:26px;padding:12px 8px 0;
     border-top:1px solid var(--hairline-2);font-size:13px}
   .totales b{font-size:17px;display:block}
@@ -305,7 +314,7 @@
       <p class="pista" id="xSolicitudPista">El número de solicitud es lo que ata la factura
         al trabajo que se autorizó. Si no está en la lista, cerrala primero en
         <a href="/solicitudes" style="color:inherit">Solicitudes</a>.</p></div>
-    <div class="ancho"><label>Unidad</label><select id="xUnidad"></select></div>
+    <div class="ancho solo-una"><label>Unidad</label><select id="xUnidad"></select></div>
     <div><label>Tipo de mantenimiento</label><select id="xMantenimiento">
       <option value="">Seleccionar una opción</option>
       <option value="preventivo">Preventivo</option>
@@ -313,11 +322,26 @@
     </select></div>
     <div><label>Fecha</label><input id="xFecha" type="date" required></div>
     <div><label>Nº de factura</label><input id="xFactura" placeholder="0001-00012345"></div>
-    <div><label>Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
-    <div><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1" required></div>
+    <div><label id="xMontoRotulo">Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
+    <div class="solo-una"><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1" required></div>
     <div><label>Taller o proveedor</label><input id="xTaller" placeholder="Nextruck, Iveco Catamarca…"></div>
-    <div class="ancho"><label>Qué se hizo</label>
+    <div class="ancho solo-una"><label>Qué se hizo</label>
       <textarea id="xDetalle" placeholder="Service M6, cambio de filtros, reparación de caja…"></textarea></div>
+  </div>
+
+  <!-- La misma factura para más de una unidad. El lector la arma solo
+       cuando lee más de una patente; si no, se agrega con el botón. Lo
+       común (proveedor, número, fecha, tipo) va una vez; cada unidad lleva
+       sus kilómetros, su monto y lo que se le hizo. -->
+  <div class="reparto" id="reparto" hidden>
+    <h3>Unidades de esta factura</h3>
+    <p class="pista">Se carga un servicio externo por unidad, con el mismo proveedor,
+      número de factura, fecha y tipo de mantenimiento.</p>
+    <div id="repartoFilas"></div>
+    <p class="pista" id="repartoSuma"></p>
+  </div>
+  <div class="barra" style="margin:12px 0 0">
+    <button class="btn alt" type="button" id="xOtraUnidad">+ Otra unidad con esta factura</button>
   </div>
   <div id="avisoExterna"></div>
   <div class="barra" style="margin:14px 0 0">
@@ -549,7 +573,8 @@ function dibujarOrden() {
         <div><label>Repuesto del depósito</label>
           <input id="rCodigo" list="listaArticulos" placeholder="Código o descripción">
           <datalist id="listaArticulos">${D.datos.articulos.map(a =>
-            `<option value="${esc(a.codigo)}">${esc(a.descripcion)} · quedan ${a.stock_actual}</option>`).join('')}</datalist>
+            `<option value="${esc(a.codigo)}">${esc(a.descripcion)} · quedan ${a.stock_actual}${
+              a.ultimo_costo != null ? ' · $ ' + money(a.ultimo_costo) : ''}</option>`).join('')}</datalist>
         </div>
         <div><label>Cantidad</label><input id="rCantidad" type="number" min="1" step="1" value="1"></div>
         <div><label>Precio c/u</label><input id="rPrecio" type="number" min="0" step="0.01"></div>
@@ -582,6 +607,8 @@ function dibujarOrden() {
   }
   html += `<button class="btn alt" id="imprimir">Imprimir</button>
     <button class="btn alt" data-hist="${esc(o.patente)}">Historial de la unidad</button>`;
+  if (D.datos.puede_gestionar && o.tipo === 'externa' && o.estado !== 'anulada')
+    html += `<button class="btn alt" id="otraConFactura">Cargar otra unidad con esta factura</button>`;
   if (D.datos.puede_gestionar && o.estado !== 'anulada')
     html += `<button class="btn mal espacio" id="anular">Anular</button>`;
   if (D.usuario && D.usuario.rol === 'admin' && o.estado === 'cerrada' && o.tipo === 'interna')
@@ -773,6 +800,27 @@ function imprimir() {
   logo.addEventListener('error', () => window.print(), {once: true});
 }
 
+/* Al elegir un repuesto del depósito el precio c/u se completa con lo que
+   costó la última compra. Lo que tipeó una persona no se pisa: solo se
+   reemplaza el campo vacío o el número que puso la pantalla. */
+let precioAuto = null;
+document.addEventListener('input', ev => {
+  if (ev.target.id !== 'rCodigo') return;
+  const codigo = ev.target.value.trim();
+  const a = (D.datos?.articulos || []).find(x => x.codigo === codigo);
+  const campo = $('#rPrecio');
+  if (!campo) return;
+  const actual = campo.value.trim();
+  if (actual && actual !== String(precioAuto)) return;
+  if (a && a.ultimo_costo != null) {
+    precioAuto = Number(a.ultimo_costo);
+    campo.value = precioAuto;
+  } else if (actual) {
+    campo.value = '';
+    precioAuto = null;
+  }
+});
+
 // ------------------------------------------------------------- eventos
 document.addEventListener('click', async ev => {
   const t = ev.target;
@@ -839,6 +887,23 @@ document.addEventListener('click', async ev => {
           : 'Anulada.');
       break;
     case 'imprimir': imprimir(); break;
+    case 'otraConFactura': {
+      // La misma factura, para otra unidad: se trae todo lo común y se
+      // deja vacío lo que es de cada una.
+      const o = D.orden.orden;
+      $('#modalOrden').classList.remove('on');
+      $('#nuevaExterna').onclick();
+      $('#xGestion').value = o.gestion || '';
+      $('#xGestion').onchange();
+      $('#xMantenimiento').value = o.mantenimiento || '';
+      $('#xFecha').value = String(o.fecha_cierre || o.fecha || '').slice(0, 10) || hoy();
+      $('#xFactura').value = o.factura || '';
+      $('#xTaller').value = o.taller || '';
+      $('#xDetalle').value = o.solicitado || '';
+      $('#avisoExterna').innerHTML = `<div class="aviso bien">Copiado de la orden ${esc(o.numero)}:
+        proveedor, factura, fecha, tipo y qué se hizo. Elegir la unidad y cargar su monto.</div>`;
+      break;
+    }
   }
 });
 
@@ -893,7 +958,125 @@ $('#nuevaExterna').onclick = () => {
     .forEach(c => $('#' + c).value = '');
   $('#cajaSolicitud').hidden = true;
   limpiarLector();
+  desactivarReparto();
+  $('#xUnidad').value = '';
   $('#modalExterna').classList.add('on');
+};
+
+/* =====================================================================
+   UNA FACTURA, VARIAS UNIDADES
+   ---------------------------------------------------------------------
+   Hay facturas que son de más de un camión: dos cubiertas para uno y una
+   para otro. Cada unidad tiene que llevarse su servicio externo —si no, el
+   gasto de una aparece en el historial de la otra—, pero el proveedor, el
+   número, la fecha y el tipo son los mismos. Se cargan una vez arriba y
+   abajo va un renglón por unidad.
+   ===================================================================== */
+function repartoActivo() { return !$('#reparto').hidden; }
+
+function filaReparto(v) {
+  v = v || {};
+  const div = document.createElement('div');
+  div.className = 'reparto-fila';
+  div.innerHTML = `
+    <div class="unidad"><label>Unidad</label><select class="rUnidad">${$('#xUnidad').innerHTML}</select></div>
+    <div><label>Kilómetros</label><input class="rKm" type="number" min="0" step="1"></div>
+    <div><label>Monto</label><input class="rMonto" type="number" min="0" step="0.01"></div>
+    <button class="accion rQuitar" type="button">quitar</button>
+    <div class="detalle"><label>Qué se hizo</label><input class="rDetalle"></div>`;
+  const sel = div.querySelector('.rUnidad');
+  sel.value = v.unidad_id ? String(v.unidad_id) : '';
+  if (v.leida && sel.value) sel.classList.add('campo-leido');
+  div.querySelector('.rKm').value = v.km || '';
+  div.querySelector('.rMonto').value = v.monto != null ? v.monto : '';
+  if (v.leida && v.monto != null) div.querySelector('.rMonto').classList.add('campo-leido');
+  div.querySelector('.rDetalle').value = v.detalle || '';
+  sel.onchange = () => {
+    const u = D.datos.unidades.find(x => String(x.id) === sel.value);
+    const km = div.querySelector('.rKm');
+    if (u && !km.value && u.km_actual) km.value = Math.round(u.km_actual);
+  };
+  if (!v.km) sel.onchange();
+  div.querySelector('.rMonto').oninput = ev => { ev.target.dataset.tocado = '1'; sumarReparto(); };
+  div.querySelector('.rQuitar').onclick = () => {
+    div.remove();
+    if ($('#repartoFilas').children.length < 2) desactivarReparto(true);
+    else sumarReparto();
+  };
+  $('#repartoFilas').appendChild(div);
+  return div;
+}
+
+function filasReparto() {
+  return Array.from($('#repartoFilas').children).map(f => ({
+    unidad_id: Number(f.querySelector('.rUnidad').value) || null,
+    km: f.querySelector('.rKm').value || null,
+    monto: f.querySelector('.rMonto').value,
+    solicitado: f.querySelector('.rDetalle').value}));
+}
+
+function activarReparto(filas) {
+  $('#repartoFilas').innerHTML = '';
+  filas.forEach(filaReparto);
+  $('#reparto').hidden = false;
+  document.querySelectorAll('#modalExterna .solo-una').forEach(e => e.hidden = true);
+  $('#xMontoRotulo').textContent = 'Total de la factura';
+  $('#guardarExterna').textContent = `Guardar ${filas.length} servicios`;
+  sumarReparto();
+}
+
+/* Vuelve a una sola unidad. Si queda un renglón, lo suyo pasa a los
+   campos de arriba para no perder lo que se cargó. */
+function desactivarReparto(conservar) {
+  const resto = conservar ? filasReparto() : [];
+  $('#repartoFilas').innerHTML = '';
+  $('#reparto').hidden = true;
+  $('#repartoSuma').textContent = '';
+  document.querySelectorAll('#modalExterna .solo-una').forEach(e => e.hidden = false);
+  $('#xMontoRotulo').textContent = 'Monto';
+  $('#guardarExterna').textContent = 'Guardar servicio';
+  if (resto.length === 1) {
+    $('#xUnidad').value = resto[0].unidad_id ? String(resto[0].unidad_id) : '';
+    $('#xKm').value = resto[0].km || '';
+    $('#xMonto').value = resto[0].monto || $('#xMonto').value;
+    $('#xDetalle').value = resto[0].solicitado || '';
+  }
+}
+
+/* Reparte el total en partes iguales, salvo que alguien ya haya tocado
+   un monto: ahí manda lo que escribió la persona. */
+function repartirIgual() {
+  const total = Number($('#xMonto').value);
+  const campos = Array.from(document.querySelectorAll('#repartoFilas .rMonto'));
+  if (!total || !campos.length || campos.some(c => c.dataset.tocado)) return;
+  const parte = Math.floor(total / campos.length * 100) / 100;
+  campos.forEach((c, i) => c.value = i === campos.length - 1
+    ? (total - parte * (campos.length - 1)).toFixed(2) : parte.toFixed(2));
+}
+
+function sumarReparto() {
+  if (!repartoActivo()) return;
+  const n = $('#repartoFilas').children.length;
+  $('#guardarExterna').textContent = `Guardar ${n} servicios`;
+  const suma = filasReparto().reduce((a, f) => a + (Number(f.monto) || 0), 0);
+  const total = Number($('#xMonto').value) || 0;
+  const dif = Math.round((total - suma) * 100) / 100;
+  $('#repartoSuma').textContent = !total ? `Repartido: $ ${money(suma)}.`
+    : Math.abs(dif) < 0.01 ? `Repartido: $ ${money(suma)}, el total de la factura.`
+    : `Repartido: $ ${money(suma)} de $ ${money(total)}. ${dif > 0 ? 'Faltan' : 'Sobran'} $ ${money(Math.abs(dif))}.`;
+}
+$('#xMonto').addEventListener('input', () => { if (repartoActivo()) sumarReparto(); });
+
+$('#xOtraUnidad').onclick = () => {
+  if (!repartoActivo()) {
+    activarReparto([
+      {unidad_id: $('#xUnidad').value, km: $('#xKm').value, monto: null, detalle: $('#xDetalle').value},
+      {detalle: $('#xDetalle').value}]);
+  } else {
+    filaReparto({detalle: $('#xDetalle').value || (filasReparto()[0] || {}).solicitado});
+  }
+  repartirIgual();
+  sumarReparto();
 };
 
 /* =====================================================================
@@ -1006,16 +1189,33 @@ function volcarFactura(f) {
 
   /* La patente ya viene validada contra la flota: si el servidor no la
      reconoció, viene en null y la elige la persona. */
+  const idDe = p => ((D.datos?.unidades || []).find(x => x.patente === p) || {}).id;
   if (f.patente) {
-    const u = (D.datos?.unidades || []).find(x => x.patente === f.patente);
-    if (u) { $('#xUnidad').value = String(u.id); $('#xUnidad').classList.add('campo-leido'); }
+    const id = idDe(f.patente);
+    if (id) { $('#xUnidad').value = String(id); $('#xUnidad').classList.add('campo-leido'); }
   }
 
-  const faltan = [['la unidad', !$('#xUnidad').value], ['el número de factura', !$('#xFactura').value],
+  /* La factura trae más de una patente: un servicio por cada una, con su
+     parte del total. */
+  const varias = (f.unidades || []).filter(u => idDe(u.patente));
+  if (varias.length > 1) {
+    activarReparto(varias.map(u => ({unidad_id: idDe(u.patente), monto: u.monto,
+      detalle: u.detalle || f.detalle, leida: true})));
+  } else if (repartoActivo()) {
+    desactivarReparto();
+  }
+
+  const sinUnidad = repartoActivo()
+    ? filasReparto().some(x => !x.unidad_id) : !$('#xUnidad').value;
+  const faltan = [['la unidad', sinUnidad], ['el número de factura', !$('#xFactura').value],
                   ['el monto', !$('#xMonto').value]].filter(x => x[1]).map(x => x[0]);
   const dudas = (f.dudas || []).slice();
   if (faltan.length) dudas.unshift('No se pudo leer ' + faltan.join(', ') + '.');
   if (f.moneda && f.moneda !== 'ARS') dudas.unshift(`La factura está en ${esc(f.moneda)}, no en pesos.`);
+
+  if (varias.length > 1)
+    dudas.unshift(`La factura es de ${varias.length} unidades (${varias.map(u => pat(u.patente)).join(', ')}): ` +
+      'se va a cargar un servicio para cada una. Revisar el monto de cada una.');
 
   const caja = document.createElement('div');
   caja.id = 'lectorDudas';
@@ -1045,14 +1245,18 @@ $('#xUnidad').onchange = () => {
 $('#guardarExterna').onclick = async () => {
   $('#guardarExterna').disabled = true;
   try {
-    const r = await api('externa', {
-      unidad_id: Number($('#xUnidad').value) || null,
+    const comun = {
       gestion: $('#xGestion').value,
       solicitud_id: $('#xSolicitud').value || null,
       fecha: $('#xFecha').value, factura: $('#xFactura').value,
-      monto: $('#xMonto').value, km: $('#xKm').value || null,
       mantenimiento: $('#xMantenimiento').value,
-      taller: $('#xTaller').value, solicitado: $('#xDetalle').value});
+      taller: $('#xTaller').value};
+    const r = repartoActivo()
+      ? await api('externas', Object.assign(comun, {unidades: filasReparto()}))
+      : await api('externa', Object.assign(comun, {
+          unidad_id: Number($('#xUnidad').value) || null,
+          monto: $('#xMonto').value, km: $('#xKm').value || null,
+          solicitado: $('#xDetalle').value}));
     $('#modalExterna').classList.remove('on');
     await cargar();
     pintar();

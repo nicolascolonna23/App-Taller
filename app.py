@@ -550,6 +550,22 @@ class App(CupoPorPedido, gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los services: {e}", 500)
 
+        # Los prefiltros: una fila por unidad que lleva prefiltro, con lo
+        # que le falta para el próximo cambio. Sin 44_prefiltros.sql
+        # corrido viene vacío y la solapa lo dice.
+        if ruta == "/api/prefiltros":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    instalado = alr._existe(cx, "v_prefiltros_hoy")
+                    return self._responder(gom.jstr({
+                        "instalado": instalado,
+                        "unidades": alr.prefiltros(cx) if instalado else []}))
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer los prefiltros: {e}", 500)
+
         if ruta == "/api/mantenimiento":
             if not self._exigir_sesion():
                 return
@@ -1215,9 +1231,11 @@ class App(CupoPorPedido, gom.Handler):
             return self._escribir(flu.aplicar, "el movimiento",
                                   "gomeria/32_fluidos.sql")
 
+        # Por acá entra también el Excel de asignación de planes, así que
+        # el tope es el de una planilla y no el de un formulario.
         if ruta == "/api/parametros":
             return self._escribir(par.aplicar, "el parámetro",
-                                  "gomeria/29_parametros.sql")
+                                  "gomeria/29_parametros.sql", limite=4 * 1024 * 1024)
 
         # Marcas y medidas de cubierta. El logo viaja en el mismo JSON, así
         # que el pedido puede ser más grande que el resto.

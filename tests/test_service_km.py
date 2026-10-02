@@ -124,3 +124,26 @@ class KilometrajeDelService(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CambioDePrefiltro(unittest.TestCase):
+    """El prefiltro se anota en services con su propio plan y su marca."""
+
+    def test_usa_el_plan_de_prefiltro_y_queda_marcado(self):
+        cx = Base({"fecha": DIA, "km": 585762.97})
+        alertas.guardar_service(cx, {"unidad_id": 9, "fecha": "2026-09-28",
+                                     "km": 585763, "sistema": "prefiltro"})
+        plan = next(sql for sql, _ in cx.consultas if sql.startswith("select p.cada_km"))
+        self.assertIn("prefiltro_plan_id", plan)
+        alta = next(sql for sql, _ in cx.consultas if sql.startswith("insert into services"))
+        self.assertIn("'prefiltro'", alta)
+
+    def test_el_service_no_queda_marcado_como_prefiltro(self):
+        cx = Base({"fecha": DIA, "km": 585762.97})
+        alertas.guardar_service(cx, {"unidad_id": 9, "fecha": "2026-09-28", "km": 585763})
+        alta = next(sql for sql, _ in cx.consultas if sql.startswith("insert into services"))
+        self.assertNotIn("prefiltro", alta)
+
+    def test_un_sistema_que_no_existe_no_entra(self):
+        with self.assertRaises(ValueError):
+            alertas.guardar_service(Base(), {"unidad_id": 9, "km": 1, "sistema": "aceite"})

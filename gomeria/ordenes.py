@@ -198,16 +198,46 @@ def listar(cx, usuario):
             from unidades where activa order by patente""").fetchall()],
         # El catálogo con el stock de hoy: el que carga un repuesto tiene
         # que ver cuántos quedan antes de sacarlo, no después.
-        "articulos": [dict(a) for a in cx.execute("""
-            select codigo, descripcion, rubro, stock_actual
-            from v_repuestos_stock where activo
-            order by descripcion, codigo""").fetchall()],
+        # Con el último costo de compra, para que al elegir el repuesto el
+        # precio se complete solo.
+        "articulos": _articulos(cx),
         "puede_gestionar": puede_gestionar(usuario),
         # Las solicitudes cerradas que todavía no se rindieron: rendir una
         # factura es elegir de esta lista, no tipear un número a mano.
         # Sin el módulo instalado la pantalla sigue andando igual.
         **_solicitudes_pendientes(cx),
     }
+
+
+def _articulos(cx):
+    """El catálogo del depósito con lo que salió la última compra.
+
+    El costo existe recién con 42_costo_repuestos.sql corrido. Sin eso la
+    lista sale igual, sin precio: que falte el costo no puede dejar al
+    taller sin poder cargar repuestos.
+    """
+    try:
+        return [dict(a) for a in cx.execute("""
+            select codigo, descripcion, rubro, stock_actual, ultimo_costo
+            from v_repuestos_stock where activo
+            order by descripcion, codigo""").fetchall()]
+    except Exception:
+        cx.rollback()
+        return [dict(a) for a in cx.execute("""
+            select codigo, descripcion, rubro, stock_actual, null as ultimo_costo
+            from v_repuestos_stock where activo
+            order by descripcion, codigo""").fetchall()]
+
+
+def _ultimo_costo(cx, articulo_id):
+    """Lo que salió el repuesto la última vez que entró. None si no se sabe."""
+    try:
+        fila = cx.execute("""select ultimo_costo from v_repuestos_stock
+                             where id = %s""", (articulo_id,)).fetchone()
+    except Exception:
+        cx.rollback()
+        return None
+    return fila["ultimo_costo"] if fila else None
 
 
 def _solicitudes_pendientes(cx):
@@ -517,6 +547,10 @@ def repuesto_agregar(cx, datos, usuario):
             raise ValueError(f"El repuesto {codigo} está dado de baja.")
         articulo_id = articulo["id"]
         descripcion = descripcion or articulo["descripcion"]
+        # Sin precio tipeado, el repuesto sale a lo que costó la última
+        # compra: es lo que vale lo que se sacó del estante.
+        if precio is None:
+            precio = _ultimo_costo(cx, articulo_id)
 
         # La Salida de stock. Va con la patente y el número de orden en las
         # observaciones para que en la pantalla de repuestos se entienda de
@@ -662,6 +696,37 @@ def externa(cx, datos, usuario):
             "service_id": service_id}
 
 
+def externas(cx, datos, usuario):
+    """Una factura que es de varias unidades: un servicio externo por cada una.
+
+    Lo común —proveedor, número, fecha, quién lo mandó, si es preventivo o
+    correctivo— va una vez; cada unidad trae lo suyo: kilómetros, monto y
+    qué se le hizo. Se guardan todas o ninguna: media factura cargada es
+    peor que ninguna, porque después no se sabe qué parte falta.
+    """
+    unidades = datos.get("unidades") or []
+    if not isinstance(unidades, list) or not unidades:
+        raise ValueError("Falta indicar las unidades de la factura.")
+    if len(unidades) > 20:
+        raise ValueError("Son veinte unidades como mucho por factura.")
+    comun = {k: v for k, v in datos.items() if k not in ("op", "unidades")}
+
+    vistas, salida = set(), []
+    for n, propia in enumerate(unidades, 1):
+        uno = {**comun, **{k: v for k, v in (propia or {}).items()
+                           if k in ("unidad_id", "patente", "km", "monto", "solicitado")}}
+        clave = uno.get("unidad_id") or uno.get("patente")
+        if clave in vistas:
+            raise ValueError("La misma unidad está dos veces en la factura.")
+        vistas.add(clave)
+        try:
+            salida.append(externa(cx, uno, usuario))
+        except ValueError as e:
+            raise ValueError(f"Unidad {n}: {e}") from None
+    return {"ok": True, "ordenes": salida,
+            "id": salida[0]["id"], "numero": salida[0]["numero"]}
+
+
 # =====================================================================
 def aplicar(cx, datos, usuario):
     """Punto de entrada de la API."""
@@ -671,7 +736,7 @@ def aplicar(cx, datos, usuario):
         "reabrir": reabrir, "anular": anular, "borrar": borrar,
         "tarea_agregar": tarea_agregar, "tarea_borrar": tarea_borrar,
         "repuesto_agregar": repuesto_agregar, "repuesto_borrar": repuesto_borrar,
-        "externa": externa,
+        "externa": externa, "externas": externas,
     }
     if op in acciones:
         return acciones[op](cx, datos, usuario)

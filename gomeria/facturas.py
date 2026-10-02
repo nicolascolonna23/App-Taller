@@ -71,6 +71,41 @@ HERRAMIENTA = {
                 "type": ["number", "null"],
                 "description": "Kilometraje de la unidad si la factura lo menciona."
             },
+            "unidades": {
+                "type": "array",
+                "description": "Una entrada por cada unidad de la flota que "
+                               "aparece en la factura, con los renglones que "
+                               "le corresponden. Una factura puede traer "
+                               "trabajos o repuestos de varias unidades: es "
+                               "común que al lado de cada renglón esté anotada "
+                               "a mano la patente (a veces incompleta). Si toda "
+                               "la factura es de una sola unidad, una sola "
+                               "entrada. Vacío si no aparece ninguna patente.",
+                "items": {
+                    "type": "object",
+                    "additionalProperties": False,
+                    "properties": {
+                        "patente": {
+                            "type": "string",
+                            "description": "La patente como figura en la lista "
+                                           "de la flota."
+                        },
+                        "detalle": {
+                            "type": ["string", "null"],
+                            "description": "Qué se le hizo o qué se le compró "
+                                           "a esta unidad, en una línea."
+                        },
+                        "importe": {
+                            "type": ["number", "null"],
+                            "description": "La suma de los importes de los "
+                                           "renglones de esta unidad, tal como "
+                                           "figuran en la columna de importe "
+                                           "(normalmente sin IVA)."
+                        },
+                    },
+                    "required": ["patente", "detalle", "importe"],
+                },
+            },
             "detalle": {
                 "type": ["string", "null"],
                 "description": "Qué trabajo se hizo, en una o dos líneas y en "
@@ -90,7 +125,7 @@ HERRAMIENTA = {
             },
         },
         "required": ["taller", "factura", "fecha", "monto", "patente", "km",
-                     "detalle", "moneda", "dudas"],
+                     "unidades", "detalle", "moneda", "dudas"],
     },
 }
 
@@ -117,7 +152,13 @@ Reglas:
    guiones, a mano en un margen— o puede no estar. Si la que leés se parece
    a una de la lista, usá la de la lista. Si no se parece a ninguna, es
    null: puede ser el auto de otro cliente del taller.
-6. Todo lo que dudes va en 'dudas'. El que carga la factura la tiene en la
+6. Una factura puede ser de más de una unidad: por ejemplo dos
+   renglones de cubiertas, uno para cada camión, con la patente anotada a
+   mano al lado de cada uno. En ese caso cargá una entrada en 'unidades'
+   por cada patente, con sus renglones sumados. Una patente anotada a
+   medias ("PIQ", "KSP007") es la de la lista que la contiene, si hay una
+   sola que coincide. En 'patente' va la primera.
+7. Todo lo que dudes va en 'dudas'. El que carga la factura la tiene en la
    mano y puede mirar; lo que no sirve es que la duda no se vea."""
 
 
@@ -127,6 +168,66 @@ def _limpiar_patente(valor, patentes):
         return None
     plano = "".join(ch for ch in str(valor).upper() if ch.isalnum())
     return plano if plano in set(patentes or ()) else None
+
+
+def _buscar_patente(valor, patentes):
+    """Como _limpiar_patente, pero acepta la patente anotada a medias.
+
+    En el margen de la factura se escribe "PIQ" por PIQ468 o "AKSP007"
+    por KSP007. Se acepta solo si hay UNA patente de la flota que encaje:
+    con dos candidatas no se adivina, se deja para que elija la persona.
+    """
+    exacta = _limpiar_patente(valor, patentes)
+    if exacta or not valor:
+        return exacta
+    plano = "".join(ch for ch in str(valor).upper() if ch.isalnum())
+    if len(plano) < 3:
+        return None
+    candidatas = [p for p in (patentes or ())
+                  if plano in p or (len(p) >= 6 and p in plano)]
+    return candidatas[0] if len(candidatas) == 1 else None
+
+
+def _repartir(unidades, total, patentes):
+    """Las unidades de la factura, cada una con su parte del total.
+
+    La factura trae un importe por renglón, normalmente sin IVA, y un
+    total con IVA y percepciones. Cada unidad se lleva del total la misma
+    proporción que sus renglones tienen del subtotal: así la suma de las
+    órdenes da exactamente lo que se pagó. La última se queda con los
+    centavos del redondeo.
+    """
+    juntas = {}
+    for u in unidades or []:
+        patente = _buscar_patente((u or {}).get("patente"), patentes)
+        if not patente:
+            continue
+        item = juntas.setdefault(patente, {"patente": patente, "detalle": [], "importe": 0.0,
+                                           "sin_importe": False})
+        if u.get("detalle"):
+            item["detalle"].append(str(u["detalle"]).strip())
+        try:
+            item["importe"] += float(u.get("importe"))
+        except (TypeError, ValueError):
+            item["sin_importe"] = True
+
+    salida = [{"patente": i["patente"], "detalle": "; ".join(d for d in i["detalle"] if d) or None,
+               "importe": round(i["importe"], 2) if not i["sin_importe"] else None, "monto": None}
+              for i in juntas.values()]
+    if len(salida) == 1:
+        salida[0]["monto"] = total
+        return salida
+    suma = sum(i["importe"] or 0 for i in salida)
+    if total is None or suma <= 0 or any(i["importe"] is None for i in salida):
+        return salida
+    acumulado = 0.0
+    for n, i in enumerate(salida):
+        if n == len(salida) - 1:
+            i["monto"] = round(total - acumulado, 2)
+        else:
+            i["monto"] = round(total * i["importe"] / suma, 2)
+            acumulado += i["monto"]
+    return salida
 
 
 def _limpiar_fecha(valor):
@@ -165,4 +266,11 @@ def leer(archivos, patentes=None, cliente=None):
         except (TypeError, ValueError):
             leido["monto"] = None
     leido["dudas"] = [str(d) for d in (leido.get("dudas") or []) if d]
+
+    leido["unidades"] = _repartir(leido.get("unidades"), leido.get("monto"), patentes)
+    if not leido["patente"] and leido["unidades"]:
+        leido["patente"] = leido["unidades"][0]["patente"]
+    if len(leido["unidades"]) > 1 and any(u["monto"] is None for u in leido["unidades"]):
+        leido["dudas"].append("No se pudo repartir el total entre las unidades: "
+                              "revisar el monto de cada una.")
     return leido

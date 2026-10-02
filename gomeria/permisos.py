@@ -119,6 +119,7 @@ RUTAS = {
 
     # Los tableros de flota y mantenimiento.
     "/api/services": "flota", "/api/mantenimiento": "flota",
+    "/api/prefiltros": "flota",
     # El kilómetro de una unidad en una fecha: lo piden el control de
     # flota y la carga de órdenes desde el celular.
     "/api/odometro": ("flota", "ordenes"),

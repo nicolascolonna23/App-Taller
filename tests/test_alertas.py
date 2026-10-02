@@ -63,6 +63,8 @@ def base_con(**cambios):
         "to_regclass": [{"t": "alertas_reglas"}],
         "from alertas_reglas": REGLAS,
         "from alertas_silenciadas": [],
+        # Ninguna unidad con prefiltro vencido: la fuente está, pero vacía.
+        "from v_prefiltros_hoy": [],
         "from v_vencimientos_hoy": [{
             "id": 7, "tipo": "VTV", "ambito": "unidad", "patente": "AD247MQ",
             "interno": "2", "persona": None, "identificador": "OB-1",
@@ -269,3 +271,23 @@ class Numeros(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Prefiltros(unittest.TestCase):
+    """El prefiltro avisa como el service, con su propio plan."""
+
+    def test_el_prefiltro_vencido_es_una_alerta_propia(self):
+        cx = base_con()
+        cx.respuestas["from v_prefiltros_hoy"] = [{
+            "unidad_id": 3, "patente": "AF533SB", "interno": "12",
+            "sucursal": "LAD", "tipo": None, "estado": "vencido",
+            "km_restantes": -1200, "dias_restantes": None, "ultimo_fecha": None,
+            "ultimo_km": 100000, "km_actual": 121200, "cada_km": 20000}]
+        salida = alertas.listar(cx)
+        pref = [a for a in salida["alertas"] if a["fuente"] == "prefiltro"]
+        self.assertEqual(len(pref), 1)
+        self.assertEqual(pref[0]["severidad"], "grave")
+        self.assertIn("prefiltro", pref[0]["titulo"].lower())
+        # El service de la misma unidad sigue estando, aparte.
+        self.assertTrue(any(a["fuente"] == "service" and a["clave"] == "3"
+                            for a in salida["alertas"]))

@@ -480,8 +480,6 @@
     </div>
     <div class="meta">
       <a class="nav-link" href="/">‹ Inicio</a>
-      <a class="nav-link" href="/flota">Panel de flota</a>
-      <button class="btn-refresh" id="btn-planes" type="button">Parametrización</button>
       <button class="btn-refresh" id="btn-service" type="button" hidden>Registrar service</button>
     </div>
   </div>
@@ -491,6 +489,7 @@
     <button class="tab" role="tab" id="tab-general"   aria-selected="true"  data-panel="p-general">Control general</button>
     <button class="tab" role="tab" id="tab-lad"       aria-selected="false" data-panel="p-lad">Larga distancia <span class="count" id="cnt-lad">0</span></button>
     <button class="tab" role="tab" id="tab-dist"      aria-selected="false" data-panel="p-dist">Distribución local <span class="count" id="cnt-dist">0</span></button>
+    <button class="tab" role="tab" id="tab-pref"      aria-selected="false" data-panel="p-pref">Prefiltros <span class="count" id="cnt-pref">0</span></button>
     <button class="tab" role="tab" id="tab-unidad"    aria-selected="false" data-panel="p-unidad">Por patente</button>
   </div>
 
@@ -596,6 +595,38 @@
     </div>
   </section>
 
+  <!-- ============ PANEL: PREFILTROS ============ -->
+  <!-- Misma lógica que el service: cada tantos km desde el último cambio.
+       Solo entran las unidades que tienen plan de prefiltro asignado en
+       Parámetros; esas tienen además su plan de service. -->
+  <section class="panel" id="p-pref" role="tabpanel" aria-labelledby="tab-pref">
+    <div class="kpi-row" id="kpis-pref"></div>
+    <div class="filterbar" style="margin-top:16px">
+      <span class="fl">Filtrar</span>
+      <input class="inp" type="search" id="f-pref-txt" placeholder="Patente, chofer, marca, modelo…">
+      <select class="sel" id="f-pref-grupo">
+        <option value="">Todas las operaciones</option>
+        <option value="LAD">Larga distancia</option>
+        <option value="DIS">Distribución</option>
+      </select>
+      <select class="sel" id="f-pref-estado">
+        <option value="">Todos los estados</option>
+        <option value="vencido">Vencido</option>
+        <option value="urgente">Urgente</option>
+        <option value="proximo">Próximo</option>
+        <option value="ok">Al día</option>
+        <option value="sindato">Sin datos</option>
+        <option value="dudoso">Km no coinciden</option>
+      </select>
+      <span class="spacer"></span>
+      <button class="btn-refresh" id="btn-prefiltro" type="button" hidden>Registrar cambio de prefiltro</button>
+    </div>
+    <div class="card">
+      <div class="table-wrap"><table class="data" id="tbl-pref"></table></div>
+    </div>
+    <p class="hint" id="pref-pie" style="margin-top:10px"></p>
+  </section>
+
   <!-- ============ PANEL: POR PATENTE ============ -->
   <section class="panel" id="p-unidad" role="tabpanel" aria-labelledby="tab-unidad">
     <div class="filterbar">
@@ -613,31 +644,7 @@
     <div id="ficha"></div>
   </section>
 
-  <!-- ============ PANEL: PREFILTROS ============ -->
 
-</div>
-
-<div class="modal-bg" id="modal-planes" role="dialog" aria-modal="true">
-  <div class="modal" style="max-width:760px">
-    <h2>Parametrización de services</h2>
-    <div class="hint">Crear los planes (por ejemplo, M1, M2, M3) y asignarlos a las unidades.</div>
-    <div class="row">
-      <div><label>Nombre</label><input class="inp" id="pl-nombre" placeholder="Ej: M1 Hi-Way"></div>
-      <div><label>Cada cuántos km</label><input class="inp" id="pl-km" type="number" min="1" placeholder="40000"></div>
-    </div>
-    <label>Descripción</label><input class="inp" id="pl-desc" placeholder="Aceite, filtros y controles incluidos">
-    <input type="hidden" id="pl-id">
-    <div class="modal-acciones"><button class="btn-plano" id="pl-cancel-edit" type="button">Limpiar</button><button class="btn-ok" id="pl-save" type="button">Guardar plan</button></div>
-    <div id="planes-lista" style="margin:16px 0"></div>
-    <h3>Asignar a una patente</h3>
-    <div class="row"><select class="sel" id="as-unidad"></select><select class="sel" id="as-plan"></select></div>
-    <h3 style="margin-top:20px">Carga masiva desde Excel</h3>
-    <div class="hint">El archivo debe tener las columnas PATENTE y TIPO DE SERVICE. Cada tipo debe coincidir con el nombre de un plan creado arriba.</div>
-    <div class="row"><input class="inp" id="as-archivo" type="file" accept=".xlsx"><button class="btn-ok" id="as-importar" type="button">Importar Excel</button></div>
-    <div class="modal-ref" id="as-resultado"></div>
-    <div class="modal-msg" id="pl-msg"></div>
-    <div class="modal-acciones"><button class="btn-plano" id="pl-cerrar" type="button">Cerrar</button><button class="btn-ok" id="as-save" type="button">Asignar</button></div>
-  </div>
 </div>
 
 <footer class="shell">Gestión de flota · Mantenimiento y telemetría</footer>
@@ -808,7 +815,11 @@ const APP = {
   fuentes: { flota:null, servicios:null, consumo:null },
   seleccion: null,
   filtroGrupo: '',
-  planes: [], asignaciones: []
+  planes: [], asignaciones: [],
+  // Los prefiltros: una fila por unidad que lleva prefiltro (ver /api/prefiltros).
+  prefiltros: [], prefiltrosInstalado: true,
+  // De qué es el formulario de registro: 'service' o 'prefiltro'.
+  modoRegistro: 'service'
 };
 
 /* =====================================================================
@@ -863,6 +874,43 @@ async function cargarServicios() {
     servicios,
     setLAD: new Set(servicios.filter(s => /^LAD$/i.test(s.residencia)).map(s => s.patente))
   };
+}
+
+/** Los prefiltros: la misma cuenta que el service, con el plan de prefiltro. */
+async function cargarPrefiltros() {
+  try {
+    const r = await fetch('/api/prefiltros', { cache: 'no-store' });
+    if (!r.ok) return { instalado: true, unidades: [] };
+    return await r.json();
+  } catch (e) { return { instalado: true, unidades: [] }; }
+}
+
+function construirPrefiltros(datos) {
+  APP.prefiltrosInstalado = datos.instalado !== false;
+  APP.prefiltros = (datos.unidades || []).map(s => {
+    const p = normPat(s.patente);
+    const u = APP.unidades.get(p) || {};
+    const f = String(s.ultimo_fecha || '').slice(0, 10).split('-');
+    const kmAct = num(s.km_actual), falta = num(s.km_restantes);
+    const fila = {
+      patente: p, display: fmtPat(s.patente), id: s.unidad_id,
+      modelo: u.modelo || '', marca: u.marca || '', chofer: u.chofer || '',
+      interno: s.interno || u.interno || '', semi: u.semi || '',
+      sucursal: (s.sucursal || u.sucursal || '').trim(), grupo: u.grupo || '',
+      planNombre: s.plan_nombre || '', cada: num(s.cada_km),
+      fechaUlt: f.length === 3 ? `${f[2]}/${f[1]}/${f[0].slice(2)}` : '',
+      kmUlt: num(s.ultimo_km), kmProx: num(s.proximo_km), kmAct, falta,
+      // Igual que el service: km que no cierran es 'dudoso'; sin cambio
+      // cargado o sin odómetro no se puede decir nada.
+      estado: s.estado === 'km_dudoso' ? 'dudoso'
+            : (s.estado === 'sin_cambio' || kmAct === null) ? 'sindato'
+            : estadoDe(falta),
+      serie: u.serie || []
+    };
+    if (APP.unidades.has(p)) APP.unidades.get(p).prefiltro = fila;
+    return fila;
+  });
+  $('#cnt-pref').textContent = APP.prefiltros.length;
 }
 
 /** El consumo mes a mes de cada unidad, calculado en la base con los
@@ -1590,6 +1638,31 @@ function renderDist() {
   renderTabla('tbl-dist', lista, COLS_DIST, renderDist);
 }
 
+const COLS_PREF = [COL.patente, { k:'planNombre', t:'Plan de prefiltro' }, COL.sucursal, COL.chofer,
+                   { k:'fechaUlt', t:'Últ. cambio' }, COL.kmUlt, COL.kmProx, COL.kmAct,
+                   COL.falta, COL.estado];
+
+function renderPref() {
+  const txt = $('#f-pref-txt').value.trim();
+  const grupo = $('#f-pref-grupo').value;
+  const est = $('#f-pref-estado').value;
+  const lista = APP.prefiltros.filter(u =>
+    coincide(u, txt) && (!grupo || u.grupo === grupo) && (!est || u.estado === est));
+  const c = contarEstados(lista);
+  $('#kpis-pref').innerHTML =
+    kpiHTML('Con prefiltro', fmt0(lista.length), 'unidades con plan de prefiltro') +
+    kpiHTML('Vencidos', fmt0(c.vencido), 'cambio de prefiltro pasado',
+            c.vencido ? ESTADOS.vencido.color : ESTADOS.ok.color) +
+    kpiHTML('Urgentes', fmt0(c.urgente), `a menos de ${fmt0(UMBRAL_URGENTE)} km`, ESTADOS.urgente.color) +
+    kpiHTML('Sin datos', fmt0(c.sindato), 'sin cambio cargado o sin odómetro', ESTADOS.sindato.color);
+  renderTabla('tbl-pref', lista, COLS_PREF, renderPref);
+  $('#pref-pie').textContent = !APP.prefiltrosInstalado
+    ? 'Falta correr gomeria/44_prefiltros.sql en Supabase.'
+    : APP.prefiltros.length ? ''
+    : 'Ninguna unidad tiene plan de prefiltro. Se crea el plan y se asigna a cada patente en Parámetros › Mantenimiento.';
+  $('#btn-prefiltro').hidden = !APP.prefiltros.length;
+}
+
 function coincidePlan(u, plan) {
   if (!plan) return true;
   if (plan === '__SIN_PLAN__') return !u.planNombre;
@@ -1697,6 +1770,10 @@ function renderFicha() {
           <div class="spec"><div class="s-label">Uso</div><div class="s-value">${esc(u.uso || (u.grupo === 'LAD' ? 'LARGA DISTANCIA' : '—'))}</div></div>
           <div class="spec"><div class="s-label">Último service</div><div class="s-value">${esc(u.fechaUlt || '—')}</div></div>
           <div class="spec"><div class="s-label">Plan asignado</div><div class="s-value">${esc(u.planNombre || 'Sin parametrización')}</div></div>
+          ${u.prefiltro ? `<div class="spec"><div class="s-label">Prefiltro · ${esc(u.prefiltro.planNombre)}</div>
+            <div class="s-value">${u.prefiltro.falta === null ? 'sin datos'
+              : u.prefiltro.falta < 0 ? `vencido por ${fmt0(Math.abs(u.prefiltro.falta))} km`
+              : `faltan ${fmt0(u.prefiltro.falta)} km`}</div></div>` : ''}
         </div>
       </div>
       <div class="card-body">
@@ -1798,6 +1875,9 @@ $('#f-dist-txt').addEventListener('input', renderDist);
 $('#f-dist-estado').addEventListener('change', renderDist);
 $('#f-dist-suc').addEventListener('change', renderDist);
 $('#f-dist-plan').addEventListener('change', renderDist);
+$('#f-pref-txt').addEventListener('input', renderPref);
+$('#f-pref-grupo').addEventListener('change', renderPref);
+$('#f-pref-estado').addEventListener('change', renderPref);
 $('#f-unidad').addEventListener('input', renderChips);
 $$('#seg-grupo button').forEach(b => b.addEventListener('click', () => {
   APP.filtroGrupo = b.dataset.g;
@@ -1833,6 +1913,17 @@ function svMensaje(texto, tipo) {
 
 function actualizarPlanDelService() {
   const u = APP.unidades.get($('#sv-patente').value);
+  if (APP.modoRegistro === 'prefiltro') {
+    // El prefiltro tiene su propio plan: el de la fila de prefiltros.
+    const pf = APP.prefiltros.find(x => x.patente === $('#sv-patente').value);
+    const plan = pf && pf.cada ? { id: 'pf', nombre: pf.planNombre, cada_km: pf.cada } : null;
+    $('#sv-tipo').innerHTML = plan
+      ? `<option value="pf">${esc(plan.nombre)} · cada ${fmt0(plan.cada_km)} km</option>`
+      : '<option value="">Sin plan de prefiltro</option>';
+    $('#sv-guardar').disabled = !plan;
+    svMensaje(plan ? '' : 'Esta unidad no tiene plan de prefiltro. Asignarlo en Parámetros.', plan ? '' : 'error');
+    return plan;
+  }
   const asignacion = APP.asignaciones.find(a => u && String(a.unidad_id) === String(u.id));
   const plan = asignacion && APP.planes.find(p => p.activo && String(p.id) === String(asignacion.plan_id));
   $('#sv-tipo').value = plan ? String(plan.id) : '';
@@ -1841,8 +1932,14 @@ function actualizarPlanDelService() {
   return plan || null;
 }
 
-function abrirFormService(patente) {
-  const lista = unidadesDe('').filter(u => u.enFlota || u.kmUlt !== null)
+function abrirFormService(patente, modo) {
+  APP.modoRegistro = modo === 'prefiltro' ? 'prefiltro' : 'service';
+  const prefiltro = APP.modoRegistro === 'prefiltro';
+  $('#modal-titulo').textContent = prefiltro ? 'Registrar cambio de prefiltro' : 'Registrar service';
+  $('label[for="sv-km"]').textContent = prefiltro ? 'Km del cambio' : 'Km del service';
+  $('label[for="sv-tipo"]').textContent = prefiltro ? 'Plan de prefiltro' : 'Tipo de service';
+  const lista = (prefiltro ? APP.prefiltros.slice()
+                 : unidadesDe('').filter(u => u.enFlota || u.kmUlt !== null))
     .sort((a, b) => a.display.localeCompare(b.display, 'es'));
   if (!lista.length) return;
 
@@ -1854,8 +1951,9 @@ function abrirFormService(patente) {
   $('#sv-fecha').value = hoyAR();
   $('#sv-km').value    = '';
   kmAuto = null;
-  $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
-    .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
+  if (!prefiltro)
+    $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
+      .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
   actualizarPlanDelService();
   sugerirKm();
 
@@ -1889,9 +1987,11 @@ let kmAuto  = null; // el ultimo valor que puso el formulario solo
     la que corresponde. */
 async function sugerirKm() {
   const patente = $('#sv-patente').value;
-  const u = APP.unidades.get(patente);
+  const u = APP.modoRegistro === 'prefiltro'
+    ? APP.prefiltros.find(x => x.patente === patente) : APP.unidades.get(patente);
   const ref = [];
-  if (u && u.kmUlt !== null) ref.push(`último service ${fmt0(u.kmUlt)} km`);
+  if (u && u.kmUlt !== null)
+    ref.push(`${APP.modoRegistro === 'prefiltro' ? 'último cambio' : 'último service'} ${fmt0(u.kmUlt)} km`);
   if (u && u.kmAct !== null) ref.push(`odómetro hoy ${fmt0(u.kmAct)} km`);
   $('#sv-ref').textContent = ref.join('  ·  ');
 
@@ -1954,6 +2054,7 @@ function aplicarServiceLocal(patente, fecha, km) {
 }
 
 $('#btn-service').addEventListener('click', () => abrirFormService(APP.seleccion));
+$('#btn-prefiltro').addEventListener('click', () => abrirFormService(APP.seleccion, 'prefiltro'));
 $('#sv-cancelar').addEventListener('click', cerrarFormService);
 $('#sv-patente').addEventListener('change', sugerirKm);
 $('#sv-patente').addEventListener('change', () => {
@@ -1969,15 +2070,16 @@ document.addEventListener('keydown', ev => {
 $('#form-service').addEventListener('submit', async ev => {
   ev.preventDefault();
 
+  const prefiltro = APP.modoRegistro === 'prefiltro';
   const patente = $('#sv-patente').value;
   const km      = Number($('#sv-km').value);
-  const u       = APP.unidades.get(patente);
+  const u       = prefiltro ? APP.prefiltros.find(x => x.patente === patente) : APP.unidades.get(patente);
   const plan    = actualizarPlanDelService();
 
   if (!plan) return;
   if (!isFinite(km) || km <= 0) { svMensaje('El kilometraje no es válido.', 'error'); return; }
   if (u && u.kmUlt !== null && km < u.kmUlt) {
-    svMensaje(`El km ingresado es menor al último service (${fmt0(u.kmUlt)} km). Revisar el valor.`, 'error');
+    svMensaje(`El km ingresado es menor al ${prefiltro ? 'último cambio' : 'último service'} (${fmt0(u.kmUlt)} km). Revisar el valor.`, 'error');
     return;
   }
 
@@ -1998,13 +2100,20 @@ $('#form-service').addEventListener('submit', async ev => {
         op: 'service_guardar', unidad_id: u.id, fecha: iso,
         km: km,
         tipo: ($('#sv-tipo').selectedOptions[0]||{}).textContent?.split(' · ')[0] || '',
-        cada_km: plan.cada_km
+        cada_km: plan.cada_km,
+        sistema: APP.modoRegistro
       })
     });
     const res = await r.json();
     if (!r.ok) throw new Error(res.error || 'La base rechazó el registro.');
 
-    aplicarServiceLocal(patente, $('#sv-fecha').value.trim(), km);
+    if (prefiltro) {
+      construirPrefiltros(await cargarPrefiltros());
+      renderPref();
+      if (APP.seleccion) renderFicha();
+    } else {
+      aplicarServiceLocal(patente, $('#sv-fecha').value.trim(), km);
+    }
     svMensaje('Guardado en Supabase. La tabla ya está actualizada.', 'ok');
     setTimeout(cerrarFormService, 2200);
 
@@ -2018,59 +2127,17 @@ $('#form-service').addEventListener('submit', async ev => {
 });
 
 /* =====================================================================
-   PARAMETRIZACION DE SERVICES
+   PLANES DE MANTENIMIENTO
+   ---------------------------------------------------------------------
+   Se crean y se asignan en Parámetros (/parametros). Acá solo se leen:
+   el formulario de service necesita saber qué plan tiene cada unidad.
    ===================================================================== */
-const PLAN_MODAL = $('#modal-planes');
-const planMensaje = t => $('#pl-msg').textContent = t || '';
 async function cargarPlanes(){
   const r=await fetch('/api/mantenimiento',{cache:'no-store'});
   const d=await r.json().catch(()=>({}));
   if(!r.ok) throw new Error(d.error||'No se pudo leer la parametrización.');
   APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[];
-  pintarPlanes();
 }
-function pintarPlanes(){
-  const unidadElegida=$('#as-unidad').value;
-  $('#planes-lista').innerHTML=APP.planes.map(p=>`<div class="filterbar" style="margin:6px 0">
-    <b>${esc(p.nombre)}</b><span>${fmt0(p.cada_km)} km · ${p.unidades||0} unidades</span>
-    <span class="spacer"></span><button class="btn-plano" data-edit="${p.id}">Editar</button>
-    <button class="btn-plano" data-del="${p.id}">Eliminar</button></div>`).join('')||'<p class="hint">Todavía no hay planes.</p>';
-  const opciones='<option value="">Sin plan</option>'+APP.planes.filter(p=>p.activo).map(p=>`<option value="${p.id}">${esc(p.nombre)} · ${fmt0(p.cada_km)} km</option>`).join('');
-  $('#as-plan').innerHTML=opciones;
-  $('#as-unidad').innerHTML=APP.asignaciones.map(a=>`<option value="${a.unidad_id}">${esc(a.patente)}${a.interno?' · '+esc(a.interno):''}${a.plan_nombre?' — '+esc(a.plan_nombre):''}</option>`).join('');
-  if([...$('#as-unidad').options].some(o=>o.value===unidadElegida)) $('#as-unidad').value=unidadElegida;
-  const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value); $('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';
-}
-function seleccionarAsignacion(){const a=APP.asignaciones.find(x=>String(x.unidad_id)===$('#as-unidad').value);$('#as-plan').value=a&&a.plan_id?String(a.plan_id):'';}
-async function guardarPlan(cuerpo){
-  const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(cuerpo)});
-  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo guardar.');
-  APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes(); planMensaje('Guardado.');
-}
-function limpiarPlan(){ $('#pl-id').value=''; $('#pl-nombre').value=''; $('#pl-km').value=''; $('#pl-desc').value=''; }
-$('#btn-planes').onclick=async()=>{ PLAN_MODAL.setAttribute('open',''); planMensaje(''); try{await cargarPlanes();}catch(e){planMensaje(e.message);} };
-$('#pl-cerrar').onclick=()=>PLAN_MODAL.removeAttribute('open'); $('#pl-cancel-edit').onclick=limpiarPlan;
-$('#as-unidad').onchange=seleccionarAsignacion;
-$('#pl-save').onclick=async()=>{try{await guardarPlan({op:'plan_guardar',id:$('#pl-id').value,nombre:$('#pl-nombre').value,cada_km:$('#pl-km').value,descripcion:$('#pl-desc').value});limpiarPlan();}catch(e){planMensaje(e.message);}};
-$('#as-save').onclick=async()=>{try{await guardarPlan({op:'asignar',unidad_id:$('#as-unidad').value,plan_id:$('#as-plan').value});await cargarTodo(false);}catch(e){planMensaje(e.message);}};
-$('#as-importar').onclick=async()=>{
-  const archivo=$('#as-archivo').files[0]; if(!archivo){planMensaje('Seleccionar un archivo .xlsx.');return;}
-  const boton=$('#as-importar'); boton.disabled=true; planMensaje('Importando…'); $('#as-resultado').textContent='';
-  try{
-    const bytes=new Uint8Array(await archivo.arrayBuffer()); let bin='';
-    for(let i=0;i<bytes.length;i+=32768) bin+=String.fromCharCode(...bytes.subarray(i,i+32768));
-    const r=await fetch('/api/mantenimiento',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({op:'importar',archivo_b64:btoa(bin)})});
-    const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error(d.error||'No se pudo importar.');
-    APP.planes=d.planes||[]; APP.asignaciones=d.asignaciones||[]; pintarPlanes();
-    const partes=[`${d.asignadas} de ${d.total} filas asignadas.`];
-    if(d.planes_faltantes?.length) partes.push(`Crear previamente los siguientes planes: ${d.planes_faltantes.join(', ')}.`);
-    if(d.patentes_faltantes?.length) partes.push(`Patentes no encontradas: ${d.patentes_faltantes.join(', ')}.`);
-    if(d.sin_datos?.length) partes.push(`Sin datos: ${d.sin_datos.join(', ')}.`);
-    $('#as-resultado').textContent=partes.join(' '); planMensaje('Carga procesada.'); await cargarTodo(false);
-  }catch(e){planMensaje(e.message);}finally{boton.disabled=false;}
-};
-$('#planes-lista').onclick=async e=>{const p=APP.planes.find(x=>String(x.id)===String(e.target.dataset.edit||e.target.dataset.del));if(!p)return;if(e.target.dataset.edit){$('#pl-id').value=p.id;$('#pl-nombre').value=p.nombre;$('#pl-km').value=p.cada_km;$('#pl-desc').value=p.descripcion||'';}else if(confirm(`Eliminar ${p.nombre}? Las unidades quedarán sin plan.`)){try{await guardarPlan({op:'plan_borrar',id:p.id});}catch(x){planMensaje(x.message);}}};
-PLAN_MODAL.addEventListener('mousedown',e=>{if(e.target===PLAN_MODAL)PLAN_MODAL.removeAttribute('open');});
 
 /* =====================================================================
    ORQUESTACION
@@ -2082,14 +2149,17 @@ async function cargarTodo(manual) {
   document.querySelectorAll('.panel').forEach(p => p.style.opacity = manual ? '0.55' : '1');
 
   try {
-    const [flota, srv, tel] = await Promise.all([cargarFlota(), cargarServicios(), cargarConsumo()]);
+    const [flota, srv, tel, pref] = await Promise.all([cargarFlota(), cargarServicios(),
+                                                      cargarConsumo(), cargarPrefiltros()]);
     construirUnidades(flota, srv.servicios, srv.setLAD, tel);
+    construirPrefiltros(pref);
 
     llenarSucursales();
     llenarTiposService();
     renderGeneral();
     renderLAD();
     renderDist();
+    renderPref();
     renderChips();
 
     $('#btn-service').hidden = !APP.unidades.size;
@@ -2104,6 +2174,8 @@ async function cargarTodo(manual) {
   }
 }
 
+// Desde Alertas se llega directo a la solapa de prefiltros.
+if (location.hash === '#prefiltros') activarTab('tab-pref');
 cargarTodo(false);
 setInterval(() => cargarTodo(false), CFG.refreshMs);
 </script>
