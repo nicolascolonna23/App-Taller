@@ -329,8 +329,7 @@ class RendirLaFactura(unittest.TestCase):
     def test_lo_que_manda_mantenimiento_se_carga_sin_solicitud(self):
         """Es el caso de siempre: el taller no se pide permiso a sí mismo."""
         cx = self.BaseGasto(exigir=True)
-        with patch.object(ordenes, "_registrar_preventivo", return_value=None):
-            salida = ordenes.externa(cx, dict(self.FACTURA, gestion="mantenimiento"), TALLER)
+        salida = ordenes.externa(cx, dict(self.FACTURA, gestion="mantenimiento"), TALLER)
         self.assertEqual(salida["numero"], 82)
         insercion = self._insercion(cx)
         self.assertIsNone(insercion[-2])                  # sin solicitud
@@ -351,9 +350,8 @@ class RendirLaFactura(unittest.TestCase):
 
     def test_con_una_solicitud_cerrada_entra_y_queda_atada(self):
         cx = self.BaseGasto(solicitud=_solicitud(estado="CERRADO", factura_numero="0001-0009"))
-        with patch.object(ordenes, "_registrar_preventivo", return_value=None):
-            salida = ordenes.externa(cx, dict(self.FACTURA, gestion="sucursal",
-                                              solicitud_id="CAT-00001"), TALLER)
+        salida = ordenes.externa(cx, dict(self.FACTURA, gestion="sucursal",
+                                          solicitud_id="CAT-00001"), TALLER)
         self.assertEqual(salida["numero"], 82)
         insercion = self._insercion(cx)
         self.assertEqual(insercion[-2], "CAT-00001")
@@ -361,8 +359,7 @@ class RendirLaFactura(unittest.TestCase):
 
     def test_traer_una_solicitud_ya_dice_que_fue_una_sucursal(self):
         cx = self.BaseGasto(solicitud=_solicitud(estado="CERRADO", factura_numero="A-1"))
-        with patch.object(ordenes, "_registrar_preventivo", return_value=None):
-            ordenes.externa(cx, dict(self.FACTURA, solicitud_id="CAT-00001"), TALLER)
+        ordenes.externa(cx, dict(self.FACTURA, solicitud_id="CAT-00001"), TALLER)
         self.assertEqual(self._insercion(cx)[-1], "sucursal")
 
     def test_con_la_solicitud_todavia_abierta_no_se_rinde(self):
@@ -389,8 +386,7 @@ class RendirLaFactura(unittest.TestCase):
 
     def test_sin_el_modulo_instalado_nadie_queda_trabado(self):
         cx = self.BaseGasto(exigir=False)
-        with patch.object(ordenes, "_registrar_preventivo", return_value=None):
-            salida = ordenes.externa(cx, dict(self.FACTURA, gestion="sucursal"), TALLER)
+        salida = ordenes.externa(cx, dict(self.FACTURA, gestion="sucursal"), TALLER)
         self.assertEqual(salida["numero"], 82)
 
 

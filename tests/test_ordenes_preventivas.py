@@ -3,10 +3,10 @@ import sys
 import unittest
 from datetime import date
 from pathlib import Path
-from unittest.mock import patch
 
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ / "gomeria"))
+import alertas
 import ordenes
 
 
@@ -95,78 +95,89 @@ class CamposObligatorios(unittest.TestCase):
 
 
 class OrdenInterna(unittest.TestCase):
-    def test_al_abrir_guarda_la_clasificacion_pero_aun_no_el_service(self):
+    def test_al_abrir_guarda_la_clasificacion(self):
         cx = BaseFalsa()
-        with patch.object(ordenes, "_registrar_preventivo") as registrar:
-            salida = ordenes.abrir(cx, {
-                "unidad_id": 7, "mantenimiento": "preventivo",
-                "fecha": "2026-09-09", "km": 123000,
-                "solicitado": "Cambio de aceite y filtros",
-            }, GESTOR)
+        salida = ordenes.abrir(cx, {
+            "unidad_id": 7, "mantenimiento": "preventivo",
+            "fecha": "2026-09-09", "km": 123000,
+            "solicitado": "Cambio de aceite y filtros",
+        }, GESTOR)
         self.assertEqual(salida["id"], 41)
-        registrar.assert_not_called()
         insercion = next(x for x in cx.consultas if x[0].startswith("insert into"))
         self.assertEqual(insercion[1][0], "preventivo")
 
-    def test_al_cerrar_un_preventivo_registra_el_service(self):
+    def test_al_cerrar_un_preventivo_no_registra_service(self):
+        """Los services se cargan solo desde el módulo de services."""
         orden = {"id": 41, "numero": 82, "tipo": "interna", "estado": "abierta",
                  "mantenimiento": "preventivo", "unidad_id": 7,
                  "patente": "AD247MQ", "fecha": date(2026, 9, 9), "km": 123000,
                  "solicitado": "Cambio de aceite", "diagnostico": None, "taller": None}
         cx = BaseFalsa(orden)
-        with patch.object(ordenes, "_registrar_preventivo", return_value=19) as registrar:
-            salida = ordenes.cerrar(cx, {"id": 41}, GESTOR)
-        registrar.assert_called_once_with(cx, orden, GESTOR)
-        self.assertEqual(salida["service_id"], 19)
-
-    def test_el_service_queda_vinculado_a_la_orden(self):
-        cx = BaseService()
-        service_id = ordenes._registrar_preventivo(cx, {
-            "id": 41, "numero": 82, "mantenimiento": "preventivo",
-            "unidad_id": 7, "fecha": date(2026, 9, 9), "km": 123000,
-            "solicitado": "Cambio de aceite", "diagnostico": None, "taller": None,
-        }, GESTOR)
-        self.assertEqual(service_id, 19)
-        insercion = next(x for x in cx.consultas if x[0].startswith("insert into services"))
-        self.assertEqual(insercion[1][-1], 41)
-        self.assertEqual(insercion[1][1], "2026-09-09")
-        self.assertEqual(insercion[1][2], 123000)
-
-    def test_sin_plan_no_permite_registrar_el_service(self):
-        cx = BaseService(con_plan=False)
-        with self.assertRaisesRegex(ValueError, "no tiene un plan"):
-            ordenes._registrar_preventivo(cx, {
-                "id": 41, "numero": 82, "mantenimiento": "preventivo",
-                "unidad_id": 7, "fecha": date(2026, 9, 9), "km": 123000,
-                "solicitado": "Cambio de aceite", "diagnostico": None, "taller": None,
-            }, GESTOR)
-        self.assertFalse(any(sql.startswith("insert into services") for sql, _ in cx.consultas))
+        salida = ordenes.cerrar(cx, {"id": 41}, GESTOR)
+        self.assertNotIn("service_id", salida)
+        self.assertFalse(any("services" in sql for sql, _ in cx.consultas))
 
 
 class ServicioExterno(unittest.TestCase):
-    def test_un_preventivo_nace_cerrado_y_registra_el_service(self):
+    def test_un_preventivo_nace_cerrado_sin_registrar_service(self):
         cx = BaseFalsa()
-        with patch.object(ordenes, "_registrar_preventivo", return_value=20) as registrar:
-            salida = ordenes.externa(cx, {
-                "unidad_id": 7, "mantenimiento": "preventivo",
-                "gestion": "mantenimiento",
-                "fecha": "2026-09-08", "km": 122500,
-                "factura": "A-123", "monto": 250000,
-                "taller": "Iveco", "solicitado": "Service M6",
-            }, GESTOR)
-        self.assertEqual(salida["service_id"], 20)
-        orden = registrar.call_args.args[1]
-        self.assertEqual(orden["mantenimiento"], "preventivo")
-        self.assertEqual(orden["fecha"], date(2026, 9, 8))
-        self.assertEqual(orden["km"], 122500)
+        salida = ordenes.externa(cx, {
+            "unidad_id": 7, "mantenimiento": "preventivo",
+            "gestion": "mantenimiento",
+            "fecha": "2026-09-08", "km": 122500,
+            "factura": "A-123", "monto": 250000,
+            "taller": "Iveco", "solicitado": "Service M6",
+        }, GESTOR)
+        self.assertEqual(salida["id"], 41)
+        self.assertNotIn("service_id", salida)
+        insercion = next(x for x in cx.consultas if x[0].startswith("insert into ordenes_trabajo"))
+        self.assertIn("'cerrada'", insercion[0])
+        self.assertFalse(any("services" in sql for sql, _ in cx.consultas))
 
-    def test_un_correctivo_no_se_convierte_en_ultimo_service(self):
-        with patch.object(ordenes.alertas, "guardar_service") as guardar:
-            salida = ordenes._registrar_preventivo(BaseFalsa(), {
-                "mantenimiento": "correctivo"
-            }, GESTOR)
-        self.assertIsNone(salida)
-        guardar.assert_not_called()
+
+class ServiceCreaOrden(unittest.TestCase):
+    """Registrar un service desde su módulo deja una orden preventiva cerrada."""
+
+    def _base(self):
+        cx = BaseService()
+        original = cx.execute
+
+        def execute(consulta, valores=()):
+            sql = " ".join(consulta.split())
+            if sql.startswith("insert into ordenes_trabajo"):
+                cx.consultas.append((sql, valores))
+                return Resultado({"id": 55})
+            if sql.startswith("update services set orden_id"):
+                cx.consultas.append((sql, valores))
+                return Resultado()
+            return original(consulta, valores)
+        cx.execute = execute
+        return cx
+
+    def test_el_service_crea_su_orden_y_queda_vinculado(self):
+        cx = self._base()
+        service_id = alertas.guardar_service(cx, {
+            "unidad_id": 7, "fecha": "2026-09-09", "km": 123000, "tipo": "M6",
+        }, usuario="Nicolás", crear_orden=True)
+        self.assertEqual(service_id, 19)
+        orden = next(x for x in cx.consultas if x[0].startswith("insert into ordenes_trabajo"))
+        self.assertIn("'preventivo'", orden[0])
+        self.assertIn("'cerrada'", orden[0])
+        self.assertEqual(orden[1][1], "AD247MQ")
+        self.assertIn(("update services set orden_id = %s where id = %s", (55, 19)), cx.consultas)
+
+    def test_sin_el_pedido_no_crea_orden(self):
+        """La solicitud preventiva cerrada registra service pero no orden:
+        su orden es la externa con la que se rinde la factura."""
+        cx = self._base()
+        alertas.guardar_service(cx, {"unidad_id": 7, "fecha": "2026-09-09", "km": 123000})
+        self.assertFalse(any(sql.startswith("insert into ordenes_trabajo") for sql, _ in cx.consultas))
+
+    def test_sin_plan_no_hay_ni_service_ni_orden(self):
+        cx = BaseService(con_plan=False)
+        with self.assertRaisesRegex(ValueError, "no tiene un plan"):
+            alertas.guardar_service(cx, {"unidad_id": 7, "km": 123000}, crear_orden=True)
+        self.assertFalse(any(sql.startswith("insert") for sql, _ in cx.consultas))
 
 
 if __name__ == "__main__":

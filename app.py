@@ -1414,7 +1414,10 @@ class App(CupoPorPedido, gom.Handler):
                 elif op == "reglas":
                     alr.guardar_reglas(cx, datos)
                 elif op == "service_guardar":
-                    alr.guardar_service(cx, datos, usuario=self.usuario["nombre"])
+                    # El único lugar donde se cargan services. Cada uno deja
+                    # además su orden preventiva cerrada en el historial.
+                    alr.guardar_service(cx, datos, usuario=self.usuario["nombre"],
+                                        crear_orden=True)
                 elif op == "service_borrar":
                     alr.borrar_service(cx, datos.get("id"))
                 else:
