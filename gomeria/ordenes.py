@@ -28,7 +28,6 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 """
 from datetime import date
 
-import alertas
 import permisos
 import solicitudes as sol
 
@@ -127,27 +126,6 @@ def _km_requeridos(valor):
     if km is None:
         raise ValueError("Falta el kilometraje.")
     return km
-
-
-def _registrar_preventivo(cx, orden, usuario):
-    """Hace que una orden preventiva cerrada sea también el último service."""
-    if orden.get("mantenimiento") != "preventivo":
-        return None
-    if not orden.get("unidad_id"):
-        raise ValueError("Un mantenimiento preventivo necesita una unidad del maestro.")
-
-    detalle = (_texto(orden.get("solicitado"), 500)
-               or _texto(orden.get("diagnostico"), 500)
-               or "Mantenimiento preventivo")
-    return alertas.guardar_service(cx, {
-        "unidad_id": orden["unidad_id"],
-        "fecha": orden["fecha"],
-        "km": orden["km"],
-        "tipo": detalle,
-        "taller": orden.get("taller"),
-        "observaciones": f"Registrado desde la orden Nº {orden['numero']}.",
-        "orden_id": orden["id"],
-    }, usuario=(usuario or {}).get("nombre"))
 
 
 def _orden(cx, orden_id, abierta=False):
@@ -434,10 +412,11 @@ def cerrar(cx, datos, usuario):
             where id = %s and (km_actual is null or km_actual < %s)
         """, (orden["km"], orden["unidad_id"], orden["km"]))
 
-    service_id = _registrar_preventivo(cx, orden, usuario)
-
+    # Cerrar una orden preventiva no registra el service: los services se
+    # cargan solo desde Control de flota o Alertas, y ese registro es el
+    # que crea su orden (ver alertas.guardar_service).
     return {"ok": True, "numero": orden["numero"],
-            "fecha_cierre": cierre.isoformat(), "service_id": service_id}
+            "fecha_cierre": cierre.isoformat()}
 
 
 def reabrir(cx, datos, usuario):
@@ -685,15 +664,9 @@ def externa(cx, datos, usuario):
         returning id, numero
     """, tuple(valores)).fetchone()
 
-    orden = {
-        "id": fila["id"], "numero": fila["numero"], "mantenimiento": mantenimiento,
-        "unidad_id": unidad_id, "fecha": fecha, "km": km,
-        "solicitado": _texto(datos.get("solicitado")), "diagnostico": None,
-        "taller": _texto(datos.get("taller"), 120),
-    }
-    service_id = _registrar_preventivo(cx, orden, usuario)
-    return {"ok": True, "id": fila["id"], "numero": fila["numero"],
-            "service_id": service_id}
+    # Una externa preventiva queda clasificada, pero no registra el service:
+    # eso se hace desde Control de flota o Alertas.
+    return {"ok": True, "id": fila["id"], "numero": fila["numero"]}
 
 
 def externas(cx, datos, usuario):

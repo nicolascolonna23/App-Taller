@@ -498,8 +498,14 @@ def historial_services(cx, unidad_id, limite=30):
     """, (int(unidad_id), limite)) or []
 
 
-def guardar_service(cx, datos, usuario=None):
-    """Anota un service hecho. No pisa el anterior: se suma al historial."""
+def guardar_service(cx, datos, usuario=None, crear_orden=False):
+    """Anota un service hecho. No pisa el anterior: se suma al historial.
+
+    Con crear_orden=True —el registro desde Control de flota o Alertas,
+    que es el único lugar donde se cargan services— además queda una orden
+    de trabajo preventiva, cerrada, en el historial de la unidad. Anular
+    esa orden en Órdenes borra el service.
+    """
     unidad_id = int(datos.get("unidad_id") or 0)
     if not unidad_id:
         raise ValueError("Seleccionar la unidad.")
@@ -599,6 +605,25 @@ def guardar_service(cx, datos, usuario=None):
             returning id
         """, valores).fetchone()
 
+    if crear_orden and not orden_id:
+        detalle = (limpio(datos.get("tipo"), 60)
+                   or ("Cambio de prefiltro" if prefiltro else "Service"))
+        if prefiltro and "prefiltro" not in detalle.lower():
+            detalle = f"Cambio de prefiltro · {detalle}"
+        orden = cx.execute("""
+            insert into ordenes_trabajo
+              (tipo, estado, mantenimiento, unidad_id, patente, km, fecha,
+               fecha_cierre, taller, solicitado, observaciones, usuario, cerrada_por)
+            values ('interna', 'cerrada', 'preventivo', %s, %s, %s,
+                    coalesce(%s::date, current_date), coalesce(%s::date, current_date),
+                    %s, %s, %s, %s, %s)
+            returning id
+        """, (unidad_id, unidad["patente"], km, fecha, fecha,
+              limpio(datos.get("taller"), 120), detalle,
+              "Registrado desde el módulo de services.", usuario, usuario)).fetchone()
+        cx.execute("update services set orden_id = %s where id = %s",
+                   (orden["id"], fila["id"]))
+
     # Un service nuevo es una alerta nueva: lo que se había silenciado del
     # anterior ya no aplica.
     reactivar(cx, sistema, str(unidad_id))
@@ -606,8 +631,13 @@ def guardar_service(cx, datos, usuario=None):
 
 
 def borrar_service(cx, service_id):
-    fila = cx.execute("delete from services where id = %s returning unidad_id",
+    fila = cx.execute("delete from services where id = %s returning unidad_id, orden_id",
                       (int(service_id),)).fetchone()
     if not fila:
         raise ValueError("Ese service no existe.")
+    # La orden que dejó ese service queda anulada: sin el service es un
+    # trabajo que no pasó.
+    if fila.get("orden_id"):
+        cx.execute("""update ordenes_trabajo set estado = 'anulada'
+                      where id = %s and estado <> 'anulada'""", (fila["orden_id"],))
     return fila["unidad_id"]
