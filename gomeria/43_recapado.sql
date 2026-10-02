@@ -137,3 +137,15 @@ from recapado_envios e
 left join recapado_renglones r on r.envio_id = e.id
 group by e.id
 order by e.numero desc;
+
+
+-- ---------------------------------------------------------------------
+-- 7. SEGURIDAD: igual que el resto, nadie entra con la clave pública.
+-- ---------------------------------------------------------------------
+-- Sin esto las tres tablas quedan expuestas por PostgREST: cualquiera con
+-- la clave anónima lee los envíos y, peor, escribe renglones. La app no
+-- entra por ahí, así que activarlo no le cambia nada; lo que cierra es la
+-- puerta de al lado.
+alter table recapado_contador   enable row level security;
+alter table recapado_envios     enable row level security;
+alter table recapado_renglones  enable row level security;
