@@ -44,6 +44,33 @@ def es_patente(texto):
     return bool(re.fullmatch(r"[A-Z]{2}\d{3}[A-Z]{2}", n) or re.fullmatch(r"[A-Z]{3}\d{3}", n))
 
 
+def hay_prefiltros(cx):
+    """Si la base ya tiene el segundo plan de la unidad (44_prefiltros.sql)."""
+    try:
+        return bool(cx.execute("""
+            select 1 from information_schema.columns
+            where table_schema = 'public' and table_name = 'unidades'
+              and column_name = 'prefiltro_plan_id'""").fetchone())
+    except Exception:
+        cx.rollback()
+        return False
+
+
+def _planes(cx):
+    """Los planes que se pueden asignar desde la ficha, con su clase.
+
+    Sin 29_parametros.sql no hay clase: todos son de service, como antes.
+    """
+    try:
+        return cx.execute("""select id, nombre, cada_km, clase
+            from mantenimiento_planes where activo and clase <> 'correctivo'
+            order by nombre""").fetchall()
+    except Exception:
+        cx.rollback()
+        return cx.execute("""select id, nombre, cada_km, 'preventivo' as clase
+            from mantenimiento_planes where activo order by nombre""").fetchall()
+
+
 def _texto(valor, limite=120):
     t = " ".join(str(valor or "").split())
     return t[:limite] or None
@@ -60,11 +87,21 @@ def listar(cx, usuario=None):
     pantalla donde busca la propia.
     """
     solo = permisos.sucursal_de(usuario)
-    filas = cx.execute("""
+    prefiltros = hay_prefiltros(cx)
+    # El plan de prefiltro es el segundo plan de la unidad: lo llevan solo
+    # algunas. Sin 44_prefiltros.sql la columna no existe y sale vacía.
+    con_prefiltro = ("u.prefiltro_plan_id, pf.nombre as prefiltro_plan, "
+                     "pf.cada_km as prefiltro_cada_km" if prefiltros else
+                     "null::bigint as prefiltro_plan_id, null::text as prefiltro_plan, "
+                     "null::numeric as prefiltro_cada_km")
+    junta = ("left join mantenimiento_planes pf on pf.id=u.prefiltro_plan_id"
+             if prefiltros else "")
+    filas = cx.execute(f"""
         select v.*, u.mantenimiento_plan_id, p.nombre as mantenimiento_plan,
-               p.cada_km as mantenimiento_cada_km
+               p.cada_km as mantenimiento_cada_km, {con_prefiltro}
         from v_unidades v join unidades u on u.id=v.id
         left join mantenimiento_planes p on p.id=u.mantenimiento_plan_id
+        {junta}
         where %s::text is null or v.sucursal = %s
         -- Los equipos al final: son pocos y no se miran todos los días.
         order by v.tipo, coalesce(nullif(v.interno,'')::text, 'zzz'), v.patente
@@ -94,8 +131,8 @@ def listar(cx, usuario=None):
                     + medidas_que_no_van(cx)),
         # Qué tipos de vehículo hay y cuáles todavía no tienen 3D.
         "armados": armados(cx),
-        "planes_mantenimiento": cx.execute("""select id,nombre,cada_km
-            from mantenimiento_planes where activo order by nombre""").fetchall(),
+        "planes_mantenimiento": _planes(cx),
+        "prefiltros": prefiltros,
         # La lista de modelos 3D va servida y no escrita en la pantalla.
         # Estuvo copiada en cuatro lugares y se desincronizó: acá había
         # siete modelos y el desplegable ofrecía tres, así que el furgón,
@@ -787,6 +824,11 @@ def guardar(cx, datos, usuario=None):
     mapa = int(mapa) if str(mapa or "").strip().isdigit() else None
     quiere_mapa = "configuracion_id" in datos
 
+    # El plan de prefiltro tampoco: es una columna que puede no existir
+    # todavía, y tiene que ser un plan de la clase prefiltro.
+    quiere_prefiltro = "prefiltro_plan_id" in datos
+    prefiltro = _plan_prefiltro(cx, datos.get("prefiltro_plan_id")) if quiere_prefiltro else None
+
     # El tipo no se pide: se deduce de la patente, salvo que lo manden.
     if "tipo" not in campos and patente:
         campos["tipo"] = "vehiculo" if es_patente(patente) else "equipo"
@@ -806,6 +848,9 @@ def guardar(cx, datos, usuario=None):
                        list(campos.values()) + [unidad_id])
         if quiere_mapa:
             _mapa(cx, unidad_id, mapa)
+        if quiere_prefiltro:
+            cx.execute("update unidades set prefiltro_plan_id = %s where id = %s",
+                       (prefiltro, unidad_id))
         return una(cx, unidad_id)
 
     ya = cx.execute("select id from unidades where patente = %s", (patente,)).fetchone()
@@ -819,7 +864,29 @@ def guardar(cx, datos, usuario=None):
                       list(campos.values())).fetchone()
     if quiere_mapa:
         _mapa(cx, fila["id"], mapa)
+    if quiere_prefiltro and prefiltro:
+        cx.execute("update unidades set prefiltro_plan_id = %s where id = %s",
+                   (prefiltro, fila["id"]))
     return una(cx, fila["id"])
+
+
+def _plan_prefiltro(cx, valor):
+    """El id del plan de prefiltro elegido, o None para sacárselo."""
+    if not str(valor or "").strip():
+        return None
+    if not hay_prefiltros(cx):
+        raise ValueError("Falta correr gomeria/44_prefiltros.sql en el SQL Editor de Supabase.")
+    try:
+        plan_id = int(valor)
+    except (TypeError, ValueError):
+        raise ValueError("Ese plan de prefiltro no existe.") from None
+    plan = cx.execute("select clase from mantenimiento_planes where id = %s",
+                      (plan_id,)).fetchone()
+    if not plan:
+        raise ValueError("Ese plan de prefiltro no existe.")
+    if plan["clase"] != "prefiltro":
+        raise ValueError("Como prefiltro se asigna un plan de prefiltro.")
+    return plan_id
 
 
 def en_lote(cx, datos, usuario=None):

@@ -455,6 +455,18 @@
           <option value="">Sin plan asignado</option>
         </select>
         <span class="ayuda">Define cada cuántos kilómetros vence el próximo service.</span>
+        <button type="button" class="mini" id="mas-prefiltro" hidden
+          style="align-self:flex-start;margin-top:4px">+ Plan de prefiltro</button>
+      </div>
+      <!-- El segundo plan: solo para las unidades que llevan prefiltro. Se ve
+           y se controla en Control de flota › Prefiltros. -->
+      <div class="campo" id="campo-prefiltro" hidden>
+        <label for="c-prefiltro_plan_id">Plan de prefiltro</label>
+        <select id="c-prefiltro_plan_id" name="prefiltro_plan_id">
+          <option value="">No lleva prefiltro</option>
+        </select>
+        <span class="ayuda" id="ayuda-prefiltro">Cada cuántos kilómetros se cambia el prefiltro.
+          Se controla en Control de flota › Prefiltros.</span>
       </div>
       <div class="campo">
         <label for="c-modelo_3d">Modelo 3D</label>
@@ -773,6 +785,11 @@ function abrir(u){
   sel.value = mapaActual;
   $('#c-activa').value = u ? (u.activa ? '1' : '0') : '1';
   $('#c-mantenimiento_plan_id').value = u && u.mantenimiento_plan_id ? String(u.mantenimiento_plan_id) : '';
+  // El plan de prefiltro se ve si la unidad ya lo tiene; si no, queda el +.
+  const conPrefiltro = !!(u && u.prefiltro_plan_id);
+  $('#c-prefiltro_plan_id').value = conPrefiltro ? String(u.prefiltro_plan_id) : '';
+  $('#campo-prefiltro').hidden = !conPrefiltro;
+  $('#mas-prefiltro').hidden = conPrefiltro || !DATOS.prefiltros;
 
   /* La cédula sale con lo que ya trae la lista: se ve al instante. */
   $('.dos > div:first-child').hidden = !u;
@@ -1237,6 +1254,12 @@ async function mandar(cuerpo, metodo){
   return d;
 }
 
+$('#mas-prefiltro').onclick = () => {
+  $('#campo-prefiltro').hidden = false;
+  $('#mas-prefiltro').hidden = true;
+  $('#c-prefiltro_plan_id').focus();
+};
+
 $('#ficha').onsubmit = async e => {
   e.preventDefault();
   $('#ficha-error').hidden = true;
@@ -1246,6 +1269,7 @@ $('#ficha').onsubmit = async e => {
                    'mantenimiento_plan_id','configuracion_id'])
     cuerpo[c] = $('#c-' + c).value;
   cuerpo.activa = $('#c-activa').value === '1';
+  if (DATOS.prefiltros) cuerpo.prefiltro_plan_id = $('#c-prefiltro_plan_id').value;
   $('#guardar').disabled = true;
   try { await mandar(cuerpo); cerrar(); await cargar(); }
   catch (err) { $('#ficha-error').textContent = err.message; $('#ficha-error').hidden = false; }
@@ -1324,8 +1348,16 @@ async function cargar(){
     }).join('');
 
   const planes = DATOS.planes_mantenimiento || [];
+  const cada = p => p.cada_km ? ` · cada ${Number(p.cada_km).toLocaleString('es-AR')} km` : '';
   $('#c-mantenimiento_plan_id').innerHTML = '<option value="">Sin plan asignado</option>' +
-    planes.map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${Number(p.cada_km).toLocaleString('es-AR')} km</option>`).join('');
+    planes.filter(p => p.clase !== 'prefiltro')
+      .map(p => `<option value="${p.id}">${esc(p.nombre)}${cada(p)}</option>`).join('');
+  const dePrefiltro = planes.filter(p => p.clase === 'prefiltro');
+  $('#c-prefiltro_plan_id').innerHTML = '<option value="">No lleva prefiltro</option>' +
+    dePrefiltro.map(p => `<option value="${p.id}">${esc(p.nombre)}${cada(p)}</option>`).join('');
+  $('#ayuda-prefiltro').innerHTML = dePrefiltro.length
+    ? 'Cada cuántos kilómetros se cambia el prefiltro. Se controla en Control de flota › Prefiltros.'
+    : 'Todavía no hay planes de prefiltro: se crean en <a href="/parametros" style="color:inherit">Parámetros › Mantenimiento</a>.';
 
   pintar();
   fichaDeLaUrl();
