@@ -1,5 +1,6 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import sys
+from zoneinfo import ZoneInfo
 from pathlib import Path
 import unittest
 from unittest.mock import patch
@@ -50,7 +51,12 @@ class LitrosDeLaPortada(unittest.TestCase):
         self.assertEqual(salida["cortes"], {})
 
     def test_los_tres_cortes_salen_del_mismo_dato(self):
-        hoy = date.today()
+        # El mismo "hoy" que usa la portada, que es el de Buenos Aires y no
+        # el del servidor. Con date.today() esta prueba fallaba sola todos
+        # los dias entre las 00 y las 03 UTC, cuando en Argentina todavia es
+        # el dia anterior: el balde del dia quedaba con otra fecha que la
+        # serie y daba cero.
+        hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
         cx = self.Base({
             "total": {"litros": 1000, "cargas": 4,
                       "desde": date(2026, 1, 2), "hasta": hoy},

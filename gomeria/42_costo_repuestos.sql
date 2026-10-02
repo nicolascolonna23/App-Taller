@@ -39,7 +39,8 @@ comment on column repuestos_movimientos.costo_unitario is
 -- ---------------------------------------------------------------------
 create or replace view v_repuestos_stock as
 select
-  a.*,
+  a.id, a.codigo, a.descripcion, a.rubro, a.codigo_interno,
+  a.stock_minimo, a.activo,
   coalesce(sum(case when m.tipo = 'Salida' then -abs(m.cantidad)
                     else m.cantidad end), 0)::integer as stock_actual,
   case
