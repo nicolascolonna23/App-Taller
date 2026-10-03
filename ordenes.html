@@ -239,6 +239,7 @@
     <button class="btn espacio" id="nueva">+ Abrir orden</button>
     <button class="btn alt" id="nuevaExterna">+ Servicio externo</button>
   </div>
+  <div id="avisoLista"></div>
 
   <div class="caja">
     <table>
@@ -911,7 +912,7 @@ document.addEventListener('click', async ev => {
   }
 });
 
-$('#buscar').oninput = () => pintar();
+$('#buscar').oninput = () => { $('#avisoLista').innerHTML = ''; pintar(); };
 $('#filtroUnidad').onchange = () => pintar();
 $('#verHistorial').onclick = () => {
   const id = $('#filtroUnidad').value;
@@ -1263,8 +1264,17 @@ $('#guardarExterna').onclick = async () => {
           solicitado: $('#xDetalle').value}));
     $('#modalExterna').classList.remove('on');
     await cargar();
+    const varias = (r.ordenes || []).length > 1;
+    if (!varias) { pintar(); return abrirOrden(r.id); }
+    /* Una orden por unidad: en vez de abrir solo la primera —que parecía
+       que se había guardado una sola— se muestran todas juntas, filtradas
+       por el número de factura. */
+    $('#buscar').value = comun.factura;
+    D.filtro = '';
     pintar();
-    abrirOrden(r.id);
+    $('#avisoLista').innerHTML = `<div class="aviso bien">Se cargaron ${r.ordenes.length} servicios
+      externos con la factura ${esc(comun.factura)}, uno por unidad: Nº ${
+      r.ordenes.map(o => esc(o.numero)).join(', Nº ')}.</div>`;
   } catch (e) {
     $('#avisoExterna').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
   } finally {
