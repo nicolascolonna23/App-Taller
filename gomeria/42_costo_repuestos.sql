@@ -36,8 +36,15 @@ comment on column repuestos_movimientos.costo_unitario is
 -- Por eso también va `entradas_con_costo`: dice de cuánta información
 -- sale el número. Cero entradas con costo es "todavía no se sabe", que es
 -- distinto de "vale cero".
+--
+-- Se borra y se vuelve a crear en vez de reemplazarla: la vista usa a.*,
+-- y si a repuestos_articulos se le agregó una columna después de crearla
+-- (creado_en, por ejemplo), PostgreSQL no deja reemplazarla con las
+-- columnas en otro orden ("cannot change name of view column"). La vista
+-- no guarda datos: borrarla no borra nada.
 -- ---------------------------------------------------------------------
-create or replace view v_repuestos_stock as
+drop view if exists v_repuestos_stock;
+create view v_repuestos_stock as
 select
   a.*,
   coalesce(sum(case when m.tipo = 'Salida' then -abs(m.cantidad)
