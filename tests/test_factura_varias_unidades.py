@@ -108,3 +108,26 @@ class VariasOrdenes(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SinElModuloDeSolicitudes(unittest.TestCase):
+    """En producción no está 26_solicitudes.sql. Preguntar por la regla no
+    puede deshacer lo que el pedido ya escribió: así se perdía la orden de
+    la primera unidad y quedaba solo la de la segunda."""
+
+    def test_no_se_deshace_nada(self):
+        import solicitudes
+
+        class Cx:
+            deshizo = False
+
+            def rollback(self):
+                Cx.deshizo = True
+
+            def execute(self, sql, valores=()):
+                class R:
+                    def fetchone(self):
+                        return {"t": None}
+                return R()
+        self.assertIsNone(solicitudes.exigir_solicitud(Cx()))
+        self.assertFalse(Cx.deshizo)

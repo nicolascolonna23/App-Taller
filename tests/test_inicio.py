@@ -1,4 +1,5 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 import sys
 from pathlib import Path
 import unittest
@@ -50,7 +51,10 @@ class LitrosDeLaPortada(unittest.TestCase):
         self.assertEqual(salida["cortes"], {})
 
     def test_los_tres_cortes_salen_del_mismo_dato(self):
-        hoy = date.today()
+        # El «hoy» de la portada es el de Buenos Aires. date.today() es el
+        # del servidor (UTC en GitHub): entre las 21 y las 24 de Argentina
+        # ya es mañana, y la prueba fallaba según la hora en que corría.
+        hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
         cx = self.Base({
             "total": {"litros": 1000, "cargas": 4,
                       "desde": date(2026, 1, 2), "hasta": hoy},

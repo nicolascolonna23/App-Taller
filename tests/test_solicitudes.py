@@ -304,6 +304,8 @@ class RendirLaFactura(unittest.TestCase):
 
         def execute(self, consulta, valores=()):
             sql = " ".join(consulta.split())
+            if sql.startswith("select to_regclass('public.solicitudes_ajustes')"):
+                return Resultado({"t": "solicitudes_ajustes"})
             if sql.startswith("select exigir_solicitud from solicitudes_ajustes"):
                 self.consultas.append((sql, valores))
                 return Resultado({"exigir_solicitud": self.exigir})

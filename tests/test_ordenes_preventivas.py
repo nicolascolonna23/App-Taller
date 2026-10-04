@@ -37,6 +37,8 @@ class BaseFalsa:
             return Resultado()
         # Sin el módulo de solicitudes instalado no se le exige solicitud a nadie:
         # estas pruebas miran el enganche con el service, no el circuito.
+        if sql.startswith("select to_regclass('public.solicitudes_ajustes')"):
+            return Resultado({"t": "solicitudes_ajustes"})
         if sql.startswith("select exigir_solicitud from solicitudes_ajustes"):
             return Resultado({"exigir_solicitud": False})
         if sql.startswith("select * from ordenes_trabajo where id"):
