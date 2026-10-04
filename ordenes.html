@@ -66,6 +66,11 @@
   .caja{background:var(--surface-1);border:1px solid var(--hairline);
     border-radius:14px;padding:15px;overflow:auto}
   table{width:100%;border-collapse:collapse}
+  th[data-orden]{cursor:pointer;user-select:none;white-space:nowrap}
+  th[data-orden]:hover{color:var(--ink)}
+  th[data-orden]::after{content:' ⇅';opacity:.35}
+  th[data-orden].asc::after{content:' ▲';opacity:1;color:var(--brand)}
+  th[data-orden].desc::after{content:' ▼';opacity:1;color:var(--brand)}
   th{text-align:left;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
     letter-spacing:.8px;padding:10px 8px;border-bottom:1px solid var(--hairline-2);
     white-space:nowrap}
@@ -244,8 +249,10 @@
   <div class="caja">
     <table>
       <thead><tr>
-        <th>Nº</th><th>Unidad</th><th>Fecha</th><th>Trabajo</th>
-        <th>Renglones</th><th class="num">Total</th><th>Estado</th><th></th>
+        <th data-orden="numero">Nº</th><th data-orden="patente">Unidad</th>
+        <th data-orden="fecha">Fecha</th><th data-orden="trabajo">Trabajo</th>
+        <th data-orden="renglones">Renglones</th><th class="num" data-orden="total">Total</th>
+        <th data-orden="estado">Estado</th><th></th>
       </tr></thead>
       <tbody id="filas"><tr><td colspan="8" class="vacio">Cargando…</td></tr></tbody>
     </table>
@@ -416,6 +423,7 @@ function pintar() {
   if (q) lista = lista.filter(o => [o.numero, o.patente, o.interno, o.solicitado,
       o.diagnostico, o.taller, o.factura, o.responsable, o.chofer]
       .join(' ').toLowerCase().includes(q));
+  lista = ordenar(lista);
 
   $('#filas').innerHTML = lista.length ? lista.map(o => {
     const marca = o.estado === 'anulada' ? 'anulada'
@@ -455,6 +463,38 @@ function pintar() {
     b.classList.toggle('on', b.dataset.filtro === D.filtro));
 }
 
+/* Ordenar por columna: un clic de mayor a menor, otro de menor a mayor,
+   el tercero vuelve al orden de siempre (abiertas arriba, lo último
+   primero). */
+const CLAVES = {
+  numero: o => Number(o.numero),
+  patente: o => o.patente || '',
+  fecha: o => o.fecha || '',
+  trabajo: o => (o.tipo === 'externa' ? o.taller || '' : o.solicitado || o.diagnostico || '').toLowerCase(),
+  renglones: o => o.tipo === 'externa' ? -1 : Number(o.cuantas_tareas) + Number(o.cuantos_repuestos),
+  total: o => Number(o.total) || 0,
+  estado: o => o.estado === 'anulada' ? 'anulada' : o.tipo === 'externa' ? 'externa' : o.estado,
+};
+function ordenar(lista) {
+  if (!D.col) return lista;
+  const clave = CLAVES[D.col], signo = D.asc ? 1 : -1;
+  return lista.slice().sort((a, b) => {
+    const x = clave(a), y = clave(b);
+    const r = typeof x === 'number' && typeof y === 'number' ? x - y
+      : String(x).localeCompare(String(y), 'es');
+    return r * signo || Number(b.numero) - Number(a.numero);
+  });
+}
+document.querySelectorAll('th[data-orden]').forEach(th => th.onclick = () => {
+  const col = th.dataset.orden;
+  if (D.col !== col) { D.col = col; D.asc = false; }
+  else if (!D.asc) D.asc = true;
+  else D.col = null;
+  document.querySelectorAll('th[data-orden]').forEach(x => x.classList.remove('asc', 'desc'));
+  if (D.col) th.classList.add(D.asc ? 'asc' : 'desc');
+  pintar();
+});
+
 function opciones() {
   const u = D.datos.unidades;
   const lista = u.map(x => `<option value="${x.id}">${esc(pat(x.patente))}${
@@ -481,6 +521,35 @@ async function cargar() {
   if (!r.ok) throw new Error(d.error || 'No se pudieron leer las órdenes.');
   D.datos = d;
   opciones();
+}
+
+/* Las órdenes que salieron de una misma factura, una debajo de la otra,
+   cada una con su unidad, su monto y lo que se hizo. */
+async function verVarias(ordenes, factura) {
+  $('#tituloOrden').textContent = `${ordenes.length} servicios externos · Factura ${factura}`;
+  $('#cuerpoOrden').innerHTML = '<p class="pista">Buscando…</p>';
+  $('#modalOrden').classList.add('on');
+  try {
+    const fichas = await Promise.all(ordenes.map(o => api('ficha', {id: Number(o.id)})));
+    const dato = (rot, val) => `<div><span>${rot}</span><b>${esc(val || '—')}</b></div>`;
+    $('#cuerpoOrden').innerHTML = fichas.map(({orden: o}) => `
+      <div class="bloque"><h3>Servicio externo Nº ${esc(o.numero)} · ${esc(pat(o.patente))}</h3>
+        <div class="ficha-cab">
+          ${dato('Unidad', pat(o.patente))}
+          ${dato('Marca y modelo', [o.marca, o.modelo].filter(Boolean).join(' '))}
+          ${dato('Kilómetros', o.km ? nfm.format(o.km) : '')}
+          ${dato('Mantenimiento', o.mantenimiento === 'preventivo' ? 'Preventivo'
+                 : o.mantenimiento === 'correctivo' ? 'Correctivo' : 'Sin clasificar')}
+          ${dato('Fecha', fecha(o.fecha))}
+          ${dato('Taller', o.taller)}
+          ${dato('Monto', o.monto != null ? '$ ' + money(o.monto) : '')}
+          ${dato('Qué se hizo', o.solicitado)}
+        </div>
+        <button class="btn alt" data-ver="${o.id}">Abrir la orden ${esc(o.numero)}</button>
+      </div>`).join('');
+  } catch (e) {
+    $('#cuerpoOrden').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
 }
 
 // --------------------------------------------------------- la ficha
@@ -1275,6 +1344,7 @@ $('#guardarExterna').onclick = async () => {
     $('#avisoLista').innerHTML = `<div class="aviso bien">Se cargaron ${r.ordenes.length} servicios
       externos con la factura ${esc(comun.factura)}, uno por unidad: Nº ${
       r.ordenes.map(o => esc(o.numero)).join(', Nº ')}.</div>`;
+    verVarias(r.ordenes, comun.factura);
   } catch (e) {
     $('#avisoExterna').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
   } finally {

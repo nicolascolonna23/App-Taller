@@ -555,11 +555,15 @@ def exigir_solicitud(cx):
     columna donde anotar quién mandó a hacer el trabajo, así que el que
     carga una factura tiene que poder seguir como antes.
     """
-    try:
-        fila = cx.execute("select exigir_solicitud from solicitudes_ajustes").fetchone()
-    except Exception:
-        cx.rollback()
+    # Se pregunta si la tabla existe en vez de probar y deshacer: un
+    # rollback acá adentro borraba todo lo que el pedido ya había escrito.
+    # Con una factura de dos unidades, la orden de la primera se perdía y
+    # quedaba solo la de la segunda.
+    existe = cx.execute(
+        "select to_regclass('public.solicitudes_ajustes') as t").fetchone()
+    if not existe or not existe["t"]:
         return None
+    fila = cx.execute("select exigir_solicitud from solicitudes_ajustes").fetchone()
     return bool(fila["exigir_solicitud"]) if fila else True
 
 
