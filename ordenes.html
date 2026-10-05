@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Órdenes de trabajo | Gestión de flota</title>
+<title>Órdenes de trabajo | Titán Flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -13,7 +13,7 @@
     --plane:#08090b; --surface-1:#12161a; --surface-2:#191e23; --surface-3:#20262c;
     --hairline:rgba(255,255,255,.08); --hairline-2:rgba(255,255,255,.14);
     --ink:#edf0f2; --ink-2:#a9b0b8; --ink-muted:#8d959e;
-    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
+    --brand:#2563eb; --brand-soft:color-mix(in srgb,var(--brand) 13%,transparent);
     --ok:#31bd65; --warn:#f0b429; --bad:#e35d62;
   }
   *{box-sizing:border-box}
@@ -220,7 +220,7 @@
 <body>
 
 <header class="top">
-  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Titán Flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
   <span class="brand">Órdenes de trabajo</span>
   <span class="who" id="quien"></span>
@@ -786,7 +786,7 @@ function imprimir() {
     <div class="titulo">
       <div class="casa">DIEMAR<small>Taller propio · ${esc(o.sucursal || 'Casa central')}</small></div>
       <div class="nro">
-        <img src="/logo-cedula.png" alt="Gestión de flota" onerror="this.remove()">
+        <img src="/logo-cedula.png" alt="Titán Flota" onerror="this.remove()">
         ${o.tipo === 'externa' ? 'SERVICIO EXTERNO' : 'HOJA DE ORDEN DE TRABAJO'}
         <b>Nº ${numero}</b>
         ${esc(o.estado === 'anulada' ? 'ANULADA' : o.estado === 'abierta' ? 'ABIERTA' : 'CERRADA')}</div>
@@ -858,7 +858,7 @@ function imprimir() {
   <div class="firmas">
     <div>Responsable</div><div>Aclaración</div><div>Fecha</div>
   </div>
-  <p class="sello">Gestión de flota · orden ${numero} · impresa el ${fecha(hoy())}</p>`;
+  <p class="sello">Titán Flota · orden ${numero} · impresa el ${fecha(hoy())}</p>`;
 
   $('#hoja').innerHTML = h;
 

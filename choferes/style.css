@@ -1,1 +1,26 @@
-:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#10151b;color:#eff4f8}*{box-sizing:border-box}body{margin:0}main{max-width:780px;margin:auto;padding:24px 18px}header{display:flex;align-items:center;justify-content:space-between;gap:12px}a{color:#ffd44c}h1{font-size:30px;margin-bottom:8px}p{line-height:1.6;color:#bac6d3}form,article,.panel{background:#1b242e;border:1px solid #354454;border-radius:16px;padding:20px;margin:18px 0}label{display:block;margin:16px 0 6px;font-weight:600}input,select,textarea,button{font:inherit;border-radius:9px;padding:12px;border:1px solid #536273;max-width:100%}input,select,textarea{width:100%;background:#111820;color:inherit}textarea{min-height:130px;resize:vertical}button{background:#ffd44c;color:#171b20;font-weight:700;cursor:pointer;margin:8px 6px 0 0}button:disabled{opacity:.5;cursor:wait}.secondary{background:#253443;color:#fff}.status{padding:12px;border-left:3px solid #ffd44c}small{color:#b9c9d9}img{max-width:100%;max-height:300px;border-radius:10px;margin:8px}.photos{display:flex;flex-wrap:wrap;gap:8px}.photos img{max-width:200px}article h2{font-size:20px;overflow-wrap:anywhere}.description{white-space:pre-wrap;overflow-wrap:anywhere}[hidden]{display:none!important}
+/* Choferes · Titán Flota. Pensada para el teléfono: botones grandes,
+   contraste alto y la barra azul noche del sistema. */
+:root{color-scheme:light;--bg:#f4f6f8;--panel:#fff;--line:#e1e6ed;--line-2:#c9d2de;--ink:#14243a;--ink-2:#34465f;--muted:#5a6b80;--brand:#2563eb;
+  font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased}
+main{max-width:780px;margin:auto;padding:0 16px 32px}
+/* La barra va de borde a borde aunque esté adentro del contenedor. */
+main>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 8px;padding:10px 0;min-height:56px;
+  background:var(--tf-nav,#14243a);box-shadow:0 0 0 100vmax var(--tf-nav,#14243a);clip-path:inset(0 -100vmax);color:#fff}
+main>header strong{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:650}
+main>header img{height:28px;width:auto;margin:0;border-radius:0;display:block}
+main>header a{color:rgba(255,255,255,.85);text-decoration:none;border:1px solid rgba(255,255,255,.16);border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600}
+main>header a:focus-visible{outline:2px solid #fff;outline-offset:2px}
+a{color:var(--brand)}h1{font-size:26px;margin:18px 0 6px;letter-spacing:-.015em}p{line-height:1.6;color:var(--ink-2)}
+form,article,.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:18px 0}
+label{display:block;margin:16px 0 6px;font-weight:600;color:var(--ink-2)}
+input,select,textarea,button{font:inherit;border-radius:8px;padding:12px;border:1px solid var(--line-2);max-width:100%}
+input,select,textarea{width:100%;background:var(--panel);color:inherit}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+textarea{min-height:130px;resize:vertical}
+button{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:650;cursor:pointer;margin:8px 6px 0 0;min-height:44px}
+button:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+button:disabled{opacity:.5;cursor:wait}.secondary{background:var(--panel);color:var(--ink);border-color:var(--line-2)}
+.status{padding:12px;border-left:3px solid var(--brand);background:var(--panel);border-radius:0 8px 8px 0}.status:empty{display:none}
+small{color:var(--muted)}img{max-width:100%;max-height:300px;border-radius:10px;margin:8px}.photos{display:flex;flex-wrap:wrap;gap:8px}.photos img{max-width:200px}
+article h2{font-size:18px;overflow-wrap:anywhere}.description{white-space:pre-wrap;overflow-wrap:anywhere}[hidden]{display:none!important}
