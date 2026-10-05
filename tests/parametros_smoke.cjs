@@ -101,7 +101,7 @@ const marcas = () => ({
         return route.fulfill({json: {ok: true}});
       }
       if (url.pathname.startsWith('/marcas/'))
-        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'titan-flota-logo.png')),
                               contentType: 'image/png'});
       if (url.pathname === '/api/fluidos') {
         if (req.method() === 'GET') return route.fulfill({json: fluidos()});
@@ -113,7 +113,7 @@ const marcas = () => ({
                                      rol_nombre: 'Administrador', administra: true,
                                      modulos: ['parametros', 'usuarios']}});
       if (url.pathname === '/logo.png')
-        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'titan-flota-logo.png')),
                               contentType: 'image/png'});
       if (url.pathname === '/parametros')
         return route.fulfill({body: fs.readFileSync(path.join(dir, 'parametros.html'), 'utf8'),

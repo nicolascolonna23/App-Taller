@@ -47,7 +47,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     if(p==='/'){const pos=html.lastIndexOf('</body>');html=pos<0?html+'<script src="/pengui.js"></script>':html.slice(0,pos)+'<script src="/pengui.js"></script>'+html.slice(pos);}
     return route.fulfill({body:html,contentType:'text/html'});
    }
-   const assets={'/logo.png':'logo_diemar4.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
+   const assets={'/logo.png':'titan-flota-logo.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
    const file=path.join(dir,assets[p]||p.slice(1));
    if(file.startsWith(dir+path.sep)&&fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({body:fs.readFileSync(file),contentType:p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':'image/png'});
    return route.abort();
@@ -58,7 +58,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     assert.equal(await page.locator('#pengui').count(),url==='/'?1:0);
     if(url==='/gomeria'){
      const visorColor=await page.evaluate(()=>{const d=document.createElement('div');d.className='visor3d';document.body.appendChild(d);return getComputedStyle(d).backgroundColor;});
-     assert.equal(visorColor,'rgb(17, 22, 27)');
+     assert.equal(visorColor,'rgb(15, 29, 48)');
     }
     if(url==='/'){
      // Los litros cargados: el total del corte elegido y su serie.
@@ -83,9 +83,10 @@ let PREFS={tema:'claro',paleta:'diemar'};
      await page.click('[data-l="dia"]');
     }
     if(url==='/repuestos'){
-     assert((await page.locator('.brand').evaluate(e=>getComputedStyle(e,'::before').backgroundImage)).includes('/logo.png'));
+     assert.equal(await page.locator('.brand img').getAttribute('src'),'/logo.png');
+     assert(await page.locator('.brand img').isVisible());
      const ghostColor=await page.evaluate(()=>{const bar=document.createElement('div'),b=document.createElement('button');bar.className='bar';b.className='btn ghost';bar.appendChild(b);document.body.appendChild(bar);return getComputedStyle(b).color;});
-     assert.equal(ghostColor,'rgb(255, 255, 255)');
+     assert.equal(ghostColor,'rgb(20, 36, 58)');
     }
     if(url==='/control'){
      // La solapa elegida se tiene que leer. Se mide el contraste y no un
@@ -118,13 +119,13 @@ let PREFS={tema:'claro',paleta:'diemar'};
     if(url==='/combustible')assert(!(await page.locator('body').innerText()).includes('EN PRUEBA'));
     // El fondo del tema claro lo define tema.js (--plane). Si cambia allá,
     // esta línea tiene que cambiar acá: es el precio de fijar un color.
-    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(242, 245, 248)');
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(244, 246, 248)');
     if(url==='/'){
      assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);
      assert.equal(await page.locator('.nav a', {hasText:'Alertas'}).count(),0);
      assert.equal(await page.locator('.side-footer').count(),0);
      assert.equal(await page.locator('#sello').count(),0);
-     assert.equal(await page.locator('.brand-copy').innerText(),'PENGUIN FLEET\nMANAGEMENT');
+     assert.equal(await page.locator('.sidebar .brand img').getAttribute('alt'),'Titán Flota');
      // Pengui es una tarjeta de la portada, no un botón que abre algo
      // encima del tablero.
      assert.equal(await page.locator('.top-actions #pengui').count(),0);

@@ -1,4 +1,29 @@
-# App Taller — Flota Diemar
+# Titán Flota
+
+Sistema de control de flota, mantenimiento y taller (antes «App Taller» /
+«Penguin Fleet»). El repositorio, el servicio de Render y los identificadores
+internos conservan sus nombres anteriores para no romper despliegues ni datos.
+
+## Identidad visual
+
+- **Logo:** `titan-flota-logo.png` (fondo transparente; se sirve en `/logo.png`
+  y `/logo-cedula.png`), `titan-flota-impresion.png` para las etiquetas,
+  `favicon.png` y `titan-flota-icono.png` (logo completo sobre azul noche).
+- **Paleta:** azul noche `#14243A` (navegación y títulos), azul brillante
+  `#2563EB` (acción principal, selección), blanco (superficies) y gris muy
+  claro `#F4F6F8` (fondo). Los colores de estado solo comunican alertas,
+  errores o resultados, siempre con texto o ícono al lado.
+- **Dónde vive:** `tema.js` define los colores por rol para el tema claro
+  (predeterminado) y el oscuro, y los traduce a las variables de cada
+  pantalla; `sistema.css` —inyectada por el servidor en todas las
+  pantallas— unifica la barra superior azul noche, tipografía, botones,
+  formularios, tablas, pestañas, diálogos y foco de teclado. Un cambio de
+  estilo compartido va ahí, no en cada pantalla.
+- La paleta predeterminada conserva el id `diemar` en las preferencias
+  guardadas. Las preferencias anteriores al rediseño arrancan en el tema
+  claro; el oscuro sigue disponible en Configuración.
+
+## Pantallas
 
 Tres pantallas HTML estáticas, sin build ni dependencias. Se abren directo desde
 GitHub Pages (o desde cualquier servidor de archivos).

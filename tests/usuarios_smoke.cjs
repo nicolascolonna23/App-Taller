@@ -64,7 +64,7 @@ const datos = {
                                      rol_nombre: 'Administrador', administra: true,
                                      modulos: ['usuarios']}});
       if (url.pathname === '/logo.png')
-        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'titan-flota-logo.png')),
                               contentType: 'image/png'});
       if (url.pathname === '/usuarios')
         return route.fulfill({body: fs.readFileSync(path.join(dir, 'usuarios.html'), 'utf8'),
