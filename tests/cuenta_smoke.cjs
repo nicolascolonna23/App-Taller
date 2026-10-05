@@ -33,7 +33,7 @@ const dir = path.resolve(__dirname, '..');
         return route.fulfill({body: '<html><body>Login</body></html>',
                               contentType: 'text/html'});
       if (url.pathname === '/logo.png')
-        return route.fulfill({body: fs.readFileSync(path.join(dir, 'logo_diemar4.png')),
+        return route.fulfill({body: fs.readFileSync(path.join(dir, 'titan-flota-logo.png')),
                               contentType: 'image/png'});
       if (url.pathname === '/parametros')
         return route.fulfill({body: fs.readFileSync(path.join(dir, 'parametros.html'), 'utf8')

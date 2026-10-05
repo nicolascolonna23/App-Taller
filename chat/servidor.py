@@ -455,7 +455,7 @@ class Handler(BaseHTTPRequestHandler):
             self._cabeceras("text/html; charset=utf-8", len(cuerpo))
             self.wfile.write(cuerpo)
         elif ruta == "/logo.png":
-            archivo = os.path.join(AQUI, os.pardir, "logo_diemar4.png")
+            archivo = os.path.join(AQUI, os.pardir, "titan-flota-logo.png")
             if not os.path.exists(archivo):
                 self.send_error(404)
                 return

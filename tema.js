@@ -17,36 +17,46 @@
 (function () {
   'use strict';
 
-  /* El color de cada paleta. Lo demás sale de él. */
+  /* El color de cada paleta. Lo demás sale de él. La primera es la de
+     Titán Flota; conserva el id «diemar» porque es el que está guardado en
+     las preferencias de cada usuario. */
   const PALETAS = {
-    diemar:'#ffd400', naranja:'#f4791f', azul:'#3d8bfd', verde:'#22a06b',
+    diemar:'#2563eb', naranja:'#f4791f', azul:'#3d8bfd', verde:'#22a06b',
     violeta:'#8b7bf7', rojo:'#e5484d', grafito:'#8a94a0'
   };
 
   /* Los dos temas, en roles. El claro no es el oscuro dado vuelta: el
      papel tiene que ser papel y la tinta, tinta. */
   const TEMAS = {
+    /* Azul noche: el mismo fondo de la barra de navegación, con paneles un
+       punto más claros. Sin negros puros ni brillos. */
     oscuro: {
       esquema:'dark',
-      fondo:'#101419', panel:'#171d24', panel2:'#202832', panel3:'#293440',
-      linea:'rgba(255,255,255,.08)', linea2:'rgba(255,255,255,.14)',
-      texto:'#ffffff', texto2:'#e4e4e4', apagado:'#a5a5a5',
-      sombra:'0 18px 40px rgba(0,0,0,.45)',
-      ok:'#31bd65', atencion:'#f0b429', mal:'#e35d62', dato:'#7db3ef',
-      velo:'rgba(9,11,14,.55)', velo2:'rgba(9,11,14,.14)', velo3:'rgba(9,11,14,.90)',
-      vidrio:'rgba(15,20,25,.74)', vidrioLinea:'rgba(255,255,255,.14)',
-      sombraTexto:'0 2px 12px rgba(0,0,0,.7)'
+      fondo:'#0c1726', panel:'#14243a', panel2:'#1b2e48', panel3:'#243a57',
+      linea:'rgba(255,255,255,.09)', linea2:'rgba(255,255,255,.17)',
+      texto:'#f4f6f8', texto2:'#d5dde8', apagado:'#9eaec2',
+      sombra:'0 8px 24px rgba(0,0,0,.28)',
+      ok:'#3ccf85', atencion:'#f4b740', mal:'#f2777a', dato:'#86b4ff',
+      velo:'rgba(12,23,38,.55)', velo2:'rgba(12,23,38,.14)', velo3:'rgba(12,23,38,.90)',
+      vidrio:'rgba(20,36,58,.86)', vidrioLinea:'rgba(255,255,255,.14)',
+      sombraTexto:'0 2px 12px rgba(0,0,0,.6)',
+      nav:'#0f1d30', navTexto:'#ffffff', navApagado:'rgba(255,255,255,.72)',
+      navLinea:'rgba(255,255,255,.10)', navHover:'rgba(255,255,255,.08)'
     },
+    /* La identidad de Titán Flota: fondo gris muy claro, superficies
+       blancas, texto azul noche y el azul brillante para lo que se toca. */
     claro: {
       esquema:'light',
-      fondo:'#f2f5f8', panel:'#ffffff', panel2:'#e9eef4', panel3:'#dfe6ee',
-      linea:'rgba(0,0,0,.10)', linea2:'rgba(0,0,0,.20)',
-      texto:'#121212', texto2:'#343434', apagado:'#666666',
-      sombra:'0 12px 30px rgba(0,0,0,.10)',
-      ok:'#16834a', atencion:'#8a6800', mal:'#bd3038', dato:'#574a00',
-      velo:'rgba(255,255,255,.60)', velo2:'rgba(255,255,255,.16)', velo3:'rgba(245,245,242,.94)',
-      vidrio:'rgba(255,255,255,.82)', vidrioLinea:'rgba(16,24,32,.14)',
-      sombraTexto:'0 1px 8px rgba(255,255,255,.75)'
+      fondo:'#f4f6f8', panel:'#ffffff', panel2:'#f0f3f7', panel3:'#e4e9f0',
+      linea:'#e1e6ed', linea2:'#c9d2de',
+      texto:'#14243a', texto2:'#34465f', apagado:'#5a6b80',
+      sombra:'0 1px 2px rgba(20,36,58,.06), 0 6px 16px rgba(20,36,58,.06)',
+      ok:'#15803d', atencion:'#a15c07', mal:'#b91c1c', dato:'#1d4ed8',
+      velo:'rgba(244,246,248,.60)', velo2:'rgba(244,246,248,.16)', velo3:'rgba(244,246,248,.94)',
+      vidrio:'rgba(255,255,255,.92)', vidrioLinea:'rgba(20,36,58,.12)',
+      sombraTexto:'none',
+      nav:'#14243a', navTexto:'#ffffff', navApagado:'rgba(255,255,255,.74)',
+      navLinea:'rgba(255,255,255,.12)', navHover:'rgba(255,255,255,.08)'
     }
   };
 
@@ -73,7 +83,10 @@
     dato:    ['--cyan', '--series-1'],
     velo:    ['--velo'], velo2: ['--velo-2'], velo3: ['--velo-3'],
     vidrio:  ['--vidrio'], vidrioLinea: ['--vidrio-linea'],
-    sombraTexto: ['--sombra-texto']
+    sombraTexto: ['--sombra-texto'],
+    /* La barra de navegación de Titán Flota: azul noche en los dos temas. */
+    nav: ['--tf-nav'], navTexto: ['--tf-nav-ink'], navApagado: ['--tf-nav-muted'],
+    navLinea: ['--tf-nav-line'], navHover: ['--tf-nav-hover']
   };
 
   /* Un color con transparencia, para los fondos suaves de la marca. */
@@ -90,8 +103,8 @@
 
     const roles = Object.assign({}, t, {
       marca,
-      marcaSuave: conAlfa(marca, claro ? 0.10 : 0.13),
-      marcaLinea: conAlfa(marca, claro ? 0.28 : 0.32),
+      marcaSuave: conAlfa(marca, claro ? 0.09 : 0.16),
+      marcaLinea: conAlfa(marca, claro ? 0.28 : 0.40),
       marcaFuerte: marca
     });
 
@@ -129,20 +142,19 @@
       : '');
     if (!propia) document.documentElement.style.removeProperty('--portada');
 
-    /* El logo. El de la aplicación es blanco y sobre fondo claro no se ve;
-       el azul de las etiquetas sí. Es la misma marca en dos tintas. */
-    for (const img of document.querySelectorAll('img[src^="/logo"]'))
-      img.src = claro && !img.closest('.top,.sidebar,header') ? '/logo-cedula.png' : '/logo.png';
   }
 
   /* Lo último que se vio, para que la pantalla no arranque de un color y
      cambie al otro medio segundo después. Se guarda en el navegador y se
      refresca con lo que diga el servidor, que es el que manda. */
   const GUARDADO = 'taller.tema';
-  let prefs = { tema:'oscuro', paleta:'diemar', tiene_fondo:false, fondo_propio:true };
+  let prefs = { tema:'claro', paleta:'diemar', tiene_fondo:false, fondo_propio:true, diseno:2 };
   try {
     const antes = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
-    if (antes) prefs = Object.assign(prefs, antes);
+    /* Lo guardado antes del rediseño de Titán Flota arrancaba en oscuro
+       por defecto: se ignora el tema y se estrena el claro. */
+    if (antes) prefs = Object.assign(prefs, antes,
+      (antes.diseno || 0) < 2 ? { tema:'claro', diseno:2 } : {});
   } catch (e) { /* sin memoria del navegador, se arranca con lo de siempre */ }
   aplicar(prefs);
 

@@ -3,19 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Consultas | Gestión de flota</title>
+<title>Consultas | Titán Flota</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2312161a'/%3E%3Crect x='12' y='7' width='8' height='18' fill='%23ff7a1a'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   /* Mismos tokens que el panel de flota. */
   :root{
-    color-scheme: dark;
-    --plane:#08090b; --surface-1:#12161a; --surface-2:#171c21; --surface-3:#1d2329;
-    --hairline:rgba(255,255,255,.07); --hairline-2:rgba(255,255,255,.12);
-    --ink:#e9ecef; --ink-2:#a9b0b8; --ink-muted:#7b828b;
-    --brand:#ffd400; --brand-soft:color-mix(in srgb,var(--brand) 12%,transparent);
-    --st-good:#0ca30c; --st-warning:#fab219; --st-critical:#d03b3b;
+    color-scheme: light;
+    --plane:#f4f6f8; --surface-1:#ffffff; --surface-2:#f0f3f7; --surface-3:#e4e9f0;
+    --hairline:#e1e6ed; --hairline-2:#c9d2de;
+    --ink:#14243a; --ink-2:#34465f; --ink-muted:#5a6b80;
+    --brand:#2563eb; --brand-soft:color-mix(in srgb,var(--brand) 10%,transparent);
+    --st-good:#15803d; --st-warning:#a15c07; --st-critical:#b91c1c;
     --radius:14px;
   }
   *{box-sizing:border-box}
@@ -30,10 +30,9 @@
   .topbar{
     display:flex; align-items:center; gap:16px; flex-wrap:wrap;
     padding:14px 22px; border-bottom:1px solid var(--hairline);
-    background:var(--surface-1); position:relative; flex:none;
+    background:#14243a; color:#fff; position:relative; flex:none;
   }
-  .topbar::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;
-    background:linear-gradient(90deg,var(--brand),color-mix(in srgb,var(--brand) 0%,transparent) 55%)}
+  .topbar .brandblock h1{color:#fff} .topbar .brandblock .sub{color:rgba(255,255,255,.74)}
   .logo{height:34px;width:auto}
   .brandblock{display:flex;flex-direction:column;gap:2px;margin-right:auto}
   .brandblock h1{margin:0;font-size:16px;font-weight:600;letter-spacing:-.01em}
@@ -69,7 +68,7 @@
   .md p{margin:0 0 10px}
   .md ul,.md ol{margin:0 0 10px;padding-left:22px}
   .md li{margin:3px 0}
-  .md strong{font-weight:600;color:#fff}
+  .md strong{font-weight:600;color:var(--ink)}
   .md code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;
     background:var(--surface-3);border:1px solid var(--hairline);border-radius:5px;padding:1px 5px}
   .md h3{font-size:13px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink-2);
@@ -134,9 +133,9 @@
 <body>
 
 <div class="topbar">
-  <img src="logo.png" alt="Gestión de flota" class="logo">
+  <img src="logo.png" alt="Titán Flota" class="logo">
   <div class="brandblock">
-    <div class="sub">Gestión de flota</div>
+    <div class="sub">Titán Flota</div>
     <h1>Consultas de clientes y cuenta corriente</h1>
   </div>
   <span class="chip" id="chip-datos"><span class="dot"></span><span id="txt-datos">Cargando…</span></span>

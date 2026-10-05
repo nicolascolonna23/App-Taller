@@ -112,7 +112,7 @@ class Handler(BaseHTTPRequestHandler):
         ruta, params = u.path, parse_qs(u.query)
 
         if ruta == "/logo.png":
-            archivo = os.path.join(AQUI, os.pardir, "logo_diemar4.png")
+            archivo = os.path.join(AQUI, os.pardir, "titan-flota-logo.png")
             if not os.path.exists(archivo):
                 return self._error("sin logo", 404)
             return self._responder(open(archivo, "rb").read(), "image/png")

@@ -39,7 +39,7 @@ def fmt_pat(p):
 
 
 HOJA = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<title>Etiquetas QR — Gomería</title>
+<title>Etiquetas QR · Gomería | Titán Flota</title>
 <style>
   @page {{ size: A4; margin: 12mm; }}
   body {{ font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; margin:0; color:#000; background:#fff; }}
@@ -62,7 +62,7 @@ HOJA = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
 
 
 CARTEL = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
-<title>QR - Gomeria</title><style>
+<title>QR · Gomería | Titán Flota</title><style>
   @page {{ size: A4; margin: 15mm; }}
   body {{ font-family: system-ui,-apple-system,'Segoe UI',sans-serif; margin:0; color:#000;
          text-align:center; background:#fff; }}
@@ -86,7 +86,7 @@ CARTEL = """<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
   <div style="margin-left:7mm" class="ej">&ldquo;AD 247 MQ gir&eacute; las dos de afuera del lado izquierdo&rdquo;</div>
   <div><b>3.</b> Revis&aacute; lo que entendi&oacute; y confirm&aacute;.</div>
 </div>
-<div class="pie">Gestión de flota</div>
+<div class="pie">Titán Flota</div>
 </body></html>"""
 
 

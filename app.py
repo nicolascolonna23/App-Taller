@@ -93,10 +93,15 @@ PANTALLAS = {
     # El módulo liviano para el teléfono: solo gomería y órdenes.
     "/movil":      ("telefono.html",           "text/html; charset=utf-8"),
     "/configuracion": ("configuracion.html",   "text/html; charset=utf-8"),
-    # El logo de la app es blanco; sobre el papel claro de la cédula no se
-    # vería. Este es el azul, el mismo que se imprime en las etiquetas.
-    "/logo-cedula.png": ("logo-cedula.png",     "image/png"),
+    # El logo de Titán Flota sirve sobre papel y sobre la barra azul noche:
+    # la cédula y la orden impresa piden este nombre desde siempre.
+    "/logo-cedula.png": ("titan-flota-logo.png", "image/png"),
     "/favicon.png": ("favicon.png",             "image/png"),
+    "/titan-flota-icono.png": ("titan-flota-icono.png", "image/png"),
+    # Titán, el robot del asistente: entero en su pantalla y la cabeza
+    # como avatar en la tarjeta de la portada.
+    "/titan-asistente.png": ("titan-asistente.png", "image/png"),
+    "/titan-asistente-avatar.png": ("titan-asistente-avatar.png", "image/png"),
     # El visor 3D del camión. Está afuera de las pantallas porque lo usan
     # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
     # Gomería.
@@ -118,19 +123,21 @@ def _sin_permiso(modulo, usuario):
     rol = (usuario or {}).get("rol_nombre") or (usuario or {}).get("rol") or ""
     return f"""<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sin permiso | Gestión de flota</title>
+<title>Sin permiso | Titán Flota</title>
 <link rel="icon" href="/favicon.png" type="image/png"></head>
-<body style="margin:0;background:#08090b;color:#edf0f2;
-  font:15px Inter,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh">
-<main style="max-width:430px;padding:26px;text-align:center">
-  <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;
-    color:#8d959e;font-weight:800;margin:0 0 10px">Sin permiso</p>
-  <h1 style="font-size:23px;font-weight:600;margin:0 0 12px">{modulo}</h1>
-  <p style="color:#a9b0b8;line-height:1.6;margin:0 0 22px">Tu rol
+<body style="margin:0;background:#f4f6f8;color:#14243a;
+  font:15px Inter,system-ui,sans-serif;display:grid;place-items:center;min-height:100vh;padding:16px">
+<main style="max-width:440px;padding:28px;text-align:center;background:#fff;
+  border:1px solid #e1e6ed;border-radius:14px">
+  <img src="/logo.png" alt="Titán Flota" width="180" height="66" style="display:block;margin:0 auto 18px">
+  <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    color:#b91c1c;font-weight:700;margin:0 0 8px">&#9888; Sin permiso</p>
+  <h1 style="font-size:22px;font-weight:700;margin:0 0 12px">{modulo}</h1>
+  <p style="color:#34465f;line-height:1.6;margin:0 0 22px">Tu rol
     <b>{rol}</b> no tiene acceso a este módulo. Para solicitarlo,
     contactar a un administrador: se habilita desde Usuarios y roles.</p>
-  <a href="/" style="display:inline-block;background:#ffd400;color:#101419;
-    text-decoration:none;font-weight:800;padding:11px 17px;border-radius:10px">
+  <a href="/" style="display:inline-block;background:#2563eb;color:#fff;
+    text-decoration:none;font-weight:650;padding:11px 18px;border-radius:8px">
     Volver al inicio</a>
 </main></body></html>"""
 
@@ -272,7 +279,7 @@ class App(CupoPorPedido, gom.Handler):
             if 'rel="icon"' not in html:
                 estilos += '<link rel="icon" href="/favicon.png" type="image/png">'
             html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
-            # Pengui vive en la portada. Inyectarlo en todas las pantallas
+            # El asistente (Titán) vive en la portada. Inyectarlo en todas las pantallas
             # lo dejaba encima de formularios, tablas y botones de trabajo.
             script = ('<script src="/pengui.js"></script>'
                       if self._ruta_pedida() == "/" else "")
@@ -343,7 +350,8 @@ class App(CupoPorPedido, gom.Handler):
                     '/choferes/sw.js': ('sw.js','text/javascript'),
                     '/choferes/style.css': ('style.css','text/css'),
                     '/choferes/manifest.webmanifest': ('manifest.webmanifest','application/manifest+json'),
-                    '/choferes/icon.svg': ('icon.svg','image/svg+xml')}
+                    '/choferes/icon.svg': ('icon.svg','image/svg+xml'),
+                    '/choferes/icon.png': ('icon.png','image/png')}
         if ruta in publicos:
             archivo, tipo = publicos[ruta]
             with open(os.path.join(AQUI, 'choferes', archivo), 'rb') as recurso:

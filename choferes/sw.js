@@ -1,6 +1,6 @@
 importScripts('/choferes/cola.js');
-const CACHE='choferes-shell-v1';
-const FILES=['/choferes/','/choferes/app.js','/choferes/cola.js','/choferes/style.css','/choferes/manifest.webmanifest','/choferes/icon.svg'];
+const CACHE='choferes-shell-v2';
+const FILES=['/choferes/','/choferes/app.js','/choferes/cola.js','/choferes/style.css','/choferes/manifest.webmanifest','/choferes/icon.svg','/choferes/icon.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(FILES))));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch',e=>{

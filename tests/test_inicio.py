@@ -115,9 +115,9 @@ class Resultado:
 
 
 class Inicio(unittest.TestCase):
-    def test_pengui_introduction_without_inventing_data(self):
+    def test_titan_introduction_without_inventing_data(self):
         respuesta=app.asistente.responder({'mensajes':[{'role':'user','content':'¿Quién sos?'}]}, {'id':1,'rol':'admin'})
-        self.assertIn('Pengui, el asistente de IA',respuesta['respuesta'])
+        self.assertIn('Titán, el asistente de IA',respuesta['respuesta'])
         self.assertEqual(respuesta['fuentes'],[])
 
     def test_stationary_is_zero_not_missing(self):

@@ -83,7 +83,7 @@
       '.clave-caja .fila{display:flex;gap:8px;justify-content:flex-end;margin-top:4px}' +
       '.clave-caja .fila button{padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer;' +
       'border:1px solid var(--hairline-2,var(--l2,rgba(0,0,0,.25)));background:none;color:inherit}' +
-      '.clave-caja .fila button[type=submit]{background:var(--brand,var(--o,#ffd400));' +
+      '.clave-caja .fila button[type=submit]{background:var(--brand,var(--o,#2563eb));' +
       'color:var(--marca-ink,#101419);border-color:transparent;font-weight:700}' +
       '.clave-caja .mal{color:var(--bad,#e35d62);font-size:12.5px;margin:0 0 10px;min-height:16px}';
     document.head.appendChild(css);

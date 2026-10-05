@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Alertas | Gestión de flota</title>
+<title>Alertas | Titán Flota</title>
 <link rel="icon" href="/favicon.png" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -108,10 +108,10 @@
   .marca{display:inline-block;border-radius:99px;padding:3px 8px;font-size:10px;
     font-weight:800;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;
     background:var(--surface-3);color:var(--ink-muted)}
-  .marca.vencimiento{color:#7db3ef;background:rgba(125,179,239,.13)}
-  .marca.service,.marca.prefiltro{color:var(--warn);background:rgba(240,180,41,.13)}
-  .marca.combustible{color:#c48cf0;background:rgba(196,140,240,.13)}
-  .marca.cubierta{color:var(--ok);background:rgba(49,189,101,.12)}
+  .marca.vencimiento{color:var(--cyan);background:color-mix(in srgb,var(--cyan) 12%,transparent)}
+  .marca.service,.marca.prefiltro{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent)}
+  .marca.combustible{color:light-dark(#6d28d9,#c48cf0);background:color-mix(in srgb,light-dark(#6d28d9,#c48cf0) 12%,transparent)}
+  .marca.cubierta{color:var(--ok);background:color-mix(in srgb,var(--ok) 12%,transparent)}
   .ir{color:var(--ink-muted);text-decoration:none;font-size:12px;white-space:nowrap}
   .ir:hover{color:var(--brand)}
   @media(max-width:700px){.alerta{flex-direction:column}.alerta .acciones{width:100%}}
@@ -150,7 +150,7 @@
 <body>
 
 <header class="top">
-  <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Titán Flota" onerror="this.style.display='none'">
   <a class="back" href="/">‹ Inicio</a>
   <span class="brand">Alertas</span>
   <span class="who" id="quien"></span>

@@ -24,9 +24,9 @@ import qrcode
 from qrcode.image.svg import SvgPathImage
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
-# El monograma en azul, que es la versión que se lee sobre papel blanco: el
-# logo de la app es blanco y ahí desaparecería.
-LOGO = os.path.join(AQUI, os.pardir, "logo-dm-impresion.png")
+# El logo de Titán Flota en una versión liviana para imprimir: va
+# incrustado en la hoja de etiquetas.
+LOGO = os.path.join(AQUI, os.pardir, "titan-flota-impresion.png")
 
 ANCHO_MM = 70
 ALTO_MM = 37
@@ -56,7 +56,7 @@ def _logo():
     if not os.path.exists(LOGO):
         return ""
     datos = base64.b64encode(open(LOGO, "rb").read()).decode()
-    return f'<img class="dm" src="data:image/png;base64,{datos}" alt="Gestión de flota">'
+    return f'<img class="dm" src="data:image/png;base64,{datos}" alt="Titán Flota">'
 
 
 def _articulos(cx, rubro=None, codigos=None, solo_activos=True):
@@ -114,7 +114,7 @@ def hoja(cx, base, rubro=None, codigos=None):
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Etiquetas de repuestos | Gestión de flota</title>
+<title>Etiquetas de repuestos | Titán Flota</title>
 <style>
   /* En pantalla se ve sobre gris para distinguir las hojas; al imprimir
      solo salen las etiquetas. */
@@ -126,7 +126,7 @@ def hoja(cx, base, rubro=None, codigos=None):
   .barra {{ position: sticky; top: 0; z-index: 5; display: flex; gap: 14px;
     align-items: center; padding: 12px 20px; background: #12161a; color: #edf0f2; }}
   .barra b {{ font-size: 14px; }}
-  .barra a, .barra button {{ color: #edf0f2; background: #ffd400; border: 0;
+  .barra a, .barra button {{ color: #fff; background: #2563eb; border: 0;
     border-radius: 9px; padding: 9px 15px; font: inherit; font-weight: 700;
     text-decoration: none; cursor: pointer; }}
   .barra .volver {{ background: #20262c; }}
@@ -168,7 +168,7 @@ def hoja(cx, base, rubro=None, codigos=None):
 <body>
 
 <div class="barra">
-  <img src="/logo.png" alt="Gestión de flota" style="height:24px" onerror="this.style.display='none'">
+  <img src="/logo.png" alt="Titán Flota" style="height:24px" onerror="this.style.display='none'">
   <a class="volver" href="/repuestos">‹ Volver</a>
   <b>{titulo}</b>
   <button onclick="print()">Imprimir</button>

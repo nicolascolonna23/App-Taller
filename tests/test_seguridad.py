@@ -53,7 +53,7 @@ class Totp(unittest.TestCase):
 
     def test_uri_para_el_qr(self):
         uri = auth.totp_uri(self.SECRETO, "nico")
-        self.assertTrue(uri.startswith("otpauth://totp/Pengui%3Anico?secret=" + self.SECRETO))
+        self.assertTrue(uri.startswith("otpauth://totp/Tit%C3%A1n%20Flota%3Anico?secret=" + self.SECRETO))
 
     def test_respaldo_no_depende_del_guion_ni_mayusculas(self):
         self.assertEqual(auth._hash_respaldo("abcd-efgh"), auth._hash_respaldo("ABCDEFGH"))

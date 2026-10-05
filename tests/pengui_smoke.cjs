@@ -30,7 +30,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
    const req=route.request(),url=new URL(req.url()),p=url.pathname;
    if(p==='/api/preferencias')return route.fulfill({json:PREFS});
    if(p==='/api/yo')return route.fulfill({json:{nombre:'Prueba local',rol:'admin',puede_administrar:true}});
-   if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Pengui, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
+   if(p==='/api/asistente')return route.fulfill({json:req.method()==='POST'?{respuesta:'Soy Titán, el asistente de IA. Esta es una respuesta de prueba.',fuentes:[]}:{habilitado:true}});
    const litros={total:758709,cargas:2600,desde:'2024-10-25',hasta:'2026-09-18',cortes:{dia:{serie:[{periodo:'2026-09-17',litros:0,cargas:0,importe:null,unidades:0},{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}],actual:{periodo:'2026-09-18',litros:8159,cargas:26,importe:10496982,unidades:4}},mes:{serie:[{periodo:'2026-08-01',litros:30658,cargas:99,importe:null,unidades:4},{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}],actual:{periodo:'2026-09-01',litros:24095,cargas:78,importe:30773893,unidades:3}},anio:{serie:[{periodo:'2025-01-01',litros:394821,cargas:1300,importe:null,unidades:4},{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}],actual:{periodo:'2026-01-01',litros:288938,cargas:988,importe:388020206,unidades:4}}}};
    if(p==='/api/inicio')return route.fulfill({json:{litros,recorrido:{ayer:{km:12345,unidades:50,unidades_completas:50,desde:'2026-09-07',hasta:'2026-09-07'}},combustible:{mes:{mes:'2026-08-01',litros_100km:31.2,litros:10000},previo:{mes:'2026-07-01',litros_100km:32.1}},unidades:87,alertas:{total:2,graves:1}}});
    if(p==='/api/flota')return route.fulfill({json:[{id:7,patente:'AG 797 NJ',interno:'102',marca:'TOYOTA',modelo:'HIACE',chofer:'FRUTOS JAVIER',semi:'',sucursal:'BUE',uso:'DISTRIBUCION LOCAL',mantenimiento_plan_id:1,mantenimiento_plan:'Autos 10K',mantenimiento_cada_km:10000},{id:9,patente:'AH 522 SI',interno:'17',marca:'IVECO',modelo:'S-WAY 480',chofer:'CABRERA GUILLERMO',semi:'',sucursal:'LAD',uso:'LARGA DISTANCIA',mantenimiento_plan_id:2,mantenimiento_plan:'S-WAY',mantenimiento_cada_km:45000},{id:8,patente:'AC 111 ZZ',interno:'S1',marca:'',modelo:'SEMI',chofer:'',semi:'',sucursal:'BUE',uso:'SEMIRREMOLQUE'}]});
@@ -47,7 +47,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     if(p==='/'){const pos=html.lastIndexOf('</body>');html=pos<0?html+'<script src="/pengui.js"></script>':html.slice(0,pos)+'<script src="/pengui.js"></script>'+html.slice(pos);}
     return route.fulfill({body:html,contentType:'text/html'});
    }
-   const assets={'/logo.png':'logo_diemar4.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
+   const assets={'/logo.png':'titan-flota-logo.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
    const file=path.join(dir,assets[p]||p.slice(1));
    if(file.startsWith(dir+path.sep)&&fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({body:fs.readFileSync(file),contentType:p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':'image/png'});
    return route.abort();
@@ -58,7 +58,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     assert.equal(await page.locator('#pengui').count(),url==='/'?1:0);
     if(url==='/gomeria'){
      const visorColor=await page.evaluate(()=>{const d=document.createElement('div');d.className='visor3d';document.body.appendChild(d);return getComputedStyle(d).backgroundColor;});
-     assert.equal(visorColor,'rgb(17, 22, 27)');
+     assert.equal(visorColor,'rgb(15, 29, 48)');
     }
     if(url==='/'){
      // Los litros cargados: el total del corte elegido y su serie.
@@ -83,9 +83,10 @@ let PREFS={tema:'claro',paleta:'diemar'};
      await page.click('[data-l="dia"]');
     }
     if(url==='/repuestos'){
-     assert((await page.locator('.brand').evaluate(e=>getComputedStyle(e,'::before').backgroundImage)).includes('/logo.png'));
+     assert.equal(await page.locator('.brand img').getAttribute('src'),'/logo.png');
+     assert(await page.locator('.brand img').isVisible());
      const ghostColor=await page.evaluate(()=>{const bar=document.createElement('div'),b=document.createElement('button');bar.className='bar';b.className='btn ghost';bar.appendChild(b);document.body.appendChild(bar);return getComputedStyle(b).color;});
-     assert.equal(ghostColor,'rgb(255, 255, 255)');
+     assert.equal(ghostColor,'rgb(20, 36, 58)');
     }
     if(url==='/control'){
      // La solapa elegida se tiene que leer. Se mide el contraste y no un
@@ -118,13 +119,13 @@ let PREFS={tema:'claro',paleta:'diemar'};
     if(url==='/combustible')assert(!(await page.locator('body').innerText()).includes('EN PRUEBA'));
     // El fondo del tema claro lo define tema.js (--plane). Si cambia allá,
     // esta línea tiene que cambiar acá: es el precio de fijar un color.
-    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(242, 245, 248)');
+    assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(244, 246, 248)');
     if(url==='/'){
      assert.equal(await page.locator('.nav a', {hasText:'Asistente IA'}).count(),0);
      assert.equal(await page.locator('.nav a', {hasText:'Alertas'}).count(),0);
      assert.equal(await page.locator('.side-footer').count(),0);
      assert.equal(await page.locator('#sello').count(),0);
-     assert.equal(await page.locator('.brand-copy').innerText(),'PENGUIN FLEET\nMANAGEMENT');
+     assert.equal(await page.locator('.sidebar .brand img').getAttribute('alt'),'Titán Flota');
      // Pengui es una tarjeta de la portada, no un botón que abre algo
      // encima del tablero.
      assert.equal(await page.locator('.top-actions #pengui').count(),0);
@@ -141,7 +142,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     }
   }
   await page.goto('http://taller.test/');
-  const chat=page.frameLocator('iframe[title="Conversación con Pengui"]');
+  const chat=page.frameLocator('iframe[title="Conversación con Titán"]');
   await chat.locator('#send:enabled').waitFor();
   await chat.locator('#question').fill('Hola');await chat.locator('#send').click();
   await chat.locator('.message.assistant').waitFor();
@@ -162,6 +163,6 @@ let PREFS={tema:'claro',paleta:'diemar'};
   for(const sel of ['.examples button','#reset','#status','#question','#send'])
    assert(await contraste(marco,sel)>=4.5,'no se lee '+sel+' en Pengui con el tema oscuro');
   await page.screenshot({path:'/tmp/pengui-oscuro.png'});
-  console.log('PASS: shared theme on 10 modules; litros por día, mes y año; Pengui only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
+  console.log('PASS: shared theme on 10 modules; litros por día, mes y año; asistente Titán only on home; alerts dropdown and chat work; desktop and mobile without overflow. Fixtures only.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
