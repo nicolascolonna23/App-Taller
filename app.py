@@ -39,6 +39,7 @@ sys.path.insert(0, os.path.join(AQUI, "gomeria"))
 
 import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
+import estanterias as est
 import asistente
 import ia
 import ordenes as ots
@@ -374,6 +375,22 @@ class App(CupoPorPedido, gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer los repuestos: {e}", 500)
+
+        if ruta == "/api/estanterias":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    datos = est.listar(cx, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(datos))
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
+                    "Falta crear las estanterías. Ejecutar "
+                    "gomeria/47_estanterias.sql en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las estanterías: {e}", 500)
 
         # Los números que la portada muestra en vivo.
         if ruta == "/api/inicio":
@@ -1070,6 +1087,32 @@ class App(CupoPorPedido, gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudo guardar el cambio: {e}", 500)
+        if ruta == "/api/estanterias":
+            if not self._exigir_sesion():
+                return
+            try:
+                largo = int(self.headers.get("Content-Length") or 0)
+                if largo > 256 * 1024:
+                    return self._error("El pedido es demasiado grande.", 413)
+                datos = json.loads(self.rfile.read(largo) or b"{}")
+                with base.conectar() as cx:
+                    resultado = est.aplicar(cx, datos, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(resultado))
+            except PermissionError as e:
+                return self._error(str(e), 403)
+            except psycopg.errors.UniqueViolation:
+                return self._error("Ya existe una estantería con ese nombre.")
+            except ValueError as e:
+                return self._error(str(e))
+            except psycopg.errors.UndefinedTable as e:
+                return self._error(base.que_falta(e,
+                    "Falta crear las estanterías. Ejecutar "
+                    "gomeria/47_estanterias.sql en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudo guardar el cambio: {e}", 500)
+
         # Las órdenes de trabajo. Una orden mueve stock, así que todo lo que
         # toca —el renglón y la salida del depósito— se guarda en la misma
         # transacción: o quedan las dos cosas o no queda ninguna.

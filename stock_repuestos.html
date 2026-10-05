@@ -219,6 +219,7 @@ tr.baja .desc{text-decoration:line-through;color:var(--muted)}
   <div class="tabs" role="tablist">
     <button class="tab" role="tab" data-tab="stock">Repuestos</button>
     <button class="tab" role="tab" data-tab="movs">Movimientos</button>
+    <button class="tab" role="tab" data-tab="estan">Estanterías</button>
     <button class="tab" role="tab" data-tab="datos">Datos</button>
   </div>
 </div></div>
@@ -374,7 +375,9 @@ function pintar(){
     kpi(S.movs.length,"Movimientos");
   document.querySelectorAll(".tab").forEach(b=>b.setAttribute("aria-selected", b.dataset.tab===S.tab));
   var v=document.getElementById("view");
-  v.innerHTML = S.tab==="stock" ? vistaStock(mp) : S.tab==="movs" ? vistaMovs() : vistaDatos();
+  v.classList.toggle("es-ancho", S.tab==="estan");
+  v.innerHTML = S.tab==="stock" ? vistaStock(mp) : S.tab==="movs" ? vistaMovs() :
+                S.tab==="estan" ? vistaEstanterias(mp) : vistaDatos();
   enganchar();
 }
 function kpi(n,t){ return '<div class="kpi"><b>'+n+'</b><span>'+t+'</span></div>'; }
@@ -410,7 +413,7 @@ function vistaStock(mp){
   if(!lista.length) return h+'<div class="card"><div class="empty"><b>Sin resultados</b>Modificar el filtro o cargar un repuesto nuevo.</div></div>';
 
   h+='<div class="card"><table><thead><tr><th>Código</th><th>Descripción</th><th>Rubro</th>'+
-     '<th class="num">Mín.</th><th class="num">Stock</th><th class="num">Último costo</th>'+
+     '<th>Ubicación</th><th class="num">Mín.</th><th class="num">Stock</th><th class="num">Último costo</th>'+
      '<th class="num">Valorizado</th><th>Estado</th><th></th></tr></thead><tbody>';
   lista.forEach(a=>{
     var st=mp[a.codigo]||0, e=estado(a,st), c=costoDe(a.codigo);
@@ -418,6 +421,7 @@ function vistaStock(mp){
       '<td class="code">'+esc(a.codigo)+'</td>'+
       '<td class="desc">'+esc(a.descripcion)+'</td>'+
       '<td class="rubro">'+esc(a.rubro)+'</td>'+
+      '<td class="rubro"><span class="mob-only">Ubicación</span>'+esc(ubicacionDe(a.codigo)||"—")+'</td>'+
       '<td class="num">'+(a.minimo||"—")+'</td>'+
       '<td class="stock"><span class="mob-only">Stock</span>'+st+'</td>'+
       '<td class="num"><span class="mob-only">Último costo</span>'+plata(c)+'</td>'+
@@ -1255,5 +1259,641 @@ function abrirDesdeQR(cod){
     if (e.key === "Escape" && OCR) OCR = null;
   });
 
+})();
+</script>
+<!-- ===================================================================
+     ESTANTERÍAS
+     Plano del depósito visto desde arriba y ubicación de cada repuesto.
+     Izquierda: repuestos. Centro: el plano. Derecha: la estantería
+     elegida vista de frente, piso por piso. Un repuesto se arrastra (o se
+     elige y se toca el casillero) y se confirma antes de guardar.
+     =================================================================== -->
+<style>
+.wrap.es-ancho{max-width:1720px}
+.es-mesa{display:grid;grid-template-columns:300px minmax(0,1fr) 360px;gap:14px;align-items:start}
+.es-col{background:var(--card);border:1px solid var(--rule);border-radius:10px;min-width:0}
+.es-col>h3{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
+  margin:0;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.es-lista .es-filtros{padding:10px 12px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--rule)}
+.es-items{max-height:calc(100vh - 330px);min-height:240px;overflow:auto}
+.es-item{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--rule);
+  cursor:grab;user-select:none}
+.es-item:hover{background:var(--acc-soft)}
+.es-item.on{background:var(--acc-soft);box-shadow:inset 3px 0 0 var(--acc)}
+.es-item .tx{flex:1;min-width:0}
+.es-item .c{font-family:var(--mono);font-size:11px;color:var(--acc-hi);display:block}
+.es-item .d{font-size:13px;color:var(--ink);font-weight:600;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.es-item .u{font-size:11.5px;color:var(--muted)}
+.es-item .u.si{color:var(--green);font-weight:600}
+.es-item .n{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink2);font-size:13px}
+.es-mas{padding:10px 12px;font-size:12px;color:var(--muted)}
+.es-elegido{padding:10px 12px;border-bottom:1px solid var(--rule);background:var(--card2);font-size:12.5px}
+.es-elegido b{display:block;color:var(--ink);font-size:13px}
+.es-elegido .acc{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.es-plano{overflow:hidden}
+.es-plano .es-svgwrap{overflow:auto;max-height:calc(100vh - 250px);background:var(--bg2)}
+.es-plano svg{display:block;width:100%;height:auto;min-width:520px}
+.es-plano .es-pie{padding:8px 14px;font-size:12px;color:var(--muted);border-top:1px solid var(--rule);
+  display:flex;gap:14px;flex-wrap:wrap}
+.es-pie i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+.es-grid-l{stroke:var(--rule);stroke-width:1;vector-effect:non-scaling-stroke}
+.es-grid-m{stroke:var(--rule2);stroke-width:1;vector-effect:non-scaling-stroke}
+.es-est{cursor:pointer}
+.es-est .cu{fill:var(--card);stroke:var(--ink2);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.es-est.llena .cu{fill:var(--acc-soft)}
+.es-est .fr{fill:var(--acc)}
+.es-est .dv{stroke:var(--rule2);stroke-width:1;vector-effect:non-scaling-stroke}
+.es-est .nm{fill:var(--ink);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none;font-family:var(--body)}
+.es-est.sel .cu{stroke:var(--acc);stroke-width:3}
+.es-est.match .cu{fill:rgba(161,92,7,.16);stroke:#a15c07}
+.es-est.hit .cu{fill:rgba(21,128,61,.18);stroke:var(--green);stroke-width:3}
+.es-est.drop .cu{fill:var(--acc-soft);stroke:var(--acc);stroke-width:3;stroke-dasharray:6 4}
+.es-armar .es-est{cursor:move;touch-action:none}
+.es-pas{fill:var(--muted);font-weight:700;text-anchor:middle;dominant-baseline:central;letter-spacing:.08em;
+  pointer-events:none;font-family:var(--body);text-transform:uppercase}
+.es-vacio{padding:40px 20px;text-align:center;color:var(--muted)}
+.es-vacio b{display:block;color:var(--ink);font-size:15px;margin-bottom:6px}
+.es-ficha{padding:12px 14px;border-bottom:1px solid var(--rule)}
+.es-ficha .t{font-size:17px;font-weight:700;color:var(--ink)}
+.es-ficha .m{font-size:12px;color:var(--muted);margin-top:2px}
+.es-ficha .acc{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+.es-frente-v{padding:12px 14px 14px;overflow:auto;max-height:calc(100vh - 330px)}
+.es-rack{display:grid;gap:4px;border:3px solid var(--ink2);border-top-width:4px;border-radius:4px;padding:4px;
+  background:var(--card2)}
+.es-piso{font-size:10.5px;font-weight:700;color:var(--muted);display:flex;align-items:center;justify-content:center;
+  writing-mode:vertical-rl;transform:rotate(180deg)}
+.es-cas{min-height:64px;background:var(--card);border:1px dashed var(--rule2);border-radius:6px;padding:4px;
+  display:flex;flex-direction:column;gap:3px;cursor:pointer;position:relative;min-width:0}
+.es-cas:hover{border-color:var(--acc)}
+.es-cas.drop{border:2px solid var(--acc);background:var(--acc-soft)}
+.es-cas.hit{border:2px solid var(--green);background:var(--green-soft)}
+.es-cas .ref{font-size:9.5px;color:var(--muted);font-family:var(--mono)}
+.es-chip{font-size:11px;line-height:1.25;background:var(--card2);border:1px solid var(--rule);border-radius:4px;
+  padding:2px 4px;cursor:grab;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.es-chip .c{font-family:var(--mono);color:var(--acc-hi);font-size:10px}
+.es-chip.on{border-color:var(--green);background:var(--green-soft)}
+.es-modulos{display:grid;gap:4px;font-size:10.5px;color:var(--muted);text-align:center;font-weight:700;margin-top:4px}
+.es-prev{background:var(--bg2);border:1px solid var(--rule);border-radius:8px;margin-top:6px}
+.es-prev svg{display:block;width:100%;height:140px}
+.es-row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media(max-width:1180px){
+  .es-mesa{grid-template-columns:280px minmax(0,1fr)}
+  .es-frente{grid-column:1 / -1}
+}
+@media(max-width:760px){
+  .es-mesa{grid-template-columns:minmax(0,1fr)}
+  .es-items{max-height:300px;min-height:0}
+  .es-plano svg{min-width:0}
+  .es-row3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+<script>
+"use strict";
+var EST = { cargado:false, error:"", est:[], ubic:{}, gestiona:false,
+            modo:"ubicar", sel:null, art:"", q:"", filtro:"todos", drag:null, form:null };
+var FRENTES = { sur:"Sur", oeste:"Oeste", norte:"Norte", este:"Este" };
+var GIRO = { sur:"oeste", oeste:"norte", norte:"este", este:"sur" };
+var PASO = 25;   // lo que salta una estantería al arrastrarla, en cm
+
+async function apiEst(cuerpo){
+  var r=await fetch("/api/estanterias", cuerpo ? {method:"POST",
+    headers:{"Content-Type":"application/json"}, body:JSON.stringify(cuerpo)} : {}), d;
+  try{ d=await r.json(); }catch(e){ d={error:"Respuesta inválida del servidor."}; }
+  if(!r.ok) throw new Error(d.error||("Error "+r.status));
+  return d;
+}
+async function cargarEst(){
+  EST.cargando=true;
+  try{
+    var d=await apiEst();
+    EST.est=d.estanterias||[]; EST.ubic={};
+    (d.ubicaciones||[]).forEach(u=>{ EST.ubic[u.codigo]=u; });
+    EST.gestiona=!!d.puede_gestionar; EST.cargado=true; EST.error="";
+    if(EST.sel && !estDe(EST.sel)) EST.sel=null;
+    if(!EST.gestiona) EST.modo="ubicar";
+  }catch(e){ EST.error=(e&&e.message)||String(e); EST.cargado=false; }
+  finally{ EST.cargando=false; }
+}
+async function guardarEst(cuerpo, aviso){
+  marcar("Guardando…");
+  try{
+    var d=await apiEst(cuerpo);
+    await cargarEst(); pintar(); marcar();
+    if(aviso) toast(aviso);
+    return d||true;
+  }catch(e){
+    marcar("Sin guardar");
+    toast("No se pudo guardar: "+((e&&e.message)||e));
+    await cargarEst(); pintar();
+    return false;
+  }
+}
+
+function estDe(id){ return EST.est.find(e=>String(e.id)===String(id)); }
+function ubicacionDe(cod){
+  var u=EST.ubic[cod], e=u&&estDe(u.estanteria_id);
+  return e ? e.nombre+" · P"+u.piso+" · M"+u.modulo : "";
+}
+function textoUbic(u){
+  var e=u&&estDe(u.estanteria_id);
+  return e ? "Estantería "+e.nombre+(e.pasillo?" (pasillo "+e.pasillo+")":"")+" · Piso "+u.piso+" · Módulo "+u.modulo : "";
+}
+function metros(cm){ return (cm/100).toLocaleString("es-AR",{minimumFractionDigits:2,maximumFractionDigits:2})+" m"; }
+function dims(e){
+  var h=e.frente==="norte"||e.frente==="sur";
+  return { w:h?e.largo_cm:e.profundidad_cm, h:h?e.profundidad_cm:e.largo_cm, horiz:h };
+}
+function enEst(id){
+  var r=[]; for(var c in EST.ubic){ if(String(EST.ubic[c].estanteria_id)===String(id)) r.push(c); } return r;
+}
+function coincide(a,q){
+  return !q || norm(a.descripcion).includes(q) || norm(a.codigo).includes(q) || norm(a.interno).includes(q);
+}
+function fondo(){
+  var y=0; EST.est.forEach(e=>{ y=Math.max(y, e.y_cm+dims(e).h); });
+  return EST.est.length ? y+150 : 100;
+}
+
+/* ---------- la vista ---------- */
+function vistaEstanterias(mp){
+  if(!EST.cargado){
+    if(!EST.error && !EST.cargando){ cargarEst().then(()=>{ if(S.tab==="estan") pintar(); }); }
+    return '<div class="panel"><h3>'+(EST.error?"No se pudieron cargar las estanterías":"Cargando estanterías…")+
+      '</h3>'+(EST.error?'<p>'+esc(EST.error)+'</p><button class="btn ghost" data-act="es-recargar">Reintentar</button>':'')+'</div>';
+  }
+  var ubicados=Object.keys(EST.ubic).length;
+  var h='<div class="bar">';
+  if(EST.gestiona) h+='<div class="seg" style="width:auto">'+
+      '<button data-act="es-modo" data-m="ubicar" aria-pressed="'+(EST.modo==="ubicar")+'" style="padding:8px 16px;white-space:nowrap">Ubicar repuestos</button>'+
+      '<button data-act="es-modo" data-m="armar" aria-pressed="'+(EST.modo==="armar")+'" style="padding:8px 16px;white-space:nowrap">Armar depósito</button></div>';
+  if(EST.modo==="armar") h+='<button class="btn" data-act="es-nueva">+ Estantería</button>'+
+      '<button class="btn ghost" data-act="es-pasillo">+ Pasillo</button>';
+  h+='<span class="count">'+EST.est.length+' estanterías · '+ubicados+' repuestos ubicados</span></div>';
+  h+='<div class="es-mesa'+(EST.modo==="armar"?" es-armar":"")+'">'+
+     colLista(mp)+colPlano()+colFrente()+'</div>';
+  return h;
+}
+
+function listaFiltrada(){
+  var q=norm(EST.q);
+  return S.arts.filter(a=>{
+    if(!a.activo) return false;
+    var u=!!ubicacionDe(a.codigo);
+    if(EST.filtro==="sin" && u) return false;
+    if(EST.filtro==="con" && !u) return false;
+    return coincide(a,q);
+  }).sort((x,y)=>x.descripcion.localeCompare(y.descripcion,"es"));
+}
+function itemsHtml(mp){
+  var l=listaFiltrada(), tope=250, h='';
+  l.slice(0,tope).forEach(a=>{
+    var u=ubicacionDe(a.codigo);
+    h+='<div class="es-item'+(EST.art===a.codigo?" on":"")+'" draggable="true" data-act="es-art" data-cod="'+esc(a.codigo)+'">'+
+       '<div class="tx"><span class="c">'+esc(a.codigo)+'</span><span class="d" title="'+esc(a.descripcion)+'">'+esc(a.descripcion)+'</span>'+
+       '<span class="u'+(u?" si":"")+'">'+esc(u||"Sin ubicar")+'</span></div>'+
+       '<span class="n" title="Stock">'+(mp[a.codigo]||0)+'</span></div>';
+  });
+  if(!l.length) h='<div class="es-mas">Sin resultados.</div>';
+  else if(l.length>tope) h+='<div class="es-mas">'+(l.length-tope)+' más. Afinar la búsqueda.</div>';
+  return h;
+}
+function colLista(mp){
+  var a=EST.art&&art(EST.art), el='';
+  if(a){
+    var u=EST.ubic[a.codigo];
+    el='<div class="es-elegido"><b>'+esc(a.descripcion)+'</b><span class="code">'+esc(a.codigo)+'</span><br>'+
+       esc(u?textoUbic(u):"Sin ubicar")+
+       '<div class="acc">'+(u?'<button class="btn ghost sm" data-act="es-ver">Ver en el plano</button>'+
+         '<button class="btn ghost sm" data-act="es-quitar">Quitar ubicación</button>':'')+
+       '<button class="btn ghost sm" data-act="es-soltar">Deseleccionar</button></div></div>';
+  }
+  return '<aside class="es-col es-lista"><h3>Repuestos</h3>'+
+    '<div class="es-filtros"><input type="text" id="es-q" placeholder="Buscar por descripción o código" value="'+esc(EST.q)+'">'+
+    '<select id="es-filtro">'+[["todos","Todos"],["sin","Sin ubicar"],["con","Ubicados"]]
+      .map(o=>'<option value="'+o[0]+'"'+(EST.filtro===o[0]?" selected":"")+'>'+o[1]+'</option>').join("")+'</select></div>'+
+    el+'<div class="es-items" id="es-items">'+itemsHtml(mp)+'</div></aside>';
+}
+
+function colPlano(){
+  if(!EST.est.length){
+    return '<section class="es-col es-plano"><h3>Plano del depósito</h3><div class="es-vacio"><b>Sin estanterías</b>'+
+      (EST.gestiona?'Armar el depósito con “+ Estantería” o “+ Pasillo”.':'El depósito todavía no tiene estanterías cargadas.')+
+      (EST.gestiona&&EST.modo!=="armar"?'<div style="margin-top:12px"><button class="btn" data-act="es-modo" data-m="armar">Armar depósito</button></div>':'')+
+      '</div></section>';
+  }
+  return '<section class="es-col es-plano"><h3>Plano del depósito</h3><div class="es-svgwrap">'+svgPlano()+'</div>'+
+    '<div class="es-pie"><span><i style="background:var(--acc)"></i>Frente</span>'+
+    '<span><i style="background:var(--acc-soft);border:1px solid var(--ink2)"></i>Con repuestos</span>'+
+    (EST.q?'<span><i style="background:rgba(161,92,7,.3)"></i>Coincide con la búsqueda</span>':'')+
+    (EST.art?'<span><i style="background:rgba(21,128,61,.3)"></i>Repuesto elegido</span>':'')+
+    '<span>Cuadrícula: 1 m</span></div></section>';
+}
+function svgPlano(){
+  var W=1000, H=600;
+  EST.est.forEach(e=>{ var d=dims(e); W=Math.max(W,e.x_cm+d.w+300); H=Math.max(H,e.y_cm+d.h+300); });
+  var q=norm(EST.q), cods={};
+  if(q) S.arts.forEach(a=>{ if(a.activo && coincide(a,q)) cods[a.codigo]=1; });
+  var hitEst = EST.art && EST.ubic[EST.art] ? String(EST.ubic[EST.art].estanteria_id) : "";
+  var g='<svg id="es-svg" viewBox="0 0 '+W+' '+H+'" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Plano del depósito">'+
+    '<defs><pattern id="es-g1" width="100" height="100" patternUnits="userSpaceOnUse">'+
+    '<path d="M100 0H0V100" fill="none" class="es-grid-l"/></pattern>'+
+    '<pattern id="es-g5" width="500" height="500" patternUnits="userSpaceOnUse">'+
+    '<path d="M500 0H0V500" fill="none" class="es-grid-m"/></pattern></defs>'+
+    '<rect width="'+W+'" height="'+H+'" fill="url(#es-g1)"/><rect width="'+W+'" height="'+H+'" fill="url(#es-g5)"/>';
+  // Los pasillos: el nombre en el medio de sus estanterías, que es donde
+  // queda el pasillo cuando están enfrentadas.
+  var pas={};
+  EST.est.forEach(e=>{ if(!e.pasillo) return; var d=dims(e), b=pas[e.pasillo]||(pas[e.pasillo]={x1:1e9,y1:1e9,x2:0,y2:0,h:0,v:0});
+    b.x1=Math.min(b.x1,e.x_cm); b.y1=Math.min(b.y1,e.y_cm); b.x2=Math.max(b.x2,e.x_cm+d.w); b.y2=Math.max(b.y2,e.y_cm+d.h);
+    if(d.horiz) b.h++; else b.v++; });
+  for(var p in pas){ var b=pas[p], cx=(b.x1+b.x2)/2, cy=(b.y1+b.y2)/2, vert=b.v>b.h;
+    g+='<text class="es-pas" x="'+cx+'" y="'+cy+'" font-size="34"'+(vert?' transform="rotate(-90 '+cx+' '+cy+')"':'')+'>Pasillo '+esc(p)+'</text>'; }
+  EST.est.forEach(e=>{
+    var d=dims(e), w=d.w, h=d.h, en=enEst(e.id), cls="es-est";
+    if(en.length) cls+=" llena";
+    if(String(EST.sel)===String(e.id)) cls+=" sel";
+    if(hitEst===String(e.id)) cls+=" hit";
+    else if(q && en.some(c=>cods[c])) cls+=" match";
+    g+='<g class="'+cls+'" data-es="'+e.id+'" transform="translate('+e.x_cm+' '+e.y_cm+')">'+
+       '<title>'+esc(e.nombre+" · "+e.pisos+" pisos × "+e.modulos+" módulos · "+en.length+" repuestos")+'</title>'+
+       '<rect class="cu" width="'+w+'" height="'+h+'" rx="3"/>';
+    // Las divisiones entre módulos, a lo largo.
+    for(var i=1;i<e.modulos;i++){ var t=e.largo_cm*i/e.modulos;
+      g+= d.horiz ? '<line class="dv" x1="'+t+'" y1="0" x2="'+t+'" y2="'+h+'"/>'
+                  : '<line class="dv" x1="0" y1="'+t+'" x2="'+w+'" y2="'+t+'"/>'; }
+    var f=Math.max(6,Math.min(12,Math.min(w,h)*0.18));
+    g+= e.frente==="sur"   ? '<rect class="fr" x="0" y="'+(h-f)+'" width="'+w+'" height="'+f+'"/>' :
+        e.frente==="norte" ? '<rect class="fr" x="0" y="0" width="'+w+'" height="'+f+'"/>' :
+        e.frente==="este"  ? '<rect class="fr" x="'+(w-f)+'" y="0" width="'+f+'" height="'+h+'"/>' :
+                             '<rect class="fr" x="0" y="0" width="'+f+'" height="'+h+'"/>';
+    var fs=Math.max(14,Math.min(30,Math.min(w,h)*0.5)), cx=w/2, cy=h/2;
+    g+='<text class="nm" x="'+cx+'" y="'+cy+'" font-size="'+fs+'"'+(d.horiz?'':' transform="rotate(-90 '+cx+' '+cy+')"')+'>'+esc(e.nombre)+'</text></g>';
+  });
+  return g+'</svg>';
+}
+
+function colFrente(){
+  var e=EST.sel&&estDe(EST.sel);
+  if(!e) return '<aside class="es-col es-frente"><h3>Estantería</h3><div class="es-vacio">'+
+    (EST.est.length?'Seleccionar una estantería en el plano.':'—')+'</div></aside>';
+  var en=enEst(e.id), por={};
+  en.forEach(c=>{ var u=EST.ubic[c], k=u.piso+"-"+u.modulo; (por[k]=por[k]||[]).push(c); });
+  var hit=EST.art&&EST.ubic[EST.art]&&String(EST.ubic[EST.art].estanteria_id)===String(e.id)?EST.ubic[EST.art]:null;
+  var h='<aside class="es-col es-frente"><h3>Estantería vista de frente</h3><div class="es-ficha">'+
+    '<div class="t">'+esc(e.nombre)+(e.pasillo?' <span class="rubro">· Pasillo '+esc(e.pasillo)+'</span>':'')+'</div>'+
+    '<div class="m">'+e.pisos+' pisos × '+e.modulos+' módulos · '+metros(e.largo_cm)+' de largo · '+
+      metros(e.profundidad_cm)+' de profundidad · '+metros(e.alto_cm)+' de alto · Frente '+FRENTES[e.frente].toLowerCase()+'</div>'+
+    '<div class="m">'+en.length+' repuestos ubicados</div>';
+  if(EST.modo==="armar") h+='<div class="acc"><button class="btn ghost sm" data-act="es-editar">Editar</button>'+
+    '<button class="btn ghost sm" data-act="es-girar">Girar 90°</button>'+
+    '<button class="btn ghost sm" data-act="es-duplicar">Duplicar</button>'+
+    '<button class="btn ghost sm" data-act="es-borrar">Borrar</button></div>';
+  h+='</div><div class="es-frente-v"><div class="es-rack" style="grid-template-columns:18px repeat('+e.modulos+',minmax(0,1fr))">';
+  for(var p=e.pisos;p>=1;p--){
+    h+='<div class="es-piso">Piso '+p+'</div>';
+    for(var m=1;m<=e.modulos;m++){
+      var l=(por[p+"-"+m]||[]).map(c=>art(c)).filter(Boolean)
+        .sort((x,y)=>x.descripcion.localeCompare(y.descripcion,"es"));
+      var on=hit&&hit.piso===p&&hit.modulo===m;
+      h+='<div class="es-cas'+(on?" hit":"")+'" data-act="es-cas" data-piso="'+p+'" data-mod="'+m+'" title="Piso '+p+' · Módulo '+m+'">'+
+         '<span class="ref">P'+p+'·M'+m+'</span>'+
+         l.map(a=>'<div class="es-chip'+(EST.art===a.codigo?" on":"")+'" draggable="true" data-act="es-art" data-cod="'+esc(a.codigo)+'" title="'+esc(a.codigo+" · "+a.descripcion)+'">'+
+           '<span class="c">'+esc(a.codigo)+'</span> '+esc(a.descripcion)+'</div>').join("")+'</div>';
+    }
+  }
+  h+='</div><div class="es-modulos" style="grid-template-columns:18px repeat('+e.modulos+',minmax(0,1fr))"><span></span>';
+  for(var k=1;k<=e.modulos;k++) h+='<span>M'+k+'</span>';
+  return h+'</div></div></aside>';
+}
+
+/* ---------- confirmar antes de mover ---------- */
+var CONF=null;
+function confirmarUbicacion(cod, estId, piso, mod){
+  var a=art(cod), e=estDe(estId);
+  if(!a||!e) return;
+  if(!a.activo) return toast("Ese repuesto está dado de baja.");
+  var u=EST.ubic[cod];
+  if(u && String(u.estanteria_id)===String(e.id) && u.piso===piso && u.modulo===mod)
+    return toast("El repuesto ya está en ese casillero.");
+  CONF={cod:cod, est:e.id, piso:piso, mod:mod, elegir:piso==null};
+  if(CONF.elegir){ CONF.piso=1; CONF.mod=1; }
+  pintarConf();
+}
+function pintarConf(){
+  var a=art(CONF.cod), e=estDe(CONF.est), u=EST.ubic[CONF.cod];
+  var opts=(n,v)=>{ var s=''; for(var i=1;i<=n;i++) s+='<option'+(i===v?" selected":"")+'>'+i+'</option>'; return s; };
+  abrir('<h2>'+(u?"Mover repuesto":"Ubicar repuesto")+'</h2><div class="body">'+
+    '<div class="f"><div class="picked"><div><span class="c">'+esc(a.codigo)+'</span><span class="d">'+esc(a.descripcion)+'</span></div></div></div>'+
+    (u?'<div class="f"><label>Ubicación actual</label>'+esc(textoUbic(u))+'</div>':'')+
+    '<div class="f"><label>Destino</label>Estantería '+esc(e.nombre)+(e.pasillo?' (pasillo '+esc(e.pasillo)+')':'')+
+      (CONF.elegir?'':' · Piso '+CONF.piso+' · Módulo '+CONF.mod)+'</div>'+
+    (CONF.elegir?'<div class="row2"><div class="f"><label>Piso</label><select id="cf-piso">'+opts(e.pisos,CONF.piso)+'</select></div>'+
+      '<div class="f"><label>Módulo</label><select id="cf-mod">'+opts(e.modulos,CONF.mod)+'</select></div></div>':'')+
+    '<p style="margin:4px 0 0;font-weight:600;color:var(--ink)">'+(u?"¿Mover el repuesto a este lugar?":"¿Ubicar el repuesto en este lugar?")+'</p>'+
+    '</div><div class="foot"><button class="btn ghost" data-act="es-conf-no">Cancelar</button>'+
+    '<button class="btn" data-act="es-conf-si">Confirmar</button></div>');
+}
+async function aceptarConf(){
+  if(!CONF) return;
+  if(CONF.elegir){ CONF.piso=+document.getElementById("cf-piso").value; CONF.mod=+document.getElementById("cf-mod").value; }
+  var c=CONF, movido=!!EST.ubic[c.cod]; CONF=null; cerrar();
+  EST.art=c.cod; EST.sel=c.est;
+  await guardarEst({op:"ubicar",codigo:c.cod,estanteria_id:c.est,piso:c.piso,modulo:c.mod},
+    movido?"Repuesto movido":"Repuesto ubicado");
+}
+
+/* ---------- armar: una estantería ---------- */
+function formEst(e){
+  EST.form={ tipo:"una", id:e&&e.id||null, err:"",
+    v: e ? Object.assign({},e) : Object.assign({nombre:"",pasillo:"",x_cm:100,y_cm:fondo(),largo_cm:200,
+      profundidad_cm:50,alto_cm:200,pisos:4,modulos:3,frente:"sur"}, EST.ultimo||{}, {nombre:"",x_cm:100,y_cm:fondo()}) };
+  pintarFormEst();
+}
+function campoNum(id,label,v,min,max){
+  return '<div class="f"><label for="'+id+'">'+label+'</label><input type="number" id="'+id+'" min="'+min+'" max="'+max+'" value="'+esc(v)+'"></div>';
+}
+function selFrente(id,v){
+  return '<select id="'+id+'">'+Object.keys(FRENTES).map(k=>'<option value="'+k+'"'+(v===k?" selected":"")+'>'+FRENTES[k]+'</option>').join("")+'</select>';
+}
+function pintarFormEst(){
+  var v=EST.form.v;
+  abrir('<h2>'+(EST.form.id?"Editar estantería":"Estantería nueva")+'</h2><div class="body">'+
+    '<div class="row2"><div class="f"><label for="ef-nombre">Nombre</label><input type="text" id="ef-nombre" maxlength="40" value="'+esc(v.nombre)+'" placeholder="A1"></div>'+
+    '<div class="f"><label for="ef-pasillo">Pasillo</label><input type="text" id="ef-pasillo" maxlength="40" value="'+esc(v.pasillo)+'" placeholder="A"></div></div>'+
+    '<div class="es-row3">'+campoNum("ef-pisos","Pisos",v.pisos,1,15)+campoNum("ef-modulos","Módulos por piso",v.modulos,1,20)+
+      '<div class="f"><label for="ef-frente">Frente hacia</label>'+selFrente("ef-frente",v.frente)+'</div></div>'+
+    '<div class="es-row3">'+campoNum("ef-largo","Largo (cm)",v.largo_cm,25,2000)+campoNum("ef-prof","Profundidad (cm)",v.profundidad_cm,20,300)+
+      campoNum("ef-alto","Alto (cm)",v.alto_cm,30,1000)+'</div>'+
+    (EST.form.err?'<div class="err">'+esc(EST.form.err)+'</div>':'')+
+    '</div><div class="foot"><button class="btn ghost" data-act="es-form-no">Cancelar</button>'+
+    '<button class="btn" data-act="es-form-si">Guardar</button></div>');
+  var n=document.getElementById("ef-nombre"); if(n) n.focus();
+}
+function leerFormEst(){
+  var g=id=>document.getElementById(id).value, v=EST.form.v;
+  v.nombre=g("ef-nombre").trim(); v.pasillo=g("ef-pasillo").trim();
+  v.pisos=+g("ef-pisos"); v.modulos=+g("ef-modulos"); v.frente=g("ef-frente");
+  v.largo_cm=+g("ef-largo"); v.profundidad_cm=+g("ef-prof"); v.alto_cm=+g("ef-alto");
+  return v;
+}
+async function guardarFormEst(){
+  var v=leerFormEst();
+  if(!v.nombre){ EST.form.err="Falta el nombre."; return pintarFormEst(); }
+  var otra=EST.est.find(e=>norm(e.nombre)===norm(v.nombre) && String(e.id)!==String(EST.form.id));
+  if(otra){ EST.form.err="Ya existe una estantería con ese nombre."; return pintarFormEst(); }
+  var cuerpo=Object.assign({},v); if(EST.form.id) cuerpo.id=EST.form.id;
+  var nueva=!EST.form.id, form=EST.form;
+  marcar("Guardando…");
+  try{
+    var d=await apiEst({op:"estanteria_guardar",estanteria:cuerpo});
+    EST.ultimo={pasillo:v.pasillo,largo_cm:v.largo_cm,profundidad_cm:v.profundidad_cm,alto_cm:v.alto_cm,
+                pisos:v.pisos,modulos:v.modulos,frente:v.frente};
+    EST.form=null; cerrar(); EST.sel=d.id;
+    await cargarEst(); pintar(); marcar(); toast(nueva?"Estantería creada":"Estantería guardada");
+  }catch(e){ marcar("Sin guardar"); form.err=(e&&e.message)||String(e); EST.form=form; pintarFormEst(); }
+}
+
+/* ---------- armar: un pasillo entero ---------- */
+function formPasillo(){
+  var u=EST.ultimo||{};
+  EST.form={ tipo:"pasillo", err:"", v:{ pasillo:siguientePasillo(), cant:4, filas:2, ancho:120, sep:0, orient:"h",
+    largo_cm:u.largo_cm||200, profundidad_cm:u.profundidad_cm||50, alto_cm:u.alto_cm||200,
+    pisos:u.pisos||4, modulos:u.modulos||3 } };
+  pintarFormPasillo();
+}
+function siguientePasillo(){
+  var usados={}; EST.est.forEach(e=>{ if(e.pasillo) usados[e.pasillo.toUpperCase()]=1; });
+  for(var i=0;i<26;i++){ var l=String.fromCharCode(65+i); if(!usados[l]) return l; }
+  return "";
+}
+function armarPasillo(v){
+  var x0=100, y0=fondo(), r=[], n=v.cant, filas=v.filas, paso=v.largo_cm+v.sep;
+  for(var f=0;f<filas;f++){
+    for(var i=0;i<n;i++){
+      var e={ nombre:v.pasillo+(f*n+i+1), pasillo:v.pasillo, largo_cm:v.largo_cm, profundidad_cm:v.profundidad_cm,
+              alto_cm:v.alto_cm, pisos:v.pisos, modulos:v.modulos };
+      // La primera fila mira al pasillo desde un lado y la segunda desde el
+      // otro: quedan enfrentadas con el pasillo en el medio.
+      if(v.orient==="h"){ e.x_cm=x0+i*paso; e.y_cm=y0+f*(v.profundidad_cm+v.ancho); e.frente=f===0?"sur":"norte"; }
+      else { e.x_cm=x0+f*(v.profundidad_cm+v.ancho); e.y_cm=y0+i*paso; e.frente=f===0?"este":"oeste"; }
+      r.push(e);
+    }
+  }
+  return r;
+}
+function prevPasillo(v){
+  var l=armarPasillo(v); if(!l.length) return "";
+  var x1=1e9,y1=1e9,x2=0,y2=0;
+  l.forEach(e=>{ var d=dims(e); x1=Math.min(x1,e.x_cm); y1=Math.min(y1,e.y_cm); x2=Math.max(x2,e.x_cm+d.w); y2=Math.max(y2,e.y_cm+d.h); });
+  var pad=40, g='<svg viewBox="'+(x1-pad)+' '+(y1-pad)+' '+(x2-x1+2*pad)+' '+(y2-y1+2*pad)+'" preserveAspectRatio="xMidYMid meet">';
+  l.forEach(e=>{ var d=dims(e), f=8;
+    g+='<g class="es-est" transform="translate('+e.x_cm+' '+e.y_cm+')"><rect class="cu" width="'+d.w+'" height="'+d.h+'"/>'+
+      (e.frente==="sur"?'<rect class="fr" y="'+(d.h-f)+'" width="'+d.w+'" height="'+f+'"/>':e.frente==="norte"?'<rect class="fr" width="'+d.w+'" height="'+f+'"/>':
+       e.frente==="este"?'<rect class="fr" x="'+(d.w-f)+'" width="'+f+'" height="'+d.h+'"/>':'<rect class="fr" width="'+f+'" height="'+d.h+'"/>')+
+      '<text class="nm" x="'+d.w/2+'" y="'+d.h/2+'" font-size="'+Math.max(16,Math.min(30,Math.min(d.w,d.h)*.5))+'"'+
+      (d.horiz?'':' transform="rotate(-90 '+d.w/2+' '+d.h/2+')"')+'>'+esc(e.nombre)+'</text></g>'; });
+  return g+'</svg>';
+}
+function resumenPasillo(v){
+  var l=armarPasillo(v), p=v.pasillo||"?";
+  l.forEach(e=>{ e.nombre=p+e.nombre.slice(v.pasillo.length); });
+  return v.filas===2
+    ? l.length+" estanterías: "+l[0].nombre+"–"+l[v.cant-1].nombre+" enfrentadas a "+l[v.cant].nombre+"–"+l[l.length-1].nombre+"."
+    : l.length+" estanterías: "+l[0].nombre+"–"+l[l.length-1].nombre+".";
+}
+function actualizarPrevPasillo(){
+  var v=leerFormPasillo();
+  document.getElementById("pf-prev").innerHTML=prevPasillo(v);
+  document.getElementById("pf-res").textContent=resumenPasillo(v);
+}
+function pintarFormPasillo(){
+  var v=EST.form.v, resumen=resumenPasillo(v);
+  abrir('<h2>Pasillo nuevo</h2><div class="body">'+
+    '<div class="es-row3"><div class="f"><label for="pf-pasillo">Pasillo</label><input type="text" id="pf-pasillo" maxlength="10" value="'+esc(v.pasillo)+'"></div>'+
+      '<div class="f"><label for="pf-filas">Filas</label><select id="pf-filas"><option value="1"'+(v.filas===1?" selected":"")+'>Una fila</option>'+
+      '<option value="2"'+(v.filas===2?" selected":"")+'>Dos filas enfrentadas</option></select></div>'+
+      '<div class="f"><label for="pf-orient">Sentido</label><select id="pf-orient"><option value="h"'+(v.orient==="h"?" selected":"")+'>Horizontal</option>'+
+      '<option value="v"'+(v.orient==="v"?" selected":"")+'>Vertical</option></select></div></div>'+
+    '<div class="es-row3">'+campoNum("pf-cant","Estanterías por fila",v.cant,1,30)+campoNum("pf-ancho","Ancho del pasillo (cm)",v.ancho,40,1000)+
+      campoNum("pf-sep","Separación entre estanterías (cm)",v.sep,0,500)+'</div>'+
+    '<div class="es-row3">'+campoNum("pf-pisos","Pisos",v.pisos,1,15)+campoNum("pf-modulos","Módulos por piso",v.modulos,1,20)+
+      campoNum("pf-alto","Alto (cm)",v.alto_cm,30,1000)+'</div>'+
+    '<div class="es-row3">'+campoNum("pf-largo","Largo (cm)",v.largo_cm,25,2000)+campoNum("pf-prof","Profundidad (cm)",v.profundidad_cm,20,300)+'</div>'+
+    '<div class="f"><label>Vista previa</label><div class="es-prev" id="pf-prev">'+prevPasillo(v)+'</div><div class="hint" id="pf-res">'+esc(resumen)+'</div></div>'+
+    (EST.form.err?'<div class="err">'+esc(EST.form.err)+'</div>':'')+
+    '</div><div class="foot"><button class="btn ghost" data-act="es-form-no">Cancelar</button>'+
+    '<button class="btn" data-act="es-pas-si">Crear pasillo</button></div>');
+}
+function leerFormPasillo(){
+  var g=id=>document.getElementById(id).value, v=EST.form.v;
+  var ent=(id,min,max,def)=>{ var n=parseInt(g(id),10); return isNaN(n)?def:Math.max(min,Math.min(max,n)); };
+  v.pasillo=g("pf-pasillo").trim().toUpperCase(); v.filas=+g("pf-filas"); v.orient=g("pf-orient");
+  v.cant=ent("pf-cant",1,30,4); v.ancho=ent("pf-ancho",40,1000,120); v.sep=ent("pf-sep",0,500,0);
+  v.pisos=ent("pf-pisos",1,15,4); v.modulos=ent("pf-modulos",1,20,3); v.alto_cm=ent("pf-alto",30,1000,200);
+  v.largo_cm=ent("pf-largo",25,2000,200); v.profundidad_cm=ent("pf-prof",20,300,50);
+  return v;
+}
+async function crearPasillo(){
+  var v=leerFormPasillo(), form=EST.form;
+  if(!v.pasillo){ form.err="Falta el nombre del pasillo."; return pintarFormPasillo(); }
+  var l=armarPasillo(v), usados={};
+  EST.est.forEach(e=>{ usados[norm(e.nombre)]=1; });
+  var rep=l.filter(e=>usados[norm(e.nombre)]).map(e=>e.nombre);
+  if(rep.length){ form.err="Ya existen: "+rep.join(", ")+"."; return pintarFormPasillo(); }
+  marcar("Guardando…");
+  try{
+    var d=await apiEst({op:"estanterias_crear",estanterias:l});
+    EST.ultimo={pasillo:v.pasillo,largo_cm:v.largo_cm,profundidad_cm:v.profundidad_cm,alto_cm:v.alto_cm,
+                pisos:v.pisos,modulos:v.modulos,frente:"sur"};
+    EST.form=null; cerrar(); EST.sel=d.ids&&d.ids[0];
+    await cargarEst(); pintar(); marcar(); toast("Pasillo "+v.pasillo+" creado");
+  }catch(e){ marcar("Sin guardar"); form.err=(e&&e.message)||String(e); EST.form=form; pintarFormPasillo(); }
+}
+
+/* ---------- arrastrar estanterías en el plano ---------- */
+function puntoSvg(svg, ev){
+  var p=svg.createSVGPoint(); p.x=ev.clientX; p.y=ev.clientY;
+  return p.matrixTransform(svg.getScreenCTM().inverse());
+}
+document.addEventListener("pointerdown", function(ev){
+  var g=ev.target.closest&&ev.target.closest("#es-svg [data-es]");
+  if(!g) return;
+  var e=estDe(g.dataset.es), svg=document.getElementById("es-svg");
+  if(!e) return;
+  var p=puntoSvg(svg,ev);
+  EST.drag={ id:e.id, g:g, dx:p.x-e.x_cm, dy:p.y-e.y_cm, x:e.x_cm, y:e.y_cm, movido:false,
+             mover: EST.modo==="armar" && EST.gestiona };
+  if(EST.drag.mover){ ev.preventDefault(); try{ svg.setPointerCapture(ev.pointerId); }catch(x){} }
+});
+document.addEventListener("pointermove", function(ev){
+  var d=EST.drag; if(!d||!d.mover) return;
+  var svg=document.getElementById("es-svg"); if(!svg) return;
+  var p=puntoSvg(svg,ev);
+  var x=Math.max(0,Math.round((p.x-d.dx)/PASO)*PASO), y=Math.max(0,Math.round((p.y-d.dy)/PASO)*PASO);
+  if(x!==d.x||y!==d.y){ d.x=x; d.y=y; d.movido=true; d.g.setAttribute("transform","translate("+x+" "+y+")"); }
+});
+document.addEventListener("pointerup", async function(){
+  var d=EST.drag; if(!d) return;
+  EST.drag=null;
+  EST.sel=d.id;
+  var e=estDe(d.id);
+  if(d.movido && e){
+    e.x_cm=d.x; e.y_cm=d.y; pintar();
+    await guardarEst({op:"estanteria_mover",id:e.id,x_cm:d.x,y_cm:d.y,frente:e.frente});
+  } else pintar();
+});
+document.addEventListener("pointercancel", function(){ if(EST.drag){ EST.drag=null; pintar(); } });
+
+/* ---------- arrastrar repuestos ---------- */
+var ARRASTRA="";
+document.addEventListener("dragstart", function(ev){
+  var t=ev.target.closest&&ev.target.closest('[data-act="es-art"]');
+  if(!t) return;
+  ARRASTRA=t.dataset.cod;
+  try{ ev.dataTransfer.setData("text/plain", ARRASTRA); ev.dataTransfer.effectAllowed="move"; }catch(x){}
+});
+document.addEventListener("dragend", function(){
+  ARRASTRA=""; document.querySelectorAll(".es-cas.drop,.es-est.drop").forEach(x=>x.classList.remove("drop"));
+});
+function blancoDrop(ev){
+  if(!ARRASTRA||!ev.target.closest) return null;
+  return ev.target.closest(".es-cas") || ev.target.closest("#es-svg [data-es]");
+}
+document.addEventListener("dragover", function(ev){
+  var b=blancoDrop(ev); if(!b) return;
+  ev.preventDefault(); try{ ev.dataTransfer.dropEffect="move"; }catch(x){}
+  document.querySelectorAll(".es-cas.drop,.es-est.drop").forEach(x=>{ if(x!==b) x.classList.remove("drop"); });
+  b.classList.add("drop");
+});
+document.addEventListener("drop", function(ev){
+  var b=blancoDrop(ev); if(!b) return;
+  ev.preventDefault();
+  var cod=ARRASTRA; ARRASTRA="";
+  b.classList.remove("drop");
+  if(b.classList.contains("es-cas")) confirmarUbicacion(cod, EST.sel, +b.dataset.piso, +b.dataset.mod);
+  else { EST.sel=+b.dataset.es; EST.art=cod; pintar(); confirmarUbicacion(cod, EST.sel, null, null); }
+});
+
+/* ---------- clics ---------- */
+document.addEventListener("click", async function(ev){
+  var t=ev.target.closest&&ev.target.closest("[data-act]");
+  if(!t){
+    if(ev.target.dataset&&ev.target.dataset.scrim){ CONF=null; EST.form=null; }
+    return;
+  }
+  var a=t.dataset.act;
+  if(a.indexOf("es-")!==0) return;
+  if(a==="es-recargar"){ EST.error=""; return pintar(); }
+  if(a==="es-modo"){ EST.modo=t.dataset.m; return pintar(); }
+  if(a==="es-art"){
+    var cod=t.dataset.cod;
+    EST.art = EST.art===cod && !t.classList.contains("es-chip") ? "" : cod;
+    if(EST.art && EST.ubic[cod]) EST.sel=EST.ubic[cod].estanteria_id;
+    ev.stopPropagation(); return pintar();
+  }
+  if(a==="es-cas"){
+    if(!EST.art) return toast("Elegir primero un repuesto de la lista.");
+    return confirmarUbicacion(EST.art, EST.sel, +t.dataset.piso, +t.dataset.mod);
+  }
+  if(a==="es-soltar"){ EST.art=""; return pintar(); }
+  if(a==="es-ver"){ var u=EST.ubic[EST.art]; if(u){ EST.sel=u.estanteria_id; pintar(); } return; }
+  if(a==="es-quitar"){
+    var x=art(EST.art); if(!x) return;
+    if(!confirm("¿Quitar la ubicación de “"+x.descripcion+"”?")) return;
+    return guardarEst({op:"desubicar",codigo:x.codigo},"Ubicación quitada");
+  }
+  if(a==="es-conf-no"){ CONF=null; return cerrar(); }
+  if(a==="es-conf-si") return aceptarConf();
+  if(a==="es-nueva") return formEst(null);
+  if(a==="es-pasillo") return formPasillo();
+  if(a==="es-form-no"){ EST.form=null; return cerrar(); }
+  if(a==="es-form-si") return guardarFormEst();
+  if(a==="es-pas-si") return crearPasillo();
+  var e=estDe(EST.sel); if(!e) return;
+  if(a==="es-editar") return formEst(e);
+  if(a==="es-duplicar"){
+    var copia=Object.assign({},e); delete copia.id;
+    copia.nombre=e.nombre+" copia"; copia.x_cm=e.x_cm+dims(e).w+25;
+    EST.form={tipo:"una",id:null,err:"",v:copia}; return pintarFormEst();
+  }
+  if(a==="es-girar"){
+    e.frente=GIRO[e.frente]; pintar();
+    return guardarEst({op:"estanteria_mover",id:e.id,x_cm:e.x_cm,y_cm:e.y_cm,frente:e.frente});
+  }
+  if(a==="es-borrar"){
+    var n=enEst(e.id).length;
+    if(!confirm("¿Borrar la estantería "+e.nombre+"?"+(n?" Los "+n+" repuestos ubicados en ella quedan sin ubicación.":""))) return;
+    EST.sel=null;
+    return guardarEst({op:"estanteria_borrar",id:e.id},"Estantería borrada");
+  }
+});
+document.addEventListener("change", function(ev){
+  if(ev.target.id==="es-filtro"){ EST.filtro=ev.target.value; return pintar(); }
+  if(EST.form && EST.form.tipo==="pasillo" && ev.target.id && ev.target.id.indexOf("pf-")===0) actualizarPrevPasillo();
+});
+document.addEventListener("input", function(ev){
+  if(ev.target.id==="es-q"){
+    EST.q=ev.target.value;
+    // Solo la lista y el plano: repintar todo le saca el foco al buscador.
+    var l=document.getElementById("es-items"); if(l) l.innerHTML=itemsHtml(mapaStock());
+    var w=document.querySelector(".es-svgwrap"); if(w) w.innerHTML=svgPlano();
+  }
+  if(EST.form && EST.form.tipo==="pasillo" && ev.target.id && ev.target.id.indexOf("pf-")===0) actualizarPrevPasillo();
+});
+document.addEventListener("keydown", function(ev){
+  if(ev.key==="Escape"){ CONF=null; EST.form=null; }
+  if(ev.key==="Enter" && CONF && document.querySelector('[data-act="es-conf-si"]')){ ev.preventDefault(); aceptarConf(); }
+});
+
+/* El refresco automático trae también las estanterías, pero no mientras
+   se arrastra o hay un formulario abierto. */
+(function(){
+  var refrescarOriginal=refrescar;
+  refrescar=async function(silencioso){
+    if(EST.drag||CONF||EST.form) return;
+    if(EST.cargado||S.tab==="estan") await cargarEst();
+    return refrescarOriginal(silencioso);
+  };
+  cargarEst().then(function(){ if(S.arts.length && !document.getElementById("modal").innerHTML) pintar(); });
 })();
 </script>
