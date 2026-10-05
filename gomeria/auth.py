@@ -85,10 +85,12 @@ def cambiar_clave(cx, usuario_id, clave):
     cx.execute("delete from sesiones where usuario_id = %s", (usuario_id,))
 
 
-# La portada propia vive en la fila del usuario y puede pesar varios MB.
-# Esa fila se lee en cada pedido, así que nunca se trae con `select *`:
-# solo /api/fondo la lee, por su lado. Las columnas se buscan en la base
-# porque dependen de qué SQL se corrió, y se recuerdan unos minutos.
+# La fila del usuario se lee en cada pedido, así que no se trae con
+# `select *`: la portada propia que había (columna `fondo`, de varios MB)
+# dejaba al servidor sin memoria. La opción se sacó y 46_sin_portada.sql
+# tira la columna; hasta que se corra, se la deja afuera. Las columnas se
+# buscan en la base porque dependen de qué SQL se corrió, y se recuerdan
+# unos minutos.
 _SIN_LEER = ("fondo",)
 _COLUMNAS = {"lista": None, "hasta": 0.0}
 _COLUMNAS_LOCK = threading.Lock()

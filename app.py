@@ -442,7 +442,7 @@ class App(CupoPorPedido, gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo armar el mapa del viaje: {e}", 500)
 
-        # Cómo ve la aplicación este usuario: tema, paleta y portada.
+        # Cómo ve la aplicación este usuario: tema y paleta.
         if ruta == "/api/preferencias":
             if not self._exigir_sesion():
                 return
@@ -452,28 +452,6 @@ class App(CupoPorPedido, gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron leer las preferencias: {e}", 500)
-
-        # La portada que subió. Es de cada uno: sale de la sesión y no de
-        # la dirección, así nadie puede mirar la del otro.
-        if ruta == "/api/fondo":
-            if not self._exigir_sesion():
-                return
-            try:
-                with base.conectar() as cx:
-                    cuerpo, tipo = prefs.fondo(cx, self.usuario["id"])
-            except Exception as e:
-                traceback.print_exc()
-                return self._error(f"No se pudo leer la portada: {e}", 500)
-            if not cuerpo:
-                return self._error("Este usuario no tiene portada propia.", 404)
-            self.send_response(200)
-            self.send_header("Content-Type", tipo)
-            self.send_header("Content-Length", str(len(cuerpo)))
-            # Privada: es de este usuario y no la puede guardar un
-            # intermediario para servírsela a otro.
-            self.send_header("Cache-Control", "private, max-age=86400")
-            self.end_headers()
-            return self.wfile.write(cuerpo)
 
         # La hoja de etiquetas QR para pegar en los estantes.
         if ruta == "/repuestos/etiquetas":
@@ -975,21 +953,6 @@ class App(CupoPorPedido, gom.Handler):
 
         return super().do_GET()
 
-    def do_DELETE(self):
-        """Volver a la portada de la empresa."""
-        if urlparse(self.path).path != "/api/fondo":
-            return self._error("No existe", 404)
-        if not self._exigir_sesion():
-            return
-        try:
-            with base.conectar() as cx:
-                salida = prefs.borrar_fondo(cx, self.usuario["id"])
-                cx.commit()
-            return self._responder(gom.jstr(salida))
-        except Exception as e:
-            traceback.print_exc()
-            return self._error(f"No se pudo sacar la portada: {e}", 500)
-
     def do_HEAD(self):
         """Lo mismo que un GET, pero sin el cuerpo.
 
@@ -1075,32 +1038,6 @@ class App(CupoPorPedido, gom.Handler):
             except Exception as e:
                 traceback.print_exc()
                 return self._error(f"No se pudieron guardar las preferencias: {e}", 500)
-
-        # La portada propia. Llega el archivo crudo, con su tipo en la
-        # cabecera: no hace falta un formulario para una sola imagen.
-        if ruta == "/api/fondo":
-            if not self._exigir_sesion():
-                return
-            try:
-                largo = int(self.headers.get("Content-Length") or 0)
-                if largo > prefs.FONDO_MAXIMO + 1024:
-                    # Se corta antes de leerla: no tiene sentido subir seis
-                    # megas para después decir que no entra.
-                    return self._error(
-                        f"La imagen no puede pasar de "
-                        f"{prefs.FONDO_MAXIMO // (1024 * 1024)} MB.", 413)
-                cuerpo = self.rfile.read(largo)
-                with base.conectar() as cx:
-                    salida = prefs.guardar_fondo(
-                        cx, self.usuario["id"], cuerpo,
-                        self.headers.get("Content-Type"))
-                    cx.commit()
-                return self._responder(gom.jstr(salida))
-            except ValueError as e:
-                return self._error(str(e), 400)
-            except Exception as e:
-                traceback.print_exc()
-                return self._error(f"No se pudo guardar la portada: {e}", 500)
 
         if ruta == "/api/repuestos":
             if not self._exigir_sesion():

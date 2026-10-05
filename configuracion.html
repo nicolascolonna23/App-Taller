@@ -37,11 +37,6 @@ section .ayuda{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5
   color:var(--ink);font-weight:600}
 .muestra{width:17px;height:17px;border-radius:50%;flex:none;
   box-shadow:0 0 0 1px rgba(255,255,255,.18) inset}
-/* La portada. La que se está usando, grande, y abajo qué hacer con ella. */
-.portada{position:relative;height:190px;border-radius:12px;overflow:hidden;
-  border:1px solid var(--line);background:var(--panel-2) center/cover no-repeat}
-.portada .cartel{position:absolute;left:0;right:0;bottom:0;padding:9px 12px;
-  font-size:11px;color:#fff;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent)}
 .acciones{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
 .btn{padding:10px 15px;border-radius:10px;border:1px solid var(--line);
   background:var(--panel-2);color:var(--ink);font:inherit;font-size:13px;
@@ -52,9 +47,7 @@ section .ayuda{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5
 .aviso{margin-top:12px;font-size:12px;line-height:1.55}
 .aviso.mal{color:var(--bad)}
 .aviso.bien{color:var(--ok)}
-input[type=file]{display:none}
-@media(max-width:640px){main{padding:18px 14px 40px}section{padding:16px}
-  .portada{height:150px}}
+@media(max-width:640px){main{padding:18px 14px 40px}section{padding:16px}}
 </style>
 <script src="/tema.js"></script>
 </head><body>
@@ -80,18 +73,7 @@ input[type=file]{display:none}
     <div class="opciones" id="paletas"></div>
   </section>
 
-  <section>
-    <h2>Foto de portada</h2>
-    <p class="ayuda">Imagen de fondo del inicio, visible únicamente en su cuenta.</p>
-    <div class="portada" id="portada"><span class="cartel" id="portada-pie"></span></div>
-    <div class="acciones">
-      <button type="button" class="btn principal" id="subir">Subir una foto</button>
-      <button type="button" class="btn" id="usar" hidden></button>
-      <button type="button" class="btn" id="sacar" hidden>Eliminar imagen</button>
-      <input type="file" id="archivo" accept="image/jpeg,image/png,image/webp">
-    </div>
-    <p class="aviso" id="aviso" hidden></p>
-  </section>
+  <p class="aviso" id="aviso" hidden></p>
 </main>
 <script>
 "use strict";
@@ -141,57 +123,7 @@ function pintar(){
   $('#paletas').querySelectorAll('[data-paleta]').forEach(b =>
     b.onclick = () => elegir({ paleta: b.dataset.paleta }));
 
-  /* La portada que se está viendo ahora mismo. */
-  const propia = P.tiene_fondo && P.fondo_propio;
-  const url = P.tiene_fondo
-    ? '/api/fondo?v=' + encodeURIComponent(P.fondo_version || '')
-    : '/inicio-camion.jpg';
-  $('#portada').style.backgroundImage =
-    `url('${propia || !P.tiene_fondo ? url : '/inicio-camion.jpg'}')`;
-  $('#portada-pie').textContent = !P.tiene_fondo
-    ? 'La foto de la empresa'
-    : (propia ? 'La tuya' : 'Imagen de la empresa · hay una personal guardada');
-
-  $('#usar').hidden = !P.tiene_fondo;
-  $('#usar').textContent = propia ? 'Usar la de la empresa' : 'Usar la mía';
-  $('#usar').onclick = () => elegir({ fondo_propio: !P.fondo_propio });
-  $('#sacar').hidden = !P.tiene_fondo;
 }
-
-$('#subir').onclick = () => $('#archivo').click();
-$('#archivo').onchange = async () => {
-  const f = $('#archivo').files[0];
-  if (!f) return;
-  decir('Subiendo…');
-  $('#subir').disabled = true;
-  try {
-    /* El archivo va crudo, con su tipo en la cabecera: para una sola
-       imagen no hace falta armar un formulario. */
-    const r = await fetch('/api/fondo', {
-      method: 'POST', headers: { 'Content-Type': f.type }, body: f });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'No se pudo subir.');
-    P = Tema.poner(d);
-    pintar();
-    decir('Imagen guardada.', 'bien');
-  } catch (e) {
-    decir(e.message, 'mal');
-  }
-  $('#subir').disabled = false;
-  $('#archivo').value = '';
-};
-
-$('#sacar').onclick = async () => {
-  decir('Sacando…');
-  try {
-    const r = await fetch('/api/fondo', { method: 'DELETE' });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(d.error || 'No se pudo sacar.');
-    P = Tema.poner(d);
-    pintar();
-    decir('Volvió la foto de la empresa.', 'bien');
-  } catch (e) { decir(e.message, 'mal'); }
-};
 
 fetch('/api/preferencias').then(r => r.json()).then(d => { P = Tema.poner(d); pintar(); })
   .catch(() => decir('No se pudieron leer tus preferencias.', 'mal'));

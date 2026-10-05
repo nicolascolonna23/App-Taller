@@ -10,9 +10,6 @@
    pedir un error en cada archivo. Acá se dice, una sola vez, qué nombre
    usa cada una para cada cosa, y de ahí en más se piensa en roles: el
    fondo, el panel, el texto, la marca.
-
-   La foto de portada es de cada usuario: sale de la sesión y no de la
-   dirección, así nadie ve la del otro.
    ===================================================================== */
 (function () {
   'use strict';
@@ -134,13 +131,6 @@
     document.documentElement.dataset.modo = claro ? 'claro' : 'oscuro';
     document.documentElement.dataset.paleta = prefs.paleta;
 
-    /* La portada. Es una variable de la hoja, así que no hay que pisar
-       ningún selector: la pantalla la usa donde la use. */
-    const propia = prefs.tiene_fondo && prefs.fondo_propio;
-    document.documentElement.style.setProperty('--portada', propia
-      ? `url('/api/fondo?v=${encodeURIComponent(prefs.fondo_version || '')}')`
-      : '');
-    if (!propia) document.documentElement.style.removeProperty('--portada');
 
   }
 
@@ -148,7 +138,7 @@
      cambie al otro medio segundo después. Se guarda en el navegador y se
      refresca con lo que diga el servidor, que es el que manda. */
   const GUARDADO = 'taller.tema';
-  let prefs = { tema:'claro', paleta:'diemar', tiene_fondo:false, fondo_propio:true, diseno:2 };
+  let prefs = { tema:'claro', paleta:'diemar', diseno:2 };
   try {
     const antes = JSON.parse(localStorage.getItem(GUARDADO) || 'null');
     /* Lo guardado antes del rediseño de Titán Flota arrancaba en oscuro
@@ -172,8 +162,7 @@
       const p = window.Tema.poner(nuevas);
       const r = await fetch('/api/preferencias', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ tema:p.tema, paleta:p.paleta,
-                               fondo_propio:p.fondo_propio })
+        body: JSON.stringify({ tema:p.tema, paleta:p.paleta })
       });
       if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error ||
                                  'No se pudo guardar.');
