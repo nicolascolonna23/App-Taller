@@ -66,7 +66,12 @@ class BaseFalsa:
         if sql.startswith("select administra from roles where codigo"):
             rol = self.roles.get(valores[0])
             return Resultado({"administra": rol["administra"]} if rol else None)
-        if sql.startswith("select * from usuarios where id"):
+        if sql.startswith("select column_name from information_schema.columns"):
+            return Resultado(muchas=[{"column_name": c} for c in
+                                     ("id", "usuario", "nombre", "rol", "activo",
+                                      "sucursal_codigo", "fondo")])
+        if sql.startswith("select u.") and "from usuarios u where id" in sql:
+            assert '"fondo"' not in sql, "la portada no se lee con el usuario"
             return Resultado(next((u for u in self.usuarios if u["id"] == valores[0]), None))
         if sql.startswith("select 1 from usuarios where usuario"):
             return Resultado(next(({"?": 1} for u in self.usuarios

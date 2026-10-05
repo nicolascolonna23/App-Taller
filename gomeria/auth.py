@@ -85,9 +85,33 @@ def cambiar_clave(cx, usuario_id, clave):
     cx.execute("delete from sesiones where usuario_id = %s", (usuario_id,))
 
 
+# La portada propia vive en la fila del usuario y puede pesar varios MB.
+# Esa fila se lee en cada pedido, así que nunca se trae con `select *`:
+# solo /api/fondo la lee, por su lado. Las columnas se buscan en la base
+# porque dependen de qué SQL se corrió, y se recuerdan unos minutos.
+_SIN_LEER = ("fondo",)
+_COLUMNAS = {"lista": None, "hasta": 0.0}
+_COLUMNAS_LOCK = threading.Lock()
+
+
+def columnas_usuario(cx, alias="u"):
+    """Las columnas de usuarios, sin la portada, listas para un SELECT."""
+    with _COLUMNAS_LOCK:
+        lista, hasta = _COLUMNAS["lista"], _COLUMNAS["hasta"]
+    if lista is None or time.monotonic() > hasta:
+        filas = cx.execute("""
+            select column_name from information_schema.columns
+            where table_schema = current_schema() and table_name = 'usuarios'
+            order by ordinal_position""").fetchall()
+        lista = [f["column_name"] for f in filas if f["column_name"] not in _SIN_LEER]
+        with _COLUMNAS_LOCK:
+            _COLUMNAS.update(lista=lista, hasta=time.monotonic() + 300)
+    return ", ".join(f'{alias}."{c}"' for c in lista)
+
+
 def autenticar(cx, usuario, clave):
     """Devuelve el usuario si coincide, None si no. No dice cuál de las dos falló."""
-    fila = cx.execute("select * from usuarios where usuario = %s and activo",
+    fila = cx.execute(f"select {columnas_usuario(cx)} from usuarios u where usuario = %s and activo",
                       (str(usuario).strip().lower(),)).fetchone()
     if not fila or not verificar(clave, fila["hash"]):
         return None
@@ -164,7 +188,7 @@ def usuario_de_sesion(cx, token):
         return None
     seguridad = hay_seguridad(cx)
     fila = cx.execute(f"""
-        select u.*, s.creado as sesion_creada, s.token as sesion_token
+        select {columnas_usuario(cx)}, s.creado as sesion_creada, s.token as sesion_token
                {", s.con_2fa as sesion_con_2fa" if seguridad else ""}
         from sesiones s
         join usuarios u on u.id = s.usuario_id
@@ -493,8 +517,8 @@ def leer_desafio(cx, token):
     """El usuario que está a mitad de entrar, con el destino. None si venció."""
     if not token:
         return None
-    return cx.execute("""
-        select u.*, d.destino from desafios_2fa d
+    return cx.execute(f"""
+        select {columnas_usuario(cx)}, d.destino from desafios_2fa d
         join usuarios u on u.id = d.usuario_id
         where d.token = %s and d.expira > now() and u.activo""", (_h(token),)).fetchone()
 

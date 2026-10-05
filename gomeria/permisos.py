@@ -339,7 +339,8 @@ def _usuario(cx, usuario_id):
         usuario_id = int(usuario_id)
     except (TypeError, ValueError):
         raise ValueError("No se sabe de qué usuario se habla.") from None
-    fila = cx.execute("select * from usuarios where id = %s", (usuario_id,)).fetchone()
+    fila = cx.execute(f"select {auth.columnas_usuario(cx)} from usuarios u where id = %s",
+                      (usuario_id,)).fetchone()
     if not fila:
         raise ValueError("Ese usuario no existe.")
     return fila

@@ -50,8 +50,8 @@ def pedir_clave(usuario):
 
 
 def listar(cx):
-    filas = cx.execute("""
-        select u.*, (select count(*) from sesiones s where s.usuario_id = u.id
+    filas = cx.execute(f"""
+        select {auth.columnas_usuario(cx)}, (select count(*) from sesiones s where s.usuario_id = u.id
                      and s.expira > now()) as sesiones
         from usuarios u order by u.activo desc, u.usuario""").fetchall()
     if not filas:
@@ -87,7 +87,8 @@ def main():
             return
 
         usuario = args.usuario.strip().lower()
-        existe = cx.execute("select * from usuarios where usuario = %s", (usuario,)).fetchone()
+        existe = cx.execute(f"select {auth.columnas_usuario(cx)} from usuarios u where usuario = %s",
+                            (usuario,)).fetchone()
 
         if args.que == "agregar":
             if existe:
