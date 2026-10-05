@@ -90,6 +90,14 @@ class KilometrajeDelService(unittest.TestCase):
                                          "km": 585763}), 53)
         self.assertTrue(cx.guardo())
 
+    def test_el_km_redondeado_del_satelital_entra(self):
+        """El formulario sugiere 155.928 cuando el satelital dice 155.928,08."""
+        cx = Base({"fecha": DIA, "km": 155928.08})
+        self.assertEqual(
+            alertas.guardar_service(cx, {"unidad_id": 9, "fecha": "2026-09-28",
+                                         "km": 155928}), 53)
+        self.assertTrue(cx.guardo())
+
     def test_una_carga_retroactiva_se_mide_contra_ese_dia(self):
         """El service viejo que aparece después sigue entrando.
 

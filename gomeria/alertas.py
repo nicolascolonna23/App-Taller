@@ -16,6 +16,8 @@ Cada fuente se lee por separado y a prueba de balas. Los módulos se van
 prendiendo de a uno y el SQL se corre a mano: que falte una tabla apaga
 esa fuente y lo dice, no la pantalla entera.
 """
+import math
+
 import permisos
 
 # El orden en que se miran las cosas. Es el de la consecuencia: un papel
@@ -558,10 +560,14 @@ def guardar_service(cx, datos, usuario=None, crear_orden=False):
         select fecha, km from odometros
         where unidad_id = %s and fecha <= coalesce(%s::date, current_date)
         order by fecha desc limit 1""", (unidad_id, fecha)).fetchone()
-    if lectura and km < float(lectura["km"]):
+    # El satelital guarda decimales (155.928,08) y el formulario sugiere el
+    # número redondeado (155.928): se compara contra el km entero, si no el
+    # propio valor sugerido quedaba rechazado por unos metros.
+    if lectura and km < math.floor(float(lectura["km"])):
         miles = lambda n: f"{n:,.0f}".replace(",", ".")
+        que = "El cambio de prefiltro" if prefiltro else "El service"
         raise ValueError(
-            f"El service dice {miles(km)} km y el {lectura['fecha']:%d/%m/%Y} "
+            f"{que} dice {miles(km)} km y el {lectura['fecha']:%d/%m/%Y} "
             f"la unidad {unidad['patente']} ya marcaba "
             f"{miles(float(lectura['km']))} km en el satelital. "
             f"Revisar el kilometraje antes de guardar.")
