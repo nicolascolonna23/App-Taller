@@ -355,7 +355,11 @@ def limpiar_intentos(cx, *claves):
 # 1Password. Sale de un secreto compartido y de la hora: no viaja por
 # SMS ni por mail, así que no hay servicio externo que contratar ni
 # mensaje que interceptar. Lo piden los roles que administran.
-EMISOR = "Pengui"
+EMISOR = "Titán Flota"
+# Cómo figuraba el sistema en las apps autenticadoras antes del cambio de
+# nombre. Los códigos no dependen del nombre: solo se menciona para que
+# quien ya lo tenía dado de alta lo encuentre.
+EMISOR_ANTERIOR = "Pengui"
 PASO = 30                  # segundos que dura cada código
 MARGEN = 1                 # se acepta el código anterior y el siguiente
 CUANTOS_RESPALDO = 10
@@ -533,32 +537,44 @@ def crear_admin_inicial(cx, spec):
 # =====================================================================
 _PAGINA = """<!DOCTYPE html><html lang="es"><head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>__TITULO__ | Pengui</title>
+<title>__TITULO__ | Titán Flota</title>
+<meta name="description" content="Titán Flota · sistema de control de flota, mantenimiento y taller.">
+<meta name="theme-color" content="#14243a">
 <link rel="icon" href="/favicon.png">
 <style>
-  :root{color-scheme:light;--plane:#f5f5f2;--surface-1:#fff;--surface-2:#faf9f4;
-        --hairline:rgba(0,0,0,.10);--hairline-2:rgba(0,0,0,.20);
-        --ink:#121212;--ink-2:#343434;--ink-muted:#666;--brand:#ffd400;--mal:#bd3038}
+  :root{color-scheme:light;--plane:#f4f6f8;--surface-1:#fff;--surface-2:#f8fafc;
+        --hairline:#e1e6ed;--hairline-2:#c9d2de;--navy:#14243a;
+        --ink:#14243a;--ink-2:#34465f;--ink-muted:#5a6b80;--brand:#2563eb;--brand-deep:#1d4ed8;--mal:#b91c1c}
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0}
-  body{font-family:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--plane);
-       color:var(--ink);font-size:16px;display:grid;place-items:center;padding:24px}
-  .caja{width:100%;max-width:380px;background:var(--surface-1);border:1px solid var(--hairline);border-radius:16px;padding:32px;box-shadow:0 18px 48px #0002}
-  .marca{text-align:center;margin-bottom:26px}
-  .marca img{height:104px;max-width:150px;object-fit:contain;margin-bottom:14px}
-  .marca .t{font-size:11px;letter-spacing:2.4px;text-transform:uppercase;color:var(--ink-muted);font-weight:600}
-  label{display:block;font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;
-        color:var(--ink-muted);font-weight:600;margin:16px 0 7px}
-  input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface-2);
-        border:1px solid var(--hairline-2);border-radius:8px;padding:13px 14px;outline:none}
-  input:focus{border-color:#d1ae00;box-shadow:0 0 0 3px #fff3a3}
-  button{width:100%;font:inherit;font-size:16px;font-weight:700;color:#111;background:var(--brand);
-         border:none;border-radius:12px;padding:15px;margin-top:22px;cursor:pointer}
-  button:disabled{opacity:.5;cursor:default}
-  .error{margin-top:16px;border-left:2px solid var(--mal);padding-left:12px;color:#f0a8a8;font-size:14.5px}
-  .pie{margin-top:22px;text-align:center;font-size:12px;color:var(--ink-muted)}
-  .pie a{color:var(--ink-2)}
+  html,body{min-height:100%;margin:0}
+  body{font-family:Inter,"Segoe UI",system-ui,-apple-system,sans-serif;background:var(--plane);
+       color:var(--ink);font-size:16px;display:grid;place-items:center;padding:24px 16px;
+       -webkit-font-smoothing:antialiased}
+  /* Una franja azul noche arriba: la misma barra de todo el sistema. */
+  body::before{content:"";position:fixed;inset:0 0 auto;height:6px;background:var(--navy)}
+  .caja{width:100%;max-width:400px;background:var(--surface-1);border:1px solid var(--hairline);
+        border-radius:14px;padding:32px 30px 26px;box-shadow:0 1px 2px rgba(20,36,58,.06),0 12px 32px rgba(20,36,58,.08)}
+  .marca{text-align:center;margin-bottom:24px}
+  .marca img{display:block;width:100%;max-width:260px;height:auto;margin:0 auto 14px}
+  .marca .t{font-size:13px;color:var(--ink-muted);font-weight:500}
+  h1{font-size:20px;margin:0 0 4px;letter-spacing:-.01em}
+  label{display:block;font-size:13px;color:var(--ink-2);font-weight:600;margin:16px 0 6px}
+  input{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--surface-1);
+        border:1px solid var(--hairline-2);border-radius:8px;padding:12px 13px;outline:none}
+  input:focus-visible{border-color:var(--brand);box-shadow:0 0 0 3px rgba(37,99,235,.25)}
+  button{width:100%;font:inherit;font-size:16px;font-weight:650;color:#fff;background:var(--brand);
+         border:none;border-radius:8px;padding:13px;margin-top:22px;cursor:pointer}
+  button:hover{background:var(--brand-deep)}
+  button:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:3px}
+  button:disabled{opacity:.55;cursor:default}
+  .error{display:flex;gap:9px;align-items:flex-start;margin-top:16px;padding:10px 12px;border-radius:8px;
+         background:#fef2f2;border:1px solid #fecaca;color:var(--mal);font-size:14px;line-height:1.45}
+  .error::before{content:"!";flex:none;display:grid;place-items:center;width:18px;height:18px;border-radius:50%;
+         background:var(--mal);color:#fff;font-size:12px;font-weight:800;margin-top:1px}
+  .pie{margin-top:20px;text-align:center;font-size:13px;color:var(--ink-muted);line-height:1.5}
+  .pie a{color:var(--brand)}
   p{font-size:14.5px;line-height:1.55;color:var(--ink-2);margin:0 0 12px}
+  ol{padding-left:20px;margin:0 0 12px;font-size:14.5px;line-height:1.55;color:var(--ink-2)}
   .qr{display:grid;place-items:center;margin:8px 0 14px}
   .qr svg{width:200px;height:200px}
   .secreto{font-family:ui-monospace,Menlo,monospace;font-size:14px;letter-spacing:1px;text-align:center;
@@ -567,32 +583,30 @@ _PAGINA = """<!DOCTYPE html><html lang="es"><head>
   .codigos{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;padding:0;list-style:none;
            font-family:ui-monospace,Menlo,monospace;font-size:16px;text-align:center}
   .codigos li{background:var(--surface-2);border:1px solid var(--hairline);border-radius:8px;padding:8px}
-  a.boton{display:block;text-align:center;text-decoration:none;font-weight:700;color:#111;background:var(--brand);
-          border-radius:12px;padding:15px;margin-top:22px}
+  a.boton{display:block;text-align:center;text-decoration:none;font-weight:650;color:#fff;background:var(--brand);
+          border-radius:8px;padding:13px;margin-top:22px}
+  a.boton:hover{background:var(--brand-deep)}
+  @media(max-width:420px){.caja{padding:26px 20px 22px}}
 </style></head><body>
 __CUERPO__
 </body></html>"""
 
 
 _MARCA = """  <div class="marca">
-    <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
-    <div class="t">Pengui · Gestión de flota</div>
+    <img src="/logo.png" alt="Titán Flota" width="260" height="96">
+    <div class="t">Control de flota, mantenimiento y taller</div>
   </div>
 """
 
 LOGIN = _PAGINA.replace("__TITULO__", "Ingresar").replace("__CUERPO__", """<form class="caja" method="POST" action="/login">
-  <div class="marca">
-    <img src="/logo.png" alt="Gestión de flota" onerror="this.style.display='none'">
-    <div class="t">Pengui · Gestión de flota</div>
-  </div>
-  <label for="usuario">Usuario</label>
-  <input id="usuario" name="usuario" autocapitalize="none" autocorrect="off" autofocus required>
+""" + _MARCA + """  <label for="usuario">Usuario</label>
+  <input id="usuario" name="usuario" autocomplete="username" autocapitalize="none" autocorrect="off" autofocus required>
   <label for="clave">Contraseña</label>
-  <input id="clave" name="clave" type="password" required>
+  <input id="clave" name="clave" type="password" autocomplete="current-password" required>
   <input type="hidden" name="destino" value="__DESTINO__">
-  <button type="submit">Entrar</button>
+  <button type="submit">Ingresar</button>
   __ERROR__
-  <div class="pie">Si no cuenta con usuario, debe solicitarlo al encargado.</div>
+  <div class="pie">¿No tenés usuario o olvidaste la contraseña? Pedíselo al encargado del sistema.</div>
 </form>""")
 
 
@@ -602,7 +616,7 @@ def _pagina(titulo, cuerpo):
 
 def _error_html(error):
     from html import escape
-    return f'<div class="error">{escape(error)}</div>' if error else ""
+    return f'<div class="error" role="alert">{escape(error)}</div>' if error else ""
 
 
 _CAMPO_CODIGO = """
@@ -614,7 +628,7 @@ _CAMPO_CODIGO = """
 def pagina_codigo(error=None):
     """El segundo paso de todos los días: el código de la app."""
     return _pagina("Código de verificación", f"""<form class="caja" method="POST" action="/login/2fa">
-{_MARCA}  <p>Abrir la aplicación autenticadora e ingresar el código de 6 dígitos de <b>{EMISOR}</b>.</p>
+{_MARCA}  <p>Abrir la aplicación autenticadora e ingresar el código de 6 dígitos de <b>{EMISOR}</b> (en altas anteriores puede figurar como <b>{EMISOR_ANTERIOR}</b>).</p>
   {_CAMPO_CODIGO}
   <button type="submit">Verificar</button>
   {_error_html(error)}
@@ -671,5 +685,5 @@ def pagina_respaldo(codigos, destino="/"):
 def pagina_login(error=None, destino="/"):
     from html import escape
     return (LOGIN
-            .replace("__ERROR__", f'<div class="error">{escape(error)}</div>' if error else "")
+            .replace("__ERROR__", f'<div class="error" role="alert">{escape(error)}</div>' if error else "")
             .replace("__DESTINO__", escape(destino or "/", quote=True)))
