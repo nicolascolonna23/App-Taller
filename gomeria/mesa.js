@@ -27,7 +27,10 @@ function tireArt(sufijo){
   +`<clipPath id="banda${id}"><path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z"/></clipPath></defs>`
   +`<ellipse cx="132" cy="185" rx="75" ry="9" fill="#0003"/>`
   +`<path d="M106 18C42 18 37 171 106 179L155 173C211 167 208 20 155 15Z" fill="url(#rubber${id})" stroke="#6c7884" stroke-width="2"/>`
-  +`<g class="tacos" clip-path="url(#banda${id})">${tacos}</g>`
+  /* El recorte va en un grupo quieto y la animación en el de adentro: si
+     estuvieran en el mismo, el recorte se movería con los tacos y estos
+     asomarían por encima de la banda. */
+  +`<g clip-path="url(#banda${id})"><g class="tacos">${tacos}</g></g>`
   +`<ellipse cx="157" cy="95" rx="48" ry="79" fill="#20272e" stroke="#5b6873" stroke-width="3"/>`
   +`<g transform="translate(157 95) scale(1 1.72)"><g class="llanta">`
   +letras
