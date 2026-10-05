@@ -19,6 +19,10 @@ internos conservan sus nombres anteriores para no romper despliegues ni datos.
   pantallas— unifica la barra superior azul noche, tipografía, botones,
   formularios, tablas, pestañas, diálogos y foco de teclado. Un cambio de
   estilo compartido va ahí, no en cada pantalla.
+- **Asistente de IA:** se llama **Titán** (antes Pengui) y lo representa el
+  robot de `titan-asistente.png`; `titan-asistente-avatar.png` es la cabeza
+  que se ve en la tarjeta de la portada. El archivo `pengui.js` y los ids
+  `pengui` quedaron con su nombre interno.
 - La paleta predeterminada conserva el id `diemar` en las preferencias
   guardadas. Las preferencias anteriores al rediseño arrancan en el tema
   claro; el oscuro sigue disponible en Configuración.
@@ -204,7 +208,7 @@ andado: el error queda abajo, en rojo.
   (se cambia con `HORAS_SESION_ADMIN`). Cambiar la propia contraseña tiene
   el mismo freno que el ingreso.
 
-- **Cupo del asistente.** Cada consulta a Pengui se paga a Anthropic, así
+- **Cupo del asistente.** Cada consulta a Titán (el asistente) se paga a Anthropic, así
   que tiene techo: 20 por hora y 100 por día por persona, y 500 por día
   entre todos. Se cambian en Render con `ASISTENTE_POR_HORA`,
   `ASISTENTE_POR_DIA` y `ASISTENTE_TOTAL_DIA`. La tabla sale de

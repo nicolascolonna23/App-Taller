@@ -316,8 +316,8 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
     import unicodedata
     saludo = ''.join(c for c in unicodedata.normalize('NFD', mensajes[-1]['content'].lower())
                      if c.isalnum() or c.isspace()).strip()
-    if saludo in {'hola', 'hola pengui', 'buen dia', 'buenas', 'quien sos', 'como te llamas'}:
-        return {'respuesta': 'Pengui, el asistente de IA de Diemar. Permite consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué información necesita?', 'fuentes': []}
+    if saludo in {'hola', 'hola titan', 'hola pengui', 'buen dia', 'buenas', 'quien sos', 'como te llamas'}:
+        return {'respuesta': 'Titán, el asistente de IA de Titán Flota. Permite consultar stock, cubiertas, unidades, vencimientos y combustible. ¿Qué información necesita?', 'fuentes': []}
     if not habilitado():
         raise NoDisponible('El asistente todavía no está configurado. El administrador debe agregar ANTHROPIC_API_KEY en el servidor.')
     uid = usuario['id']

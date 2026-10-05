@@ -1,7 +1,7 @@
 """El sistema no habla como el taller.
 
 Los tres lugares donde el sistema redacta un texto con un modelo —el que
-traduce los partes de gomería, Pengui y el asistente de cuenta corriente—
+traduce los partes de gomería, Titán (el asistente de IA) y el asistente de cuenta corriente—
 tienen que pedir un castellano neutro. Es una prueba sobre el prompt: no
 garantiza cada respuesta, pero sí que la instrucción esté y que nadie la
 borre sin querer al tocar el archivo.

@@ -1,13 +1,13 @@
 # Asistente interno de Diemar
 
-El chat vive en `/asistente`, detrás del mismo inicio de sesión que el resto del sistema. Se abre desde el muñeco Pengui. Usa la API Messages de Anthropic con herramientas de consulta del servidor. El chat de clientes de la carpeta `chat/` es una aplicación anterior independiente y no se modifica.
+El chat vive en `/asistente`, detrás del mismo inicio de sesión que el resto del sistema. Se abre desde la tarjeta de Titán, el asistente (el robot), en la portada. Usa la API Messages de Anthropic con herramientas de consulta del servidor. El chat de clientes de la carpeta `chat/` es una aplicación anterior independiente y no se modifica.
 
 ## Activarlo después del merge
 
 1. Crear una clave en Anthropic y habilitar la facturación de la API. No pegar la clave en el chat ni en GitHub.
 2. En las variables de entorno del servicio de Render, agregar `ANTHROPIC_API_KEY`. `ANTHROPIC_MODEL` es opcional y tiene como valor predeterminado `claude-opus-5`; se puede elegir otro modelo de la cuenta que soporte herramientas. La clave se usa exclusivamente en el servidor.
 3. Mantener la conexión `SUPABASE_DB_URL` existente. El asistente consulta las mismas tablas y vistas que los módulos. No requiere migraciones nuevas. Deben estar aplicadas las migraciones de los módulos utilizados, incluidas `04_repuestos.sql`, `06_vencimientos.sql`, `07_unidades.sql` y las de combustible. Si falta una fuente, debe informar indisponibilidad, no stock cero.
-4. Desplegar la rama principal después de mergear. Entrar al sistema y tocar el muñeco Pengui. Sin clave, el chat muestra “Pendiente de configuración”; los otros módulos siguen funcionando.
+4. Desplegar la rama principal después de mergear. Entrar al sistema y usar la tarjeta de Titán en la portada. Sin clave, el chat muestra “Pendiente de configuración”; los otros módulos siguen funcionando.
 5. Probar con un código de goma conocido, una patente con VTV registrada y un repuesto cuyo stock esté comprobado. Comparar los valores con el módulo correspondiente antes de habilitar su uso habitual.
 6. Configurar alertas y límites de gasto en el proyecto de API. El servidor limita a cuatro consultas simultáneas por proceso, una activa por usuario, tres segundos entre inicios, cuatro rondas de modelo y ocho herramientas por pregunta. Estos límites no reemplazan el control de gastos del proveedor ni una cuota global si se ejecutan varios procesos.
 

@@ -98,6 +98,10 @@ PANTALLAS = {
     "/logo-cedula.png": ("titan-flota-logo.png", "image/png"),
     "/favicon.png": ("favicon.png",             "image/png"),
     "/titan-flota-icono.png": ("titan-flota-icono.png", "image/png"),
+    # Titán, el robot del asistente: entero en su pantalla y la cabeza
+    # como avatar en la tarjeta de la portada.
+    "/titan-asistente.png": ("titan-asistente.png", "image/png"),
+    "/titan-asistente-avatar.png": ("titan-asistente-avatar.png", "image/png"),
     # El visor 3D del camión. Está afuera de las pantallas porque lo usan
     # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
     # Gomería.
@@ -275,7 +279,7 @@ class App(CupoPorPedido, gom.Handler):
             if 'rel="icon"' not in html:
                 estilos += '<link rel="icon" href="/favicon.png" type="image/png">'
             html = html.replace('</head>', estilos + '</head>', 1) if '</head>' in html else html + estilos
-            # Pengui vive en la portada. Inyectarlo en todas las pantallas
+            # El asistente (Titán) vive en la portada. Inyectarlo en todas las pantallas
             # lo dejaba encima de formularios, tablas y botones de trabajo.
             script = ('<script src="/pengui.js"></script>'
                       if self._ruta_pedida() == "/" else "")
