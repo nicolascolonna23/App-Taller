@@ -47,8 +47,8 @@ body header.top,body>header:not(.topbar),body>main>header.top{
   border-bottom:1px solid var(--tf-nav-line)!important;box-shadow:none!important;
   min-height:60px;height:auto;padding-top:0;padding-bottom:0}
 body header.top{display:flex;align-items:center;gap:14px}
-body :is(header.top,body>header) img[src^="/logo"]{height:34px!important;width:auto!important;
-  max-width:132px!important;max-height:34px!important;padding:0!important;border-radius:0!important;
+body :is(header.top,body>header) img[src^="/logo"]{height:42px!important;width:auto!important;
+  max-width:156px!important;max-height:42px!important;padding:0!important;border-radius:0!important;
   object-fit:contain;flex:none;display:block;background:none!important}
 body :is(header.top,body>header) :is(.brand,.marca,.donde){color:var(--tf-nav-ink)!important;
   font-size:14px;font-weight:650;letter-spacing:0;text-transform:none;white-space:nowrap;
@@ -72,7 +72,7 @@ body :is(header.top,body>header) .barra-admin a:hover,body :is(header.top,body>h
   opacity:1;background:var(--tf-nav-hover);border-color:rgba(255,255,255,.3)}
 @media(max-width:640px){
   body header.top{gap:10px;padding-left:16px!important;padding-right:16px!important;min-height:56px}
-  body :is(header.top,body>header) img[src^="/logo"]{height:28px!important;max-height:28px!important;max-width:84px!important}
+  body :is(header.top,body>header) img[src^="/logo"]{height:32px!important;max-height:32px!important;max-width:96px!important}
   body :is(header.top,body>header) :is(.brand,.marca,.donde){display:none}
   body :is(header.top,body>header) :is(.who,.quien,#who,#quien){min-width:0;flex:0 1 auto;font-size:12px;max-width:42vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   /* Los atajos secundarios del encabezado no entran en un teléfono: queda volver al inicio. */
@@ -190,7 +190,7 @@ body.fleet-control{background:var(--plane,var(--bg))!important}
 body.fleet-control .topbar{background:var(--tf-nav)!important;color:var(--tf-nav-ink);
   box-shadow:0 0 0 100vmax var(--tf-nav)!important;clip-path:inset(0 -100vmax);
   padding:12px 0!important;gap:16px;border:0!important;border-radius:0;min-height:64px;align-items:center}
-body.fleet-control .topbar .logo{height:34px!important;width:auto!important;max-width:132px}
+body.fleet-control .topbar .logo{height:42px!important;width:auto!important;max-width:156px}
 body.fleet-control .brandblock .sub{color:var(--tf-nav-muted)!important;letter-spacing:.04em;text-transform:none;font-size:11px}
 body.fleet-control .brandblock h1{color:var(--tf-nav-ink)!important;font-size:18px;letter-spacing:-.01em}
 body.fleet-control .topbar :is(.nav-link,.chip){background:transparent!important;color:var(--tf-nav-muted)!important;
@@ -253,3 +253,37 @@ body .button:hover{color:var(--ink)}
   body :is(header.top,.sidebar,.barra-admin,.menu-cuenta){display:none!important}
 }
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+
+/* ---------- Titán, el robot del asistente ----------
+   Dos capas de la misma imagen: el cuerpo y el brazo que saluda, que gira
+   desde el codo. Flota, saluda cada tanto y parpadea. Con «reducir
+   movimiento» queda quieto. */
+.titan-robot{--alto:120px;position:relative;display:inline-block;flex:none;height:var(--alto);
+  aspect-ratio:512/628;cursor:default}
+.titan-robot .tr-flota{position:absolute;inset:0;animation:tr-flotar 3.2s ease-in-out infinite}
+.titan-robot img{position:absolute;inset:0;width:100%;height:100%;display:block;margin:0;max-width:none;max-height:none;border-radius:0}
+.titan-robot .tr-brazo{transform-origin:22.5% 54.1%;animation:tr-saludar 6s ease-in-out .4s infinite}
+.titan-robot .tr-ojo{position:absolute;background:#0a2147;border-radius:40%;transform:scaleY(0);
+  animation:tr-parpadear 4.6s linear infinite}
+.titan-robot .tr-ojo.izq{left:33.6%;top:15.8%;width:11.4%;height:11.4%}
+.titan-robot .tr-ojo.der{left:57.4%;top:18.9%;width:13.6%;height:10.4%}
+.titan-robot .tr-sombra{position:absolute;left:18%;right:18%;bottom:-5%;height:5%;border-radius:50%;
+  background:rgba(20,36,58,.18);animation:tr-sombra 3.2s ease-in-out infinite}
+.titan-robot.entra{animation:tr-entrar .6s cubic-bezier(.2,1.4,.4,1) both}
+/* Al pasar el puntero (o al tocarlo) saluda con más ganas. */
+.titan-robot:hover .tr-brazo,.titan-robot.saluda .tr-brazo{animation:tr-saludar-ya 1.2s ease-in-out infinite}
+@keyframes tr-flotar{0%,100%{transform:translateY(0)}50%{transform:translateY(-5%)}}
+@keyframes tr-sombra{0%,100%{transform:scaleX(1);opacity:1}50%{transform:scaleX(.82);opacity:.6}}
+@keyframes tr-saludar{0%,34%,100%{transform:rotate(0)}5%,15%,25%{transform:rotate(-18deg)}10%,20%{transform:rotate(7deg)}}
+@keyframes tr-saludar-ya{0%,100%{transform:rotate(-18deg)}50%{transform:rotate(8deg)}}
+@keyframes tr-parpadear{0%,93%,100%{transform:scaleY(0)}95.5%{transform:scaleY(1)}}
+@keyframes tr-entrar{from{transform:translateY(18%) scale(.6);opacity:0}to{transform:none;opacity:1}}
+/* El globo con el saludo, al lado del robot. */
+.titan-globo{position:relative;background:var(--surface-1,#fff);color:var(--ink,#14243a);border:1px solid var(--hairline-2,#c9d2de);
+  border-radius:14px;padding:10px 13px;font-size:13.5px;line-height:1.4;box-shadow:0 4px 14px rgba(20,36,58,.08);
+  animation:tr-globo .5s ease-out .5s both}
+.titan-globo::before{content:"";position:absolute;left:-7px;top:22px;width:12px;height:12px;background:inherit;
+  border-left:1px solid var(--hairline-2,#c9d2de);border-bottom:1px solid var(--hairline-2,#c9d2de);transform:rotate(45deg)}
+.titan-globo b{display:block;font-size:15px;margin-bottom:2px}
+@keyframes tr-globo{from{opacity:0;transform:translateX(-6px) scale(.96)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.titan-robot *,.titan-robot,.titan-globo{animation:none!important}}

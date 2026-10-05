@@ -1,7 +1,7 @@
 # Titán Flota
 
 Sistema de control de flota, mantenimiento y taller (antes «App Taller» /
-«Penguin Fleet»). El repositorio, el servicio de Render y los identificadores
+«Penguin Fleet»; el logo dice «Titán Fleet Management»). El repositorio, el servicio de Render y los identificadores
 internos conservan sus nombres anteriores para no romper despliegues ni datos.
 
 ## Identidad visual
@@ -19,9 +19,11 @@ internos conservan sus nombres anteriores para no romper despliegues ni datos.
   pantallas— unifica la barra superior azul noche, tipografía, botones,
   formularios, tablas, pestañas, diálogos y foco de teclado. Un cambio de
   estilo compartido va ahí, no en cada pantalla.
-- **Asistente de IA:** se llama **Titán** (antes Pengui) y lo representa el
-  robot de `titan-asistente.png`; `titan-asistente-avatar.png` es la cabeza
-  que se ve en la tarjeta de la portada. El archivo `pengui.js` y los ids
+- **Asistente de IA:** se llama **Titán** (antes Pengui) y lo representa un
+  robot animado: `titan-robot-cuerpo.png` y `titan-robot-brazo.png` son la
+  misma imagen en dos capas, y `sistema.css` (`.titan-robot`) lo hace flotar,
+  saludar con el brazo y parpadear. Se ve grande en la tarjeta de la portada
+  y en la bienvenida de `/asistente`. El archivo `pengui.js` y los ids
   `pengui` quedaron con su nombre interno.
 - La paleta predeterminada conserva el id `diemar` en las preferencias
   guardadas. Las preferencias anteriores al rediseño arrancan en el tema

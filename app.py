@@ -98,10 +98,10 @@ PANTALLAS = {
     "/logo-cedula.png": ("titan-flota-logo.png", "image/png"),
     "/favicon.png": ("favicon.png",             "image/png"),
     "/titan-flota-icono.png": ("titan-flota-icono.png", "image/png"),
-    # Titán, el robot del asistente: entero en su pantalla y la cabeza
-    # como avatar en la tarjeta de la portada.
-    "/titan-asistente.png": ("titan-asistente.png", "image/png"),
-    "/titan-asistente-avatar.png": ("titan-asistente-avatar.png", "image/png"),
+    # Titán, el robot del asistente, en dos capas: el cuerpo y el brazo que
+    # saluda (se anima en sistema.css).
+    "/titan-robot-cuerpo.png": ("titan-robot-cuerpo.png", "image/png"),
+    "/titan-robot-brazo.png": ("titan-robot-brazo.png", "image/png"),
     # El visor 3D del camión. Está afuera de las pantallas porque lo usan
     # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
     # Gomería.
