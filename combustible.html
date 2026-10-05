@@ -85,12 +85,6 @@
   .tarjeta span{display:block;color:var(--ink-muted);font-size:10px;text-transform:uppercase;
     letter-spacing:.9px;font-weight:700;margin-top:3px}
   .tarjeta small{display:block;color:var(--ink-muted);font-size:11px;margin-top:5px}
-  .tarjeta.ok b{color:var(--ok)}
-  .tarjeta.solo_estacion b{color:var(--bad)}
-  .tarjeta.solo_planilla b{color:var(--warn)}
-  .tarjeta.difiere_litros b,.tarjeta.difiere_importe b{color:var(--info)}
-  .tarjeta.fuera_de_periodo b{color:var(--ink-muted)}
-  .pastilla.fuera_de_periodo{background:rgba(255,255,255,.06);color:var(--ink-muted)}
 
   /* Elegir a mano qué columna es cada cosa. */
   .mapeo{margin:11px 0;padding:11px;background:var(--surface-3);
@@ -100,7 +94,6 @@
   .mapeo label{display:flex;flex-direction:column;gap:3px;font-size:10.5px;
     color:var(--ink-muted);min-width:0}
   .mapeo select{font-size:11.5px;padding:5px 7px;max-width:180px}
-  .mapeo .pista{width:100%;margin:2px 0 0;font-size:11px;color:var(--ink-muted);line-height:1.5}
   .aviso-rep{margin:9px 0;padding:9px 11px;border-radius:8px;font-size:11.5px;
     line-height:1.5;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);
     color:#e8d9ae}
@@ -115,26 +108,12 @@
   table.datos td.num{text-align:right;font-variant-numeric:tabular-nums}
   .pastilla{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;
     font-weight:700;letter-spacing:.3px}
-  .pastilla.ok{background:rgba(49,189,101,.15);color:var(--ok)}
-  .pastilla.solo_estacion{background:rgba(227,93,98,.15);color:var(--bad)}
-  .pastilla.solo_planilla{background:rgba(240,180,41,.15);color:var(--warn)}
-  .pastilla.difiere_litros,.pastilla.difiere_importe{background:rgba(57,135,229,.15);color:#7db3ef}
-  .dif{color:var(--ink-muted)} .dif.mal{color:var(--bad);font-weight:700}
   .apagado{color:var(--ink-muted);font-weight:400}
-  .porcarga{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:5px;
-    font-size:9px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;
-    background:rgba(57,135,229,.15);color:#7db3ef;vertical-align:middle}
   .vacio{padding:38px;text-align:center;color:var(--ink-muted)}
   .leyenda{margin:-6px 0 11px;font-size:11.5px;color:var(--ink-muted);line-height:1.55}
   .error{background:rgba(227,93,98,.12);border:1px solid rgba(227,93,98,.35);
     color:#ffb4b6;border-radius:9px;padding:10px 12px;margin-bottom:14px;font-size:13px}
 
-  .lotes{font-size:12px}
-  .lotes h2{font-size:13px;margin:0 0 9px}
-  .lote{display:flex;gap:11px;align-items:center;padding:8px 12px;
-    border-bottom:1px solid var(--hairline)}
-  .lote:last-child{border:0}
-  .lote .der{margin-left:auto;color:var(--ink-muted);font-size:11px}
 /* EL DEPÓSITO DE FLUIDOS. El saldo es el número grande: lo primero que
    hay que poder leer desde lejos es cuánto queda. Y al lado el envase
    dibujado, que es como lo mira el que va al depósito: un bin por la
@@ -189,9 +168,9 @@
 :root{color-scheme:light;--plane:#f3f5f7;--surface-1:#fff;--surface-2:#f7f9fb;--surface-3:#edf1f5;--hairline:#e3e8ee;--hairline-2:#cbd4de;--ink:#172b40;--ink-2:#42566b;--ink-muted:#617387;--brand:#2563eb;--brand-soft:#fff6e8;--ok:#147d57;--warn:#996000;--bad:#bb3744;--info:#2266aa}
 body{font-size:13px}.top{height:68px;background:#0b0b0b;border:0;padding:0 32px;gap:22px}.top .marca{color:#d4dfe9;letter-spacing:2px}.top .who{color:#b8c8d7}.top .back{color:#d4dfe9;border-color:#415365;border-radius:5px}.top img{height:30px}
 main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight:700;letter-spacing:1.7px;color:var(--ink-muted);margin-bottom:12px}h1{font-size:30px;font-weight:700;letter-spacing:-1px}.sub{margin:9px 0 26px;font-size:13px}.navigation{display:flex;gap:30px;border-bottom:1px solid var(--hairline-2);margin-bottom:24px}.navigation a{display:flex;gap:18px;align-items:center;padding:0 2px 15px;text-decoration:none;font-size:13px;font-weight:600;color:var(--ink-muted);border-bottom:3px solid transparent}.navigation a.active{color:var(--ink);border-color:var(--brand)}.navigation span{font-size:10px;color:#8795a3}
-.prueba{padding:10px 14px;border-radius:6px;background:#fff9ed;border:1px solid #efdfb9;align-items:center;margin-bottom:24px}.prueba .tag{background:#f6d995;color:#765000;font-size:8px;border-radius:3px}.prueba p,.prueba b{color:#775d2c;font-size:11px}.cargar{grid-template-columns:1fr;margin-bottom:24px}.zona{border:1px solid var(--hairline);border-radius:8px;background:#fff;padding:20px}.zona .que{font-size:12px}.zona .fila{gap:10px}.btn{color:var(--marca-ink,#fff);border-radius:5px;font-size:12px;padding:11px 16px}.btn:hover{filter:brightness(.96)}.btn.gris{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink)}.btn.chico{border-radius:4px;padding:7px 12px}.btn:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}input,select{font:inherit;color:var(--ink);background:white;border:1px solid var(--hairline-2);padding:10px 12px;border-radius:5px;min-width:0}input[type=text],select{background:white;border-radius:5px}input:focus-visible{outline:2px solid #d1ae00;outline-offset:1px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:28px 0 18px}.section-head h2{margin:0;font-size:18px;letter-spacing:-.4px}.muted{color:var(--ink-muted);font-size:12px;line-height:1.6;margin:6px 0 0}.toolbar{display:flex;gap:16px;align-items:flex-end;background:white;border:1px solid var(--hairline);border-bottom:0;border-radius:8px 8px 0 0;padding:18px 20px}.toolbar label,.form-grid label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:var(--ink-muted)}.search{flex:1;max-width:440px}.toolbar .btn{margin-left:auto}.toolbar+.caja{border-radius:0 0 8px 8px}.caja{border-radius:8px;box-shadow:0 2px 4px #0b0b0b03}table.datos th{padding:14px 18px;font-size:9px;font-weight:700;background:#f6f8fa}table.datos td{padding:16px 18px;font-size:12px}table.datos tbody tr:hover{background:#f8fafc}table.datos th.num{text-align:right}.plate{font-weight:600;letter-spacing:.5px}.pastilla{border-radius:4px;padding:5px 8px;font-size:10px}.pastilla.solo_planilla{background:#fff2d9}.pastilla.difiere_litros,.pastilla.difiere_importe,.porcarga{background:#e9f2fc;color:#23629b}.pagination{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;color:var(--ink-muted);font-size:11px}.manual{margin-bottom:20px;border-left:3px solid var(--brand)}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.form-grid label{min-width:0}.form-grid input{width:100%}.tarjetas{gap:12px}.tarjeta{border-radius:8px;padding:20px;box-shadow:0 2px 3px #0b0b0b03}.tarjeta b{font-size:26px;font-weight:700;letter-spacing:-.8px}.tarjeta span{font-size:9px;margin-top:9px}.tarjeta small{line-height:1.5;font-size:11px}#summary-cards .tarjeta{cursor:default}.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-row{display:grid;grid-template-columns:90px 1fr 70px;gap:12px;align-items:center;margin-top:20px;font-size:11px}.chart-row>div{height:9px;background:#f1f4f7;border-radius:2px;overflow:hidden}.chart-row i{display:block;height:100%;background:var(--brand);border-radius:2px}.chart-row b{text-align:right;font-variant-numeric:tabular-nums;font-size:10px}.lotes{margin-top:28px}.lote{padding:14px 18px;flex-wrap:wrap}.error{color:#a32935;background:#fff0f1}.aviso-rep{color:#775d2c}.previo{overflow:auto}.vacio{padding:48px 20px}
+.prueba{padding:10px 14px;border-radius:6px;background:#fff9ed;border:1px solid #efdfb9;align-items:center;margin-bottom:24px}.prueba .tag{background:#f6d995;color:#765000;font-size:8px;border-radius:3px}.prueba p,.prueba b{color:#775d2c;font-size:11px}.cargar{grid-template-columns:1fr;margin-bottom:24px}.zona{border:1px solid var(--hairline);border-radius:8px;background:#fff;padding:20px}.zona .que{font-size:12px}.zona .fila{gap:10px}.btn{color:var(--marca-ink,#fff);border-radius:5px;font-size:12px;padding:11px 16px}.btn:hover{filter:brightness(.96)}.btn.gris{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink)}.btn.chico{border-radius:4px;padding:7px 12px}.btn:focus-visible,a:focus-visible{outline:2px solid var(--brand);outline-offset:2px}input,select{font:inherit;color:var(--ink);background:white;border:1px solid var(--hairline-2);padding:10px 12px;border-radius:5px;min-width:0}input[type=text],select{background:white;border-radius:5px}input:focus-visible{outline:2px solid #d1ae00;outline-offset:1px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:20px;margin:28px 0 18px}.section-head h2{margin:0;font-size:18px;letter-spacing:-.4px}.muted{color:var(--ink-muted);font-size:12px;line-height:1.6;margin:6px 0 0}.toolbar{display:flex;gap:16px;align-items:flex-end;background:white;border:1px solid var(--hairline);border-bottom:0;border-radius:8px 8px 0 0;padding:18px 20px}.toolbar label,.form-grid label{display:flex;flex-direction:column;gap:7px;font-size:11px;font-weight:600;color:var(--ink-muted)}.search{flex:1;max-width:440px}.toolbar .btn{margin-left:auto}.toolbar+.caja{border-radius:0 0 8px 8px}.caja{border-radius:8px;box-shadow:0 2px 4px #0b0b0b03}table.datos th{padding:14px 18px;font-size:9px;font-weight:700;background:#f6f8fa}table.datos td{padding:16px 18px;font-size:12px}table.datos tbody tr:hover{background:#f8fafc}table.datos th.num{text-align:right}.plate{font-weight:600;letter-spacing:.5px}.pastilla{border-radius:4px;padding:5px 8px;font-size:10px}.pagination{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;color:var(--ink-muted);font-size:11px}.manual{margin-bottom:20px;border-left:3px solid var(--brand)}.form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin:20px 0}.form-grid label{min-width:0}.form-grid input{width:100%}.tarjetas{gap:12px}.tarjeta{border-radius:8px;padding:20px;box-shadow:0 2px 3px #0b0b0b03}.tarjeta b{font-size:26px;font-weight:700;letter-spacing:-.8px}.tarjeta span{font-size:9px;margin-top:9px}.tarjeta small{line-height:1.5;font-size:11px}#summary-cards .tarjeta{cursor:default}.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.chart-row{display:grid;grid-template-columns:90px 1fr 70px;gap:12px;align-items:center;margin-top:20px;font-size:11px}.chart-row>div{height:9px;background:#f1f4f7;border-radius:2px;overflow:hidden}.chart-row i{display:block;height:100%;background:var(--brand);border-radius:2px}.chart-row b{text-align:right;font-variant-numeric:tabular-nums;font-size:10px}.error{color:#a32935;background:#fff0f1}.aviso-rep{color:#775d2c}.previo{overflow:auto}.vacio{padding:48px 20px}
 @media(min-width:1000px){.cargar>.zona{display:grid;grid-template-columns:1fr auto;column-gap:30px}.cargar>.zona h2{grid-column:1}.cargar>.zona .que{grid-column:1;margin-bottom:0}.cargar>.zona>.fila{grid-column:2;grid-row:1/3}.cargar>.zona>.previo{grid-column:1/-1}}
-@media(max-width:760px){main{padding:24px 16px}.top{padding:0 16px;gap:12px}.top .marca{display:none}.top .who{font-size:10px}h1{font-size:25px}.navigation{gap:20px}.navigation a{font-size:12px;gap:6px}.navigation span{display:none}.prueba{align-items:flex-start}.toolbar{flex-wrap:wrap;padding:14px}.toolbar .search{max-width:none;flex-basis:100%}.toolbar .btn{margin-left:0}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-grid{grid-template-columns:1fr}.lote .der{margin-left:0}.tarjetas{grid-template-columns:repeat(2,minmax(0,1fr))}.tarjeta{padding:14px}.tarjeta b{font-size:23px}.section-head{align-items:flex-start}}
+@media(max-width:760px){main{padding:24px 16px}.top{padding:0 16px;gap:12px}.top .marca{display:none}.top .who{font-size:10px}h1{font-size:25px}.navigation{gap:20px}.navigation a{font-size:12px;gap:6px}.navigation span{display:none}.prueba{align-items:flex-start}.toolbar{flex-wrap:wrap;padding:14px}.toolbar .search{max-width:none;flex-basis:100%}.toolbar .btn{margin-left:0}.form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.summary-grid{grid-template-columns:1fr}.tarjetas{grid-template-columns:repeat(2,minmax(0,1fr))}.tarjeta{padding:14px}.tarjeta b{font-size:23px}.section-head{align-items:flex-start}}
 </style>
 
 <style>
@@ -210,34 +189,20 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
 <main>
   <div class="eyebrow">OPERACIONES / COMBUSTIBLE</div>
   <h1 id="page-title">Tickets de combustible</h1>
-  <p class="sub" id="page-sub">Cada carga, en un solo lugar. Registro y consulta de los tickets de la flota.</p>
+  <p class="sub" id="page-sub">Registro y consulta de los tickets de la flota.</p>
   <nav class="navigation" aria-label="Secciones de combustible">
     <a href="#tickets" data-view="tickets">Tickets <span>01</span></a>
-    <a href="#cruce" data-view="cruce">Cruce de remitos <span>02</span></a>
-    <a href="#resumen" data-view="resumen">Resumen <span>03</span></a>
-    <a href="#fluidos" data-view="fluidos">Fluidos <span>04</span></a>
+    <a href="#resumen" data-view="resumen">Resumen <span>02</span></a>
+    <a href="#fluidos" data-view="fluidos">Fluidos <span>03</span></a>
   </nav>
 
   <div id="error" class="error" hidden></div>
 
   <div class="cargar" id="imports">
-    <div class="zona" id="z-estacion" data-origen="estacion">
-      <h2>Listado de la estación</h2>
-      <p class="que">El que mandan con la factura. Excel o CSV. Alcanza con que
-         tenga una columna de remito; si trae fecha, patente, litros e importe,
-         se cruza todo.</p>
-      <div class="fila">
-        <input type="file" accept=".xlsx,.xlsm,.csv" id="f-estacion">
-        <button class="btn" data-elegir="f-estacion">Elegir archivo</button>
-        <input type="text" id="e-estacion" placeholder="Estación (opcional)">
-      </div>
-      <div class="previo" id="p-estacion" hidden></div>
-    </div>
-
     <div class="zona" id="z-planilla" data-origen="planilla">
       <h2 id="planilla-titulo">Importar tickets</h2>
-      <p class="que" id="planilla-que">La de combustible, exportada como Excel o CSV.
-         Se usa la primera hoja.</p>
+      <p class="que" id="planilla-que">Planilla de combustible en Excel o CSV.
+         Se lee la primera hoja.</p>
       <div class="fila" id="planilla-archivo">
         <input type="file" accept=".xlsx,.xlsm,.csv" id="f-planilla">
         <button class="btn gris" data-elegir="f-planilla">Elegir archivo</button>
@@ -288,8 +253,8 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
         <div id="g-meses"></div>
       </section>
       <section class="gr">
-        <h2>Quién más cargó</h2>
-        <p class="pie" id="pie-ranking">Las que más combustible se llevaron en el mes.</p>
+        <h2>Ranking de cargas</h2>
+        <p class="pie" id="pie-ranking">Unidades con más litros cargados en el mes.</p>
         <div id="g-ranking"></div>
       </section>
     </div>
@@ -308,34 +273,9 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
         </tr></thead>
         <tbody id="cuerpo-flota"></tbody>
       </table>
-      <p class="vacio" id="vacio-flota">Todavía no se subió ninguna planilla de cargas.</p>
+      <p class="vacio" id="vacio-flota">Sin planillas de cargas registradas.</p>
     </div>
   </section>
-  <section id="cross-view" hidden><div class="section-head"><div><h2>Control de remitos</h2><p class="muted">Compará el listado de la estación con los tickets registrados. Hasta 400 resultados por estado; los contadores incluyen el total.</p></div><button class="btn gris" id="all-status">Todos los estados</button></div>
-  <div class="tarjetas" id="tarjetas"></div>
-
-  <p class="leyenda" id="leyenda" hidden></p>
-
-  <div class="caja">
-    <table class="datos">
-      <thead><tr>
-        <th>Remito</th><th>Fecha</th><th>Unidad</th><th>Estado</th>
-        <th style="text-align:right">Litros est.</th><th style="text-align:right">Litros pla.</th>
-        <th style="text-align:right">Dif. litros</th>
-        <th style="text-align:right">Importe est.</th><th style="text-align:right">Importe pla.</th>
-        <th style="text-align:right">Dif. importe</th>
-      </tr></thead>
-      <tbody id="cuerpo"></tbody>
-    </table>
-    <p class="vacio" id="vacio">Todavía no se subió ningún archivo.</p>
-  </div>
-
-  </section>
-  <div class="caja lotes" id="caja-lotes" hidden>
-    <div style="padding:12px 12px 0"><h2>Archivos cargados</h2></div>
-    <div id="lotes"></div>
-  </div>
-
   <!-- ------------------------------------------------------------ UREA
        El tacho es propio, así que no hay nada que cruzar con nadie: lo
        que hay que controlar es un stock. Nadie edita el saldo; el saldo
@@ -352,21 +292,18 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
 
     <div class="section-head">
       <div><h2 id="u-titulo">Movimientos</h2>
-        <p class="muted">Entra por compra, sale por despacho. Si lo medido no da, se
-          anota la diferencia con su motivo: el saldo no se corrige a mano.</p></div>
+        <p class="muted">Ingresos por compra y egresos por despacho. Las diferencias de medición se registran como ajuste.</p></div>
     </div>
 
     <div class="acciones-urea">
       <button class="btn" id="u-despachar">+ Despachar a una unidad</button>
       <button class="btn gris" id="u-cargar" hidden>+ Cargar al depósito</button>
-      <button class="btn gris" id="u-medir" hidden>Medí lo que hay</button>
+      <button class="btn gris" id="u-medir" hidden>Registrar medición</button>
     </div>
 
     <form id="u-form-salida" class="zona manual" hidden>
       <h2>Despachar <span data-fluido></span></h2>
-      <p class="que">Lo que se le puso a una unidad. Si no fue a ninguna —derrame,
-        préstamo, devolución— dejar la unidad vacía e indicar el motivo: igual salió
-        del depósito.</p>
+      <p class="que">Egreso del depósito. Sin unidad asignada, indicar el motivo.</p>
       <div class="form-grid">
         <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
         <label>Unidad<select name="unidad_id" id="u-s-unidad"></select></label>
@@ -382,8 +319,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
 
     <form id="u-form-entrada" class="zona manual" hidden>
       <h2>Cargar al depósito</h2>
-      <p class="que">Lo que descargó el proveedor. El importe es opcional; sirve para
-        saber cuánto cuesta el litro cuando se mira el gasto por unidad.</p>
+      <p class="que">Ingreso del proveedor. El importe es opcional y se usa para el costo por litro.</p>
       <div class="form-grid">
         <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
         <label>Fecha<input name="fecha" type="date" required></label>
@@ -397,10 +333,8 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
     </form>
 
     <form id="u-form-medicion" class="zona manual" hidden>
-      <h2>Medí lo que hay</h2>
-      <p class="que">Cuánto hay de verdad. Si no coincide con el saldo, la diferencia se
-        anota como un movimiento más, con su motivo. Esa diferencia es el dato: la merma
-        existe y taparla es perderla.</p>
+      <h2>Registrar medición</h2>
+      <p class="que">Cantidad medida. La diferencia con el saldo se registra como ajuste, con su motivo.</p>
       <div class="form-grid">
         <label>Fluido<select name="fluido_id" data-fluidos required></select></label>
         <label>Fecha<input name="fecha" type="date" required></label>
@@ -429,15 +363,11 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
         <th>Fecha</th><th>Fluido</th><th>Tipo</th><th>Unidad o motivo</th>
         <th class="num">Cantidad</th><th class="num">Km</th><th>Quién</th><th></th>
       </tr></thead><tbody id="u-movimientos"></tbody></table>
-      <p class="vacio" id="u-vacio" hidden>Todavía no hay movimientos.</p>
+      <p class="vacio" id="u-vacio" hidden>Sin movimientos registrados.</p>
     </div>
 
     <div class="section-head">
-      <div><h2>Por unidad</h2>
-        <p class="muted" id="u-por-unidad-que">Un camión moderno consume entre 3% y 6% de
-          urea sobre el gasoil. El que da mucho menos tiene el sistema anulado —y eso es
-          una multa esperando—; el que da mucho más pierde, o alguien se está llevando
-          bidones. En los aceites el número a mirar es otro: lo que toma cada 100 km.</p></div>
+      <div><h2>Por unidad</h2></div>
       <label style="font-size:11px;font-weight:600;color:var(--ink-muted)">Mes
         <select id="u-mes" style="margin-left:8px"></select></label>
     </div>
@@ -448,7 +378,7 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
         <th class="num">Gasoil (L)</th><th class="num">% sobre gasoil</th>
         <th class="num">Km</th><th class="num">Cada 100 km</th>
       </tr></thead><tbody id="u-unidades"></tbody></table>
-      <p class="vacio" id="u-unidades-vacio" hidden>Todavía no se despachó nada a ninguna unidad.</p>
+      <p class="vacio" id="u-unidades-vacio" hidden>Sin despachos a unidades.</p>
     </div>
   </section>
 </main>
@@ -470,28 +400,17 @@ const fmtPat = p => { const n = String(p || '').toUpperCase();
   const o = n.match(/^([A-Z]{3})(\d{3})$/);
   return o ? `${o[1]} ${o[2]}` : (n || '—'); };
 
-const ROTULO = {
-  ok: ['Coinciden', 'el remito está en los dos y los números dan'],
-  solo_estacion: ['Solo la estación', 'nos lo facturan y no lo tenemos cargado'],
-  solo_planilla: ['Solo nuestra planilla', 'lo cargamos y no vino en el listado'],
-  difiere_litros: ['Difieren los litros', 'más de medio litro de diferencia'],
-  difiere_importe: ['Difiere el importe', 'más de un peso de diferencia'],
-  fuera_de_periodo: ['De otro período', 'de nuestra planilla, fuera del mes que mandó la estación']
-};
-const ORDEN = ['solo_estacion','difiere_importe','difiere_litros','solo_planilla',
-               'ok','fuera_de_periodo'];
-
-let DATOS = { resumen: [], cruce: [], lotes: [] };
-let FILTRO = null, PUEDE = false;
+let DATOS = {};
+let PUEDE = false;
 
 /* ------------------------------------------------------------------ */
 /* Subir un archivo. Primero se lee y se muestra qué entraría; recién
    con el segundo botón se guarda. La primera vez conviene mirarlo: si la
-   estación cambió el formato, se ve acá y no con la tabla ya sucia. */
+   planilla cambió el formato, se ve acá y no con la tabla ya sucia. */
 document.querySelectorAll('button[data-elegir]').forEach(b =>
   b.onclick = () => $('#' + b.dataset.elegir).click());
 
-for (const origen of ['estacion','planilla']){
+for (const origen of ['planilla']){
   const entrada = $('#f-' + origen);
   entrada.onchange = () => entrada.files[0] && mandar(origen, entrada.files[0], false);
 
@@ -512,7 +431,7 @@ const enBase64 = archivo => new Promise((ok, mal) => {
   l.readAsDataURL(archivo);
 });
 
-const COLUMNAS = { estacion: null, planilla: null };
+const COLUMNAS = { planilla: null };
 
 async function mandar(origen, archivo, confirmar){
   const caja = $('#p-' + origen);
@@ -526,7 +445,7 @@ async function mandar(origen, archivo, confirmar){
       nombre: archivo.name,
       contenido: await enBase64(archivo),
       columnas: COLUMNAS[origen],
-      [origen === 'estacion' ? 'estacion' : 'periodo']: $('#e-' + origen).value
+      periodo: $('#e-' + origen).value
     };
     const r = await fetch('/api/combustible', {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(cuerpo)
@@ -569,8 +488,7 @@ async function mandar(origen, archivo, confirmar){
 
 /* Qué columna es cada cosa. La app adivina por el nombre del título, pero
    adivinar no alcanza: una planilla de cargas puede tener el número de
-   ticket y el de remito a la vez, y el que cruza con la factura es uno
-   solo. Por eso se muestra cuál eligió y se puede cambiar. */
+   ticket y el de remito a la vez. Por eso se muestra cuál eligió y se puede cambiar. */
 const CAMPOS = [
   ['remito',  'Remito',  true],
   ['fecha',   'Fecha',   false],
@@ -591,8 +509,7 @@ function vistaPrevia(origen, nombre, d){
     `<div class="mapeo"><span class="titulo">Qué columna es cada cosa</span>` +
     CAMPOS.map(([campo, rotulo]) => `<label>${rotulo}
        <select data-campo="${campo}">${opciones(campo)}</select></label>`).join('') +
-    `<p class="pista">Si el remito no cruza con la factura, casi siempre es
-       porque acá está agarrando la columna equivocada.</p></div>` +
+    `</div>` +
 
     (d.repetidos.length
       ? `<div class="aviso-rep">El mismo remito aparece más de una vez con la misma
@@ -612,94 +529,18 @@ function vistaPrevia(origen, nombre, d){
     `<button class="btn chico gris cancelar">Cancelar</button></div>`;
 }
 
-/* ------------------------------------------------------------------ */
-function pintar(){
-  const porEstado = {};
-  for (const r of DATOS.resumen) porEstado[r.estado] = r;
-
-  $('#tarjetas').innerHTML = ORDEN.filter(e => porEstado[e]).map(e => {
-    const r = porEstado[e];
-    return `<button class="tarjeta ${e}${FILTRO === e ? ' on' : ''}" data-e="${e}">
-      <b>${r.remitos}</b><span>${esc(ROTULO[e][0])}</span>
-      <small>${esc(ROTULO[e][1])}</small>
-      <small>${r.litros != null ? nf0.format(r.litros) + ' l' : ''}` +
-      `${r.importe != null ? ' · $ ' + nf0.format(r.importe) : ''}</small></button>`;
-  }).join('');
-  document.querySelectorAll('#tarjetas .tarjeta').forEach(t => t.onclick = () => {
-    FILTRO = FILTRO === t.dataset.e ? null : t.dataset.e;
-    cargar();
-  });
-
-  const filas = DATOS.cruce;
-  $('#vacio').hidden = filas.length > 0;
-  $('#vacio').textContent = DATOS.lotes.length
-    ? 'No hay remitos que entren en ese filtro.'
-    : 'Todavía no se subió ningún archivo.';
-  const num = (v, clase) => `<td class="num ${clase || ''}">${v == null ? '—' : nf.format(v)}</td>`;
-  $('#cuerpo').innerHTML = filas.map(f => `<tr>
-      <td>${(() => {
-        const e = f.remito_estacion, p = f.remito_planilla;
-        /* Cuando cada uno numera su propio comprobante, mostrar uno solo
-           esconde justamente lo que hay que ver. */
-        if (e && p && e !== p)
-          return `<b>${esc(e)}</b> <span class="apagado">↔ ${esc(p)}</span>`;
-        return `<b>${esc(e || p || f.remito)}</b>`;
-      })()}${f.emparejado_por === 'carga'
-        ? ' <span class="porcarga" title="Los unió el camión, la fecha y los litros, no el número">por carga</span>' : ''}</td>
-      <td>${esc(fecha(f.fecha))}</td>
-      <td>${esc(fmtPat(f.patente))}${f.interno ? ` <span style="color:var(--ink-muted)">· ${esc(f.interno)}</span>` : ''}</td>
-      <td><span class="pastilla ${esc(f.estado)}">${esc(ROTULO[f.estado][0])}</span></td>
-      ${num(f.litros_estacion)}${num(f.litros_planilla)}
-      ${num(f.dif_litros, Math.abs(f.dif_litros) > 0.5 ? 'dif mal' : 'dif')}
-      ${num(f.importe_estacion)}${num(f.importe_planilla)}
-      ${num(f.dif_importe, Math.abs(f.dif_importe) > 1 ? 'dif mal' : 'dif')}
-    </tr>`).join('');
-
-  const porCarga = filas.filter(f => f.emparejado_por === 'carga').length;
-  $('#leyenda').hidden = porCarga === 0;
-  $('#leyenda').innerHTML = porCarga
-    ? `<b>${porCarga}</b> de estos renglones no cruzaron por número de remito sino ` +
-      `por <b>camión, fecha y litros</b> — van marcados <span class="porcarga">por carga</span>. ` +
-      `Pasa cuando la estación y nuestra planilla numeran cada uno su propio ` +
-      `comprobante: los números no se parecen pero la carga es la misma.` : '';
-
-  $('#caja-lotes').hidden = DATOS.lotes.length === 0;
-  $('#lotes').innerHTML = DATOS.lotes.map(l => `<div class="lote">
-      <span class="pastilla ${l.origen === 'estacion' ? 'solo_estacion' : 'solo_planilla'}">
-        ${l.origen === 'estacion' ? 'Estación' : 'Planilla'}</span>
-      <b>${esc(l.archivo)}</b>
-      <span style="color:var(--ink-muted)">${l.vigentes} de ${l.filas} remitos vigentes</span>
-      <span class="der">${esc(String(l.subido).slice(0,16).replace('T',' '))}
-        ${l.usuario ? '· ' + esc(l.usuario) : ''}</span>
-      ${PUEDE ? `<button class="btn chico gris" data-lote="${l.id}">Borrar</button>` : ''}
-    </div>`).join('');
-  document.querySelectorAll('button[data-lote]').forEach(b => b.onclick = async () => {
-    if (!confirm('¿Borrar esa carga entera? Se van sus remitos, no los del otro archivo.')) return;
-    b.disabled = true;
-    try {
-      const r = await fetch('/api/combustible', {
-        method:'DELETE', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ lote_id: Number(b.dataset.lote) })
-      });
-      if (!r.ok) throw new Error((await r.json().catch(()=>({}))).error || 'No se pudo borrar.');
-      cargar();
-    } catch (err){ $('#error').textContent = err.message; $('#error').hidden = false; b.disabled = false; }
-  });
-}
-
 async function cargar(){
   try {
-  const r = await fetch('/api/combustible' + (FILTRO ? '?estado=' + FILTRO : ''));
+  const r = await fetch('/api/combustible');
   if (!r.ok){
     const d = await r.json().catch(() => ({}));
-    $('#error').textContent = d.error || 'No se pudo leer el cruce.';
+    $('#error').textContent = d.error || 'No se pudo leer el combustible.';
     $('#error').hidden = false;
     return;
   }
   DATOS = await r.json();
   $('#error').hidden = true;
   pintarOrigen();
-  pintar();
   renderTickets();
   if (location.hash === '#resumen') await cargarFlota();
   } catch (err) { $('#error').textContent = 'No se pudieron cargar los datos. Intente nuevamente.'; $('#error').hidden = false; }
@@ -708,8 +549,7 @@ async function cargar(){
 /* Cómo entra la planilla de cargas. En automático el sistema entra solo
    al link parametrizado, así que la caja de subir archivo sale de la
    pantalla: una caja que no se usa nunca invita a subir cualquier cosa, y
-   ese archivo después hay que sacarlo. El listado de la estación sigue
-   subiéndose a mano: es otro archivo y lo manda otro. */
+   ese archivo después hay que sacarlo. */
 function pintarOrigen(){
   const p = (DATOS && DATOS.parametros) || {};
   const auto = p.combustible_origen === 'automatico' && !!p.combustible_fuente;
@@ -717,12 +557,12 @@ function pintarOrigen(){
   $('#planilla-auto').hidden = !auto || !PUEDE;
   $('#planilla-titulo').textContent = auto ? 'Tickets de la planilla' : 'Importar tickets';
   $('#planilla-que').textContent = auto
-    ? `El sistema entra solo al link todas las mañanas, cerca de las ${p.combustible_hora || '06:00'}. ` +
-      'Traer de nuevo la misma planilla no duplica nada: cada remito se pisa con su última versión.'
-    : 'La de combustible, exportada como Excel o CSV. Se usa la primera hoja.';
+    ? `Actualización automática diaria, cerca de las ${p.combustible_hora || '06:00'}. ` +
+      'Los remitos existentes se actualizan, no se duplican.'
+    : 'Planilla de combustible en Excel o CSV. Se lee la primera hoja.';
   $('#planilla-ultima').textContent = p.combustible_ultima
     ? `Última: ${new Date(p.combustible_ultima).toLocaleString('es-AR')} · ${p.combustible_estado || ''}`
-    : 'Todavía no se trajo ninguna vez.';
+    : 'Sin actualizaciones registradas.';
 }
 
 document.addEventListener('click', async ev => {
@@ -751,7 +591,7 @@ fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => {
   if (!PUEDE){
     $('#imports').hidden = true;
     $('#ticket-form').hidden = true;
-    $('.sub').textContent += ' Solo lectura: para subir archivos hace falta ser encargado.';
+    $('.sub').textContent += ' Solo lectura: la carga de archivos requiere rol encargado.';
   }
   pintarOrigen();
 }).catch(() => {});
@@ -789,11 +629,10 @@ function pintarFlota(){
   const fuera = t && t.sin_consumo;
   $('#aviso-flota').hidden = !fuera;
   if (fuera) $('#aviso-flota').innerHTML =
-    `<b>${fuera}</b> unidad${fuera === 1 ? '' : 'es'} quedó fuera del consumo por no tener ` +
+    `<b>${fuera}</b> unidad${fuera === 1 ? '' : 'es'} sin consumo calculado por falta de ` +
     `kilómetros Telemetría ese mes${t.litros_sin_consumo
       ? ` — son ${nf0.format(t.litros_sin_consumo)} litros` : ''}. ` +
-    `El gasto sí está contado; el <b>L/100 km</b> se calcula solo sobre las que ` +
-    `tienen kilómetros, porque mezclarlas daría un consumo inventado.`;
+    `El gasto se incluye; el <b>L/100 km</b> se calcula solo sobre unidades con kilómetros.`;
 
   const filas = FLOTA.unidades;
   $('#vacio-flota').hidden = filas.length > 0;
@@ -918,8 +757,8 @@ function dibujarRanking(){
   const largo = Math.max(40, ancho - rotulo - 58);
 
   $('#pie-ranking').textContent = filas.length < FLOTA.unidades.length
-    ? `Las ${filas.length} que más cargaron; el resto, en la tabla de abajo.`
-    : 'Las que más combustible se llevaron en el mes.';
+    ? `Las ${filas.length} unidades con más litros cargados en el mes.`
+    : 'Unidades con más litros cargados en el mes.';
 
   caja.innerHTML = `<svg viewBox="0 0 ${ancho} ${alto}" height="${alto}">` +
     filas.map((u, i) => {
@@ -1018,15 +857,14 @@ function navigate(){
   let hash = location.hash.slice(1);
   // Los enlaces viejos apuntaban a #urea: la urea ahora es un fluido más.
   if(hash === 'urea') hash = 'fluidos';
-  const view = ['tickets','cruce','resumen','fluidos'].includes(hash) ? hash : 'tickets';
-  $('#tickets-view').hidden = view !== 'tickets'; $('#cross-view').hidden = view !== 'cruce'; $('#summary-view').hidden = view !== 'resumen';
+  const view = ['tickets','resumen','fluidos'].includes(hash) ? hash : 'tickets';
+  $('#tickets-view').hidden = view !== 'tickets'; $('#summary-view').hidden = view !== 'resumen';
   $('#fluidos-view').hidden = view !== 'fluidos';
-  $('#z-estacion').hidden = view !== 'cruce'; $('#z-planilla').hidden = view !== 'tickets';
   // Los fluidos no se importan de ningún archivo: se cargan a mano, son
   // dos o tres movimientos por día. Las zonas de importación no van ahí.
   $('#imports').style.display = (view === 'resumen' || view === 'fluidos') ? 'none' : 'grid';
-  $('#page-title').textContent = {tickets:'Tickets de combustible',cruce:'Cruce de remitos',resumen:'Resumen de combustible',fluidos:'Fluidos'}[view];
-  $('#page-sub').textContent = {tickets:'Cada carga, en un solo lugar. Registro y consulta de los tickets de la flota.',cruce:'Control de lo facturado y detección de diferencias entre remitos.',resumen:'Una mirada general sobre las cargas de la flota.',fluidos:'El depósito es propio: entra por compra, sale por despacho y el saldo se calcula solo.'}[view];
+  $('#page-title').textContent = {tickets:'Tickets de combustible',resumen:'Resumen de combustible',fluidos:'Fluidos'}[view];
+  $('#page-sub').textContent = {tickets:'Registro y consulta de los tickets de la flota.',resumen:'Totales y consumo de las cargas de la flota.',fluidos:'Stock del depósito propio: ingresos por compra, egresos por despacho.'}[view];
   if(view === 'resumen') cargarFlota().catch(()=>{ $('#error').textContent='No se pudo cargar el resumen.'; $('#error').hidden=false; });
   if(view === 'fluidos') cargarUrea().catch(()=>{ $('#u-resumen').textContent='No se pudo leer el depósito.'; });
   document.querySelectorAll('[data-view]').forEach(a=>{a.classList.toggle('active',a.dataset.view===view);a.setAttribute('aria-current',a.dataset.view===view?'page':'false');});
@@ -1035,7 +873,6 @@ window.addEventListener('hashchange',navigate);
 $('#ticket-search').oninput = $('#ticket-month').onchange = ()=>{ticketPage=0;renderTickets();};
 $('#clear-filters').onclick=()=>{$('#ticket-search').value='';$('#ticket-month').value='';ticketPage=0;renderTickets();};
 $('#prev-page').onclick=()=>{ticketPage--;renderTickets();};$('#next-page').onclick=()=>{ticketPage++;renderTickets();};
-$('#all-status').onclick=()=>{FILTRO=null;cargar();};
 $('#new-ticket').onclick=()=>{$('#ticket-form').hidden=false;$('#ticket-form input').focus();};
 $('#cancel-ticket').onclick=()=>{$('#ticket-form').hidden=true;};
 $('#ticket-form').onsubmit=async e=>{
@@ -1203,13 +1040,13 @@ function pintarUrea() {
           dias == null || dias > 120 ? '' : ` · alcanza ${dias} días`}</p>
       </div>
     </button>`;
-  }).join('') || '<p class="vacio">Todavía no hay fluidos cargados.</p>';
+  }).join('') || '<p class="vacio">Sin fluidos registrados.</p>';
 
   const elegido = d.fluidos.find(f => f.fluido_id === FL.fluido) || null;
   $('#u-titulo').textContent = elegido ? `Movimientos de ${elegido.nombre}` : 'Movimientos';
   const pedir = d.fluidos.filter(f => ['vacio', 'critico', 'aviso'].includes(f.estado));
   $('#u-resumen').textContent = !d.fluidos.length ? 'Sin fluidos cargados.'
-    : pedir.length ? 'Hay que pedir: ' + pedir.map(f => `${f.nombre} (${cantidadDe(f)})`).join(', ') + '.'
+    : pedir.length ? 'Bajo el mínimo: ' + pedir.map(f => `${f.nombre} (${cantidadDe(f)})`).join(', ') + '.'
     : `${d.fluidos.length} fluidos en el depósito, ninguno bajo el mínimo.`;
 
   const texto = ($('#u-buscar').value || '').trim().toLowerCase();
@@ -1323,7 +1160,7 @@ document.addEventListener('click', async ev => {
   }
   const borrar = ev.target.closest('[data-borrar-urea]');
   if (!borrar) return;
-  if (!confirm('¿Borrar este movimiento? El saldo se recalcula solo.')) return;
+  if (!confirm('¿Borrar este movimiento? El saldo se recalcula.')) return;
   try { await apiUrea('borrar', { id: borrar.dataset.borrarUrea }); await cargarUrea(); }
   catch (e) { avisoUrea(e.message); }
 });

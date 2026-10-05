@@ -1,33 +1,12 @@
 """
-Combustible: lo que gasta la flota, y el control de lo que nos facturan.
+Combustible: lo que gasta la flota.
 
-Dos cosas que salen del mismo archivo:
-
-  El combustible de la flota. Nuestra planilla de cargas es el registro
-  de cuánto combustible se puso y cuánto costó. Cruzada con la serie de
-  odómetros del satelital sale el consumo real —litros cada 100 km— por
-  unidad y por mes, que hasta acá había que ir a buscar a una planilla
-  de Google y copiar a mano.
-
-  El cruce de remitos, que es el control de la factura y sigue igual que
-  siempre.
-
-Un archivo, dos usos: lo que se sube para pagarle a la estación es lo
-mismo que dice cuánto gasta la flota. Cargarlo dos veces sería garantía
-de que un día los dos números no den lo mismo.
-
-La estación de servicio manda un listado de remitos y después la factura.
-Nosotros tenemos nuestra planilla de cargas. Hoy alguien compara las dos a
-ojo antes de pagar. Acá se cruzan por número de remito y queda a la vista
-lo que no coincide: lo que nos facturan y no tenemos, lo que cargamos y no
-vino, y las diferencias de litros o de importe.
-
-Está en prueba: se usa en paralelo con lo de siempre hasta que los números
-den. Todo se carga por lotes, y un lote se borra entero.
+Nuestra planilla de cargas es el registro de cuánto combustible se puso y
+cuánto costó. Cruzada con la serie de odómetros del satelital sale el
+consumo real —litros cada 100 km— por unidad y por mes.
 
 Los archivos vienen del navegador en base64 y se leen acá, no allá: así el
-mismo código lee el .xlsx de la estación y el .csv de la planilla, y no hay
-que mantener dos parseos.
+mismo código lee el .xlsx y el .csv, y no hay que mantener dos parseos.
 """
 import base64
 import csv
@@ -45,8 +24,8 @@ import permisos
 # Quién puede escribir no es una lista de roles: es el permiso
 # «gestiona» del rol, que se marca desde Usuarios y roles.
 
-# Cómo se llama cada dato en los archivos que llegan. Cada estación arma su
-# listado a su manera, así que se busca por lo que contiene el título, no
+# Cómo se llama cada dato en los archivos que llegan. Cada planilla se arma
+# a su manera, así que se busca por lo que contiene el título, no
 # por igualdad, y se prueban varios nombres.
 ALIAS = {
     "remito":  ("REMITO", "COMPROBANTE", "TICKET", "NRO REMITO", "N REMITO", "VALE"),
@@ -341,9 +320,9 @@ def subir(cx, datos, usuario=None):
     """Lee el archivo y, si `confirmar` viene, lo guarda. Devuelve el resumen."""
     _exigir_gestor(usuario)
 
-    origen = (datos.get("origen") or "").strip()
-    if origen not in ("estacion", "planilla"):
-        raise ValueError("Indicar si el archivo es el listado de la estación o la planilla interna.")
+    # Solo entra nuestra planilla: el listado de la estación era del cruce
+    # de remitos, que se sacó.
+    origen = "planilla"
     nombre = (datos.get("nombre") or "archivo").strip()[:120]
     try:
         crudo = base64.b64decode(datos.get("contenido") or "", validate=False)
@@ -358,7 +337,7 @@ def subir(cx, datos, usuario=None):
         raise ValueError("No se encontró ninguna fila con número de remito.")
 
     # Sin confirmar solo se muestra qué entraría. La primera vez conviene
-    # mirarlo: si la estación cambió el formato, se ve acá y no después de
+    # mirarlo: si la planilla cambió el formato, se ve acá y no después de
     # haber ensuciado la tabla.
     if not datos.get("confirmar"):
         return {"previo": True, "leidas": len(filas),
@@ -378,7 +357,7 @@ def subir(cx, datos, usuario=None):
          (datos.get("periodo") or "").strip()[:20] or None,
          len(filas), (usuario or {}).get("nombre"))).fetchone()["id"]
 
-    # El remito que ya estaba se pisa: subir de nuevo el listado corregido
+    # El remito que ya estaba se pisa: subir de nuevo la planilla corregida
     # tiene que dejar la última versión, no dos.
     antes = cx.execute("select count(*) as n from combustible_cargas where origen = %s",
                        (origen,)).fetchone()["n"]
@@ -587,15 +566,6 @@ def _anotar_traida(cx, estado):
         cx.rollback()
 
 
-def borrar_lote(cx, lote_id, usuario=None):
-    _exigir_gestor(usuario, "borrar una carga")
-    fila = cx.execute("delete from combustible_lotes where id = %s returning archivo",
-                      (lote_id,)).fetchone()
-    if not fila:
-        raise ValueError("Ese lote no existe.")
-    return {"borrado": fila["archivo"]}
-
-
 # =====================================================================
 # LEER
 # =====================================================================
@@ -610,9 +580,7 @@ def _uno(cx, consulta, valores=()):
 def flota(cx, mes=None, limite=400):
     """El combustible de la flota: el total del mes y unidad por unidad.
 
-    Sale de lo mismo que se sube como "nuestra planilla". El archivo es
-    uno solo y sirve para las dos cosas: acá dice cuánto gastó la flota,
-    y en el cruce sirve para validar la factura de la estación.
+    Sale de lo mismo que se sube como "nuestra planilla".
 
     Sin `mes` se toma el último que tenga cargas, que es el que se está
     mirando el 99% de las veces.
@@ -749,28 +717,3 @@ def tickets(cx, texto="", mes=None, pagina=0):
     fila = total[0] if total else {"n": 0, "litros": 0}
     return {"tickets": filas, "total": fila["n"], "litros": fila["litros"],
             "pagina": pagina, "por_pagina": POR_PAGINA}
-
-
-def panel(cx, estado=None, limite=400):
-    """El cruce, el resumen y los lotes cargados."""
-    filtro, valores = "", []
-    if estado:
-        filtro = "where estado = %s"
-        valores.append(estado)
-    valores.append(limite)
-    return {
-        "resumen": _uno(cx, "select * from v_combustible_resumen order by estado"),
-        "cruce": _uno(cx, f"""
-            select c.*, u.interno, u.chofer as chofer_unidad
-            from v_combustible_cruce c
-            left join unidades u on u.id = c.unidad_id
-            {filtro}
-            -- Primero lo que hay que mirar y después lo que está bien.
-            order by (c.estado = 'ok'), c.fecha desc nulls last, c.remito
-            limit %s""", valores),
-        "lotes": _uno(cx, """
-            select l.*, count(c.id)::int as vigentes
-            from combustible_lotes l
-            left join combustible_cargas c on c.lote_id = l.id
-            group by l.id order by l.subido desc limit 30"""),
-    }

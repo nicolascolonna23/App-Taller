@@ -53,8 +53,6 @@ with esperado(script, objeto, columna) as (values
   ('08_modelo3d.sql', 'unidades', 'modelo_3d'),
   ('10_combustible.sql', 'combustible_cargas', null),
   ('10_combustible.sql', 'combustible_lotes', null),
-  ('10_combustible.sql', 'v_combustible_cruce', null),
-  ('10_combustible.sql', 'v_combustible_resumen', null),
   ('15_ordenes.sql', 'ordenes_repuestos', null),
   ('15_ordenes.sql', 'ordenes_tareas', null),
   ('15_ordenes.sql', 'ordenes_trabajo', null),

@@ -94,7 +94,7 @@ const datos = (gestiona) => ({
       if (url.pathname === '/api/yo')
         return route.fulfill({json: {nombre: 'Nicolás', rol: 'admin'}});
       if (url.pathname === '/api/combustible')
-        return route.fulfill({json: {tickets: [], resumen: [], cruce: [], lotes: []}});
+        return route.fulfill({json: {tickets: [], parametros: {}}});
       if (url.pathname === '/logo.png')
         return route.fulfill({body: fs.readFileSync(path.join(dir, 'titan-flota-logo.png')),
                               contentType: 'image/png'});

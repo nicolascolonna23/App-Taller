@@ -142,7 +142,7 @@ def consulta_sql(args):
         orden = 'vence, patente, tipo'
     else:
         if estado:
-            raise ValueError('Los tickets no tienen estado. Para conciliación, usar Cruce de remitos.')
+            raise ValueError('Los tickets no tienen estado.')
         sql = 'select remito, remito_bruto, fecha, patente, litros, importe, estacion from combustible_cargas'
         filtros.append("origen='planilla'")
         if q:

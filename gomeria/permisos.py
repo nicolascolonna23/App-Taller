@@ -49,7 +49,7 @@ MODULOS = (
     ("solicitudes",  "Solicitudes de orden de compra", "/solicitudes",
      "Pedir, aprobar y rendir el trabajo de taller. Es el módulo de las sucursales."),
     ("combustible",  "Combustible",        "/combustible",
-     "Tickets, cruce con la estación y consumo."),
+     "Tickets, consumo y fluidos."),
     ("alertas",      "Alertas",            "/alertas",
      "Todo lo que hay que mirar hoy, de las cuatro fuentes."),
     ("vencimientos", "Vencimientos",       "/vencimientos",

@@ -115,7 +115,7 @@ El botón "Registrar service" de `control_flota.html` guarda en Supabase por
 
 El asistente de consultas está en `/asistente`, detrás del login. Consultá [la guía de configuración y mejora](docs/ASISTENTE.md) para activar la API, entender sus fuentes y ampliar capacidades.
 
-Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; el cruce está en `#cruce` y los cálculos existentes de consumo en `#resumen`.
+Combustible abre en Tickets (`/combustible#tickets`), con carga individual/importación y tabla filtrable; los cálculos de consumo están en `#resumen` y los fluidos en `#fluidos`.
 
 ## Parámetros, planes y roles
 

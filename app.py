@@ -10,8 +10,7 @@ Es lo que corre en la nube. Sirve, detrás del mismo login:
     /repuestos   stock de repuestos
     /gomeria     carga de movimientos de cubiertas (a donde apunta el QR)
     /unidades    maestro de unidades: de acá sale la info de cada vehículo
-    /combustible cruce de remitos contra el listado de la estación, y el
-                 fluidos en su solapa
+    /combustible tickets de combustible, consumo de la flota y fluidos
     /ordenes     órdenes de trabajo del taller y servicios externos
     /solicitudes solicitudes de orden de compra: pedir, aprobar, reparar, rendir
     /usuarios    altas, bajas, roles y qué módulos abre cada uno
@@ -723,17 +722,14 @@ class App(CupoPorPedido, gom.Handler):
                 traceback.print_exc()
                 return self._error(f"No se pudo leer la unidad: {e}", 500)
 
-        # El cruce de remitos de combustible. Módulo en prueba: si su SQL
-        # todavía no se corrió, lo dice en vez de romper.
+        # El combustible de la flota. Si su SQL todavía no se corrió, lo
+        # dice en vez de romper.
         if ruta == "/api/combustible":
             if not self._exigir_sesion():
                 return
             params = parse_qs(urlparse(self.path).query)
-            estado = (params.get("estado") or [None])[0]
-            # La misma dirección sirve las dos vistas del módulo: lo que
-            # gastó la flota y el control de la factura. Salen de la misma
-            # tabla, así que separarlas en dos direcciones sería fingir que
-            # son dos módulos.
+            # La misma dirección sirve todas las vistas del módulo: salen de
+            # la misma tabla.
             vista = (params.get("vista") or [""])[0]
             try:
                 with base.conectar() as cx:
@@ -751,12 +747,11 @@ class App(CupoPorPedido, gom.Handler):
                             cx, (params.get("q") or [""])[0],
                             (params.get("mes") or [None])[0],
                             int(pagina) if pagina.isdigit() else 0)))
-                    salida = comb.panel(cx, estado)
                     # Cómo entra el combustible. La pantalla esconde las
                     # zonas de importación cuando se carga a mano: dos
                     # cajas que no se usan nunca invitan a subir cualquier
                     # cosa, y ese archivo después hay que sacarlo.
-                    salida["parametros"] = par.combustible_como(cx)
+                    salida = {"parametros": par.combustible_como(cx)}
                     return self._responder(gom.jstr(salida))
             except psycopg.errors.UndefinedTable:
                 # Cuál de los dos SQL falta depende de qué se estaba
@@ -1361,8 +1356,6 @@ class App(CupoPorPedido, gom.Handler):
         self.ruta_original = ruta
         if ruta == "/api/unidades":
             return self._unidad_escribir(borrar=True)
-        if ruta == "/api/combustible":
-            return self._combustible(borrar=True)
         return self._error("No existe", 404)
 
     def _escribir(self, aplicar, que, script, limite=64 * 1024):
@@ -1532,20 +1525,18 @@ class App(CupoPorPedido, gom.Handler):
             traceback.print_exc()
             return self._error(f"No se pudo cambiar la contraseña: {e}", 500)
 
-    def _combustible(self, borrar=False):
+    def _combustible(self):
         if not self._exigir_sesion():
             return
         try:
             largo = int(self.headers.get("Content-Length") or 0)
-            # Un listado de estación de 5.000 renglones no llega a 1 MB en
-            # xlsx; 12 deja lugar de sobra sin dejar entrar cualquier cosa.
+            # Una planilla de 5.000 renglones no llega a 1 MB en xlsx; 12
+            # deja lugar de sobra sin dejar entrar cualquier cosa.
             if largo > 12 * 1024 * 1024:
                 return self._error("El archivo es demasiado grande.", 413)
             datos = json.loads(self.rfile.read(largo) or b"{}")
             with base.conectar() as cx:
-                if borrar:
-                    salida = comb.borrar_lote(cx, datos.get("lote_id"), self.usuario)
-                elif datos.get("op") == "traer":
+                if datos.get("op") == "traer":
                     # La planilla del link, sin archivo ni mano. Es lo mismo
                     # que sube una persona, traído por el servidor.
                     salida = comb.traer(cx, self.usuario, datos)
