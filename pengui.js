@@ -27,7 +27,7 @@
 
   hueco.innerHTML = `<div class="pengui-head titan-cabecera">
       ${robot}
-      <div class="titan-globo"><b>¡Hola! Soy Titán</b>Tu asistente de IA. Preguntame por la flota, el stock o los vencimientos.<small>Solo consulta · no modifica datos</small></div>
+      <div class="titan-globo"><b>Titán</b>Asistente de IA. Consultas sobre flota, stock y vencimientos.<small>Solo consulta · no modifica datos</small></div>
       <a href="/asistente" title="Pantalla completa" aria-label="Abrir a Titán en pantalla completa">↗</a>
     </div>`;
 
