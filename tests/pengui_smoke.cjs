@@ -47,7 +47,7 @@ let PREFS={tema:'claro',paleta:'diemar'};
     if(p==='/'){const pos=html.lastIndexOf('</body>');html=pos<0?html+'<script src="/pengui.js"></script>':html.slice(0,pos)+'<script src="/pengui.js"></script>'+html.slice(pos);}
     return route.fulfill({body:html,contentType:'text/html'});
    }
-   const assets={'/logo.png':'titan-flota-logo.png','/inicio-camion.jpg':'inicio-camion-hero.jpg'};
+   const assets={'/logo.png':'titan-flota-logo.png'};
    const file=path.join(dir,assets[p]||p.slice(1));
    if(file.startsWith(dir+path.sep)&&fs.existsSync(file)&&fs.statSync(file).isFile())return route.fulfill({body:fs.readFileSync(file),contentType:p.endsWith('.js')?'text/javascript':p.endsWith('.css')?'text/css':'image/png'});
    return route.abort();

@@ -1,7 +1,7 @@
 /* A full-width operational workspace, with one natural page scroll. */
 body.operations-home main{height:auto;min-height:100vh;display:block;overflow:visible}
 body.operations-home .workspace{display:block;padding:22px clamp(18px,2.5vw,38px) 130px;min-height:0}
-body.operations-home .workspace::before{display:block;opacity:.07;pointer-events:none;background:var(--portada,url('/inicio-camion-hero.jpg')) center/cover no-repeat}
+body.operations-home .workspace::before{display:none}
 body.operations-home .workspace::after{display:none}
 body.operations-home .summary{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:20px;overflow:visible;max-width:1500px;margin:0 auto}
 body.operations-home .summary>*{min-width:0;margin:0}
