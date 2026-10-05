@@ -658,6 +658,14 @@
     <label for="sv-patente">Unidad</label>
     <select class="sel" id="sv-patente" required></select>
 
+    <div id="sv-sistema-fila" hidden>
+      <label for="sv-sistema">Qué se registra</label>
+      <select class="sel" id="sv-sistema">
+        <option value="service">Service</option>
+        <option value="prefiltro">Cambio de prefiltro</option>
+      </select>
+    </div>
+
     <div class="row">
       <div>
         <label for="sv-fecha">Fecha</label>
@@ -1932,7 +1940,14 @@ function actualizarPlanDelService() {
   return plan || null;
 }
 
-function abrirFormService(patente, modo) {
+/** La unidad tiene plan de prefiltro: tiene dos cosas para registrar. */
+function tienePrefiltro(patente) {
+  return APP.prefiltros.some(x => x.patente === patente && x.cada);
+}
+
+/** Pone el formulario en modo service o prefiltro sin perder la unidad
+    elegida. Lo usa la apertura y el selector «Qué se registra». */
+function aplicarModoService(modo, patente) {
   APP.modoRegistro = modo === 'prefiltro' ? 'prefiltro' : 'service';
   const prefiltro = APP.modoRegistro === 'prefiltro';
   $('#modal-titulo').textContent = prefiltro ? 'Registrar cambio de prefiltro' : 'Registrar service';
@@ -1941,21 +1956,33 @@ function abrirFormService(patente, modo) {
   const lista = (prefiltro ? APP.prefiltros.slice()
                  : unidadesDe('').filter(u => u.enFlota || u.kmUlt !== null))
     .sort((a, b) => a.display.localeCompare(b.display, 'es'));
-  if (!lista.length) return;
+  if (!lista.length) return false;
 
   const sel = $('#sv-patente');
   sel.innerHTML = lista.map(u =>
     `<option value="${esc(u.patente)}">${esc(u.display)} — ${esc(u.modelo || u.marca || 'sin modelo')}</option>`).join('');
   if (patente && lista.some(u => u.patente === patente)) sel.value = patente;
 
-  $('#sv-fecha').value = hoyAR();
-  $('#sv-km').value    = '';
-  kmAuto = null;
   if (!prefiltro)
     $('#sv-tipo').innerHTML = '<option value="">Sin parametrización</option>' + APP.planes
       .filter(p => p.activo).map(p => `<option value="${p.id}">${esc(p.nombre)} · cada ${fmt0(p.cada_km)} km</option>`).join('');
+  actualizarSistemaService();
   actualizarPlanDelService();
   sugerirKm();
+  return true;
+}
+
+/** El selector «Qué se registra» aparece solo si la unidad tiene las dos cosas. */
+function actualizarSistemaService() {
+  $('#sv-sistema-fila').hidden = !tienePrefiltro($('#sv-patente').value);
+  $('#sv-sistema').value = APP.modoRegistro;
+}
+
+function abrirFormService(patente, modo) {
+  $('#sv-fecha').value = hoyAR();
+  $('#sv-km').value    = '';
+  kmAuto = null;
+  if (!aplicarModoService(modo, patente)) return;
 
   MODAL.setAttribute('open', '');
   $('#sv-km').focus();
@@ -2058,7 +2085,12 @@ $('#btn-prefiltro').addEventListener('click', () => abrirFormService(APP.selecci
 $('#sv-cancelar').addEventListener('click', cerrarFormService);
 $('#sv-patente').addEventListener('change', sugerirKm);
 $('#sv-patente').addEventListener('change', () => {
+  actualizarSistemaService();
   actualizarPlanDelService();
+});
+$('#sv-sistema').addEventListener('change', ev => {
+  svMensaje('');
+  aplicarModoService(ev.target.value, $('#sv-patente').value);
 });
 $('#sv-fecha').addEventListener('change', sugerirKm);
 $('#sv-fecha').addEventListener('blur', sugerirKm);
