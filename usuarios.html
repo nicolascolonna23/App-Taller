@@ -133,12 +133,14 @@
   <div class="solapas">
     <button class="solapa on" data-vista="usuarios">Usuarios</button>
     <button class="solapa" data-vista="roles">Roles y módulos</button>
+    <button class="solapa" data-vista="sucursales">Sucursales</button>
   </div>
 
   <div class="barra">
     <input id="buscar" placeholder="Buscar usuario, nombre o rol">
     <button class="btn espacio" id="nuevoUsuario">+ Nuevo usuario</button>
     <button class="btn alt" id="nuevoRol" hidden>+ Nuevo rol</button>
+    <button class="btn alt" id="nuevaSucursal" hidden>+ Nueva sucursal</button>
   </div>
 
   <div class="caja" id="cajaUsuarios">
@@ -159,6 +161,19 @@
       </tr></thead>
       <tbody id="filasRoles"></tbody>
     </table>
+  </div>
+
+  <div id="cajaSucursales" hidden>
+    <div id="sinAlta"></div>
+    <div class="caja">
+      <table>
+        <thead><tr>
+          <th>Código</th><th>Nombre</th><th>Orden</th><th>Unidades</th>
+          <th>Usuarios</th><th>Estado</th><th></th>
+        </tr></thead>
+        <tbody id="filasSucursales"></tbody>
+      </table>
+    </div>
   </div>
 </main>
 
@@ -245,6 +260,26 @@
   </div>
 </div></div>
 
+<!-- ------------------------------------------------------- la sucursal -->
+<div class="fondo" id="modalSucursal"><div class="modal">
+  <div class="cabecera"><h2 id="tituloSucursal">Nueva sucursal</h2>
+    <button class="cerrar" data-cerrar="modalSucursal">×</button></div>
+  <div class="campos">
+    <div><label>Código</label><input id="sCodigo" maxlength="3" placeholder="LAD">
+      <p class="pista">Tres letras. Coincide con el código de las unidades. No se cambia después.</p></div>
+    <div><label>Nombre</label><input id="sNombre" maxlength="60" placeholder="Larga distancia"></div>
+    <div><label>Orden en las listas</label><input id="sOrden" type="number" step="1" value="0"></div>
+    <div><label>Estado</label>
+      <div class="permiso"><input type="checkbox" id="sActiva" checked>
+        <span><b>Activa</b><span>Inactiva: no se ofrece para asignar a usuarios.</span></span></div></div>
+  </div>
+  <div id="avisoSucursal"></div>
+  <div class="barra" style="margin:14px 0 0">
+    <button class="btn" id="guardarSucursal">Guardar sucursal</button>
+    <button class="btn alt" data-cerrar="modalSucursal">Cancelar</button>
+  </div>
+</div></div>
+
 <script>
 "use strict";
 const $ = s => document.querySelector(s);
@@ -328,6 +363,26 @@ function pintar() {
           : `<button class="accion" data-borrar-rol="${esc(r.codigo)}">Borrar</button>`}
       </td>
     </tr>`).join('');
+
+  const sucs = D.datos.sucursales_todas || [];
+  $('#filasSucursales').innerHTML = sucs.length ? sucs.map(s => `
+    <tr class="${s.activa ? '' : 'baja'}">
+      <td><b>${esc(s.codigo)}</b></td>
+      <td>${esc(s.nombre)}</td>
+      <td class="chico">${esc(s.orden)}</td>
+      <td class="chico">${s.unidades}</td>
+      <td class="chico">${s.usuarios}</td>
+      <td><span class="marca ${s.activa ? 'activo' : 'baja'}">${
+        s.activa ? 'Activa' : 'Inactiva'}</span></td>
+      <td><button class="accion" data-sucursal="${esc(s.codigo)}">Editar</button></td>
+    </tr>`).join('')
+    : '<tr><td colspan="7" class="vacio">Sin sucursales cargadas.</td></tr>';
+  const sinAlta = D.datos.sucursales_sin_alta || [];
+  $('#sinAlta').innerHTML = sinAlta.length ? `<div class="aviso mal" style="margin:0 0 12px">
+    Códigos usados en unidades sin sucursal dada de alta:
+    ${sinAlta.map(s => `<b>${esc(s.codigo)}</b> (${s.unidades} unidades)
+      <button class="accion" data-alta="${esc(s.codigo)}">Dar de alta</button>`).join(' · ')}
+    </div>` : '';
 
   const activos = D.datos.usuarios.filter(u => u.activo).length;
   $('#pie').textContent = `${activos} usuarios activos de ${D.datos.usuarios.length} · ` +
@@ -448,6 +503,39 @@ async function guardarRol() {
 }
 
 // =====================================================================
+// SUCURSALES
+// =====================================================================
+function abrirSucursal(codigo, nueva) {
+  const s = nueva ? null : (D.datos.sucursales_todas || []).find(x => x.codigo === codigo);
+  D.sucursal = s ? s.codigo : null;
+  $('#tituloSucursal').textContent = s ? `Editar ${s.nombre}` : 'Nueva sucursal';
+  $('#sCodigo').value = s ? s.codigo : (codigo || '');
+  $('#sCodigo').disabled = !!s;
+  $('#sNombre').value = s ? s.nombre : '';
+  $('#sOrden').value = s ? s.orden : (D.datos.sucursales_todas || []).length + 1;
+  $('#sActiva').checked = s ? !!s.activa : true;
+  $('#avisoSucursal').innerHTML = '';
+  $('#modalSucursal').classList.add('on');
+  (s ? $('#sNombre') : codigo ? $('#sNombre') : $('#sCodigo')).focus();
+}
+
+async function guardarSucursal() {
+  try {
+    await api('guardar_sucursal', {
+      codigo: D.sucursal || $('#sCodigo').value,
+      nueva: !D.sucursal,
+      nombre: $('#sNombre').value,
+      orden: $('#sOrden').value,
+      activa: $('#sActiva').checked,
+    });
+    $('#modalSucursal').classList.remove('on');
+    await cargar();
+  } catch (e) {
+    $('#avisoSucursal').innerHTML = `<div class="aviso mal">${esc(e.message)}</div>`;
+  }
+}
+
+// =====================================================================
 document.addEventListener('click', async ev => {
   const cerrar = ev.target.closest('[data-cerrar]');
   if (cerrar) return document.getElementById(cerrar.dataset.cerrar).classList.remove('on');
@@ -456,12 +544,15 @@ document.addEventListener('click', async ev => {
   if (solapa) {
     document.querySelectorAll('.solapa').forEach(s => s.classList.toggle('on', s === solapa));
     D.vista = solapa.dataset.vista;
-    const roles = D.vista === 'roles';
+    const roles = D.vista === 'roles', sucursales = D.vista === 'sucursales';
+    const usuarios = !roles && !sucursales;
     $('#cajaRoles').hidden = !roles;
-    $('#cajaUsuarios').hidden = roles;
+    $('#cajaSucursales').hidden = !sucursales;
+    $('#cajaUsuarios').hidden = !usuarios;
     $('#nuevoRol').hidden = !roles;
-    $('#nuevoUsuario').hidden = roles;
-    $('#buscar').hidden = roles;
+    $('#nuevaSucursal').hidden = !sucursales;
+    $('#nuevoUsuario').hidden = !usuarios;
+    $('#buscar').hidden = !usuarios;
     return;
   }
 
@@ -496,6 +587,12 @@ document.addEventListener('click', async ev => {
   const rol = ev.target.closest('[data-rol]');
   if (rol) return abrirRol(rol.dataset.rol);
 
+  const suc = ev.target.closest('[data-sucursal]');
+  if (suc) return abrirSucursal(suc.dataset.sucursal, false);
+
+  const alta = ev.target.closest('[data-alta]');
+  if (alta) return abrirSucursal(alta.dataset.alta, true);
+
   const borrar = ev.target.closest('[data-borrar-rol]');
   if (borrar) {
     if (!confirm(`¿Borrar el rol ${borrar.dataset.borrarRol}?`)) return;
@@ -506,6 +603,8 @@ document.addEventListener('click', async ev => {
 
   if (ev.target.id === 'nuevoUsuario') return abrirUsuario(null);
   if (ev.target.id === 'nuevoRol') return abrirRol(null);
+  if (ev.target.id === 'nuevaSucursal') return abrirSucursal('', true);
+  if (ev.target.id === 'guardarSucursal') return guardarSucursal();
   if (ev.target.id === 'guardarUsuario') return guardarUsuario();
   if (ev.target.id === 'guardarRol') return guardarRol();
   if (ev.target.id === 'guardarClave') {

@@ -48,6 +48,7 @@ class BaseFalsa:
              "activo": True, "sucursal_codigo": "TUC"},
         ]
         self.sin_tablas = sin_tablas
+        self.sucursales = {"CAT": "Catamarca"}
         self.consultas = []
 
     def rollback(self):
@@ -85,6 +86,10 @@ class BaseFalsa:
                                    and self.roles[u["rol"]]["administra"]), None))
         if sql.startswith("select count(*) as n from usuarios where rol"):
             return Resultado({"n": sum(1 for u in self.usuarios if u["rol"] == valores[0])})
+        if sql.startswith("select codigo from sucursales where codigo"):
+            return Resultado({"codigo": valores[0]} if valores[0] in self.sucursales else None)
+        if sql.startswith("select to_regclass('public.solicitudes_contador')"):
+            return Resultado({"t": "solicitudes_contador"})
         if sql.startswith("insert into usuarios"):
             return Resultado({"id": 99})
         if sql.startswith(("insert", "update", "delete")):
@@ -284,6 +289,44 @@ class Roles(unittest.TestCase):
     def test_un_rol_vacio_se_borra(self):
         salida = permisos.borrar_rol(BaseFalsa(), {"codigo": "compras"}, ADMIN)
         self.assertEqual(salida["codigo"], "compras")
+
+
+
+# =====================================================================
+class Sucursales(unittest.TestCase):
+    def test_alta_de_sucursal_con_su_contador(self):
+        cx = BaseFalsa()
+        salida = permisos.aplicar(cx, {"op": "guardar_sucursal", "codigo": "lad",
+                                       "nueva": True, "nombre": "Larga distancia",
+                                       "orden": "8"}, ADMIN)
+        self.assertEqual(salida["codigo"], "LAD")
+        alta = next(v for q, v in cx.consultas if q.startswith("insert into sucursales"))
+        self.assertEqual(alta, ("LAD", "Larga distancia", True, 8))
+        self.assertTrue(any(q.startswith("insert into solicitudes_contador")
+                            for q, _ in cx.consultas))
+
+    def test_el_codigo_lleva_tres_letras(self):
+        for codigo in ("LA", "LADX", "L4D", ""):
+            with self.subTest(codigo=codigo), self.assertRaises(ValueError):
+                permisos.guardar_sucursal(BaseFalsa(), {"codigo": codigo,
+                                                        "nombre": "X"}, ADMIN)
+
+    def test_no_se_duplica_una_sucursal_nueva(self):
+        with self.assertRaises(ValueError):
+            permisos.guardar_sucursal(BaseFalsa(), {"codigo": "CAT", "nueva": True,
+                                                    "nombre": "Catamarca"}, ADMIN)
+
+    def test_editar_permite_desactivar(self):
+        cx = BaseFalsa()
+        permisos.guardar_sucursal(cx, {"codigo": "CAT", "nombre": "Catamarca",
+                                       "activa": False}, ADMIN)
+        alta = next(v for q, v in cx.consultas if q.startswith("insert into sucursales"))
+        self.assertIs(alta[2], False)
+
+    def test_solo_un_administrador(self):
+        with self.assertRaises(PermissionError):
+            permisos.guardar_sucursal(BaseFalsa(), {"codigo": "LAD",
+                                                    "nombre": "Larga distancia"}, SUCURSAL)
 
 
 if __name__ == "__main__":

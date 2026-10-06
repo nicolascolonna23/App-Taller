@@ -421,14 +421,29 @@ def panel(cx, usuario):
     """).fetchall()
 
     try:
-        sucursales = [dict(s) for s in cx.execute("""
-            select codigo, nombre from sucursales where activa
-            order by orden, codigo""").fetchall()]
+        todas = [dict(s) for s in cx.execute("""
+            select s.codigo, s.nombre, s.activa, s.orden,
+                   (select count(*) from unidades u
+                    where u.activa and u.sucursal = s.codigo) as unidades,
+                   (select count(*) from usuarios u
+                    where u.sucursal_codigo = s.codigo) as usuarios
+            from sucursales s
+            order by s.orden, s.codigo""").fetchall()]
+        # Códigos que usan las unidades y no figuran en la tabla: sus
+        # unidades no aparecen para los usuarios de ninguna sucursal.
+        sin_alta = [dict(s) for s in cx.execute("""
+            select u.sucursal as codigo, count(*) as unidades
+            from unidades u
+            where u.activa and u.sucursal is not null
+              and not exists (select 1 from sucursales s where s.codigo = u.sucursal)
+            group by u.sucursal order by u.sucursal""").fetchall()]
     except Exception:
         # Sin el módulo de solicitudes corrido no hay sucursales que
         # asignar. La pantalla sigue sirviendo para todo lo demás.
         cx.rollback()
-        sucursales = []
+        todas, sin_alta = [], []
+    sucursales = [{"codigo": s["codigo"], "nombre": s["nombre"]}
+                  for s in todas if s["activa"]]
 
     return {
         "usuarios": [dict(u) for u in usuarios],
@@ -437,6 +452,8 @@ def panel(cx, usuario):
         "modulos": [{"codigo": c, "nombre": n, "ruta": ruta, "detalle": d}
                     for c, n, ruta, d in MODULOS],
         "sucursales": sucursales,
+        "sucursales_todas": todas,
+        "sucursales_sin_alta": sin_alta,
         "yo": (usuario or {}).get("id"),
     }
 
@@ -617,12 +634,51 @@ def borrar_rol(cx, datos, usuario):
     return {"ok": True, "codigo": fila["codigo"]}
 
 
+# ---------------------------------------------------------------------
+# ESCRITURA — sucursales
+# ---------------------------------------------------------------------
+def guardar_sucursal(cx, datos, usuario):
+    """Da de alta una sucursal o le cambia nombre, orden y estado.
+
+    El código no se cambia: es el que usan las unidades, los usuarios y
+    el prefijo de las solicitudes.
+    """
+    _exigir_admin(usuario)
+    codigo = str(datos.get("codigo") or "").strip().upper()
+    if not re.match(r"^[A-Z]{3}$", codigo):
+        raise ValueError("El código de sucursal lleva tres letras, sin acentos (ej.: LAD).")
+    nombre = _texto(datos.get("nombre"), 60)
+    if not nombre:
+        raise ValueError("Falta el nombre de la sucursal.")
+    try:
+        orden = int(datos.get("orden") or 0)
+    except (TypeError, ValueError):
+        raise ValueError("El orden es un número entero.") from None
+    activa = datos.get("activa", True) is not False
+    existente = cx.execute("select codigo from sucursales where codigo = %s",
+                           (codigo,)).fetchone()
+    if datos.get("nueva") and existente:
+        raise ValueError(f"La sucursal {codigo} ya existe.")
+    cx.execute("""
+        insert into sucursales (codigo, nombre, activa, orden)
+        values (%s,%s,%s,%s)
+        on conflict (codigo) do update set
+          nombre = excluded.nombre, activa = excluded.activa, orden = excluded.orden
+    """, (codigo, nombre, activa, orden))
+    # Sin su fila en el contador, la sucursal no puede numerar solicitudes.
+    if cx.execute("select to_regclass('public.solicitudes_contador') as t").fetchone()["t"]:
+        cx.execute("""insert into solicitudes_contador (sucursal_codigo) values (%s)
+                      on conflict (sucursal_codigo) do nothing""", (codigo,))
+    return {"ok": True, "codigo": codigo}
+
+
 # =====================================================================
 def aplicar(cx, datos, usuario):
     """Punto de entrada de la API."""
     op = (datos.get("op") or "").strip()
     acciones = {"crear": crear, "guardar": guardar, "estado": estado, "clave": clave,
-                "reset_2fa": reset_2fa, "guardar_rol": guardar_rol, "borrar_rol": borrar_rol}
+                "reset_2fa": reset_2fa, "guardar_rol": guardar_rol, "borrar_rol": borrar_rol,
+                "guardar_sucursal": guardar_sucursal}
     if op in acciones:
         return acciones[op](cx, datos, usuario)
     raise ValueError("No entiendo qué hay que hacer con el usuario.")

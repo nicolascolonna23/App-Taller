@@ -42,6 +42,12 @@ const datos = {
     {codigo: 'usuarios', nombre: 'Usuarios y roles', ruta: '/usuarios', detalle: 'Esto.'},
   ],
   sucursales: [{codigo: 'CAT', nombre: 'Catamarca'}, {codigo: 'TUC', nombre: 'Tucumán'}],
+  sucursales_todas: [
+    {codigo: 'CAT', nombre: 'Catamarca', activa: true, orden: 1, unidades: 11, usuarios: 1},
+    {codigo: 'TUC', nombre: 'Tucumán', activa: true, orden: 2, unidades: 3, usuarios: 1},
+    {codigo: 'ROS', nombre: 'Rosario', activa: false, orden: 6, unidades: 0, usuarios: 0},
+  ],
+  sucursales_sin_alta: [{codigo: 'LAD', unidades: 50}],
   yo: 1,
 };
 
@@ -136,12 +142,36 @@ const datos = {
     assert.equal(nuevo.administra, false);
     assert.deepEqual(nuevo.modulos, ['ordenes']);
 
+    // Sucursales: los códigos de unidades sin alta se ofrecen para darlos de alta.
+    await page.click('[data-vista="sucursales"]');
+    assert.equal(await page.locator('#filasSucursales tr').count(), 3);
+    assert(await page.locator('#nuevaSucursal').isVisible());
+    await page.click('[data-alta="LAD"]');
+    assert.equal(await page.inputValue('#sCodigo'), 'LAD');
+    await page.fill('#sNombre', 'Larga distancia');
+    await page.click('#guardarSucursal');
+    const suc = pedidos.find(p => p.op === 'guardar_sucursal');
+    assert.equal(suc.codigo, 'LAD');
+    assert.equal(suc.nueva, true);
+    assert.equal(suc.nombre, 'Larga distancia');
+    assert.equal(suc.activa, true);
+
+    await page.click('[data-sucursal="ROS"]');
+    assert(await page.locator('#sCodigo').isDisabled(), 'el código no se cambia');
+    assert(!await page.locator('#sActiva').isChecked());
+    await page.check('#sActiva');
+    await page.click('#guardarSucursal');
+    const ros = pedidos.filter(p => p.op === 'guardar_sucursal').at(-1);
+    assert.equal(ros.codigo, 'ROS');
+    assert.equal(ros.nueva, false);
+    assert.equal(ros.activa, true);
+
     await page.setViewportSize({width: 390, height: 844});
     assert(!await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
            'la pantalla de usuarios desborda a lo ancho en el celular');
     assert.deepEqual(errores, []);
     console.log('PASS: alta con sucursal según el rol, edición sin tocar el usuario, ' +
-                'módulos marcados y mandados enteros, roles de fábrica sin borrar y celular.');
+                'módulos marcados y mandados enteros, roles de fábrica sin borrar, sucursales y celular.');
   } finally {
     await browser.close();
   }
