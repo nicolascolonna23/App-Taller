@@ -53,11 +53,6 @@
   .accion{border:0;background:none;color:var(--ink-muted);cursor:pointer;font:inherit;
     font-size:12px;text-decoration:underline;padding:0 8px 0 0}
   .accion:hover{color:var(--brand)}
-  .solapas{display:flex;gap:6px;margin:0 0 16px;flex-wrap:wrap}
-  .solapa{border:1px solid var(--hairline-2);background:var(--surface-1);color:var(--ink-2);
-    border-radius:99px;padding:8px 14px;font:inherit;font-weight:700;font-size:12.5px;cursor:pointer}
-  .solapa.on{background:color-mix(in srgb,var(--brand) 13%,transparent);
-    border-color:var(--brand);color:var(--ink)}
   input,select,textarea{background:var(--surface-2);color:var(--ink);
     border:1px solid var(--hairline-2);border-radius:9px;padding:9px 11px;font:inherit}
   input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
@@ -261,16 +256,11 @@
   <span class="who" id="quien"></span>
 </header>
 
-<nav class="solapas"><a href="/unidades" class="on">Unidades</a><a href="/vencimientos">Vencimientos</a></nav>
+<nav class="solapas"><a href="/unidades" class="on" data-vista="unidades">Unidades</a><a href="/unidades#semis" data-vista="semis">Asociación de equipos</a></nav>
 
 <main>
   <h1>Flota</h1>
   <p class="sub">Toda la información de las unidades. Es el origen de los datos del resto del sistema.</p>
-
-  <div class="solapas">
-    <button class="solapa on" data-vista="unidades">Unidades</button>
-    <button class="solapa" data-vista="semis">Asociación de equipos</button>
-  </div>
 
   <div id="error" class="error" hidden></div>
 
@@ -1449,16 +1439,25 @@ async function cargarSemis() {
   $('#vacio-semis').hidden = d.semis.length > 0;
 }
 
+/* Las dos solapas de arriba: las unidades y la asociación de equipos.
+   La segunda queda en la dirección (#semis) para poder entrar directo. */
+function mostrarVista(vista) {
+  const semis = vista === 'semis';
+  document.querySelectorAll('nav.solapas [data-vista]')
+    .forEach(x => x.classList.toggle('on', x.dataset.vista === vista));
+  $('#v-semis').hidden = !semis;
+  document.querySelectorAll('main > .barra, main > .caja')
+    .forEach(e => { e.hidden = semis; });
+  if (semis) $('#lote').hidden = true; else pintarLote();
+  if (semis && !SEMIS.datos) cargarSemis();
+  history.replaceState(null, '', semis ? '/unidades#semis' : '/unidades');
+}
+
 document.addEventListener('click', async ev => {
-  const solapa = ev.target.closest('.solapa');
+  const solapa = ev.target.closest('nav.solapas [data-vista]');
   if (solapa) {
-    document.querySelectorAll('.solapa').forEach(x => x.classList.toggle('on', x === solapa));
-    const semis = solapa.dataset.vista === 'semis';
-    $('#v-semis').hidden = !semis;
-    document.querySelectorAll('main > .barra, main > .caja')
-      .forEach(e => { e.hidden = semis; });
-    if (semis) $('#lote').hidden = true; else pintarLote();
-    if (semis && !SEMIS.datos) cargarSemis();
+    ev.preventDefault();
+    mostrarVista(solapa.dataset.vista);
     return;
   }
   if (ev.target.id === 'enganchar') {
@@ -1506,6 +1505,7 @@ $('#form-enganche').onsubmit = async e => {
 
 pintarCabecera();
 cargar();
+if (location.hash === '#semis') mostrarVista('semis');
 </script>
 </body>
 </html>
