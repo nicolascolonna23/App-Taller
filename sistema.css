@@ -286,4 +286,22 @@ body .button:hover{color:var(--ink)}
   border-left:1px solid var(--hairline-2,#c9d2de);border-bottom:1px solid var(--hairline-2,#c9d2de);transform:rotate(45deg)}
 .titan-globo b{display:block;font-size:15px;margin-bottom:2px}
 @keyframes tr-globo{from{opacity:0;transform:translateX(-6px) scale(.96)}to{opacity:1;transform:none}}
+/* Titán hablando y pensando (chat y tarjeta de la portada).
+   La boca: tapa la sonrisa del dibujo y se abre y cierra mientras habla. */
+.titan-robot .tr-boca{position:absolute;left:44.2%;top:26.6%;width:13.6%;height:5.4%;border-radius:50%;
+  background:#0d1b3f;opacity:0;transition:opacity .15s}
+.titan-robot .tr-boca::after{content:"";position:absolute;left:18%;right:18%;top:22%;bottom:22%;border-radius:45%;
+  background:#2f8cff;box-shadow:0 0 6px #2f8cff;transform:scaleY(.25)}
+.titan-robot.habla .tr-boca{opacity:1}
+.titan-robot.habla .tr-boca::after{animation:tr-hablar .26s ease-in-out infinite alternate}
+.titan-robot.habla .tr-flota{animation:tr-flotar 3.2s ease-in-out infinite,tr-asentir .5s ease-in-out infinite alternate}
+.titan-robot.habla .tr-brazo{animation:tr-gesto 1.1s ease-in-out infinite}
+/* Pensando: deja de saludar, inclina la cabeza y mira hacia los costados. */
+.titan-robot.piensa .tr-brazo{animation:none}
+.titan-robot.piensa .tr-flota{animation:tr-pensar 1.8s ease-in-out infinite}
+.titan-robot.piensa .tr-ojo{animation:tr-parpadear 1.6s linear infinite}
+@keyframes tr-hablar{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+@keyframes tr-asentir{from{rotate:0deg}to{rotate:-2deg}}
+@keyframes tr-gesto{0%,100%{transform:rotate(0)}50%{transform:rotate(-9deg)}}
+@keyframes tr-pensar{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3%) rotate(3deg)}}
 @media(prefers-reduced-motion:reduce){.titan-robot *,.titan-robot,.titan-globo{animation:none!important}}

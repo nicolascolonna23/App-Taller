@@ -1,30 +1,162 @@
 <!DOCTYPE html>
-<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Asistente interno | Titán Flota</title><link rel="icon" href="/favicon.png"><style>
-:root{color-scheme:light;--ink:#172b40;--muted:#617387;--line:#e0e6ed;--brand:#2563eb}*{box-sizing:border-box}body{margin:0;background:var(--bg,#f3f5f7);color:var(--ink);font:14px system-ui,-apple-system,sans-serif}header{height:68px;background:#0b0b0b;color:white;display:flex;align-items:center;gap:24px;padding:0 32px}header img{height:29px}header a{color:#d8e3ed;text-decoration:none;font-size:12px}header span{margin-left:auto;color:#bac9d7;font-size:12px}main{max-width:1050px;margin:auto;padding:38px 24px}.eyebrow{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:2px}h1{font-size:30px;letter-spacing:-1px;margin:12px 0}p{line-height:1.6}.sub{color:var(--muted);margin:0 0 26px}.panel{border:1px solid var(--line);background:var(--panel,#fff);border-radius:10px;overflow:hidden}.panel-head{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}.status{font-size:12px;color:var(--muted);flex:1}button{font:inherit;cursor:pointer;border-radius:5px;border:1px solid var(--line);padding:10px 14px;background:var(--panel-2,#fff);color:var(--ink)}button:hover{background:var(--panel-3,#f5f7fa)}button:disabled{opacity:.5;cursor:default}:focus-visible{outline:3px solid #2b80ca;outline-offset:2px}#messages{padding:24px;min-height:280px;max-height:58vh;overflow:auto;scroll-behavior:smooth}.empty{text-align:center;padding:25px 10px}.empty strong{font-size:20px}.empty .robot{display:block;margin:0 auto 22px}.embedded .empty .robot,.embedded #welcome>strong,.embedded #welcome>p{display:none}.empty p{color:var(--muted);font-size:13px}.examples{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:660px;margin:20px auto 0}.examples button{text-align:left;font-size:12px;padding:15px}.message{padding:18px 20px;background:var(--panel-2,#f6f8fa);border:1px solid var(--line);border-radius:8px;margin:0 0 18px}.message.user{background:var(--orange-soft,#fff8ed);border-color:var(--acc-line,#f1dfc0);margin-left:48px}.role{font-size:10px;letter-spacing:1px;font-weight:700;color:var(--muted);margin-bottom:10px}.answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13px}.sources{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;font-size:11px;color:var(--muted)}.sources a{display:block;color:var(--cyan,#23679e);margin:6px 0}.sources small{display:block;line-height:1.7;overflow-wrap:anywhere}form{padding:20px 24px;border-top:1px solid var(--line);background:var(--panel-2,#fbfcfd)}.composer{display:flex;gap:12px;align-items:flex-end}textarea{resize:vertical;min-height:74px;max-height:200px;flex:1;min-width:0;border:1px solid var(--line-2,#cbd4de);border-radius:6px;padding:13px;font:inherit;color:var(--ink);background:var(--panel,#fff)}textarea::placeholder{color:var(--muted)}#send{background:var(--brand);color:var(--marca-ink,#111);border:0;padding:13px 22px;font-weight:600}form label{display:block;font-size:12px;font-weight:600;margin-bottom:9px}.hint{font-size:11px;color:var(--muted);margin:10px 0 0}#error{margin:0 24px 16px;padding:12px;color:var(--bad,#a52e39);background:color-mix(in srgb,var(--bad,#a52e39) 12%,transparent);border-radius:5px;font-size:13px}.ensenar{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}.ensenar>button{font-size:11px;padding:6px 10px}.ensenar form{padding:0;border:0;background:none;margin-top:8px}.ensenar textarea{min-height:60px;width:100%}.ensenar input{font:inherit;color:var(--ink);background:var(--panel,#fff);border:1px solid var(--line-2,#cbd4de);border-radius:6px;padding:8px 10px;width:100%;max-width:240px;margin-bottom:8px}.ensenar .fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.ensenar .fila button{font-size:12px;padding:7px 12px}.ensenar .aviso{font-size:12px;color:var(--muted)}.ensenar .aviso.mal{color:var(--bad,#a52e39)}.scope{font-size:12px;color:var(--muted);margin-top:18px}.scope a{color:var(--cyan,#28669d)}[hidden]{display:none!important}@media(max-width:600px){main{padding:24px 12px}header{padding:0 16px;gap:14px}header span{font-size:10px}h1{font-size:25px}.examples{grid-template-columns:1fr}#messages{padding:14px;max-height:60vh}.message.user{margin-left:16px}.composer{flex-wrap:wrap}textarea{flex-basis:100%}#send{width:100%}form{padding:16px}.panel-head{padding:14px}}
-</style></head><body><header><img src="/logo.png" alt="Titán Flota"><a href="/">‹ Inicio</a><a href="/combustible">Combustible</a><span id="who"></span></header><main><div class="eyebrow">OPERACIONES / ASISTENTE IA</div><h1>Consultas al sistema</h1><p class="sub">Consulta de stock, cubiertas, unidades, vencimientos y tickets en lenguaje natural.</p><section class="panel" aria-label="Chat interno"><div class="panel-head"><strong>Titán</strong><span id="status" class="status" role="status">Comprobando disponibilidad…</span><button id="reset" type="button">Nueva consulta</button></div><div id="messages" role="log" aria-label="Conversación" aria-live="polite"><div class="empty" id="welcome"><strong>¿Qué información necesita?</strong><p>Respuestas con información registrada y fuentes para verificarla.</p><div class="examples"><button>¿Cuántas cubiertas hay en stock?</button><button>¿En qué unidad está montada la cubierta 300?</button><button>¿Cuántos acoples hay en stock?</button><button>¿Qué VTV están por vencer?</button></div></div></div><p id="error" role="alert" hidden></p><form id="form"><label for="question">Tu pregunta</label><div class="composer"><textarea id="question" maxlength="2000" required placeholder="Ej. ¿Cuándo vence la VTV de AB 123 CD?"></textarea><button id="send" disabled>Enviar ↗</button></div><p class="hint">Enter para enviar · Shift + Enter para nueva línea. La conversación se borra al recargar o iniciar una nueva consulta.</p></form></section><p class="scope">Solo consulta: el asistente no modifica el sistema. Los mensajes y resultados necesarios se envían al proveedor de IA para responder. Puede cometer errores; verificá las fuentes. <a href="/asistente/conocimiento">Conocimiento de Titán</a> · <a href="/asistente/guia">Configuración y mejora del agente</a></p></main>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Asistente Titán | Titán Flota</title><link rel="icon" href="/favicon.png"><style>
+:root{color-scheme:light;--ink:#172b40;--muted:#617387;--line:#e0e6ed;--brand:#2563eb}
+*{box-sizing:border-box}body{margin:0;background:var(--bg,#f3f5f7);color:var(--ink);font:14px system-ui,-apple-system,sans-serif}
+header{height:68px;background:#0b0b0b;color:white;display:flex;align-items:center;gap:24px;padding:0 32px}header img{height:29px}header a{color:#d8e3ed;text-decoration:none;font-size:12px}header span{margin-left:auto;color:#bac9d7;font-size:12px}
+main{max-width:1150px;margin:auto;padding:38px 24px}
+.eyebrow{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:2px}h1{font-size:30px;letter-spacing:-1px;margin:12px 0}p{line-height:1.6}.sub{color:var(--muted);margin:0 0 26px}
+.panel{border:1px solid var(--line);background:var(--panel,#fff);border-radius:10px;overflow:hidden}
+.panel-head{padding:16px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center}.status{font-size:12px;color:var(--muted);flex:1}
+button{font:inherit;cursor:pointer;border-radius:5px;border:1px solid var(--line);padding:10px 14px;background:var(--panel-2,#fff);color:var(--ink)}button:hover{background:var(--panel-3,#f5f7fa)}button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid #2b80ca;outline-offset:2px}
+
+/* La conversación y, al costado, Titán: visible durante toda la charla. */
+.charla{display:grid;grid-template-columns:230px minmax(0,1fr)}
+.escenario{border-right:1px solid var(--line);background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 7%,transparent),transparent 70%);
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:16px;padding:30px 16px 20px}
+.escenario .titan-robot{cursor:pointer}.escenario{min-width:0}.escenario .titan-robot{position:relative;display:inline-block;flex:none;height:var(--alto);aspect-ratio:512/628}.escenario .titan-robot img{position:absolute;inset:0;width:100%;height:100%}
+.estado-titan{position:relative;background:var(--panel,#fff);border:1px solid var(--line);border-radius:12px;padding:10px 14px;
+  font-size:12px;line-height:1.45;color:var(--muted);text-align:center;min-height:40px;max-width:190px;transition:border-color .2s,color .2s}
+.estado-titan::before{content:"";position:absolute;left:calc(50% - 6px);top:-7px;width:12px;height:12px;background:inherit;
+  border-left:1px solid var(--line);border-top:1px solid var(--line);transform:rotate(45deg)}
+.estado-titan b{display:block;color:var(--ink);font-size:13px}
+.escenario.piensa .estado-titan,.escenario.habla .estado-titan{border-color:color-mix(in srgb,var(--brand) 45%,transparent);color:var(--ink)}
+.puntos i{display:inline-block;width:5px;height:5px;margin:0 2px;border-radius:50%;background:var(--brand);animation:tr-punto 1s ease-in-out infinite}
+.puntos i:nth-child(2){animation-delay:.15s}.puntos i:nth-child(3){animation-delay:.3s}
+@keyframes tr-punto{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
+
+
+#messages{padding:24px;min-height:340px;max-height:62vh;overflow:auto;scroll-behavior:smooth}
+.empty{text-align:center;padding:25px 10px}.empty strong{font-size:20px}.empty p{color:var(--muted);font-size:13px}
+.embedded #welcome>strong,.embedded #welcome>p{display:none}
+.examples{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:660px;margin:20px auto 0}.examples button{text-align:left;font-size:12px;padding:15px}
+.message{padding:18px 20px;background:var(--panel-2,#f6f8fa);border:1px solid var(--line);border-radius:8px;margin:0 0 18px}
+.message.user{background:var(--orange-soft,#fff8ed);border-color:var(--acc-line,#f1dfc0);margin-left:48px}
+.message.assistant{position:relative}
+.message.assistant.escribiendo .answer::after{content:"";display:inline-block;width:7px;height:14px;margin-left:2px;vertical-align:-2px;background:var(--brand);animation:tr-cursor .7s steps(1) infinite}
+@keyframes tr-cursor{50%{opacity:0}}
+.role{font-size:10px;letter-spacing:1px;font-weight:700;color:var(--muted);margin-bottom:10px}
+.answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7;font-size:13px}
+.sources{margin-top:16px;border-top:1px solid var(--line);padding-top:12px;font-size:11px;color:var(--muted)}.sources a{display:block;color:var(--cyan,#23679e);margin:6px 0}.sources small{display:block;line-height:1.7;overflow-wrap:anywhere}
+form{padding:20px 24px;border-top:1px solid var(--line);background:var(--panel-2,#fbfcfd)}
+.composer{display:flex;gap:12px;align-items:flex-end}
+textarea{resize:vertical;min-height:74px;max-height:200px;flex:1;min-width:0;border:1px solid var(--line-2,#cbd4de);border-radius:6px;padding:13px;font:inherit;color:var(--ink);background:var(--panel,#fff)}textarea::placeholder{color:var(--muted)}
+#send{background:var(--brand);color:var(--marca-ink,#111);border:0;padding:13px 22px;font-weight:600}
+form label{display:block;font-size:12px;font-weight:600;margin-bottom:9px}.hint{font-size:11px;color:var(--muted);margin:10px 0 0}
+#error{margin:0 24px 16px;padding:12px;color:var(--bad,#a52e39);background:color-mix(in srgb,var(--bad,#a52e39) 12%,transparent);border-radius:5px;font-size:13px}
+.ensenar{margin-top:14px;border-top:1px solid var(--line);padding-top:10px}.ensenar>button{font-size:11px;padding:6px 10px}
+.ensenar form{padding:0;border:0;background:none;margin-top:8px}.ensenar textarea{min-height:60px;width:100%}
+.ensenar input{font:inherit;color:var(--ink);background:var(--panel,#fff);border:1px solid var(--line-2,#cbd4de);border-radius:6px;padding:8px 10px;width:100%;max-width:240px;margin-bottom:8px}
+.ensenar .fila{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}.ensenar .fila button{font-size:12px;padding:7px 12px}
+.ensenar .aviso{font-size:12px;color:var(--muted)}.ensenar .aviso.mal{color:var(--bad,#a52e39)}
+.scope{font-size:12px;color:var(--muted);margin-top:18px}.scope a{color:var(--cyan,#28669d)}
+[hidden]{display:none!important}
+/* En la tarjeta de la portada Titán ya está en la cabecera de la tarjeta. */
+.embedded .charla{grid-template-columns:1fr}.embedded .escenario{display:none}
+@media(max-width:760px){
+  main{padding:24px 12px}header{padding:0 16px;gap:14px}header span{font-size:10px}h1{font-size:25px}
+  /* Sin overflow:hidden el robot puede quedar pegado arriba mientras se baja. */
+  .panel{overflow:visible}
+  .charla{grid-template-columns:1fr}
+  .escenario{flex-direction:row;justify-content:flex-start;gap:14px;padding:12px 14px;border-right:0;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:2;background:var(--panel,#fff)}
+  .escenario .titan-robot{--alto:84px!important}
+  .estado-titan{text-align:left;max-width:none;flex:1}
+  .estado-titan::before{left:-7px;top:calc(50% - 6px);border-top:0;border-right:0;border-bottom:1px solid var(--line)}
+  .examples{grid-template-columns:1fr}#messages{padding:14px;max-height:none;min-height:240px}.message.user{margin-left:16px}
+  .composer{flex-wrap:wrap}textarea{flex-basis:100%}#send{width:100%}form{padding:16px}.panel-head{padding:14px}
+}
+@media(prefers-reduced-motion:reduce){.puntos i,.message.assistant.escribiendo .answer::after{animation:none!important}}
+</style></head><body><header><img src="/logo.png" alt="Titán Flota"><a href="/">‹ Inicio</a><a href="/combustible">Combustible</a><span id="who"></span></header>
+<main><div class="eyebrow">OPERACIONES / ASISTENTE IA</div><h1>Titán, el asistente de IA</h1><p class="sub">Consulta de stock, cubiertas, unidades, vencimientos y tickets en lenguaje natural.</p>
+<section class="panel" aria-label="Chat interno">
+  <div class="panel-head"><strong>Titán</strong><span id="status" class="status" role="status">Comprobando disponibilidad…</span><button id="reset" type="button">Nueva consulta</button></div>
+  <div class="charla">
+    <aside class="escenario" id="escenario" aria-label="Titán">
+      <span class="titan-robot entra" id="robot" style="--alto:190px" role="img" aria-label="Titán, el robot asistente" title="Titán">
+        <span class="tr-sombra"></span>
+        <span class="tr-flota">
+          <img class="tr-cuerpo" src="/titan-robot-cuerpo.png" alt="" width="512" height="628">
+          <img class="tr-brazo" src="/titan-robot-brazo.png" alt="" width="512" height="628">
+          <span class="tr-ojo izq"></span><span class="tr-ojo der"></span><span class="tr-boca"></span>
+        </span>
+      </span>
+      <div class="estado-titan" id="estadoTitan" aria-live="polite"><b>Titán</b>Listo para consultar.</div>
+    </aside>
+    <div id="messages" role="log" aria-label="Conversación" aria-live="polite">
+      <div class="empty" id="welcome"><strong>Titán, el asistente de IA</strong><p>Consulta de la información del taller con fuentes para verificarla. ¿Qué información necesita?</p>
+        <div class="examples"><button>¿Cuántas cubiertas hay en stock?</button><button>¿En qué unidad está montada la cubierta 300?</button><button>¿Cuántos acoples hay en stock?</button><button>¿Qué VTV están por vencer?</button></div></div>
+    </div>
+  </div>
+  <p id="error" role="alert" hidden></p>
+  <form id="form"><label for="question">Pregunta</label><div class="composer"><textarea id="question" maxlength="2000" required placeholder="Ej. ¿Cuándo vence la VTV de AB 123 CD?"></textarea><button id="send" disabled>Enviar ↗</button></div><p class="hint">Enter para enviar · Shift + Enter para nueva línea. La conversación se borra al recargar o iniciar una nueva consulta.</p></form>
+</section>
+<p class="scope">Solo consulta: el asistente no modifica el sistema. Los mensajes y resultados necesarios se envían al proveedor de IA para responder. Puede cometer errores; verificar las fuentes. <a href="/asistente/conocimiento">Conocimiento de Titán</a> · <a href="/asistente/guia">Configuración y mejora del agente</a></p></main>
 <script>
 'use strict';
 const embedded=new URLSearchParams(location.search).get('embed')==='1';
 if(embedded){document.documentElement.classList.add('embedded');document.addEventListener('keydown',e=>{if(e.key==='Escape')parent.postMessage('pengui:close',location.origin);});}
-document.title='Asistente Titán | Titán Flota';
-document.querySelector('h1').textContent='Titán, el asistente de IA';
-document.querySelector('.panel-head strong').textContent='Titán';
-document.querySelector('#welcome strong').textContent='¡Hola! Soy Titán, el asistente de IA.';
-{const robot=document.createElement('span');robot.className='titan-robot entra robot';robot.style.setProperty('--alto','190px');robot.setAttribute('role','img');robot.setAttribute('aria-label','Titán, el robot asistente, saludando');robot.title='¡Hola! Soy Titán';
-robot.innerHTML='<span class="tr-sombra"></span><span class="tr-flota"><img class="tr-cuerpo" src="/titan-robot-cuerpo.png" alt="" width="512" height="628"><img class="tr-brazo" src="/titan-robot-brazo.png" alt="" width="512" height="628"><span class="tr-ojo izq"></span><span class="tr-ojo der"></span></span>';
-robot.addEventListener('click',()=>{robot.classList.add('saluda');clearTimeout(robot._t);robot._t=setTimeout(()=>robot.classList.remove('saluda'),2400);});
-document.querySelector('#welcome').prepend(robot);}
-document.querySelector('#welcome p').textContent='Asistente para consultar la información del taller. ¿Qué información necesita?';
 const $=s=>document.querySelector(s);let history=[],busy=false,ready=false;
 const links=new Set(['/gomeria','/repuestos','/unidades','/vencimientos','/combustible#tickets']);
-function message(role,text,fuentes=[],pregunta=''){
+const quieto=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- Titán: quieto, pensando o hablando ----------
+   En la portada el robot está en la tarjeta que contiene este chat: se le
+   avisa el estado con un mensaje para que también se anime. */
+const ESTADOS={
+  quieto:['Titán','Listo para consultar.'],
+  piensa:['Consultando el sistema','<span class="puntos" aria-hidden="true"><i></i><i></i><i></i></span>'],
+  habla:['Respondiendo',''],
+  error:['Sin respuesta','Revisar el aviso debajo de la conversación.'],
+};
+function titan(estado){
+  const robot=$('#robot'),esc=$('#escenario');
+  for(const c of ['piensa','habla'])robot.classList.toggle(c,estado===c),esc.classList.toggle(c,estado===c);
+  const [titulo,detalle]=ESTADOS[estado]||ESTADOS.quieto;
+  $('#estadoTitan').innerHTML='<b></b>'+detalle;$('#estadoTitan b').textContent=titulo;
+  if(embedded)parent.postMessage({titan:estado},location.origin);
+}
+$('#robot').addEventListener('click',()=>{const r=$('#robot');r.classList.add('saluda');clearTimeout(r._t);r._t=setTimeout(()=>r.classList.remove('saluda'),2400);});
+
+/* El modelo a veces marca negritas con **: se muestran como negrita, nunca como HTML. */
+function formatear(caja,texto){
+  caja.replaceChildren();
+  texto.split(/(\*\*[^*\n]+\*\*)/).forEach(parte=>{
+    if(/^\*\*[^*\n]+\*\*$/.test(parte)){const b=document.createElement('strong');b.textContent=parte.slice(2,-2);caja.append(b);}
+    else if(parte)caja.append(document.createTextNode(parte.replace(/^#{1,4} /gm,'')));
+  });
+}
+/* Escribe la respuesta de a poco mientras Titán habla. Dura entre 0,8 y 4 segundos. */
+function escribir(article,caja,texto){
+  return new Promise(listo=>{
+    const plano=texto.replace(/\*\*([^*\n]+)\*\*/g,'$1');
+    if(quieto){formatear(caja,texto);return listo();}
+    article.classList.add('escribiendo');titan('habla');
+    const pasos=Math.max(20,Math.min(160,Math.round(plano.length/6))),total=Math.max(800,Math.min(4000,plano.length*18));
+    let i=0;const t=setInterval(()=>{i++;caja.textContent=plano.slice(0,Math.ceil(plano.length*i/pasos));
+      const m=$('#messages');m.scrollTop=m.scrollHeight;
+      if(i>=pasos){clearInterval(t);article.classList.remove('escribiendo');formatear(caja,texto);titan('quieto');listo();}},total/pasos);
+  });
+}
+function fuentesDe(fuentes){
+  const box=document.createElement('div');box.className='sources';box.append(document.createTextNode('FUENTES CONSULTADAS'));
+  for(const source of fuentes){if(!links.has(source.url))continue;const link=document.createElement('a');link.href=source.url;link.textContent=source.fuente;const detail=document.createElement('small');const when=new Date(source.consultado);detail.textContent='Consultado: '+(isNaN(when)?'fecha no disponible':when.toLocaleString('es-AR'))+' · '+source.resumen.cantidad+' registros coincidentes'+(source.truncado?' · muestra de hasta 50':'');const filters=document.createElement('small');filters.textContent='Filtros: '+Object.entries(source.filtros||{}).filter(([k,v])=>k!=='dominio'&&v).map(([k,v])=>k+': '+v).join(' · ');box.append(link,detail,filters);}
+  return box;
+}
+function message(role,text){
   $('#welcome').hidden=true;const article=document.createElement('article');article.className='message '+role;
-  const label=document.createElement('div');label.className='role';label.textContent=role==='user'?'VOS':'PENGUI';
-  const content=document.createElement('div');content.className='answer';content.textContent=text;article.append(label,content);
-  if(fuentes.length){const box=document.createElement('div');box.className='sources';box.append(document.createTextNode('FUENTES CONSULTADAS'));
-    for(const source of fuentes){if(!links.has(source.url))continue;const link=document.createElement('a');link.href=source.url;link.textContent=source.fuente;const detail=document.createElement('small');const when=new Date(source.consultado);detail.textContent='Consultado: '+(isNaN(when)?'fecha no disponible':when.toLocaleString('es-AR'))+' · '+source.resumen.cantidad+' registros coincidentes'+(source.truncado?' · muestra de hasta 50':'');const filters=document.createElement('small');filters.textContent='Filtros: '+Object.entries(source.filtros||{}).filter(([k,v])=>k!=='dominio'&&v).map(([k,v])=>k+': '+v).join(' · ');box.append(link,detail,filters);}article.append(box);}
-  if(role==='assistant')article.append(ensenar(pregunta,text));
+  const label=document.createElement('div');label.className='role';label.textContent=role==='user'?'CONSULTA':'TITÁN';
+  const content=document.createElement('div');content.className='answer';
+  if(role==='user')content.textContent=text;
+  article.append(label,content);
   $('#messages').append(article);$('#messages').scrollTop=$('#messages').scrollHeight;return article;
+}
+async function responder(text,fuentes,pregunta){
+  const article=message('assistant',text);
+  await escribir(article,article.querySelector('.answer'),text);
+  if(fuentes.length)article.append(fuentesDe(fuentes));
+  article.append(ensenar(pregunta,text));
+  $('#messages').scrollTop=$('#messages').scrollHeight;
 }
 /* Enseñar a Titán desde una respuesta: la corrección queda en Conocimiento de Titán. */
 function ensenar(pregunta,respuesta){
@@ -54,13 +186,16 @@ function ensenar(pregunta,respuesta){
 }
 function controls(){ $('#send').disabled=busy||!ready;$('#reset').disabled=busy;$('#question').disabled=busy;document.querySelectorAll('.examples button').forEach(b=>b.disabled=busy||!ready); }
 async function send(event){event.preventDefault();const question=$('#question').value.trim();if(busy||!ready||!question)return;
-  const previous=history.slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)}));while(previous.length && previous.reduce((n,m)=>n+m.content.length,question.length)>24000) previous.splice(0,2);const messages=[...previous,{role:'user',content:question}];busy=true;controls();$('#error').hidden=true;$('#status').textContent='Consultando el sistema…';const userMessage=message('user',question);
-  try{const r=await fetch('/api/asistente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensajes:messages})});const data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo responder.');if(typeof data.respuesta!=='string'||!Array.isArray(data.fuentes))throw Error('Respuesta inválida. Intente nuevamente.');message('assistant',data.respuesta,data.fuentes,question);history=[...messages,{role:'assistant',content:data.respuesta}];$('#question').value='';}
-  catch(e){userMessage.remove();$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;}
-  finally{busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();}
+  const previous=history.slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)}));while(previous.length && previous.reduce((n,m)=>n+m.content.length,question.length)>24000) previous.splice(0,2);const messages=[...previous,{role:'user',content:question}];busy=true;controls();$('#error').hidden=true;$('#status').textContent='Consultando el sistema…';const userMessage=message('user',question);titan('piensa');
+  let data;
+  try{const r=await fetch('/api/asistente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensajes:messages})});data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo responder.');if(typeof data.respuesta!=='string'||!Array.isArray(data.fuentes))throw Error('Respuesta inválida. Intente nuevamente.');}
+  catch(e){userMessage.remove();titan('error');$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();return;}
+  history=[...messages,{role:'assistant',content:data.respuesta}];$('#question').value='';$('#status').textContent='Respondiendo…';
+  await responder(data.respuesta,data.fuentes,question);
+  busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();
 }
 $('#form').onsubmit=send;$('#question').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#form').requestSubmit();}};
-$('#reset').onclick=()=>{history=[];document.querySelectorAll('.message').forEach(m=>m.remove());$('#welcome').hidden=false;$('#error').hidden=true;$('#question').value='';$('#question').focus();};
+$('#reset').onclick=()=>{history=[];document.querySelectorAll('.message').forEach(m=>m.remove());$('#welcome').hidden=false;$('#error').hidden=true;$('#question').value='';titan('quieto');$('#question').focus();};
 document.querySelectorAll('.examples button').forEach(b=>b.onclick=()=>{$('#question').value=b.textContent;$('#question').focus();});
 fetch('/api/asistente').then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||'No se pudo verificar el asistente.');ready=d.habilitado;$('#status').textContent=ready?'Solo consulta · datos del sistema':'Pendiente de configuración';if(!ready){$('#error').textContent='Falta configurar ANTHROPIC_API_KEY en el servidor. Consultar la guía de configuración.';$('#error').hidden=false;}controls();}).catch(e=>{$('#status').textContent='No disponible';$('#error').textContent=e.message;$('#error').hidden=false;controls();});
 fetch('/api/yo').then(r=>r.ok?r.json():null).then(d=>{if(d)$('#who').textContent=d.nombre+' · '+d.rol;}).catch(()=>{});

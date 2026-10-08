@@ -21,7 +21,7 @@
       <span class="tr-flota">
         <img class="tr-cuerpo" src="/titan-robot-cuerpo.png" alt="" width="512" height="628">
         <img class="tr-brazo" src="/titan-robot-brazo.png" alt="" width="512" height="628">
-        <span class="tr-ojo izq"></span><span class="tr-ojo der"></span>
+        <span class="tr-ojo izq"></span><span class="tr-ojo der"></span><span class="tr-boca"></span>
       </span>
     </span>`;
 
@@ -43,5 +43,15 @@
   frame.title = 'Conversación con Titán';
   frame.src = '/asistente?embed=1';
   hueco.append(frame);
+
+  /* El chat de adentro avisa si Titán piensa o habla, y el robot de la
+     tarjeta lo acompaña. */
+  addEventListener('message', ev => {
+    if (ev.origin !== location.origin || ev.source !== frame.contentWindow) return;
+    const estado = ev.data && ev.data.titan;
+    if (!estado) return;
+    muñeco.classList.toggle('piensa', estado === 'piensa');
+    muñeco.classList.toggle('habla', estado === 'habla');
+  });
   hueco.hidden = false;
 })();
