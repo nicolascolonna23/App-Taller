@@ -41,6 +41,7 @@ import alertas as alr
 import auth, base, combustible as comb, etiquetas, facturas, inicio, repuestos
 import estanterias as est
 import asistente
+import ensenanzas as ens
 import ia
 import ordenes as ots
 import enganches as eng
@@ -80,6 +81,8 @@ PANTALLAS = {
     "/unidades":   ("unidades.html",           "text/html; charset=utf-8"),
     "/asistente": ("asistente.html", "text/html; charset=utf-8"),
     "/asistente/guia": ("docs/ASISTENTE.md", "text/plain; charset=utf-8"),
+    # Lo que se le enseña a Titán: vocabulario y criterios del taller.
+    "/asistente/conocimiento": ("asistente_conocimiento.html", "text/html; charset=utf-8"),
     "/combustible": ("combustible.html",       "text/html; charset=utf-8"),
     "/ordenes":    ("ordenes.html",            "text/html; charset=utf-8"),
     "/solicitudes":      ("solicitudes.html",              "text/html; charset=utf-8"),
@@ -358,6 +361,21 @@ class App(CupoPorPedido, gom.Handler):
             if not self._exigir_sesion():
                 return
             return self._responder(gom.jstr({"habilitado": asistente.habilitado()}))
+
+        if ruta == "/api/asistente/ensenanzas":
+            if not self._exigir_sesion():
+                return
+            try:
+                with base.conectar() as cx:
+                    datos = ens.listar(cx, self.usuario)
+                    cx.commit()
+                return self._responder(gom.jstr(datos))
+            except (psycopg.errors.UndefinedTable, psycopg.errors.UndefinedColumn) as e:
+                return self._error(base.que_falta(e,
+                    "Falta correr gomeria/48_titan_ensenanzas.sql en el SQL Editor de Supabase."), 503)
+            except Exception as e:
+                traceback.print_exc()
+                return self._error(f"No se pudieron leer las enseñanzas: {e}", 500)
 
         if ruta == "/api/repuestos":
             if not self._exigir_sesion():
@@ -1007,6 +1025,10 @@ class App(CupoPorPedido, gom.Handler):
             return self._reportes(True)
         if ruta == "/api/vales":
             return atender_vales(self, base, self.command == "POST")
+        # Enseñar a Titán: desde su pantalla o desde una respuesta del chat.
+        if ruta == "/api/asistente/ensenanzas":
+            return self._escribir(ens.aplicar, "la enseñanza",
+                                  "gomeria/48_titan_ensenanzas.sql", limite=16 * 1024)
         if ruta == "/api/asistente":
             if not self._exigir_sesion():
                 return
@@ -1601,6 +1623,7 @@ def preparar():
             "fluidos y proveedores": ("fluidos", "fluido_movimientos"),
             "parámetros y enganches": ("parametros", "enganches"),
             "marcas y medidas": ("cubiertas_marcas", "cubiertas_medidas"),
+            "enseñanzas de Titán": ("titan_ensenanzas",),
         }
         for modulo, tablas in opcionales.items():
             if any(not existe(t) for t in tablas):

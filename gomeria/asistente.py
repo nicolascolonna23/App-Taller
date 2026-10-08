@@ -12,6 +12,7 @@ import anthropic
 
 import ia
 import base
+import ensenanzas
 
 ROLES = {'admin', 'encargado', 'operario'}
 DOMINIOS = ['cubiertas', 'repuestos', 'unidades', 'vencimientos', 'combustible']
@@ -308,7 +309,22 @@ def usar_cupo(uid):
         _consultas.append((uid, ahora))
 
 
-def responder(datos, usuario, modelo_call=None, consulta_call=None):
+def leer_ensenanzas():
+    """Lo que los administradores le enseñaron a Titán (ver ensenanzas.py).
+
+    Sin la tabla o sin base, Titán responde igual con sus reglas fijas: una
+    enseñanza que falta no puede dejar al taller sin asistente.
+    """
+    try:
+        with base.conectar() as cx:
+            texto = ensenanzas.para_el_modelo(cx)
+            cx.rollback()
+            return texto
+    except (Exception, SystemExit):  # base.url_conexion corta con SystemExit
+        return ''
+
+
+def responder(datos, usuario, modelo_call=None, consulta_call=None, ensenanzas_call=None):
     if not usuario or usuario.get('rol') not in ROLES:
         raise PermissionError('Se requiere una sesión autorizada para consultar.')
     mensajes = validar_mensajes(datos)
@@ -340,15 +356,16 @@ def responder(datos, usuario, modelo_call=None, consulta_call=None):
         _slots.release()
         raise
     try:
-        return _responder(mensajes, modelo_call or llamar_modelo, consulta_call or consultar)
+        return _responder(mensajes, modelo_call or llamar_modelo, consulta_call or consultar,
+                          (ensenanzas_call or leer_ensenanzas)())
     finally:
         with _lock:
             _activos.discard(uid)
         _slots.release()
 
 
-def _responder(mensajes, modelo_call, consulta_call):
-    reglas = Path(__file__).with_name('asistente_reglas.md').read_text(encoding='utf-8')
+def _responder(mensajes, modelo_call, consulta_call, aprendido=''):
+    reglas = Path(__file__).with_name('asistente_reglas.md').read_text(encoding='utf-8') + aprendido
     instrucciones = reglas + '\nFecha actual en Argentina: ' + str(dt.datetime.now(ZoneInfo('America/Argentina/Buenos_Aires')).date())
     contexto = [dict(m) for m in mensajes]
     fuentes, llamadas = [], 0

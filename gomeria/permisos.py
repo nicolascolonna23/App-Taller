@@ -98,6 +98,7 @@ RUTAS = {
     "/viento": "viento", "/api/viento": "viento",
     "/api/viento/indicadores": "viento", "/api/viento/mapa": "viento",
     "/asistente": "asistente", "/api/asistente": "asistente",
+    "/asistente/conocimiento": "asistente", "/api/asistente/ensenanzas": "asistente",
     "/usuarios": "usuarios", "/api/usuarios": "usuarios",
     "/parametros": "parametros", "/api/parametros": "parametros",
     # El catálogo de marcas y medidas no pide módulo: lo leen todas las

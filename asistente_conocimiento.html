@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Conocimiento de Titán | Titán Flota</title><link rel="icon" href="/favicon.png">
+<style>
+:root{color-scheme:light;--ink:#172b40;--muted:#617387;--line:#e0e6ed;--brand:#2563eb}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg,#f3f5f7);color:var(--ink);font:14px system-ui,-apple-system,sans-serif}
+[hidden]{display:none!important}
+header.top{height:68px;background:#0b0b0b;color:white;display:flex;align-items:center;gap:24px;padding:0 32px}
+header.top img{height:29px}header.top a{color:#d8e3ed;text-decoration:none;font-size:12px}
+header.top .who{margin-left:auto;color:#bac9d7;font-size:12px}
+main{max-width:1050px;margin:auto;padding:38px 24px 60px}
+.eyebrow{color:var(--muted);font-size:10px;font-weight:700;letter-spacing:2px}
+h1{font-size:30px;letter-spacing:-1px;margin:12px 0}
+.sub{color:var(--muted);margin:0 0 22px;line-height:1.6}
+.cifras{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 22px}
+.cifra{border:1px solid var(--line);background:var(--panel,#fff);border-radius:10px;padding:12px 16px;min-width:140px}
+.cifra b{display:block;font-size:22px;letter-spacing:-.5px}.cifra span{font-size:11px;color:var(--muted)}
+.panel{border:1px solid var(--line);background:var(--panel,#fff);border-radius:10px;padding:20px 22px;margin-bottom:18px}
+.panel h2{font-size:15px;margin:0 0 14px}
+label{display:block;font-size:12px;font-weight:600;margin:0 0 6px}
+input,textarea,select{font:inherit;color:var(--ink);background:var(--panel,#fff);border:1px solid var(--line-2,#cbd4de);border-radius:6px;padding:10px 12px;width:100%}
+textarea{min-height:80px;resize:vertical}
+.fila{display:grid;grid-template-columns:220px 1fr;gap:14px}
+.contador{font-size:11px;color:var(--muted);text-align:right;margin-top:4px}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);padding:9px 14px;background:var(--panel-2,#fff);color:var(--ink)}
+button:hover{background:var(--panel-3,#f5f7fa)}button:disabled{opacity:.5;cursor:default}
+button.principal{background:var(--brand);color:var(--marca-ink,#fff);border:0;font-weight:600}
+button.peligro{color:var(--bad,#a52e39)}
+:focus-visible{outline:3px solid #2b80ca;outline-offset:2px}
+.acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
+.aviso{font-size:12px}.aviso.mal{color:var(--bad,#a52e39)}.aviso.bien{color:var(--ok,#1f8a4c)}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px;align-items:center}
+.filtros button[aria-pressed=true]{border-color:var(--brand);color:var(--brand);font-weight:600}
+.filtros input{max-width:280px;margin-left:auto}
+.tema{margin:22px 0 8px;font-size:11px;font-weight:700;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase}
+.item{border:1px solid var(--line);background:var(--panel,#fff);border-radius:8px;padding:14px 16px;margin-bottom:10px}
+.item.pendiente{border-color:var(--warn,#d9a01b)}
+.item.inactiva .texto{opacity:.55}
+.texto{line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.meta{font-size:11px;color:var(--muted);margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center}
+.estado{font-size:10px;font-weight:700;letter-spacing:1px;padding:3px 7px;border-radius:4px;text-transform:uppercase}
+.estado.activa{background:color-mix(in srgb,var(--ok,#1f8a4c) 14%,transparent);color:var(--ok,#1f8a4c)}
+.estado.pendiente{background:color-mix(in srgb,var(--warn,#d9a01b) 18%,transparent);color:var(--warn,#9a6a00)}
+.estado.inactiva{background:color-mix(in srgb,var(--muted) 16%,transparent);color:var(--muted)}
+details{margin-top:8px;font-size:12px}details p{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted)}
+.vacio{color:var(--muted);text-align:center;padding:30px 10px}
+#error{padding:12px;color:var(--bad,#a52e39);background:color-mix(in srgb,var(--bad,#a52e39) 12%,transparent);border-radius:5px;font-size:13px;margin:0 0 16px}
+@media(max-width:640px){main{padding:24px 16px 40px}header.top{padding:0 16px;gap:14px}h1{font-size:25px}.fila{grid-template-columns:1fr}.filtros input{max-width:none;margin-left:0}}
+</style></head><body>
+<header class="top"><img src="/logo.png" alt="Titán Flota"><a href="/">‹ Inicio</a><a href="/asistente">Titán</a><span class="who" id="who"></span></header>
+<main>
+  <div class="eyebrow">OPERACIONES / ASISTENTE IA</div>
+  <h1>Conocimiento de Titán</h1>
+  <p class="sub">Vocabulario, definiciones y criterios del taller. Las enseñanzas activas se aplican desde la consulta siguiente. Cantidades, fechas y ubicaciones siempre salen de los datos del sistema.</p>
+
+  <p id="error" role="alert" hidden></p>
+
+  <div class="cifras">
+    <div class="cifra"><b id="nActivas">–</b><span id="lActivas">Activas</span></div>
+    <div class="cifra"><b id="nPendientes">–</b><span>Pendientes de aprobación</span></div>
+    <div class="cifra"><b id="nTemas">–</b><span>Temas</span></div>
+  </div>
+
+  <section class="panel" id="alta" hidden aria-labelledby="altaTitulo">
+    <h2 id="altaTitulo">Nueva enseñanza</h2>
+    <form id="form">
+      <div class="fila">
+        <div><label for="tema">Tema</label><input id="tema" maxlength="60" list="temas" placeholder="Ej. Repuestos"><datalist id="temas"></datalist></div>
+        <div><label for="texto">Enseñanza</label><textarea id="texto" required placeholder="Ej. «Filtro grande» se refiere al filtro de aire del motor."></textarea><div class="contador" id="cuenta"></div></div>
+      </div>
+      <div class="acciones"><button class="principal" id="guardar">Guardar</button><span class="aviso" id="avisoAlta" role="status"></span></div>
+    </form>
+  </section>
+
+  <div class="filtros" role="group" aria-label="Filtrar por estado">
+    <button type="button" data-filtro="" aria-pressed="true">Todas</button>
+    <button type="button" data-filtro="activa" aria-pressed="false">Activas</button>
+    <button type="button" data-filtro="pendiente" aria-pressed="false">Pendientes</button>
+    <button type="button" data-filtro="inactiva" aria-pressed="false">Inactivas</button>
+    <input id="buscar" type="search" placeholder="Buscar" aria-label="Buscar enseñanzas">
+  </div>
+  <div id="lista" aria-live="polite"><p class="vacio">Cargando…</p></div>
+</main>
+<script>
+'use strict';
+const $ = s => document.querySelector(s);
+let datos = {ensenanzas: [], administra: false, largo_maximo: 600, activas_maximas: 60};
+let filtro = '', editando = null;
+
+const ETIQUETA = {activa: 'Activa', pendiente: 'Pendiente', inactiva: 'Inactiva'};
+const fecha = v => { const d = new Date(v); return isNaN(d) ? '' : d.toLocaleDateString('es-AR'); };
+
+function error(texto) { $('#error').textContent = texto || ''; $('#error').hidden = !texto; }
+
+async function api(cuerpo) {
+  const r = await fetch('/api/asistente/ensenanzas', cuerpo ? {method: 'POST',
+    headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)} : {});
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Error(d.error || 'No se pudo completar la operación.');
+  return d;
+}
+
+async function cargar() {
+  try { datos = await api(); error(''); }
+  catch (e) { error(e.message); datos.ensenanzas = []; }
+  $('#alta').hidden = !datos.administra;
+  dibujar();
+}
+
+function nodo(tag, clase, texto) {
+  const n = document.createElement(tag);
+  if (clase) n.className = clase;
+  if (texto != null) n.textContent = texto;
+  return n;
+}
+
+function boton(texto, accion, clase) {
+  const b = nodo('button', clase || '', texto); b.type = 'button'; b.onclick = accion; return b;
+}
+
+async function operar(cuerpo, confirmar) {
+  if (confirmar && !confirm(confirmar)) return;
+  try { await api(cuerpo); editando = null; await cargar(); }
+  catch (e) { error(e.message); }
+}
+
+function tarjeta(e) {
+  const item = nodo('article', 'item ' + e.estado);
+  if (editando === e.id) {
+    const tema = nodo('input'); tema.value = e.tema; tema.maxLength = 60; tema.setAttribute('aria-label', 'Tema');
+    const texto = nodo('textarea'); texto.value = e.texto; texto.maxLength = datos.largo_maximo; texto.setAttribute('aria-label', 'Enseñanza');
+    const fila = nodo('div', 'fila'); fila.append(tema, texto);
+    const acc = nodo('div', 'acciones');
+    acc.append(boton('Guardar', () => operar({op: 'editar', id: e.id, tema: tema.value, texto: texto.value}), 'principal'),
+               boton('Cancelar', () => { editando = null; dibujar(); }));
+    item.append(fila, acc);
+    setTimeout(() => texto.focus(), 0);
+    return item;
+  }
+  item.append(nodo('div', 'texto', e.texto));
+  const meta = nodo('div', 'meta');
+  meta.append(nodo('span', 'estado ' + e.estado, ETIQUETA[e.estado] || e.estado));
+  meta.append(nodo('span', '', (e.origen === 'chat' ? 'Desde el chat' : 'Cargada') +
+    (e.cargada_por ? ' por ' + e.cargada_por : '') + ' · ' + fecha(e.creado_en)));
+  if (e.revisada_por && e.estado !== 'pendiente') meta.append(nodo('span', '', 'Revisada por ' + e.revisada_por));
+  item.append(meta);
+  if (e.pregunta || e.respuesta) {
+    const det = nodo('details');
+    det.append(nodo('summary', '', 'Consulta corregida'));
+    if (e.pregunta) det.append(nodo('p', '', 'Pregunta: ' + e.pregunta));
+    if (e.respuesta) det.append(nodo('p', '', 'Respuesta de Titán: ' + e.respuesta));
+    item.append(det);
+  }
+  if (datos.administra) {
+    const acc = nodo('div', 'acciones');
+    if (e.estado === 'pendiente') acc.append(boton('Aprobar', () => operar({op: 'estado', id: e.id, estado: 'activa'}), 'principal'));
+    if (e.estado === 'activa') acc.append(boton('Desactivar', () => operar({op: 'estado', id: e.id, estado: 'inactiva'})));
+    if (e.estado === 'inactiva') acc.append(boton('Activar', () => operar({op: 'estado', id: e.id, estado: 'activa'})));
+    acc.append(boton('Editar', () => { editando = e.id; dibujar(); }));
+    acc.append(boton(e.estado === 'pendiente' ? 'Rechazar' : 'Borrar',
+      () => operar({op: 'borrar', id: e.id}, '¿Borrar esta enseñanza?'), 'peligro'));
+    item.append(acc);
+  }
+  return item;
+}
+
+function dibujar() {
+  const todas = datos.ensenanzas || [];
+  const activas = todas.filter(e => e.estado === 'activa').length;
+  $('#nActivas').textContent = activas;
+  $('#lActivas').textContent = 'Activas · máximo ' + datos.activas_maximas;
+  $('#nPendientes').textContent = todas.filter(e => e.estado === 'pendiente').length;
+  const temas = [...new Set(todas.map(e => e.tema))].sort((a, b) => a.localeCompare(b, 'es'));
+  $('#nTemas').textContent = temas.length;
+  $('#temas').replaceChildren(...temas.map(t => { const o = document.createElement('option'); o.value = t; return o; }));
+
+  const q = $('#buscar').value.trim().toLowerCase();
+  const vista = todas.filter(e => (!filtro || e.estado === filtro) &&
+    (!q || (e.tema + ' ' + e.texto).toLowerCase().includes(q)));
+  const lista = $('#lista');
+  if (!vista.length) {
+    lista.replaceChildren(nodo('p', 'vacio', todas.length ? 'Sin enseñanzas para este filtro.' : 'Sin enseñanzas cargadas.'));
+    return;
+  }
+  const grupos = new Map();
+  vista.forEach(e => { if (!grupos.has(e.tema)) grupos.set(e.tema, []); grupos.get(e.tema).push(e); });
+  const partes = [];
+  [...grupos.keys()].sort((a, b) => a.localeCompare(b, 'es')).forEach(t => {
+    partes.push(nodo('h2', 'tema', t + ' · ' + grupos.get(t).length));
+    grupos.get(t).forEach(e => partes.push(tarjeta(e)));
+  });
+  lista.replaceChildren(...partes);
+}
+
+function contar() {
+  const n = $('#texto').value.length;
+  $('#cuenta').textContent = n + ' / ' + datos.largo_maximo;
+}
+
+$('#texto').maxLength = 600;
+$('#texto').oninput = contar; contar();
+$('#form').onsubmit = async ev => {
+  ev.preventDefault();
+  $('#guardar').disabled = true; $('#avisoAlta').className = 'aviso'; $('#avisoAlta').textContent = 'Guardando…';
+  try {
+    await api({op: 'crear', tema: $('#tema').value, texto: $('#texto').value});
+    $('#texto').value = ''; contar();
+    $('#avisoAlta').className = 'aviso bien'; $('#avisoAlta').textContent = 'Guardada. Se aplica desde la próxima consulta.';
+    await cargar();
+  } catch (e) {
+    $('#avisoAlta').className = 'aviso mal'; $('#avisoAlta').textContent = e.message;
+  } finally { $('#guardar').disabled = false; }
+};
+document.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => {
+  filtro = b.dataset.filtro;
+  document.querySelectorAll('[data-filtro]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  dibujar();
+});
+$('#buscar').oninput = dibujar;
+fetch('/api/yo').then(r => r.ok ? r.json() : null).then(d => { if (d) $('#who').textContent = d.nombre + ' · ' + d.rol; }).catch(() => {});
+cargar();
+</script></body></html>

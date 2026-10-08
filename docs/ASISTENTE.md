@@ -23,7 +23,18 @@ Hay tres capas que se mejoran por separado:
 | Reglas del negocio y vocabulario | `gomeria/asistente_reglas.md`, mediante PR | “Goma” significa cubierta; “stock” excluye reparación y recapado. |
 | Capacidades de consulta | `gomeria/asistente.py`, con pruebas | Agregar una herramienta de historial de services cuando exista una fuente central confiable. |
 
-Decirle “aprendé esto” en el chat no cambia las reglas permanentes ni la base. La conversación solo da contexto temporal, nunca autoriza escrituras. No hay aprendizaje automático a partir de respuestas de usuarios.
+| Enseñanzas del taller | Pantalla `/asistente/conocimiento` o botón **Enseñar** en el chat | “Filtro grande” es el filtro de aire del motor. |
+
+## Enseñanzas: Conocimiento de Titán
+
+Requiere correr `gomeria/48_titan_ensenanzas.sql` en el SQL Editor de Supabase una vez.
+
+- **Pantalla `/asistente/conocimiento`:** lista todo lo que se le enseñó, agrupado por tema, con estado, autor y fecha. La ven todos los que tienen el módulo Asistente; solo un administrador carga, edita, aprueba, desactiva o borra.
+- **Botón Enseñar en el chat:** debajo de cada respuesta. Guarda la corrección junto con la pregunta y la respuesta. Si la carga un administrador queda activa; si no, queda pendiente hasta que un administrador la apruebe.
+- **Cómo la usa Titán:** en cada consulta se suman las enseñanzas activas a las reglas fijas de `asistente_reglas.md`. Rige desde la consulta siguiente, sin publicar nada. Si la tabla no existe o la base no responde, Titán contesta igual con las reglas fijas.
+- **Límites:** hasta 600 caracteres por enseñanza y 60 activas, porque todas viajan en cada consulta y se pagan. No cargar cantidades ni fechas: los datos se consultan en la base.
+
+Lo escrito como mensaje común en el chat sigue sin cambiar nada: solo cuenta lo que se guarda con el botón Enseñar o desde la pantalla.
 
 ## Cómo ir mejorándolo, paso a paso
 
