@@ -589,8 +589,12 @@ function pintarFac(){
   $('#facSalida').innerHTML=`<div class="section">
     ${d.dudas?.length?`<div class="result error"><b>Lo que no se leyó con seguridad</b><ul>${d.dudas.map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`:''}
     <div class="formgrid"><div><label>Número de factura</label><input id="facNum" value="${esc(d.factura||'')}" placeholder="0001-00001234"></div>
-    <div><label>Proveedor</label><input id="facProv" value="${esc(d.proveedor||'')}"></div></div>
-    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th>Entra</th><th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Cant.</th><th class="num">Costo c/u</th></tr></thead><tbody>
+    <div><label>Proveedor</label><select id="facProvSel"><option value="">No está en el registro</option>${(d.proveedores||[]).map(p=>`<option value="${p.id}"${p.id===d.proveedor_id?' selected':''}>${esc(p.nombre)}</option>`).join('')}</select></div>
+    <div id="facProvCaja"${d.proveedor_id?' hidden':''}><label>Proveedor (fuera del registro)</label><input id="facProv" value="${esc(d.proveedor||'')}"></div></div>
+    ${d.proveedor_id&&d.proveedor_como==='parecido'?`<p class="sub">Proveedor reconocido por nombre parecido: «${esc(d.proveedor||'')}» se tomó como ${esc(d.proveedor_registro||'')}.</p>`:''}
+    ${!d.proveedor_id&&d.proveedor?`<p class="sub">Proveedor fuera del registro. Puede cargarse en Parámetros para que se reconozca en las próximas facturas.</p>`:''}
+    <p class="sub">El costo de cada cubierta se carga como gasto de la unidad donde se monte por primera vez, como servicio externo de este proveedor.</p>
+    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th>Entra</th><th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Cant.</th><th class="num">Costo c/u ($)</th></tr></thead><tbody>
     ${r.map((x,i)=>`<tr><td><input type="checkbox" data-fe="${i}" checked></td>
       <td><input class="chico" data-fm="${i}" value="${esc(x.marca||'')}"></td>
       <td><input class="chico" data-fo="${i}" value="${esc(x.modelo||'')}"></td>
@@ -601,6 +605,7 @@ function pintarFac(){
     <div id="facError"></div>
     <button class="btn" id="facGuardar" style="margin-top:12px">Dar de alta</button></div>`;
   $('#facGuardar').onclick=guardarFac;
+  $('#facProvSel').onchange=()=>{$('#facProvCaja').hidden=!!$('#facProvSel').value;};
 }
 async function guardarFac(){
   const renglones=(FAC.renglones||[]).map((x,i)=>({
@@ -614,7 +619,8 @@ async function guardarFac(){
   const b=$('#facGuardar'); b.disabled=true; $('#facError').innerHTML='';
   try{
     const d=await api('/api/factura-cubiertas',{op:'guardar',que:'cubiertas',
-      factura:$('#facNum').value, proveedor:$('#facProv').value, renglones});
+      factura:$('#facNum').value, proveedor:$('#facProv').value,
+      proveedor_id:+$('#facProvSel').value||null, renglones});
     modal('facModal',false); await loadStock();
     alert(d.aviso);
   }catch(e){ $('#facError').innerHTML=`<p class="error">${esc(e.message)}</p>`; }

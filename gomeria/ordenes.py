@@ -29,6 +29,7 @@ movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 from datetime import date, timedelta
 
 import permisos
+import proveedores as prov
 import solicitudes as sol
 
 # Quién puede tocar una orden ya no es una lista de roles: es el permiso
@@ -179,6 +180,9 @@ def listar(cx, usuario):
         # Con el último costo de compra, para que al elegir el repuesto el
         # precio se complete solo.
         "articulos": _articulos(cx),
+        # Los proveedores cargados en Parámetros, para elegir el del
+        # servicio externo en vez de escribirlo cada vez.
+        "proveedores": prov.catalogo(cx),
         "puede_gestionar": puede_gestionar(usuario),
         # Las solicitudes cerradas que todavía no se rindieron: rendir una
         # factura es elegir de esta lista, no tipear un número a mano.
@@ -291,6 +295,14 @@ def metricas(cx, desde=None, hasta=None):
         },
         "unidades": unidades, "meses": meses, "talleres": talleres,
     }
+
+
+def tiene_columna(cx, tabla, columna):
+    """Si la base ya corrió el script que agrega esa columna."""
+    return bool(cx.execute("""
+        select 1 from information_schema.columns
+        where table_schema = 'public' and table_name = %s and column_name = %s""",
+        (tabla, columna)).fetchone())
 
 
 def _articulos(cx):
@@ -749,11 +761,15 @@ def externa(cx, datos, usuario):
         raise ValueError(f"La factura {factura} de {patente} ya está cargada "
                          f"en la orden {repetida['numero']}.")
 
+    # El proveedor del catálogo, si se eligió uno: su nombre reemplaza al
+    # escrito, así el mismo taller no aparece con tres grafías distintas.
+    proveedor_id, taller = prov.resolver(cx, datos.get("proveedor_id"), datos.get("taller"))
+
     columnas = ["mantenimiento", "unidad_id", "patente", "km", "fecha", "fecha_cierre",
                 "taller", "factura", "monto", "solicitado", "observaciones",
                 "usuario_id", "usuario", "cerrada_por"]
     valores = [mantenimiento, unidad_id, patente, km, fecha, fecha,
-               _texto(datos.get("taller"), 120), factura, monto,
+               taller, factura, monto,
                _texto(datos.get("solicitado")), _texto(datos.get("observaciones")),
                (usuario or {}).get("id"), (usuario or {}).get("nombre"),
                (usuario or {}).get("nombre")]
@@ -763,6 +779,9 @@ def externa(cx, datos, usuario):
     if exigido is not None:
         columnas += ["solicitud_id", "gestion"]
         valores += [solicitud_id or None, gestion]
+    if proveedor_id and tiene_columna(cx, "ordenes_trabajo", "proveedor_id"):
+        columnas.append("proveedor_id")
+        valores.append(proveedor_id)
 
     fila = cx.execute(f"""
         insert into ordenes_trabajo (tipo, estado, {", ".join(columnas)})

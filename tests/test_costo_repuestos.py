@@ -42,6 +42,9 @@ class Base:
             return Resultado({"id": 4, "activo": self.activo})
         if sql.startswith("insert into repuestos_movimientos"):
             return Resultado({"id": 88})
+        # Sin 49_costos_a_la_unidad.sql: la salida no genera gasto.
+        if "information_schema.columns" in sql:
+            return Resultado(None)
         raise AssertionError(f"Consulta inesperada: {sql}")
 
     def guardado(self):

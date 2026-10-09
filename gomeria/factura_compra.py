@@ -176,6 +176,12 @@ CUBIERTAS = {
         "additionalProperties": False,
         "properties": {
             "proveedor": {"type": ["string", "null"]},
+            "cuit": {"type": ["string", "null"],
+                     "description": "CUIT de quien emitió la factura, no el del cliente."},
+            "proveedor_catalogo": {"type": ["string", "null"],
+                                   "description": "El nombre exacto, copiado de la lista "
+                                                  "de proveedores cargados, del emisor. "
+                                                  "null si no está en la lista."},
             "factura": {"type": ["string", "null"],
                         "description": "Número completo: '0001-00012345'."},
             "fecha": {"type": ["string", "null"],
@@ -206,19 +212,26 @@ CUBIERTAS = {
             },
             "dudas": {"type": "array", "items": {"type": "string"}},
         },
-        "required": ["proveedor", "factura", "fecha", "renglones", "dudas"],
+        "required": ["proveedor", "cuit", "proveedor_catalogo", "factura", "fecha",
+                     "renglones", "dudas"],
     },
 }
 
 
-def leer_cubiertas(archivos, cliente=None):
+def leer_cubiertas(archivos, cliente=None, proveedores=None):
     leido = lector.preguntar(
         lector.preparar(archivos), CUBIERTAS,
         _COMUN + "\n\nCada renglón es una cubierta o un lote de cubiertas "
                  "iguales. La medida es el dato que más importa: copiala tal "
                  "como figura, sin normalizarla. El número de fuego no está "
                  "en la factura —lo graba el gomero cuando la recibe— así "
-                 "que no lo busques.",
+                 "que no lo busques."
+                 + "\n\nProveedores cargados en el sistema:\n"
+                 + ("\n".join(f"- {p['nombre']}" + (f" (CUIT {p['cuit']})" if p.get("cuit") else "")
+                              for p in (proveedores or [])) or "(ninguno)")
+                 + "\nSi el emisor es uno de ellos, aunque figure escrito distinto, "
+                   "abreviado o con la razón social en vez del nombre de fantasía, "
+                   "copiá su nombre exacto en 'proveedor_catalogo'.",
         "Leé esta factura y cargá sus renglones.",
         cliente=cliente, max_tokens=8000)
     leido["renglones"] = [
@@ -313,6 +326,12 @@ def guardar_cubiertas(cx, datos, usuario=None):
     if not renglones:
         raise ValueError("No quedó ningún renglón para cargar.")
 
+    # El proveedor: el del registro si se eligió, si no el nombre escrito.
+    # Viaja con cada goma hasta que se monta y su costo pasa a la unidad.
+    import proveedores as prov
+    proveedor_id, proveedor = prov.resolver(cx, datos.get("proveedor_id"),
+                                            datos.get("proveedor"))
+
     # El número sigue desde la última que se cargó de esta misma factura,
     # así cargar la segunda hoja no pisa la primera.
     ya = cx.execute("select count(*) as n from cubiertas where codigo like %s",
@@ -334,7 +353,9 @@ def guardar_cubiertas(cx, datos, usuario=None):
                 codigo_provisorio=True,
                 observaciones=f"Alta por factura {factura}",
                 usuario=(usuario or {}).get("nombre"),
-                nota=f"Alta por factura {factura}")
+                nota=f"Alta por factura {factura}",
+                proveedor_id=proveedor_id, proveedor=proveedor, factura=factura,
+                cargar_a_unidad=True)
             hecho.append(codigo)
 
     return {"ok": True, "cargadas": len(hecho), "codigos": hecho,

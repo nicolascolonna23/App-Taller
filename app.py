@@ -44,6 +44,7 @@ import asistente
 import ensenanzas as ens
 import ia
 import ordenes as ots
+import proveedores as prov
 import enganches as eng
 import marcas as mcs
 import parametros as par
@@ -1474,7 +1475,11 @@ class App(CupoPorPedido, gom.Handler):
                 # que evita que una patente escrita a mano se lea al revés.
                 patentes = [f["patente"] for f in cx.execute(
                     "select patente from unidades where activa").fetchall()]
-            leido = facturas.leer(datos.get("archivos") or [], patentes=patentes)
+                # Y los proveedores cargados: el que emitió la factura se
+                # busca ahí, por CUIT o por nombre parecido.
+                catalogo = prov.catalogo(cx)
+            leido = facturas.leer(datos.get("archivos") or [], patentes=patentes,
+                                  proveedores=catalogo)
             return self._responder(gom.jstr({"ok": True, "factura": leido}))
         except ValueError as e:
             return self._error(str(e))

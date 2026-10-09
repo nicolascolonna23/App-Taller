@@ -474,8 +474,19 @@ class Handler(BaseHTTPRequestHandler):
                             leido["renglones"] = factura_compra.emparejar(
                                 leido["renglones"], catalogo)
                         else:
+                            import proveedores as prov
+                            catalogo = prov.catalogo(cx, ["cubiertas"])
                             leido = factura_compra.leer_cubiertas(
-                                datos.get("archivos"))
+                                datos.get("archivos"), proveedores=catalogo)
+                            # El proveedor del registro que emitió la
+                            # factura, por CUIT o nombre parecido.
+                            elegido, como = prov.emparejar(
+                                leido.get("proveedor"), leido.get("cuit"), catalogo,
+                                leido.pop("proveedor_catalogo", None))
+                            leido["proveedor_id"] = elegido and elegido["id"]
+                            leido["proveedor_registro"] = elegido and elegido["nombre"]
+                            leido["proveedor_como"] = como
+                            leido["proveedores"] = catalogo
                         return self._responder(jstr(leido))
                     if op == "guardar":
                         guardar = (factura_compra.guardar_repuestos
@@ -543,7 +554,7 @@ class Handler(BaseHTTPRequestHandler):
                     cx, codigo, marca=str(datos.get("marca") or "").strip() or None,
                     modelo=str(datos.get("modelo") or "").strip() or None,
                     medida=str(datos.get("medida") or "").strip() or None,
-                    remanente_mm=remanente, costo_compra=costo,
+                    remanente_mm=remanente, costo_compra=costo, cargar_a_unidad=True,
                     observaciones=str(datos.get("observaciones") or "").strip() or None,
                     usuario=self.usuario["nombre"], nota="Alta desde el inventario")
             elif op == "estado":

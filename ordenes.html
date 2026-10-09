@@ -444,7 +444,9 @@
     <div><label>Nº de factura</label><input id="xFactura" placeholder="0001-00012345"></div>
     <div><label id="xMontoRotulo">Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
     <div class="solo-una"><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1" required></div>
-    <div><label>Taller o proveedor</label><input id="xTaller" placeholder="Nextruck, Iveco Catamarca…"></div>
+    <div><label>Proveedor</label><select id="xProveedor"><option value="">No está en el registro</option></select>
+      <p class="pista" id="xProveedorPista">Los proveedores se cargan en Parámetros.</p></div>
+    <div id="xTallerCaja"><label>Taller o proveedor (fuera del registro)</label><input id="xTaller" placeholder="Nextruck, Iveco Catamarca…"></div>
     <div class="ancho solo-una"><label>Qué se hizo</label>
       <textarea id="xDetalle" placeholder="Service M6, cambio de filtros, reparación de caja…"></textarea></div>
   </div>
@@ -1081,6 +1083,7 @@ document.addEventListener('click', async ev => {
       $('#xFecha').value = String(o.fecha_cierre || o.fecha || '').slice(0, 10) || hoy();
       $('#xFactura').value = o.factura || '';
       $('#xTaller').value = o.taller || '';
+      elegirProveedor(o.proveedor_id || proveedorPorNombre(o.taller));
       $('#xDetalle').value = o.solicitado || '';
       $('#avisoExterna').innerHTML = `<div class="aviso bien">Copiado de la orden ${esc(o.numero)}:
         proveedor, factura, fecha, tipo y qué se hizo. Elegir la unidad y cargar su monto.</div>`;
@@ -1132,12 +1135,33 @@ $('#guardarNueva').onclick = async () => {
   }
 };
 
+/* El proveedor: el del registro, o escrito a mano si no está. */
+function opcionesProveedor() {
+  const lista = D.datos?.proveedores || [];
+  $('#xProveedor').innerHTML = '<option value="">No está en el registro</option>' +
+    lista.map(p => `<option value="${p.id}">${esc(p.nombre)}${p.cuit ? ' · ' + esc(p.cuit) : ''}</option>`).join('');
+  $('#xProveedorPista').textContent = lista.length ? 'Los proveedores se cargan en Parámetros.'
+    : 'Sin proveedores cargados. Se cargan en Parámetros.';
+}
+function elegirProveedor(id) {
+  $('#xProveedor').value = id ? String(id) : '';
+  $('#xProveedor').onchange();
+}
+$('#xProveedor').onchange = () => {
+  const p = (D.datos?.proveedores || []).find(x => String(x.id) === $('#xProveedor').value);
+  $('#xTallerCaja').hidden = !!p;
+  if (p) $('#xTaller').value = p.nombre;
+};
+const proveedorPorNombre = nombre => ((D.datos?.proveedores || [])
+  .find(p => p.nombre.toLowerCase() === String(nombre || '').trim().toLowerCase()) || {}).id;
+
 $('#nuevaExterna').onclick = () => {
   $('#avisoExterna').innerHTML = '';
   $('#xFecha').value = hoy();
   $('#xMantenimiento').value = '';
   ['xFactura','xMonto','xKm','xTaller','xDetalle','xSolicitud','xGestion']
     .forEach(c => $('#' + c).value = '');
+  opcionesProveedor(); elegirProveedor(null);
   $('#cajaSolicitud').hidden = true;
   limpiarLector();
   desactivarReparto();
@@ -1362,7 +1386,15 @@ function volcarFactura(f) {
     e.classList.add('campo-leido');
     return true;
   };
-  poner('xTaller', f.taller);
+  /* El proveedor: el servidor lo buscó en el registro por CUIT o por
+     nombre parecido. Si no está, queda el nombre leído escrito a mano. */
+  if (f.proveedor_id) {
+    elegirProveedor(f.proveedor_id);
+    $('#xProveedor').classList.add('campo-leido');
+  } else {
+    elegirProveedor(null);
+    poner('xTaller', f.taller);
+  }
   poner('xFactura', f.factura);
   poner('xFecha', f.fecha);
   poner('xMonto', f.monto);
@@ -1394,6 +1426,10 @@ function volcarFactura(f) {
   const dudas = (f.dudas || []).slice();
   if (faltan.length) dudas.unshift('No se pudo leer ' + faltan.join(', ') + '.');
   if (f.moneda && f.moneda !== 'ARS') dudas.unshift(`La factura está en ${esc(f.moneda)}, no en pesos.`);
+  if (!f.proveedor_id && f.taller)
+    dudas.push(`Proveedor fuera del registro: ${f.taller}. Puede cargarse en Parámetros para que se reconozca en las próximas facturas.`);
+  else if (f.proveedor_como === 'parecido')
+    dudas.push(`Proveedor reconocido por nombre parecido: «${f.taller}» se tomó como ${f.proveedor}. Revisar que sea el correcto.`);
 
   if (varias.length > 1)
     dudas.unshift(`La factura es de ${varias.length} unidades (${varias.map(u => pat(u.patente)).join(', ')}): ` +
@@ -1432,6 +1468,7 @@ $('#guardarExterna').onclick = async () => {
       solicitud_id: $('#xSolicitud').value || null,
       fecha: $('#xFecha').value, factura: $('#xFactura').value,
       mantenimiento: $('#xMantenimiento').value,
+      proveedor_id: Number($('#xProveedor').value) || null,
       taller: $('#xTaller').value};
     const r = repartoActivo()
       ? await api('externas', Object.assign(comun, {unidades: filasReparto()}))

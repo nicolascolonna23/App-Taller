@@ -18,6 +18,7 @@ con el listado, Claude elige entre las que existen.
 import json, re
 
 import lector
+from proveedores import emparejar as emparejar_proveedor
 
 # Leer el papel —validarlo, mandárselo al modelo, quedarse con lo que
 # contestó— es igual para las tres facturas que entran por foto. Vive en
@@ -41,6 +42,17 @@ HERRAMIENTA = {
                 "description": "Quién emitió la factura: razón social o nombre "
                                "comercial del taller o proveedor. Sin el CUIT ni "
                                "la dirección."
+            },
+            "cuit": {
+                "type": ["string", "null"],
+                "description": "CUIT de quien emitió la factura, como figura. "
+                               "No el del cliente."
+            },
+            "proveedor_catalogo": {
+                "type": ["string", "null"],
+                "description": "El nombre EXACTO, copiado de la lista de "
+                               "proveedores cargados, del que emitió la "
+                               "factura. null si no está en la lista."
             },
             "factura": {
                 "type": ["string", "null"],
@@ -124,14 +136,16 @@ HERRAMIENTA = {
                                "o 1.290.000'. Vacío si está todo claro."
             },
         },
-        "required": ["taller", "factura", "fecha", "monto", "patente", "km",
+        "required": ["taller", "cuit", "proveedor_catalogo", "factura", "fecha", "monto", "patente", "km",
                      "unidades", "detalle", "moneda", "dudas"],
     },
 }
 
 
-def _instrucciones(patentes):
+def _instrucciones(patentes, proveedores=None):
     lista = ", ".join(patentes) if patentes else "(no se pudo cargar el listado)"
+    cargados = "\n".join(f"- {p['nombre']}" + (f" (CUIT {p['cuit']})" if p.get("cuit") else "")
+                         for p in (proveedores or [])) or "(no hay proveedores cargados)"
     return f"""Leés facturas de talleres y proveedores de una empresa de transporte
 argentina, para cargarlas en el sistema de órdenes de trabajo.
 
@@ -158,7 +172,13 @@ Reglas:
    por cada patente, con sus renglones sumados. Una patente anotada a
    medias ("PIQ", "KSP007") es la de la lista que la contiene, si hay una
    sola que coincide. En 'patente' va la primera.
-7. Todo lo que dudes va en 'dudas'. El que carga la factura la tiene en la
+7. Los proveedores cargados en el sistema son estos:
+{cargados}
+   Si el emisor de la factura es uno de ellos, aunque figure con otro
+   formato, la forma societaria, una abreviatura, una letra de menos o el
+   nombre de fantasía en vez de la razón social, copiá en
+   'proveedor_catalogo' el nombre exacto de la lista. Si no es ninguno, null.
+8. Todo lo que dudes va en 'dudas'. El que carga la factura la tiene en la
    mano y puede mirar; lo que no sirve es que la duda no se vea."""
 
 
@@ -237,7 +257,7 @@ def _limpiar_fecha(valor):
     return texto if re.fullmatch(r"\d{4}-\d{2}-\d{2}", texto) else None
 
 
-def leer(archivos, patentes=None, cliente=None):
+def leer(archivos, patentes=None, cliente=None, proveedores=None):
     """Devuelve lo que se entendió de la factura. No toca la base.
 
     'archivos' es la lista de lo que subió el navegador: cada uno con su
@@ -252,7 +272,7 @@ def leer(archivos, patentes=None, cliente=None):
     contenido = lector.preparar(archivos)
 
     leido = lector.preguntar(
-        contenido, HERRAMIENTA, _instrucciones(patentes),
+        contenido, HERRAMIENTA, _instrucciones(patentes, proveedores),
         "Leé esta factura y cargá el servicio externo.", cliente=cliente)
 
     # La patente se valida contra la flota: es el campo del que cuelga todo
@@ -266,6 +286,16 @@ def leer(archivos, patentes=None, cliente=None):
         except (TypeError, ValueError):
             leido["monto"] = None
     leido["dudas"] = [str(d) for d in (leido.get("dudas") or []) if d]
+
+    # El proveedor: el del catálogo, por CUIT o por nombre parecido. El
+    # modelo propone uno de la lista, pero se confirma acá: si eligió un
+    # nombre que no está, no cuenta.
+    elegido, como = emparejar_proveedor(leido.get("taller"), leido.get("cuit"),
+                                        proveedores, leido.get("proveedor_catalogo"))
+    leido["proveedor_id"] = elegido["id"] if elegido else None
+    leido["proveedor"] = elegido["nombre"] if elegido else None
+    leido["proveedor_como"] = como
+    leido.pop("proveedor_catalogo", None)
 
     leido["unidades"] = _repartir(leido.get("unidades"), leido.get("monto"), patentes)
     if not leido["patente"] and leido["unidades"]:

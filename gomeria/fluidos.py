@@ -54,7 +54,7 @@ ENVASES = {
     "bin": "Bin", "tambor": "Tambor", "tacho": "Tacho",
     "balde": "Balde", "tanque": "Tanque",
 }
-RUBROS = ("combustible", "urea", "aceites", "grasa", "repuestos")
+RUBROS = ("combustible", "urea", "aceites", "grasa", "repuestos", "cubiertas", "servicios")
 
 
 # =====================================================================

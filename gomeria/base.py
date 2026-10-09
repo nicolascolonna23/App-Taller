@@ -381,6 +381,20 @@ def deshacer_grupo(cx, grupo_id, usuario=None, motivo=None):
         where cubierta_id = any(%s) and hasta = %s
         returning id""", (cubiertas, fecha)).fetchall()
 
+    # Si el montaje que se deshace fue el que cargó el costo de la cubierta
+    # a la unidad, ese gasto se anula y el costo vuelve a quedar pendiente.
+    if abiertos and hay_columna(cx, "cubiertas", "costo_orden_id"):
+        cx.execute("""
+            with anuladas as (
+              update ordenes_trabajo o set estado = 'anulada',
+                     observaciones = coalesce(o.observaciones || ' ', '') || 'Anulada: se deshizo el montaje.'
+                from cubiertas c
+               where c.costo_orden_id = o.id and c.id = any(%s)
+                 and o.origen = 'cubierta' and o.creado_en = %s
+              returning o.id)
+            update cubiertas set costo_pendiente = true, costo_orden_id = null
+             where costo_orden_id in (select id from anuladas)""", (cubiertas, fecha))
+
     # Las mediciones que tomó, y el remanente vuelve al valor anterior.
     cx.execute("delete from mediciones where cubierta_id = any(%s) and fecha = %s",
                (cubiertas, fecha))
@@ -648,7 +662,42 @@ def alta_cubierta(cx, codigo, **datos):
                   values ('alta', %s, %s, %s)""",
                (fila["id"], datos.get("nota"), datos.get("usuario")))
     _abrir_primera_vida(cx, fila["id"], datos)
+    # Con costo, queda pendiente de cargarse a la unidad donde se monte por
+    # primera vez (ver _cargar_costo_cubierta). Solo si la base ya corrió
+    # 49_costos_a_la_unidad.sql.
+    costo = _numero_o_none(datos.get("costo_compra"))
+    if (datos.get("cargar_a_unidad") and costo and costo > 0
+            and hay_columna(cx, "cubiertas", "costo_pendiente")):
+        cx.execute("""update cubiertas set costo_pendiente = true, proveedor_id = %s,
+                             proveedor = %s, factura = %s
+                      where id = %s""",
+                   (datos.get("proveedor_id"), datos.get("proveedor"),
+                    datos.get("factura"), fila["id"]))
     return fila["id"]
+
+
+def _numero_o_none(valor):
+    try:
+        return float(str(valor).replace(",", ".")) if valor not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
+_COLUMNAS = set()
+
+
+def hay_columna(cx, tabla, columna):
+    """Si la base ya tiene esa columna. Se pregunta antes de usarla: una
+    consulta que falla arruina la transacción entera. Solo se recuerda el
+    sí: un script corrido después se nota sin reiniciar el servicio."""
+    if (tabla, columna) in _COLUMNAS:
+        return True
+    fila = cx.execute("""select 1 as hay from information_schema.columns
+                         where table_schema = 'public' and table_name = %s
+                           and column_name = %s""", (tabla, columna)).fetchone()
+    if fila:
+        _COLUMNAS.add((tabla, columna))
+    return bool(fila)
 
 
 def cambiar_codigo(cx, cubierta_id, codigo, usuario=None):
@@ -814,6 +863,52 @@ def _abrir_montaje(cx, unidad_id, posicion_id, cubierta_id, km=None, nota=None):
         insert into montajes (unidad_id, posicion_id, cubierta_id, km_unidad_montaje, nota)
         values (%s,%s,%s,null,%s)""", (unidad_id, posicion_id, cubierta_id, nota))
     cx.execute("update cubiertas set estado = 'montada' where id = %s", (cubierta_id,))
+    _cargar_costo_cubierta(cx, cubierta_id, unidad_id, posicion_id, km)
+
+
+def _cargar_costo_cubierta(cx, cubierta_id, unidad_id, posicion_id=None, km=None):
+    """La primera vez que una cubierta con costo se monta, su costo pasa
+    al gasto de esa unidad como un servicio externo cerrado: con el
+    proveedor y la factura de la compra, y los km de la unidad.
+
+    Una sola vez por cubierta: rotarla o pasarla a otro camión no la
+    vuelve a cobrar. Las cubiertas que ya estaban antes de este cambio no
+    tienen el costo pendiente y no generan nada.
+    """
+    if not hay_columna(cx, "cubiertas", "costo_pendiente"):
+        return None
+    c = cx.execute("""select id, codigo, marca, modelo, medida, costo_compra,
+                             proveedor_id, proveedor, factura
+                      from cubiertas where id = %s and costo_pendiente""",
+                   (cubierta_id,)).fetchone()
+    if not c or not c["costo_compra"]:
+        return None
+    u = cx.execute("select patente, km_actual from unidades where id = %s",
+                   (unidad_id,)).fetchone()
+    if not u:
+        return None
+    posicion = None
+    if posicion_id:
+        p = cx.execute("select codigo from configuracion_posiciones where id = %s", (posicion_id,)).fetchone()
+        posicion = p and p["codigo"]
+    descripcion = " ".join(x for x in (c["marca"], c["modelo"], c["medida"]) if x)
+    orden = cx.execute("""
+        insert into ordenes_trabajo
+          (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, fecha_cierre,
+           taller, factura, monto, solicitado, observaciones, usuario, cerrada_por,
+           proveedor_id, origen)
+        values ('externa', 'cerrada', 'correctivo', %s, %s, %s, current_date, current_date,
+                %s, %s, %s, %s, %s, 'Gomería', 'Gomería', %s, 'cubierta')
+        returning id""",
+        (unidad_id, u["patente"], km if km is not None else u["km_actual"],
+         c["proveedor"], c["factura"] or f"Cubierta {c['codigo']}", c["costo_compra"],
+         f"Cubierta {c['codigo']}" + (f" {descripcion}" if descripcion else "")
+         + (f" montada en {posicion}" if posicion else ""),
+         "Costo de la cubierta cargado a la unidad al montarla por primera vez.",
+         c["proveedor_id"])).fetchone()
+    cx.execute("""update cubiertas set costo_pendiente = false, costo_orden_id = %s
+                  where id = %s""", (orden["id"], cubierta_id))
+    return orden["id"]
 
 
 def _log(cx, grupo, tipo, **kw):

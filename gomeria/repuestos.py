@@ -133,7 +133,58 @@ def crear_movimiento(cx, datos, usuario):
         returning id
     """, (articulo["id"], fecha, tipo, cantidad, patente or None,
           _texto(datos, "obs") or None, usuario["id"], costo)).fetchone()
+    if tipo == "Salida" and patente:
+        _gasto_en_unidad(cx, fila["id"], articulo["id"], cantidad, patente, fecha, usuario)
     return fila["id"]
+
+
+def _hay_columna(cx, tabla, columna):
+    return bool(cx.execute("""select 1 from information_schema.columns
+                              where table_schema = 'public' and table_name = %s
+                                and column_name = %s""", (tabla, columna)).fetchone())
+
+
+def _gasto_en_unidad(cx, movimiento_id, articulo_id, cantidad, patente, fecha, usuario):
+    """El repuesto que sale del depósito para una patente pasa a su gasto.
+
+    Las salidas que se cargan desde una orden de trabajo ya quedan en esa
+    orden. Las que se cargan acá, directo desde Repuestos, quedaban solo
+    en el stock y la unidad no se enteraba. Ahora van a una orden interna
+    cerrada de esa patente y ese día —una por día, no una por repuesto—,
+    al último costo de compra del repuesto. Borrar la salida las saca.
+    Solo si la base ya corrió 49_costos_a_la_unidad.sql.
+    """
+    if not _hay_columna(cx, "ordenes_trabajo", "origen"):
+        return None
+    art = cx.execute("""select a.codigo, a.descripcion, v.ultimo_costo
+                        from repuestos_articulos a
+                        left join v_repuestos_stock v on v.id = a.id
+                        where a.id = %s""", (articulo_id,)).fetchone()
+    unidad = cx.execute("select id, km_actual from unidades where patente = %s",
+                        (patente,)).fetchone()
+    orden = cx.execute("""select id from ordenes_trabajo
+                          where origen = 'repuestos' and patente = %s and fecha = %s
+                                and estado = 'cerrada'
+                          order by id limit 1""", (patente, fecha)).fetchone()
+    if not orden:
+        orden = cx.execute("""
+            insert into ordenes_trabajo
+              (tipo, estado, mantenimiento, unidad_id, patente, km, fecha, fecha_cierre,
+               solicitado, observaciones, usuario_id, usuario, cerrada_por, origen)
+            values ('interna', 'cerrada', 'correctivo', %s, %s, %s, %s, %s,
+                    'Repuestos entregados desde el depósito',
+                    'Generada por las salidas de stock cargadas en Repuestos.',
+                    %s, %s, %s, 'repuestos')
+            returning id""",
+            (unidad and unidad["id"], patente, unidad and unidad["km_actual"], fecha, fecha,
+             (usuario or {}).get("id"), (usuario or {}).get("nombre"),
+             (usuario or {}).get("nombre"))).fetchone()
+    cx.execute("""insert into ordenes_repuestos
+                    (orden_id, articulo_id, movimiento_id, codigo, descripcion, cantidad, precio)
+                  values (%s,%s,%s,%s,%s,%s,%s)""",
+               (orden["id"], articulo_id, movimiento_id, art["codigo"], art["descripcion"],
+                cantidad, art["ultimo_costo"]))
+    return orden["id"]
 
 
 def guardar_articulo(cx, datos, usuario):
@@ -198,6 +249,20 @@ def borrar_movimiento(cx, datos, usuario):
         movimiento_id = int(datos.get("id"))
     except (TypeError, ValueError):
         raise ValueError("El movimiento no es válido.") from None
+    # Si la salida generó un gasto en la unidad, el renglón se va con ella;
+    # y si la orden automática queda vacía, se anula.
+    if _hay_columna(cx, "ordenes_trabajo", "origen"):
+        cx.execute("""
+            with fuera as (
+              delete from ordenes_repuestos r
+               using ordenes_trabajo o
+               where r.movimiento_id = %s and o.id = r.orden_id and o.origen = 'repuestos'
+              returning r.orden_id)
+            update ordenes_trabajo o set estado = 'anulada'
+             where o.id in (select orden_id from fuera)
+               and not exists (select 1 from ordenes_repuestos r2
+                               where r2.orden_id = o.id and r2.movimiento_id <> %s)""",
+            (movimiento_id, movimiento_id))
     fila = cx.execute(
         "delete from repuestos_movimientos where id=%s returning id", (movimiento_id,)
     ).fetchone()
