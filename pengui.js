@@ -21,7 +21,7 @@
       <span class="tr-flota">
         <img class="tr-cuerpo" src="/titan-robot-cuerpo.png" alt="" width="512" height="628">
         <img class="tr-brazo" src="/titan-robot-brazo.png" alt="" width="512" height="628">
-        <span class="tr-ojo izq"></span><span class="tr-ojo der"></span><span class="tr-boca"></span><span class="tr-idea" aria-hidden="true"><i></i><i></i><i></i><b><span></span><span></span><span></span></b></span>
+        <span class="tr-ojo izq"></span><span class="tr-ojo der"></span><img class="tr-pose tr-pose-piensa" src="/titan-robot-piensa.png" alt="" width="512" height="628"><img class="tr-pose tr-pose-habla" src="/titan-robot-habla.png" alt="" width="512" height="628"><span class="tr-labio"></span><span class="tr-idea" aria-hidden="true"><i></i><i></i><i></i><b><span></span><span></span><span></span></b></span>
       </span>
     </span>`;
 

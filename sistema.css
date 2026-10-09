@@ -287,24 +287,23 @@ body .button:hover{color:var(--ink)}
 .titan-globo b{display:block;font-size:15px;margin-bottom:2px}
 @keyframes tr-globo{from{opacity:0;transform:translateX(-6px) scale(.96)}to{opacity:1;transform:none}}
 /* Titán hablando y pensando (chat y tarjeta de la portada).
-   La boca: tapa la sonrisa del dibujo y se abre y cierra mientras habla. */
-.titan-robot .tr-boca{position:absolute;left:44.2%;top:26.6%;width:13.6%;height:5.4%;border-radius:50%;
-  background:#0d1b3f;opacity:0;transition:opacity .15s}
-.titan-robot .tr-boca::after{content:"";position:absolute;left:18%;right:18%;top:22%;bottom:22%;border-radius:45%;
-  background:#2f8cff;box-shadow:0 0 6px #2f8cff;transform:scaleY(.25)}
-.titan-robot.habla .tr-boca{opacity:1}
-.titan-robot.habla .tr-boca::after{animation:tr-hablar .26s ease-in-out infinite alternate}
+   Cada estado tiene su dibujo: pensando (mano en el mentón) y
+   respondiendo (mano abierta, boca abierta). Se cruzan con un fundido y,
+   mientras está en uno de ellos, no saluda. */
+.titan-robot .tr-pose{opacity:0;transition:opacity .25s}
+.titan-robot .tr-cuerpo,.titan-robot .tr-brazo,.titan-robot .tr-ojo{transition:opacity .25s}
+.titan-robot:is(.piensa,.habla) :is(.tr-cuerpo,.tr-brazo,.tr-ojo){opacity:0}
+.titan-robot:is(.piensa,.habla) .tr-brazo{animation:none}
+.titan-robot.piensa .tr-pose-piensa,.titan-robot.habla .tr-pose-habla{opacity:1}
+/* La boca: una tapa del color de la cara sube y baja sobre la boca abierta
+   del dibujo, así parece que habla. */
+.titan-robot .tr-labio{position:absolute;left:40.4%;top:28.3%;width:11.6%;height:4.4%;border-radius:0 0 45% 45%;
+  background:#0a2143;transform-origin:50% 100%;transform:scaleY(0);opacity:0}
+.titan-robot.habla .tr-labio{opacity:1;animation:tr-hablar .24s ease-in-out infinite alternate}
 .titan-robot.habla .tr-flota{animation:tr-flotar 3.2s ease-in-out infinite,tr-asentir .5s ease-in-out infinite alternate}
-/* Mientras piensa o responde no saluda: el brazo va a la cara (pensando)
-   o queda abajo (hablando), aunque se le pase el mouse o se lo toque. */
-.titan-robot.piensa .tr-brazo,.titan-robot.piensa:hover .tr-brazo,.titan-robot.piensa.saluda .tr-brazo{
-  animation:tr-mano-cara 1.4s ease-in-out infinite}
-.titan-robot.habla .tr-brazo,.titan-robot.habla:hover .tr-brazo,.titan-robot.habla.saluda .tr-brazo{
-  animation:tr-mano-abajo 2.4s ease-in-out infinite}
 /* Pensando: inclina la cabeza, parpadea más y le salen burbujas de pensamiento. */
 .titan-robot.piensa .tr-flota{animation:tr-pensar 1.8s ease-in-out infinite}
-.titan-robot.piensa .tr-ojo{animation:tr-parpadear 1.6s linear infinite}
-.titan-robot .tr-idea{position:absolute;right:-16%;top:-10%;width:40%;height:30%;opacity:0;transition:opacity .25s;pointer-events:none}
+.titan-robot .tr-idea{position:absolute;right:-22%;top:-14%;width:40%;height:30%;opacity:0;transition:opacity .25s;pointer-events:none}
 .titan-robot.piensa .tr-idea{opacity:1}
 .titan-robot .tr-idea i{position:absolute;border-radius:50%;background:#fff;border:2px solid #2f8cff;box-sizing:border-box}
 .titan-robot .tr-idea i:nth-child(1){left:0;bottom:0;width:16%;aspect-ratio:1}
@@ -317,10 +316,8 @@ body .button:hover{color:var(--ink)}
 .titan-robot.piensa .tr-idea b span{animation:tr-punto-idea 1s ease-in-out infinite}
 .titan-robot.piensa .tr-idea b span:nth-child(2){animation-delay:.15s}
 .titan-robot.piensa .tr-idea b span:nth-child(3){animation-delay:.3s}
-@keyframes tr-hablar{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
+@keyframes tr-hablar{from{transform:scaleY(0)}to{transform:scaleY(.8)}}
 @keyframes tr-asentir{from{rotate:0deg}to{rotate:-2deg}}
-@keyframes tr-mano-cara{0%,100%{transform:rotate(38deg)}50%{transform:rotate(46deg)}}
-@keyframes tr-mano-abajo{0%,100%{transform:rotate(-158deg)}50%{transform:rotate(-164deg)}}
 @keyframes tr-pensar{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3%) rotate(3deg)}}
 @keyframes tr-burbuja{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1);opacity:1}}
 @keyframes tr-punto-idea{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-25%)}}

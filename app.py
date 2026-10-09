@@ -100,6 +100,9 @@ PANTALLAS = {
     # saluda (se anima en sistema.css).
     "/titan-robot-cuerpo.png": ("titan-robot-cuerpo.png", "image/png"),
     "/titan-robot-brazo.png": ("titan-robot-brazo.png", "image/png"),
+    # Titán pensando y Titán respondiendo, para el chat.
+    "/titan-robot-piensa.png": ("titan-robot-piensa.png", "image/png"),
+    "/titan-robot-habla.png": ("titan-robot-habla.png", "image/png"),
     # El visor 3D del camión. Está afuera de las pantallas porque lo usan
     # dos: la ficha de la unidad en Flota y el mapa de cubiertas en
     # Gomería.
