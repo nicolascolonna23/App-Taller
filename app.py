@@ -31,6 +31,13 @@ import datetime, json, os, sys, threading, traceback
 from http.server import ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, unquote
 
+# Cada línea del log sale al instante. Sin terminal, Python junta lo que
+# imprime y lo suelta de a tandas: si el arranque se traba, Render no
+# muestra ni la primera línea y no hay forma de saber en qué paso quedó.
+sys.stdout.reconfigure(line_buffering=True)
+sys.stderr.reconfigure(line_buffering=True)
+print("App Taller: cargando módulos…")
+
 import psycopg
 import anthropic
 
