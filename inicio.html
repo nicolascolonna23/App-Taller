@@ -134,7 +134,7 @@ main{padding:0;max-width:none}
     <header class="topbar"><div class="context"><b>Operación de hoy</b><span id="fecha">Cargando fecha…</span></div><div class="top-actions"><div class="alerts-menu" id="alertas-menu"><button class="alerts-button" id="alertas-btn" type="button" aria-label="Abrir alertas" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><span class="alerts-badge" id="alertas-badge" hidden>0</span></button><section class="alerts-popover" id="alertas-popover" hidden aria-label="Alertas operativas"><div class="alerts-popover-head"><strong>Alertas</strong><span id="alertas-resumen">En vivo</span></div><div class="alerts-list" id="alertas-list"><div class="alerts-empty">Cargando…</div></div><a class="alerts-all" href="/alertas">Ver todas las alertas</a></section></div><div class="person" id="quien"><span class="avatar">DN</span></div></div></header>
     <div class="workspace">
       <section class="summary" aria-label="Resumen operativo">
-        <div class="summary-head"><div><p class="dashboard-eyebrow">Centro operativo</p><h1>Actividad de la flota</h1></div><div class="dashboard-context"><a class="alert-mini" href="/alertas"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M12 8v5m0 4h.01M10.3 4 2.7 17.2a2 2 0 0 0 1.7 3h15.2a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0Z"/></svg><strong id="alert-mini-count">Consultando alertas…</strong><small id="alert-mini-priority"></small><b aria-hidden="true">↗</b></a><span id="dashboard-status" role="status">Actualizando datos…</span></div></div>
+        <div class="summary-head"><div><p class="dashboard-eyebrow">Centro operativo</p><h1>Actividad de la flota</h1></div><div class="dashboard-context"><span id="dashboard-status" role="status"></span></div></div>
         <aside class="rail" aria-label="Asistente">
           <section class="card pengui-card" id="pengui" aria-label="Titán, el asistente" hidden></section>
         </aside>
@@ -279,7 +279,7 @@ document.querySelectorAll('.km-tabs button[data-l]').forEach(b=>b.addEventListen
 }));
 fetch('/api/inicio').then(r=>r.ok?r.json():null).then(d=>{
   if(!d)throw Error('No se pudo actualizar el resumen.');
-  document.getElementById('dashboard-status').textContent='Datos actualizados';
+  document.getElementById('dashboard-status').textContent='';
   RECORRIDO=d.recorrido||null;pintarKm();
   LITROS=d.litros||null;pintarLitros();
   const totalAlertas=d.alertas&&d.alertas.total||0;

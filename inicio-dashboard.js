@@ -90,15 +90,12 @@
   }
   function alertas(data) {
     if (!data?.instalado) {
-      el('alert-mini-count').textContent = 'Alertas no disponibles';
       el('dashboard-alert-state').textContent = 'No disponible';
       el('dashboard-alert-list').innerHTML = '<p class="dashboard-empty">El módulo de alertas no está configurado.</p>';
       return;
     }
     const resumen = data.resumen || {};
     const total = resumen.total ?? (data.alertas || []).length;
-    el('alert-mini-count').textContent = total ? `${number.format(total)} alertas` : 'Sin alertas activas';
-    el('alert-mini-priority').textContent = resumen.grave ? `${number.format(resumen.grave)} de prioridad alta` : '';
     el('dashboard-alert-count').textContent = number.format(total);
     el('dashboard-alert-state').textContent = total ? 'alertas activas' : 'Sin alertas activas';
     el('dashboard-alert-critical').hidden = !resumen.grave;
@@ -175,7 +172,6 @@
     return `${month(data.desde)} – ${month(data.hasta)}`;
   };
   function alertasError() {
-    el('alert-mini-count').textContent = 'Alertas no disponibles';
     el('dashboard-alert-state').textContent = 'No disponible';
     el('dashboard-alert-list').innerHTML = '<p class="dashboard-empty">No se pudieron consultar las alertas. <a href="/alertas">Abrir el módulo</a></p>';
   }

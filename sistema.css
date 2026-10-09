@@ -295,13 +295,33 @@ body .button:hover{color:var(--ink)}
 .titan-robot.habla .tr-boca{opacity:1}
 .titan-robot.habla .tr-boca::after{animation:tr-hablar .26s ease-in-out infinite alternate}
 .titan-robot.habla .tr-flota{animation:tr-flotar 3.2s ease-in-out infinite,tr-asentir .5s ease-in-out infinite alternate}
-.titan-robot.habla .tr-brazo{animation:tr-gesto 1.1s ease-in-out infinite}
-/* Pensando: deja de saludar, inclina la cabeza y mira hacia los costados. */
-.titan-robot.piensa .tr-brazo{animation:none}
+/* Mientras piensa o responde no saluda: el brazo va a la cara (pensando)
+   o queda abajo (hablando), aunque se le pase el mouse o se lo toque. */
+.titan-robot.piensa .tr-brazo,.titan-robot.piensa:hover .tr-brazo,.titan-robot.piensa.saluda .tr-brazo{
+  animation:tr-mano-cara 1.4s ease-in-out infinite}
+.titan-robot.habla .tr-brazo,.titan-robot.habla:hover .tr-brazo,.titan-robot.habla.saluda .tr-brazo{
+  animation:tr-mano-abajo 2.4s ease-in-out infinite}
+/* Pensando: inclina la cabeza, parpadea más y le salen burbujas de pensamiento. */
 .titan-robot.piensa .tr-flota{animation:tr-pensar 1.8s ease-in-out infinite}
 .titan-robot.piensa .tr-ojo{animation:tr-parpadear 1.6s linear infinite}
+.titan-robot .tr-idea{position:absolute;right:-16%;top:-10%;width:40%;height:30%;opacity:0;transition:opacity .25s;pointer-events:none}
+.titan-robot.piensa .tr-idea{opacity:1}
+.titan-robot .tr-idea i{position:absolute;border-radius:50%;background:#fff;border:2px solid #2f8cff;box-sizing:border-box}
+.titan-robot .tr-idea i:nth-child(1){left:0;bottom:0;width:16%;aspect-ratio:1}
+.titan-robot .tr-idea i:nth-child(2){left:18%;bottom:24%;width:24%;aspect-ratio:1}
+.titan-robot .tr-idea i:nth-child(3){left:40%;top:0;width:60%;height:62%;border-radius:50%}
+.titan-robot .tr-idea b{position:absolute;left:40%;top:0;width:60%;height:62%;display:flex;align-items:center;justify-content:center;gap:9%}
+.titan-robot .tr-idea b span{width:13%;aspect-ratio:1;border-radius:50%;background:#2f8cff}
+.titan-robot.piensa .tr-idea i:nth-child(1){animation:tr-burbuja 1.2s ease-in-out infinite}
+.titan-robot.piensa .tr-idea i:nth-child(2){animation:tr-burbuja 1.2s ease-in-out .2s infinite}
+.titan-robot.piensa .tr-idea b span{animation:tr-punto-idea 1s ease-in-out infinite}
+.titan-robot.piensa .tr-idea b span:nth-child(2){animation-delay:.15s}
+.titan-robot.piensa .tr-idea b span:nth-child(3){animation-delay:.3s}
 @keyframes tr-hablar{from{transform:scaleY(.2)}to{transform:scaleY(1)}}
 @keyframes tr-asentir{from{rotate:0deg}to{rotate:-2deg}}
-@keyframes tr-gesto{0%,100%{transform:rotate(0)}50%{transform:rotate(-9deg)}}
+@keyframes tr-mano-cara{0%,100%{transform:rotate(38deg)}50%{transform:rotate(46deg)}}
+@keyframes tr-mano-abajo{0%,100%{transform:rotate(-158deg)}50%{transform:rotate(-164deg)}}
 @keyframes tr-pensar{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-3%) rotate(3deg)}}
+@keyframes tr-burbuja{0%,100%{transform:scale(.8);opacity:.6}50%{transform:scale(1);opacity:1}}
+@keyframes tr-punto-idea{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-25%)}}
 @media(prefers-reduced-motion:reduce){.titan-robot *,.titan-robot,.titan-globo{animation:none!important}}

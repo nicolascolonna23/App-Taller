@@ -79,6 +79,7 @@ form label{display:block;font-size:12px;font-weight:600;margin-bottom:9px}.hint{
           <img class="tr-cuerpo" src="/titan-robot-cuerpo.png" alt="" width="512" height="628">
           <img class="tr-brazo" src="/titan-robot-brazo.png" alt="" width="512" height="628">
           <span class="tr-ojo izq"></span><span class="tr-ojo der"></span><span class="tr-boca"></span>
+          <span class="tr-idea" aria-hidden="true"><i></i><i></i><i></i><b><span></span><span></span><span></span></b></span>
         </span>
       </span>
       <div class="estado-titan" id="estadoTitan" aria-live="polite"><b>Titán</b>Listo para consultar.</div>
@@ -186,11 +187,11 @@ function ensenar(pregunta,respuesta){
 }
 function controls(){ $('#send').disabled=busy||!ready;$('#reset').disabled=busy;$('#question').disabled=busy;document.querySelectorAll('.examples button').forEach(b=>b.disabled=busy||!ready); }
 async function send(event){event.preventDefault();const question=$('#question').value.trim();if(busy||!ready||!question)return;
-  const previous=history.slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)}));while(previous.length && previous.reduce((n,m)=>n+m.content.length,question.length)>24000) previous.splice(0,2);const messages=[...previous,{role:'user',content:question}];busy=true;controls();$('#error').hidden=true;$('#status').textContent='Consultando el sistema…';const userMessage=message('user',question);titan('piensa');
+  const previous=history.slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)}));while(previous.length && previous.reduce((n,m)=>n+m.content.length,question.length)>24000) previous.splice(0,2);const messages=[...previous,{role:'user',content:question}];busy=true;controls();$('#error').hidden=true;$('#status').textContent='Consultando el sistema…';const userMessage=message('user',question);$('#question').value='';titan('piensa');
   let data;
   try{const r=await fetch('/api/asistente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensajes:messages})});data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo responder.');if(typeof data.respuesta!=='string'||!Array.isArray(data.fuentes))throw Error('Respuesta inválida. Intente nuevamente.');}
-  catch(e){userMessage.remove();titan('error');$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();return;}
-  history=[...messages,{role:'assistant',content:data.respuesta}];$('#question').value='';$('#status').textContent='Respondiendo…';
+  catch(e){userMessage.remove();$('#question').value=question;titan('error');$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();return;}
+  history=[...messages,{role:'assistant',content:data.respuesta}];$('#status').textContent='Respondiendo…';
   await responder(data.respuesta,data.fuentes,question);
   busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();
 }
