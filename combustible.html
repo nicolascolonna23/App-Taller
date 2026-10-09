@@ -106,6 +106,12 @@
     color:var(--ink-muted);border-bottom:1px solid var(--hairline)}
   table.datos td{padding:8px 12px;border-bottom:1px solid var(--hairline)}
   table.datos td.num{text-align:right;font-variant-numeric:tabular-nums}
+  table.datos th.num{text-align:right}
+  table.datos th[data-orden]{cursor:pointer;user-select:none}
+  table.datos th[data-orden]:hover{color:var(--ink)}
+  table.datos th[data-orden]::after{content:' ⇅';opacity:.35}
+  table.datos th[data-orden].asc::after{content:' ▲';opacity:1;color:var(--brand)}
+  table.datos th[data-orden].desc::after{content:' ▼';opacity:1;color:var(--brand)}
   .pastilla{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;
     font-weight:700;letter-spacing:.3px}
   .apagado{color:var(--ink-muted);font-weight:400}
@@ -230,9 +236,9 @@ main{max-width:1560px;padding:36px 40px 60px}.eyebrow{font-size:10px;font-weight
       <label>Estación<input name="estacion" maxlength="120"></label></div>
       <div class="fila"><button class="btn" type="submit">Revisar ticket</button><button class="btn gris" type="button" id="cancel-ticket">Cancelar</button></div>
     </form>
-    <div class="toolbar"><label class="search">Buscar ticket, patente o estación<input type="search" id="ticket-search" placeholder="Ej. AB 123 CD o número de remito"></label>
+    <div class="toolbar"><label class="search">Buscar ticket, patente, interno, estación o chofer<input type="search" id="ticket-search" placeholder="Ej. AB 123 CD, número de remito o chofer"></label>
     <label>Mes<input type="month" id="ticket-month"></label><button class="btn gris" id="clear-filters">Limpiar filtros</button></div>
-    <div class="caja"><table class="datos"><thead><tr><th>Ticket / remito</th><th>Fecha</th><th>Unidad</th><th>Estación</th><th class="num">Litros</th><th class="num">Importe</th><th>Chofer</th></tr></thead><tbody id="ticket-rows"></tbody></table><p class="vacio" id="ticket-empty" hidden>No hay tickets para esta búsqueda.</p>
+    <div class="caja"><table class="datos"><thead><tr id="ticket-head"><th data-orden="remito">Ticket / remito</th><th data-orden="fecha" class="desc" aria-sort="descending">Fecha</th><th data-orden="unidad">Unidad</th><th data-orden="estacion">Estación</th><th class="num" data-orden="litros">Litros</th><th class="num" data-orden="importe">Importe</th><th data-orden="chofer">Chofer</th></tr></thead><tbody id="ticket-rows"></tbody></table><p class="vacio" id="ticket-empty" hidden>No hay tickets para esta búsqueda.</p>
     <div class="pagination"><span id="ticket-page"></span><div><button class="btn gris chico" id="prev-page">Anterior</button> <button class="btn gris chico" id="next-page">Siguiente</button></div></div></div>
   </section>
   <section id="summary-view" hidden>
@@ -821,7 +827,7 @@ async function cargarFlota(mes){
 /* El registro se pide de a una página: la búsqueda, el mes y la
    paginación se resuelven en el servidor. Solo cuenta la última respuesta:
    una búsqueda lenta no puede pisar a la que se escribió después. */
-let ticketPage = 0, ticketPedido = 0, ticketDemora = null;
+let ticketPage = 0, ticketPedido = 0, ticketDemora = null, ticketOrden = 'fecha', ticketSentido = 'desc';
 function renderTickets(){
   clearTimeout(ticketDemora);
   ticketDemora = setTimeout(pedirTickets, 250);
@@ -832,6 +838,7 @@ async function pedirTickets(){
   const q = $('#ticket-search').value.trim(), month = $('#ticket-month').value;
   if (q) p.set('q', q);
   if (month) p.set('mes', month);
+  p.set('orden', ticketOrden); p.set('sentido', ticketSentido);
   let d;
   try {
     const r = await fetch('/api/combustible?' + p);
@@ -871,7 +878,26 @@ function navigate(){
 }
 window.addEventListener('hashchange',navigate);
 $('#ticket-search').oninput = $('#ticket-month').onchange = ()=>{ticketPage=0;renderTickets();};
-$('#clear-filters').onclick=()=>{$('#ticket-search').value='';$('#ticket-month').value='';ticketPage=0;renderTickets();};
+$('#clear-filters').onclick=()=>{$('#ticket-search').value='';$('#ticket-month').value='';ticketPage=0;ticketOrden='fecha';ticketSentido='desc';marcarOrden();renderTickets();};
+/* Ordenar por cualquier columna: el primer clic va de mayor a menor, el
+   segundo de menor a mayor. El orden lo resuelve el servidor, así vale
+   para todos los tickets y no solo para la página que se ve. */
+function marcarOrden(){
+  document.querySelectorAll('#ticket-head th[data-orden]').forEach(th=>{
+    const esta=th.dataset.orden===ticketOrden;
+    th.classList.toggle('asc',esta&&ticketSentido==='asc');th.classList.toggle('desc',esta&&ticketSentido==='desc');
+    if(esta)th.setAttribute('aria-sort',ticketSentido==='asc'?'ascending':'descending');else th.removeAttribute('aria-sort');
+  });
+}
+document.querySelectorAll('#ticket-head th[data-orden]').forEach(th=>{
+  th.tabIndex=0;th.title='Ordenar';
+  const ordenar=()=>{
+    if(ticketOrden===th.dataset.orden)ticketSentido=ticketSentido==='desc'?'asc':'desc';
+    else{ticketOrden=th.dataset.orden;ticketSentido='desc';}
+    ticketPage=0;marcarOrden();renderTickets();
+  };
+  th.onclick=ordenar;th.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();ordenar();}};
+});
 $('#prev-page').onclick=()=>{ticketPage--;renderTickets();};$('#next-page').onclick=()=>{ticketPage++;renderTickets();};
 $('#new-ticket').onclick=()=>{$('#ticket-form').hidden=false;$('#ticket-form input').focus();};
 $('#cancel-ticket').onclick=()=>{$('#ticket-form').hidden=true;};

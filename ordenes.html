@@ -198,6 +198,58 @@
     text-transform:uppercase;letter-spacing:.8px;color:#333}
   #hoja .sello{margin-top:14px;font-size:8.5px;color:#666;text-align:center}
 
+
+  [hidden]{display:none!important}
+  /* ---------- Métricas ---------- */
+  .solapas{display:flex;gap:2px;padding:0 20px;background:var(--surface-1);border-bottom:1px solid var(--hairline)}
+  .solapas a{padding:11px 15px;font-size:13px;font-weight:700;color:var(--ink-muted);text-decoration:none;border-bottom:2px solid transparent}
+  .solapas a:hover{color:var(--ink)}
+  .solapas a.on{color:var(--brand);border-bottom-color:var(--brand)}
+  :root{--serie-prev:#3b82f6;--serie-corr:#d97026;--serie-sin:#7b8590}
+  :root[data-modo="claro"]{--serie-prev:#2563eb;--serie-sin:#8d959e}
+  .m-filtros{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px}
+  .m-filtros label{display:flex;flex-direction:column;gap:5px;font-size:11px;color:var(--ink-muted);font-weight:700}
+  .m-filtros select{min-width:190px}.m-filtros input{width:160px}
+  .m-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+  .m-kpi{background:var(--surface-1);border:1px solid var(--hairline);border-radius:13px;padding:15px;min-width:0}
+  .m-kpi span{display:block;color:var(--ink-muted);font-size:10px;text-transform:uppercase;letter-spacing:.9px;font-weight:700}
+  .m-kpi b{display:block;font-size:24px;line-height:1.15;margin:6px 0 4px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+  .m-kpi small{color:var(--ink-muted);font-size:12px;line-height:1.45;display:block}
+  .m-kpi i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+  .m-grid{display:grid;grid-template-columns:3fr 2fr;gap:12px;margin-bottom:14px}
+  .m-caja{background:var(--surface-1);border:1px solid var(--hairline);border-radius:13px;padding:16px;min-width:0}
+  .m-caja h2{font-size:14px;margin:0 0 3px}.m-caja .ayuda{color:var(--ink-muted);font-size:12px;margin:0 0 12px}
+  .leyenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:12px}
+  .leyenda i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+  .m-mes{display:grid;grid-template-columns:78px 1fr 118px;gap:10px;align-items:center;margin:9px 0;font-size:12px}
+  .m-mes .et{color:var(--ink-2);text-transform:capitalize}
+  .m-mes .tot{text-align:right;font-variant-numeric:tabular-nums;color:var(--ink)}
+  .m-barra{display:flex;gap:2px;height:16px;align-items:stretch}
+  .m-barra span{display:block;min-width:2px;cursor:default}
+  .m-barra span:first-child{border-radius:0}.m-barra span:last-child{border-radius:0 4px 4px 0}
+  .m-taller{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin:10px 0;font-size:12px}
+  .m-taller .pista{grid-column:1/-1;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden}
+  .m-taller .pista div{height:100%;background:var(--serie-corr);border-radius:0 3px 3px 0}
+  .m-taller small{color:var(--ink-muted)}
+  #mTabla th[data-m]{cursor:pointer;user-select:none}
+  #mTabla th[data-m]:hover{color:var(--ink)}
+  #mTabla th[data-m]::after{content:' ⇅';opacity:.35}
+  #mTabla th[data-m].asc::after{content:' ▲';opacity:1;color:var(--brand)}
+  #mTabla th[data-m].desc::after{content:' ▼';opacity:1;color:var(--brand)}
+  #mTabla td small{display:block;color:var(--ink-muted);font-size:11px}
+  #mTabla{min-width:900px}#mTabla td:first-child{white-space:nowrap}
+  #mTip{position:fixed;z-index:50;pointer-events:none;background:var(--surface-2);border:1px solid var(--hairline-2);
+    border-radius:9px;padding:8px 10px;font-size:12px;line-height:1.5;box-shadow:0 10px 26px rgba(0,0,0,.3)}
+  #mTip b{display:block;text-transform:capitalize}
+  details.m-datos{margin-top:10px;font-size:12px;color:var(--ink-muted)}
+  details.m-datos table{margin-top:8px;font-size:12px}
+  @media(max-width:900px){
+    .m-kpis{grid-template-columns:repeat(2,1fr)}.m-grid{grid-template-columns:1fr}
+    .m-kpi b{font-size:19px}
+    #vistaMetricas th,#vistaMetricas td{display:table-cell}
+    .m-mes{grid-template-columns:62px 1fr 96px}
+    .solapas{padding:0 8px;overflow-x:auto}
+  }
   @media print{
     body{background:#fff}
     body > *:not(#hoja){display:none !important}
@@ -226,7 +278,10 @@
   <span class="who" id="quien"></span>
 </header>
 
+<nav class="solapas" aria-label="Secciones"><a href="/ordenes" class="on" data-vista="ordenes">Órdenes</a><a href="/ordenes#metricas" data-vista="metricas">Métricas</a></nav>
+
 <main>
+<div id="vistaOrdenes">
   <h1>Órdenes de trabajo</h1>
   <p class="sub" id="pie">Cargando…</p>
 
@@ -257,6 +312,59 @@
       <tbody id="filas"><tr><td colspan="8" class="vacio">Cargando…</td></tr></tbody>
     </table>
   </div>
+</div>
+
+<!-- --------------------------------------------------------- métricas -->
+<section id="vistaMetricas" hidden>
+  <h1>Métricas del taller</h1>
+  <p class="sub">Gasto por unidad, preventivo y correctivo, y costo por kilómetro. No incluye órdenes anuladas.</p>
+  <div class="m-filtros">
+    <label>Período<select id="mPeriodo">
+      <option value="30">Últimos 30 días</option>
+      <option value="90" selected>Últimos 90 días</option>
+      <option value="180">Últimos 180 días</option>
+      <option value="anio">Este año</option>
+      <option value="todo">Todo</option>
+      <option value="otro">Otro período…</option>
+    </select></label>
+    <label id="mDesdeL" hidden>Desde<input type="date" id="mDesde"></label>
+    <label id="mHastaL" hidden>Hasta<input type="date" id="mHasta"></label>
+    <label>Unidad<input id="mBuscar" type="search" placeholder="Patente o interno"></label>
+  </div>
+  <p class="aviso mal" id="mAviso" hidden></p>
+  <div class="m-kpis" id="mKpis"></div>
+  <div class="m-grid">
+    <div class="m-caja">
+      <h2>Gasto por mes</h2>
+      <p class="ayuda">Preventivo, correctivo y sin clasificar, en pesos.</p>
+      <div class="leyenda"><span><i style="background:var(--serie-prev)"></i>Preventivo</span><span><i style="background:var(--serie-corr)"></i>Correctivo</span><span><i style="background:var(--serie-sin)"></i>Sin clasificar</span></div>
+      <div id="mMeses"></div>
+      <details class="m-datos"><summary>Ver datos del gráfico</summary><div id="mMesesTabla"></div></details>
+    </div>
+    <div class="m-caja">
+      <h2>Talleres externos</h2>
+      <p class="ayuda">Gasto en servicios externos por proveedor.</p>
+      <div id="mTalleres"></div>
+    </div>
+  </div>
+  <div class="m-caja">
+    <h2>Gasto y costo por kilómetro por unidad</h2>
+    <p class="ayuda" id="mNotaKm">Kilómetros según las lecturas diarias del satelital en el período. Sin lecturas, sin costo por kilómetro.</p>
+    <div style="overflow:auto">
+    <table id="mTabla">
+      <thead><tr>
+        <th data-m="patente">Unidad</th><th class="num" data-m="ordenes">Órdenes</th>
+        <th class="num" data-m="preventivo">Preventivo</th><th class="num" data-m="correctivo">Correctivo</th>
+        <th class="num desc" data-m="total">Total</th><th class="num" data-m="km">Km</th>
+        <th class="num" data-m="prev_km">$/km prev.</th><th class="num" data-m="corr_km">$/km corr.</th>
+        <th class="num" data-m="total_km">$/km total</th><th data-m="ultima">Última orden</th>
+      </tr></thead>
+      <tbody id="mFilas"><tr><td colspan="10" class="vacio">Cargando…</td></tr></tbody>
+    </table>
+    </div>
+  </div>
+</section>
+<div id="mTip" role="tooltip" hidden></div>
 </main>
 
 <!-- ------------------------------------------------------ abrir orden -->
@@ -1351,6 +1459,153 @@ $('#guardarExterna').onclick = async () => {
     $('#guardarExterna').disabled = false;
   }
 };
+
+
+/* =====================================================================
+   MÉTRICAS — gasto por unidad, preventivo/correctivo y costo por km.
+   ===================================================================== */
+const M = { datos:null, col:'total', asc:false, pedido:0 };
+const plata = n => '$ ' + Number(n || 0).toLocaleString('es-AR', {maximumFractionDigits:0});
+const porKm = n => n == null ? '—' : '$ ' + Number(n).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+const kmTxt = n => n == null || !Number(n) ? '—' : Number(n).toLocaleString('es-AR', {maximumFractionDigits:0});
+const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+const nombreMes = m => new Date(m + '-15T12:00').toLocaleDateString('es-AR', {month:'short', year:'2-digit'});
+const dividir = (a, km) => km && Number(km) > 0 ? Number(a || 0) / Number(km) : null;
+
+function rangoMetricas() {
+  const v = $('#mPeriodo').value, h = new Date();
+  const iso = d => d.toISOString().slice(0,10);
+  $('#mDesdeL').hidden = $('#mHastaL').hidden = v !== 'otro';
+  if (v === 'otro') return [$('#mDesde').value, $('#mHasta').value];
+  if (v === 'todo') return ['2000-01-01', iso(h)];
+  if (v === 'anio') return [h.getFullYear() + '-01-01', iso(h)];
+  const d = new Date(h); d.setDate(d.getDate() - Number(v) + 1);
+  return [iso(d), iso(h)];
+}
+
+async function cargarMetricas() {
+  const [desde, hasta] = rangoMetricas();
+  if (!desde || !hasta) return;
+  const n = ++M.pedido;
+  $('#mAviso').hidden = true;
+  try {
+    const r = await fetch('/api/ordenes?' + new URLSearchParams({vista:'metricas', desde, hasta}));
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'No se pudieron calcular las métricas.');
+    if (n !== M.pedido) return;
+    M.datos = d;
+    pintarMetricas();
+  } catch (e) {
+    if (n !== M.pedido) return;
+    $('#mAviso').textContent = e.message; $('#mAviso').hidden = false;
+  }
+}
+
+function pintarMetricas() {
+  const d = M.datos, r = d.resumen;
+  const kpi = (titulo, valor, detalle) => `<div class="m-kpi"><span>${titulo}</span><b>${valor}</b><small>${detalle}</small></div>`;
+  $('#mKpis').innerHTML =
+    kpi('Gasto total', plata(r.total), `${nfm.format(r.ordenes)} órdenes · ${nfm.format(r.unidades)} unidades<br>Promedio por orden ${plata(r.ordenes ? r.total / r.ordenes : 0)}`) +
+    kpi('Preventivo', plata(r.preventivo), `<i style="background:var(--serie-prev)"></i>${pct(r.preventivo, r.total)} del gasto<br>${porKm(r.preventivo_por_km)} por km`) +
+    kpi('Correctivo', plata(r.correctivo), `<i style="background:var(--serie-corr)"></i>${pct(r.correctivo, r.total)} del gasto<br>${porKm(r.correctivo_por_km)} por km`) +
+    kpi('Costo por km', porKm(r.por_km), `${kmTxt(r.km)} km de ${nfm.format(r.unidades_con_km)} unidades con gasto y lecturas` +
+      (r.sin_clasificar ? `<br>Sin clasificar: ${plata(r.sin_clasificar)}` : ''));
+
+  // Gasto por mes: barras apiladas, una fila por mes.
+  const max = Math.max(1, ...d.meses.map(m => Number(m.total)));
+  const seg = (m, campo, color, nombre) => {
+    const v = Number(m[campo] || 0);
+    return v ? `<span style="width:${v / max * 100}%;background:${color}" data-tip="${esc(nombreMes(m.mes))}|${nombre}|${plata(v)}"></span>` : '';
+  };
+  $('#mMeses').innerHTML = d.meses.length ? d.meses.map(m => `<div class="m-mes"><span class="et">${esc(nombreMes(m.mes))}</span>
+      <div class="m-barra" role="img" aria-label="${esc(nombreMes(m.mes))}: preventivo ${plata(m.preventivo)}, correctivo ${plata(m.correctivo)}, sin clasificar ${plata(m.sin_clasificar)}">${
+        seg(m, 'preventivo', 'var(--serie-prev)', 'Preventivo') + seg(m, 'correctivo', 'var(--serie-corr)', 'Correctivo') +
+        seg(m, 'sin_clasificar', 'var(--serie-sin)', 'Sin clasificar')}</div>
+      <span class="tot">${plata(m.total)}</span></div>`).join('')
+    : '<p class="vacio">Sin órdenes en el período.</p>';
+  $('#mMesesTabla').innerHTML = `<table><thead><tr><th>Mes</th><th class="num">Órdenes</th><th class="num">Preventivo</th><th class="num">Correctivo</th><th class="num">Sin clasificar</th><th class="num">Total</th></tr></thead><tbody>${
+    d.meses.map(m => `<tr><td>${esc(nombreMes(m.mes))}</td><td class="num">${m.ordenes}</td><td class="num">${plata(m.preventivo)}</td><td class="num">${plata(m.correctivo)}</td><td class="num">${plata(m.sin_clasificar)}</td><td class="num">${plata(m.total)}</td></tr>`).join('')}</tbody></table>`;
+
+  const tmax = Math.max(1, ...d.talleres.map(t => Number(t.total)));
+  $('#mTalleres').innerHTML = d.talleres.length ? d.talleres.map(t => `<div class="m-taller"><span>${esc(t.taller)} <small>· ${t.ordenes} ${t.ordenes === 1 ? 'orden' : 'órdenes'}</small></span><b class="num">${plata(t.total)}</b><div class="pista"><div style="width:${Number(t.total) / tmax * 100}%"></div></div></div>`).join('')
+    : '<p class="vacio">Sin servicios externos en el período.</p>';
+  pintarTablaMetricas();
+}
+
+const M_CLAVES = {
+  patente: u => u.patente || '', ordenes: u => Number(u.ordenes), preventivo: u => Number(u.preventivo),
+  correctivo: u => Number(u.correctivo), total: u => Number(u.total), km: u => Number(u.km || 0),
+  prev_km: u => dividir(u.preventivo, u.km) ?? -1, corr_km: u => dividir(u.correctivo, u.km) ?? -1,
+  total_km: u => dividir(u.total, u.km) ?? -1, ultima: u => u.ultima || '',
+};
+function pintarTablaMetricas() {
+  if (!M.datos) return;
+  const q = $('#mBuscar').value.trim().toUpperCase().replace(/\s/g, '');
+  let filas = M.datos.unidades.filter(u => !q || (u.patente || '').includes(q) || String(u.interno || '').toUpperCase() === q);
+  const clave = M_CLAVES[M.col], signo = M.asc ? 1 : -1;
+  filas = filas.slice().sort((a, b) => {
+    const x = clave(a), y = clave(b);
+    const r = typeof x === 'number' ? x - y : String(x).localeCompare(String(y), 'es');
+    return r * signo || Number(b.total) - Number(a.total);
+  });
+  $('#mFilas').innerHTML = filas.length ? filas.map(u => `<tr>
+      <td><b>${esc(pat(u.patente))}</b><small>${u.interno ? 'Interno ' + esc(u.interno) + ' · ' : ''}${esc([u.marca, u.modelo].filter(Boolean).join(' '))}</small></td>
+      <td class="num">${u.ordenes}</td><td class="num">${plata(u.preventivo)}</td><td class="num">${plata(u.correctivo)}</td>
+      <td class="num"><b>${plata(u.total)}</b></td><td class="num">${kmTxt(u.km)}</td>
+      <td class="num">${porKm(dividir(u.preventivo, u.km))}</td><td class="num">${porKm(dividir(u.correctivo, u.km))}</td>
+      <td class="num"><b>${porKm(dividir(u.total, u.km))}</b></td><td>${fecha(u.ultima)}</td></tr>`).join('')
+    : '<tr><td colspan="10" class="vacio">Sin órdenes para este filtro.</td></tr>';
+}
+document.querySelectorAll('#mTabla th[data-m]').forEach(th => {
+  th.tabIndex = 0;
+  const ordenarM = () => {
+    if (M.col === th.dataset.m) M.asc = !M.asc;
+    else { M.col = th.dataset.m; M.asc = th.dataset.m === 'patente'; }
+    document.querySelectorAll('#mTabla th[data-m]').forEach(x => { x.classList.remove('asc', 'desc'); x.removeAttribute('aria-sort'); });
+    th.classList.add(M.asc ? 'asc' : 'desc'); th.setAttribute('aria-sort', M.asc ? 'ascending' : 'descending');
+    pintarTablaMetricas();
+  };
+  th.onclick = ordenarM;
+  th.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ordenarM(); } };
+});
+$('#mPeriodo').onchange = () => {
+  if ($('#mPeriodo').value === 'otro' && !$('#mDesde').value) {
+    const [d, h] = M.datos ? [M.datos.desde, M.datos.hasta] : ['', ''];
+    $('#mDesde').value = d; $('#mHasta').value = h;
+  }
+  cargarMetricas();
+};
+$('#mDesde').onchange = $('#mHasta').onchange = cargarMetricas;
+$('#mBuscar').oninput = pintarTablaMetricas;
+
+// Valores exactos al pasar el mouse por cada tramo de barra.
+$('#mMeses').addEventListener('mousemove', e => {
+  const t = e.target.closest('[data-tip]'), tip = $('#mTip');
+  if (!t) { tip.hidden = true; return; }
+  const [mes, serie, valor] = t.dataset.tip.split('|');
+  tip.innerHTML = `<b>${esc(mes)}</b>${esc(serie)}: ${esc(valor)}`;
+  tip.hidden = false;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = (e.clientY + 14) + 'px';
+});
+$('#mMeses').addEventListener('mouseleave', () => { $('#mTip').hidden = true; });
+
+/* Las dos secciones: la lista de órdenes y las métricas. */
+function seccion() {
+  const met = location.hash === '#metricas';
+  $('#vistaOrdenes').hidden = met; $('#vistaMetricas').hidden = !met;
+  document.querySelectorAll('.solapas a').forEach(a => {
+    const on = a.dataset.vista === (met ? 'metricas' : 'ordenes');
+    a.classList.toggle('on', on); a.setAttribute('aria-current', on ? 'page' : 'false');
+  });
+  if (met && !M.datos) cargarMetricas();
+}
+window.addEventListener('hashchange', seccion);
+document.querySelector('.solapas a[data-vista="ordenes"]').onclick = e => {
+  e.preventDefault(); history.pushState(null, '', '/ordenes' + location.search); seccion();
+};
+window.addEventListener('popstate', seccion);
+seccion();
 
 (async function () {
   try {

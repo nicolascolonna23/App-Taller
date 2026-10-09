@@ -26,7 +26,7 @@ carga a una orden escribe una Salida en repuestos_movimientos, que es de
 donde sale el stock de todo el sistema. Sacar el renglón borra ese
 movimiento. No hay una cuenta del depósito y otra del taller: hay una.
 """
-from datetime import date
+from datetime import date, timedelta
 
 import permisos
 import solicitudes as sol
@@ -184,6 +184,112 @@ def listar(cx, usuario):
         # factura es elegir de esta lista, no tipear un número a mano.
         # Sin el módulo instalado la pantalla sigue andando igual.
         **_solicitudes_pendientes(cx),
+    }
+
+
+# =====================================================================
+# MÉTRICAS
+# =====================================================================
+def _dia(valor):
+    try:
+        return date.fromisoformat(str(valor)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def metricas(cx, desde=None, hasta=None):
+    """Cuánto se gasta en el taller y cuánto cuesta cada kilómetro.
+
+    Cuenta todas las órdenes del período menos las anuladas: las del
+    taller propio (trabajos más repuestos) y los servicios externos (lo
+    facturado). Los kilómetros salen de las lecturas diarias del
+    satelital: lo que marcó el odómetro al final del período menos lo que
+    marcaba al principio. Una unidad sin lecturas no tiene costo por km;
+    se la muestra igual, con su gasto.
+    """
+    hasta = _dia(hasta) or date.today()
+    desde = _dia(desde) or hasta - timedelta(days=89)
+    if desde > hasta:
+        desde, hasta = hasta, desde
+
+    base_sql = """
+        with o as (
+          select *, upper(replace(coalesce(patente, ''), ' ', '')) as pat
+          from v_ordenes
+          where estado <> 'anulada' and fecha between %(desde)s and %(hasta)s
+        ),
+        km as (
+          select upper(replace(patente, ' ', '')) as pat,
+                 greatest(max(km) - min(km), 0) as km
+          from odometros
+          where fecha between %(desde)s and %(hasta)s and km > 0
+          group by 1
+        )"""
+    rango = {"desde": desde, "hasta": hasta}
+
+    unidades = [dict(f) for f in cx.execute(base_sql + """
+        select o.pat as patente,
+               max(o.interno) as interno, max(o.marca) as marca, max(o.modelo) as modelo,
+               count(*)::int as ordenes,
+               coalesce(sum(o.total) filter (where o.mantenimiento = 'preventivo'), 0) as preventivo,
+               coalesce(sum(o.total) filter (where o.mantenimiento = 'correctivo'), 0) as correctivo,
+               coalesce(sum(o.total) filter (where o.mantenimiento is null), 0) as sin_clasificar,
+               coalesce(sum(o.total), 0) as total,
+               coalesce(sum(o.total) filter (where o.tipo = 'externa'), 0) as externo,
+               max(o.fecha) as ultima,
+               max(km.km) as km
+        from o left join km on km.pat = o.pat
+        group by o.pat
+        order by total desc""", rango).fetchall()]
+
+    meses = [dict(f) for f in cx.execute(base_sql + """
+        select to_char(date_trunc('month', o.fecha), 'YYYY-MM') as mes,
+               count(*)::int as ordenes,
+               coalesce(sum(o.total) filter (where o.mantenimiento = 'preventivo'), 0) as preventivo,
+               coalesce(sum(o.total) filter (where o.mantenimiento = 'correctivo'), 0) as correctivo,
+               coalesce(sum(o.total) filter (where o.mantenimiento is null), 0) as sin_clasificar,
+               coalesce(sum(o.total), 0) as total
+        from o group by 1 order by 1""", rango).fetchall()]
+
+    talleres = [dict(f) for f in cx.execute(base_sql + """
+        select coalesce(nullif(trim(o.taller), ''), 'Sin taller indicado') as taller,
+               count(*)::int as ordenes, coalesce(sum(o.total), 0) as total
+        from o where o.tipo = 'externa'
+        group by 1 order by total desc limit 12""", rango).fetchall()]
+
+    def suma(campo, filas=unidades):
+        return sum(float(f[campo] or 0) for f in filas)
+
+    # El costo por km de la flota se calcula solo con las unidades que
+    # tienen kilómetros: mezclar gasto de unidades sin lecturas con km de
+    # las que sí tienen inflaría el número.
+    con_km = [u for u in unidades if u["km"] and float(u["km"]) > 0]
+    km = suma("km", con_km)
+
+    def por_km(campo):
+        return round(suma(campo, con_km) / km, 2) if km else None
+
+    flota_km = cx.execute("""
+        select coalesce(sum(k), 0) as km, count(*)::int as unidades from (
+          select greatest(max(km) - min(km), 0) as k from odometros
+          where fecha between %(desde)s and %(hasta)s and km > 0
+          group by upper(replace(patente, ' ', ''))) x""", rango).fetchone()
+
+    return {
+        "desde": desde.isoformat(), "hasta": hasta.isoformat(),
+        "resumen": {
+            "ordenes": sum(u["ordenes"] for u in unidades),
+            "total": suma("total"), "preventivo": suma("preventivo"),
+            "correctivo": suma("correctivo"), "sin_clasificar": suma("sin_clasificar"),
+            "externo": suma("externo"),
+            "unidades": len(unidades), "unidades_con_km": len(con_km),
+            "km": km, "por_km": por_km("total"),
+            "preventivo_por_km": por_km("preventivo"),
+            "correctivo_por_km": por_km("correctivo"),
+            "km_flota": float(flota_km["km"] or 0),
+            "unidades_flota_km": flota_km["unidades"],
+        },
+        "unidades": unidades, "meses": meses, "talleres": talleres,
     }
 
 

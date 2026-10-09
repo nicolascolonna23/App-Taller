@@ -757,7 +757,9 @@ class App(CupoPorPedido, gom.Handler):
                         return self._responder(gom.jstr(comb.tickets(
                             cx, (params.get("q") or [""])[0],
                             (params.get("mes") or [None])[0],
-                            int(pagina) if pagina.isdigit() else 0)))
+                            int(pagina) if pagina.isdigit() else 0,
+                            (params.get("orden") or ["fecha"])[0],
+                            (params.get("sentido") or ["desc"])[0])))
                     # Cómo entra el combustible. La pantalla esconde las
                     # zonas de importación cuando se carga a mano: dos
                     # cajas que no se usan nunca invitan a subir cualquier
@@ -804,6 +806,12 @@ class App(CupoPorPedido, gom.Handler):
                 return
             try:
                 with base.conectar() as cx:
+                    # Las métricas del taller: gasto por unidad y costo por km.
+                    params = parse_qs(urlparse(self.path).query)
+                    if (params.get("vista") or [""])[0] == "metricas":
+                        return self._responder(gom.jstr(ots.metricas(
+                            cx, (params.get("desde") or [None])[0],
+                            (params.get("hasta") or [None])[0])))
                     return self._responder(gom.jstr(ots.listar(cx, self.usuario)))
             except psycopg.errors.UndefinedTable as e:
                 return self._error(base.que_falta(e,

@@ -685,7 +685,20 @@ def serie_consumo(cx, limite=36):
 POR_PAGINA = 50
 
 
-def tickets(cx, texto="", mes=None, pagina=0):
+# Por qué columna se puede ordenar el registro. La pantalla manda el
+# nombre y acá se traduce: nunca llega SQL desde el navegador.
+ORDEN_TICKETS = {
+    "remito": "coalesce(c.remito_bruto, c.remito)",
+    "fecha": "c.fecha",
+    "unidad": "c.patente",
+    "estacion": "lower(c.estacion)",
+    "litros": "c.litros",
+    "importe": "c.importe",
+    "chofer": "lower(c.chofer)",
+}
+
+
+def tickets(cx, texto="", mes=None, pagina=0, orden="fecha", sentido="desc"):
     """Una página del registro de tickets, con los totales del filtro.
 
     El filtro y la paginación se resuelven en la base. Antes viajaban todos
@@ -696,7 +709,7 @@ def tickets(cx, texto="", mes=None, pagina=0):
     plano = "".join(ch for ch in str(texto or "").lower() if not ch.isspace())
     if plano:
         condiciones.append("""replace(lower(concat_ws(' ', c.remito_bruto, c.remito,
-            c.patente, c.estacion, u.interno)), ' ', '') like %s""")
+            c.patente, c.estacion, u.interno, c.chofer)), ' ', '') like %s""")
         valores.append(f"%{plano}%")
     if mes:
         condiciones.append("to_char(c.fecha, 'YYYY-MM') = %s")
@@ -708,11 +721,13 @@ def tickets(cx, texto="", mes=None, pagina=0):
     total = _uno(cx, f"""select count(*)::int as n, coalesce(sum(c.litros), 0) as litros
                          {desde}""", valores)
     pagina = max(0, int(pagina or 0))
+    columna = ORDEN_TICKETS.get(orden, ORDEN_TICKETS["fecha"])
+    sentido = "asc" if sentido == "asc" else "desc"
     filas = _uno(cx, f"""
         select c.id, c.remito, c.remito_bruto, c.fecha, c.patente, c.estacion,
                c.litros, c.importe, c.chofer, u.interno
         {desde}
-        order by c.fecha desc nulls last, c.id desc
+        order by {columna} {sentido} nulls last, c.id desc
         limit %s offset %s""", valores + [POR_PAGINA, pagina * POR_PAGINA])
     fila = total[0] if total else {"n": 0, "litros": 0}
     return {"tickets": filas, "total": fila["n"], "litros": fila["litros"],
