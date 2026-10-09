@@ -594,7 +594,7 @@ function pintarFac(){
     ${d.proveedor_id&&d.proveedor_como==='parecido'?`<p class="sub">Proveedor reconocido por nombre parecido: «${esc(d.proveedor||'')}» se tomó como ${esc(d.proveedor_registro||'')}.</p>`:''}
     ${!d.proveedor_id&&d.proveedor?`<p class="sub">Proveedor fuera del registro. Puede cargarse en Parámetros para que se reconozca en las próximas facturas.</p>`:''}
     <p class="sub">El costo de cada cubierta se carga como gasto de la unidad donde se monte por primera vez, como servicio externo de este proveedor.</p>
-    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th>Entra</th><th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Cant.</th><th class="num">Costo c/u ($)</th></tr></thead><tbody>
+    <div class="tablewrap" style="margin-top:12px"><table class="datos"><thead><tr><th>Entra</th><th>Marca</th><th>Modelo</th><th>Medida</th><th class="num">Cant.</th><th class="num">Costo c/u sin IVA</th></tr></thead><tbody>
     ${r.map((x,i)=>`<tr><td><input type="checkbox" data-fe="${i}" checked></td>
       <td><input class="chico" data-fm="${i}" value="${esc(x.marca||'')}"></td>
       <td><input class="chico" data-fo="${i}" value="${esc(x.modelo||'')}"></td>

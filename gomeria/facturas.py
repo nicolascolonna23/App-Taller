@@ -67,7 +67,8 @@ HERRAMIENTA = {
             },
             "monto": {
                 "type": ["number", "null"],
-                "description": "El TOTAL a pagar, con IVA incluido, en números. "
+                "description": "El importe SIN IVA: el subtotal o neto gravado, "
+                               "más lo no gravado si lo hay. Sin IVA ni percepciones. "
                                "Importe sin símbolo de moneda ni separador de miles. "
                                "con la coma decimal: '1.234.567,89' es 1234567.89."
             },
@@ -157,8 +158,9 @@ Reglas:
 1. Copiá lo que dice la factura. No completes lo que no está: un campo que
    no aparece va en null. Un dato inventado se guarda igual que uno bueno y
    después nadie sabe cuál era cuál.
-2. El monto es el TOTAL final, el que se paga. No el subtotal, no el neto
-   gravado, no el IVA.
+2. El monto es el importe SIN IVA: el subtotal o neto gravado (más lo no
+   gravado, si lo hay). No el total con IVA, no el IVA, no las percepciones.
+   En la empresa todos los costos se registran sin IVA.
 3. Los números vienen en formato argentino: el punto separa los miles y la
    coma los decimales. $1.234.567,89 es 1234567.89.
 4. Las fechas vienen día/mes/año. 03/11/2026 es el 3 de noviembre.
@@ -211,9 +213,9 @@ def _buscar_patente(valor, patentes):
 def _repartir(unidades, total, patentes):
     """Las unidades de la factura, cada una con su parte del total.
 
-    La factura trae un importe por renglón, normalmente sin IVA, y un
-    total con IVA y percepciones. Cada unidad se lleva del total la misma
-    proporción que sus renglones tienen del subtotal: así la suma de las
+    La factura trae un importe por renglón y un monto sin IVA, que es el
+    que se registra. Cada unidad se lleva del monto la misma proporción
+    que sus renglones tienen del subtotal: así la suma de las
     órdenes da exactamente lo que se pagó. La última se queda con los
     centavos del redondeo.
     """

@@ -442,7 +442,7 @@
         Control de flota o Alertas, y ese registro crea su propia orden.</p></div>
     <div><label>Fecha</label><input id="xFecha" type="date" required></div>
     <div><label>Nº de factura</label><input id="xFactura" placeholder="0001-00012345"></div>
-    <div><label id="xMontoRotulo">Monto</label><input id="xMonto" type="number" min="0" step="0.01"></div>
+    <div><label id="xMontoRotulo">Monto sin IVA</label><input id="xMonto" type="number" min="0" step="0.01"></div>
     <div class="solo-una"><label>Kilómetros</label><input id="xKm" type="number" min="0" step="1" required></div>
     <div><label>Proveedor</label><select id="xProveedor"><option value="">No está en el registro</option></select>
       <p class="pista" id="xProveedorPista">Los proveedores se cargan en Parámetros.</p></div>
@@ -1226,7 +1226,7 @@ function activarReparto(filas) {
   filas.forEach(filaReparto);
   $('#reparto').hidden = false;
   document.querySelectorAll('#modalExterna .solo-una').forEach(e => e.hidden = true);
-  $('#xMontoRotulo').textContent = 'Total de la factura';
+  $('#xMontoRotulo').textContent = 'Total de la factura sin IVA';
   $('#guardarExterna').textContent = `Guardar ${filas.length} servicios`;
   sumarReparto();
 }
@@ -1239,7 +1239,7 @@ function desactivarReparto(conservar) {
   $('#reparto').hidden = true;
   $('#repartoSuma').textContent = '';
   document.querySelectorAll('#modalExterna .solo-una').forEach(e => e.hidden = false);
-  $('#xMontoRotulo').textContent = 'Monto';
+  $('#xMontoRotulo').textContent = 'Monto sin IVA';
   $('#guardarExterna').textContent = 'Guardar servicio';
   if (resto.length === 1) {
     $('#xUnidad').value = resto[0].unidad_id ? String(resto[0].unidad_id) : '';
