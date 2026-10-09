@@ -26,7 +26,7 @@ button{font:inherit;cursor:pointer;border-radius:5px;border:1px solid var(--line
 @keyframes tr-punto{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-3px)}}
 
 
-#messages{padding:24px;min-height:340px;max-height:62vh;overflow:auto;scroll-behavior:smooth}
+#messages{position:relative;padding:24px;min-height:340px;max-height:62vh;overflow:auto;scroll-behavior:smooth}
 .empty{text-align:center;padding:25px 10px}.empty strong{font-size:20px}.empty p{color:var(--muted);font-size:13px}
 .embedded #welcome>strong,.embedded #welcome>p{display:none}
 .examples{display:grid;grid-template-columns:1fr 1fr;gap:10px;max-width:660px;margin:20px auto 0}.examples button{text-align:left;font-size:12px;padding:15px}
@@ -135,9 +135,20 @@ function escribir(article,caja,texto){
     article.classList.add('escribiendo');titan('habla');
     const pasos=Math.max(20,Math.min(160,Math.round(plano.length/6))),total=Math.max(800,Math.min(4000,plano.length*18));
     let i=0;const t=setInterval(()=>{i++;caja.textContent=plano.slice(0,Math.ceil(plano.length*i/pasos));
-      const m=$('#messages');m.scrollTop=m.scrollHeight;
+      seguir(article);
       if(i>=pasos){clearInterval(t);article.classList.remove('escribiendo');formatear(caja,texto);titan('quieto');listo();}},total/pasos);
   });
+}
+/* Baja con la respuesta mientras se escribe, pero nunca más allá de su
+   comienzo: en la tarjeta de la portada el chat es bajo y, si se iba hasta
+   el final, el principio de la respuesta quedaba fuera de vista. */
+function seguir(article){
+  const m=$('#messages');
+  if(m.scrollHeight>m.clientHeight+1){m.scrollTop=Math.min(m.scrollHeight-m.clientHeight,Math.max(0,article.offsetTop-12));return;}
+  // Sin barra propia (celular y tarjeta de la portada) baja la página entera.
+  const esc=$('#escenario'),tapa=getComputedStyle(esc).position==='sticky'&&esc.offsetParent?esc.offsetHeight:0;
+  const r=article.getBoundingClientRect(),falta=r.bottom-innerHeight;
+  if(falta>0)scrollBy(0,Math.max(0,Math.min(falta,r.top-tapa-12)));
 }
 function fuentesDe(fuentes){
   const box=document.createElement('div');box.className='sources';box.append(document.createTextNode('FUENTES CONSULTADAS'));
@@ -157,7 +168,7 @@ async function responder(text,fuentes,pregunta){
   await escribir(article,article.querySelector('.answer'),text);
   if(fuentes.length)article.append(fuentesDe(fuentes));
   article.append(ensenar(pregunta,text));
-  $('#messages').scrollTop=$('#messages').scrollHeight;
+  seguir(article);
 }
 /* Enseñar a Titán desde una respuesta: la corrección queda en Conocimiento de Titán. */
 function ensenar(pregunta,respuesta){
@@ -190,10 +201,10 @@ async function send(event){event.preventDefault();const question=$('#question').
   const previous=history.slice(-12).map(m=>({role:m.role,content:m.content.slice(0,6000)}));while(previous.length && previous.reduce((n,m)=>n+m.content.length,question.length)>24000) previous.splice(0,2);const messages=[...previous,{role:'user',content:question}];busy=true;controls();$('#error').hidden=true;$('#status').textContent='Consultando el sistema…';const userMessage=message('user',question);$('#question').value='';titan('piensa');
   let data;
   try{const r=await fetch('/api/asistente',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mensajes:messages})});data=await r.json();if(!r.ok)throw Error(data.error||'No se pudo responder.');if(typeof data.respuesta!=='string'||!Array.isArray(data.fuentes))throw Error('Respuesta inválida. Intente nuevamente.');}
-  catch(e){userMessage.remove();$('#question').value=question;titan('error');$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();return;}
+  catch(e){userMessage.remove();$('#question').value=question;titan('error');$('#error').textContent=e.message||'No se pudo conectar. Intente nuevamente.';$('#error').hidden=false;busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus({preventScroll:true});return;}
   history=[...messages,{role:'assistant',content:data.respuesta}];$('#status').textContent='Respondiendo…';
   await responder(data.respuesta,data.fuentes,question);
-  busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus();
+  busy=false;$('#status').textContent='Solo consulta · datos del sistema';controls();$('#question').focus({preventScroll:true});
 }
 $('#form').onsubmit=send;$('#question').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();$('#form').requestSubmit();}};
 $('#reset').onclick=()=>{history=[];document.querySelectorAll('.message').forEach(m=>m.remove());$('#welcome').hidden=false;$('#error').hidden=true;$('#question').value='';titan('quieto');$('#question').focus();};
